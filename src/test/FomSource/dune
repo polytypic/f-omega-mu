@@ -1,0 +1,3 @@
+(test
+ (name FomSourceTest)
+ (libraries FomSource FomTest))

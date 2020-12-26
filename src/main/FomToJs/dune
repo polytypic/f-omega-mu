@@ -1,0 +1,3 @@
+(library
+ (name FomToJs)
+ (libraries FomSyntax FomPP FomBasis))

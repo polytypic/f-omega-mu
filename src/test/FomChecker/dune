@@ -1,0 +1,3 @@
+(test
+ (name FomCheckerTest)
+ (libraries FomChecker FomParser FomTest))

@@ -1,0 +1,20 @@
+language: bash
+
+matrix:
+  include:
+    - os: linux
+      dist: focal
+      addons:
+        apt:
+          packages:
+            - opam
+
+git:
+  depth: 5
+  submodules: false
+
+before_install:
+  - export -f travis_nanoseconds travis_time_start travis_time_finish
+
+script:
+  - ./script/travis.sh

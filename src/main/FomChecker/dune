@@ -1,0 +1,3 @@
+(library
+ (name FomChecker)
+ (libraries FomSyntax FomDiag FomBasis))

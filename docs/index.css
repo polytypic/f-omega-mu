@@ -1,0 +1,55 @@
+.markdown-body {
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 980px;
+  margin: 45px auto;
+  padding: 45px;
+  border: 1px #30363d solid;
+  border-radius: 3px;
+  color: #c9d1d9;
+}
+
+.CodeMirror.cm-s-dracula {
+  font: 13.6px Consolas, 'Liberation Mono', SF Mono, Menlo, Courier, monospace;
+  line-height: 19.72px;
+  height: auto;
+  background: #20222e !important;
+  border: 2px #282a36 solid;
+  border-radius: 5px;
+}
+
+#fomDiv .CodeMirror.cm-s-dracula:hover,
+#resultDiv .CodeMirror.cm-s-dracula:hover,
+#typDiv .CodeMirror.cm-s-dracula:hover,
+#jsDiv .CodeMirror.cm-s-dracula:hover {
+  border: 2px #40464d solid;
+}
+
+#resultDiv .CodeMirror.cm-s-dracula,
+#jsDiv .CodeMirror.cm-s-dracula {
+  background: #282a36 !important;
+  margin-bottom: 1em;
+}
+
+#typDiv .CodeMirror {
+  background: #30333e !important;
+  border: 2px #30333e solid;
+  box-shadow: 3px 3px 10px #0d1117;
+  position: fixed;
+  top: 1em;
+  right: 1em;
+  z-index: 10;
+}
+
+#typDiv .CodeMirror .cm-keyword {
+  color: #50fa7b;
+}
+
+.om {
+  font-size: 50%;
+  display: inline-flex;
+  transform: translate(0, 8%);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column-reverse;
+}

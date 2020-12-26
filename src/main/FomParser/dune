@@ -1,0 +1,9 @@
+(library
+ (name FomParser)
+ (libraries FomSyntax FomDiag menhirLib sedlex uutf)
+ (preprocess
+  (pps sedlex.ppx)))
+
+(menhir
+ (modules Grammar)
+ (flags --no-dollars --unused-token Comment))

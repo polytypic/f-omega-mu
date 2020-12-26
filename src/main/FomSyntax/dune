@@ -1,0 +1,3 @@
+(library
+ (name FomSyntax)
+ (libraries FomBasis FomSource FomPP bignum))

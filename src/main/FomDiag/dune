@@ -1,0 +1,3 @@
+(library
+ (name FomDiag)
+ (libraries FomSyntax))

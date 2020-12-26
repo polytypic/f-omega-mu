@@ -1,0 +1,3 @@
+(test
+ (name FomSyntaxTest)
+ (libraries FomSyntax FomParser FomTest))

@@ -1,0 +1,3 @@
+(test
+ (name FomParserTest)
+ (libraries FomSyntax FomParser FomTest menhirLib sedlex))

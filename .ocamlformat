@@ -1,0 +1,12 @@
+version=0.16.0
+
+module-item-spacing=compact
+
+space-around-arrays=false
+space-around-lists=false
+space-around-records=false
+space-around-variants=false
+
+cases-exp-indent=2
+
+if-then-else=fit-or-vertical
