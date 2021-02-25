@@ -147,6 +147,60 @@ module Exp = struct
     | `App (`App (`Const _, x), y) -> is_total x && is_total y
     | `Case (_, _) | `Mu _ | `Target _ | `App (_, _) -> false
 
+  module LabelMap = Map.Make (Label)
+
+  let rec inline_select i m e =
+    let ( let* ) = Option.bind in
+    let traverse f xs =
+      let rec loop ys = function
+        | [] -> Some (List.rev ys)
+        | x :: xs ->
+          let* y = f x in
+          loop (y :: ys) xs
+      in
+      loop [] xs
+    in
+    match e with
+    | `Select (`Var i', l) when Id.equal i i' -> Some (`Var (LabelMap.find l m))
+    | `Var i' -> if Id.equal i i' then None else Some e
+    | `Const _ | `Target _ -> Some e
+    | `Lam (i', b) ->
+      if Id.equal i i' then
+        Some e
+      else
+        let* b = inline_select i m b in
+        Some (`Lam (i', b))
+    | `App (f, x) ->
+      let* f = inline_select i m f in
+      let* x = inline_select i m x in
+      Some (`App (f, x))
+    | `Mu e ->
+      let* e = inline_select i m e in
+      Some (`Mu e)
+    | `IfElse (c, t, e) ->
+      let* c = inline_select i m c in
+      let* t = inline_select i m t in
+      let* e = inline_select i m e in
+      Some (`IfElse (c, t, e))
+    | `Product fs ->
+      let* fs =
+        fs
+        |> traverse (fun (l, e) ->
+               let* e = inline_select i m e in
+               Some (l, e))
+      in
+      Some (`Product fs)
+    | `Select (e, l) ->
+      let* e = inline_select i m e in
+      Some (`Select (e, l))
+    | `Inject (l, e) ->
+      let* e = inline_select i m e in
+      Some (`Inject (l, e))
+    | `Case (e, cs) ->
+      let* e = inline_select i m e in
+      let* cs = inline_select i m cs in
+      Some (`Case (e, cs))
+
   let rec simplify e =
     match e with
     | `Const _ | `Target _ -> e
@@ -159,6 +213,24 @@ module Exp = struct
       | e -> `Lam (i, e))
     | `App (f, x) -> (
       match (simplify f, simplify x) with
+      | `Lam (i, e), (`Product fs as x) -> (
+        let m =
+          fs |> List.to_seq
+          |> Seq.map (fun (l, _) ->
+                 let i = Id.freshen {Id.it = l.Label.it; at = l.at} in
+                 (l, i))
+          |> LabelMap.of_seq
+        in
+        match inline_select i m e with
+        | None -> `App (f, x)
+        | Some e ->
+          fs |> List.rev
+          |> List.fold_left
+               (fun b (l, e) ->
+                 let i = LabelMap.find l m in
+                 `App (`Lam (i, b), e))
+               e
+          |> simplify)
       | `Lam (i, e), `Var _ -> simplify (subst i x e)
       | `Lam (i, e), `App (`Lam (j, f), y) ->
         let j', f' =
