@@ -185,14 +185,14 @@ module Exp = struct
 
   let binds = function `App (`Lam _, _) | `Case _ -> true | _ -> false
 
-  let rec to_js_in_body ?(first = false) ids exp =
+  let rec to_js_in_body ?(first = false) ?(block = false) ids exp =
     let open Reader in
     match exp with
     | `App (`Lam (i, e), v) ->
       if Ids.mem i ids then
         let i' = Id.freshen i in
         let vi' = `Var i' in
-        to_js_in_body ~first ids (`App (`Lam (i', subst i vi' e), v))
+        to_js_in_body ~first ~block ids (`App (`Lam (i', subst i vi' e), v))
       else
         let* v =
           match v with
@@ -222,8 +222,11 @@ module Exp = struct
       let* fs =
         fs
         |> traverse (fun (l, e) ->
-               let* e = to_js_in_body Ids.empty (simplify (`App (e, v))) in
-               return (str "case '" ^ Label.to_js l ^ str "': {" ^ e ^ str "}"))
+               let* e =
+                 to_js_in_body ~first:true ~block:true Ids.empty
+                   (simplify (`App (e, v)))
+               in
+               return (str "case '" ^ Label.to_js l ^ str "': " ^ e))
       in
       return
         (braces_if first
@@ -237,7 +240,7 @@ module Exp = struct
         (braces_if first
            (str "const $ = " ^ x ^ str "; return " ^ cs ^ str "[$[0]]($[1])"))
     | _ ->
-      if first then
+      if first && not block then
         to_js ~body:true exp
       else
         let* e = to_js exp in
