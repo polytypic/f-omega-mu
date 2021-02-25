@@ -32,7 +32,7 @@ let js_loc (begins, ends) =
     val ends = js_pos ends
   end
 
-let js_use_def (def, o) =
+let js_use_def ?(max_width = 60) (def, o) =
   object%js
     val def = js_loc def
 
@@ -49,7 +49,7 @@ let js_use_def (def, o) =
       | `TypId (id, kind) ->
         [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 2]
         |> concat |> group)
-      |> to_js_string ~max_width:60
+      |> to_js_string ~max_width
   end
 
 module JsType = struct
@@ -63,7 +63,7 @@ let stringify = Js.Unsafe.pure_js_expr "JSON.stringify"
 
 let js_codemirror_mode =
   object%js
-    method format (value : unit Js.t) =
+    method format (value : unit Js.t) max_width =
       let known = Hashtbl.create 100 in
       let rec format_object obj =
         let keys = Js.object_keys obj in
@@ -72,7 +72,8 @@ let js_codemirror_mode =
                [
                  utf8string (Js.to_string key);
                  space_equals;
-                 [break_1; format (Js.Unsafe.get obj key)] |> concat |> nest 1;
+                 [break_1; format (Js.Unsafe.get obj key)]
+                 |> concat |> nest 1 |> group;
                ]
                |> concat |> group)
         |> separate comma_break_1 |> braces
@@ -80,7 +81,7 @@ let js_codemirror_mode =
         [
           utf8string (Js.to_string (Js.Unsafe.get array 0));
           space_equals;
-          [break_1; format (Js.Unsafe.get array 1)] |> concat |> nest 1;
+          [break_1; format (Js.Unsafe.get array 1)] |> concat |> nest 1 |> group;
         ]
         |> concat |> brackets
       and format value =
@@ -131,19 +132,20 @@ let js_codemirror_mode =
           used := true;
           utf8format "α_%d" n
       in
-      format value |> to_js_string
+      format value |> to_js_string ~max_width
 
-    method check input =
+    method check input max_width =
       let env = Env.empty () in
       let def_uses () =
-        env#annotations |> Hashtbl.to_seq |> Seq.map js_use_def |> Array.of_seq
-        |> Js.array
+        env#annotations |> Hashtbl.to_seq
+        |> Seq.map (js_use_def ~max_width)
+        |> Array.of_seq |> Js.array
       in
       try
         let typ =
           Js.to_string input
           |> parse_utf_8 Grammar.program Lexer.plain
-          |> Exp.check |> Reader.run env |> Typ.pp |> to_js_string
+          |> Exp.check |> Reader.run env |> Typ.pp |> to_js_string ~max_width
         in
         object%js
           val typ = typ
@@ -188,7 +190,7 @@ let js_codemirror_mode =
 
                        val ends = js_pos ends
 
-                       val message = msg |> to_js_string
+                       val message = msg |> to_js_string ~max_width
                      end)
               |> Js.array
             | _ -> Js.array [||]

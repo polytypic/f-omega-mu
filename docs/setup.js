@@ -54,6 +54,18 @@ function clearMarkers(markers) {
   markers.length = 0
 }
 
+function getWidth(editor) {
+  const charWidth = editor.defaultCharWidth()
+  const scrollArea = editor.getScrollInfo()
+  const scrollLeft = editor.doc.scrollLeft
+
+  const leftColumn = Math.ceil(scrollLeft > 0 ? scrollLeft / charWidth : 0)
+  const rightPosition = scrollLeft + (scrollArea.clientWidth - 30)
+  const rightColumn = Math.floor(rightPosition / charWidth)
+
+  return Math.max(0, rightColumn - leftColumn)
+}
+
 //
 
 const theme = 'dracula'
@@ -187,12 +199,12 @@ const run = onWorker(
     importScripts('prelude.js')
   },
   function () {
-    return jsCM.getValue()
+    return {js: jsCM.getValue(), width: getWidth(fomCM)}
   },
-  function (js) {
+  function (params) {
     try {
       // TODO: Timeout
-      return fom.format(eval(js))
+      return fom.format(eval(params.js), params.width)
     } catch (error) {
       return error.toString()
     }
@@ -212,15 +224,16 @@ const compile = onWorker(
     importScripts('https://unpkg.com/prettier@2.2.1/parser-babel.js')
   },
   function () {
-    return fomCM.getValue()
+    return {exp: fomCM.getValue(), width: getWidth(fomCM)}
   },
-  function (exp) {
-    const js = fom.compile(exp)
+  function (params) {
+    const js = fom.compile(params.exp)
     try {
       return prettier
         .format(js, {
           arrowParens: 'avoid',
           bracketSpacing: false,
+          printWidth: params.width,
           parser: 'babel',
           plugins: [prettierPlugins.babel],
           singleQuote: true,
@@ -250,10 +263,11 @@ const check = throttled(
     },
     function () {
       clearMarkers(diagnosticMarkers)
-      return fomCM.getValue()
+      const width = Math.min(80, (getWidth(fomCM) * 0.85) | 0)
+      return {exp: fomCM.getValue(), width: width}
     },
-    function (exp) {
-      return fom.check(exp)
+    function (params) {
+      return fom.check(params.exp, params.width)
     },
     function (data) {
       result = data
