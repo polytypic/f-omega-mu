@@ -11,11 +11,11 @@ let exists = utf8string "∃"
 
 (* Grouping *)
 
-let nested_wrap nesting wrapper doc = doc |> wrapper |> nest nesting |> group
-let angles = nested_wrap 1 angles
-let braces = nested_wrap 1 braces
-let brackets = nested_wrap 1 brackets
-let parens = nested_wrap 2 parens
+let wrap wrapper doc = align doc |> wrapper |> group
+let angles = wrap angles
+let braces = wrap braces
+let brackets = wrap brackets
+let parens = wrap parens
 let wrap_if wrapper cond doc = if cond then wrapper doc else doc
 let angles_if = wrap_if angles
 let braces_if = wrap_if braces
