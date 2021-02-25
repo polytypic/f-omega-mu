@@ -134,15 +134,33 @@ module Exp = struct
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case (e, cs) -> `Case (subst i the e, subst i the cs)
 
-  let binds = function `App (`Lam _, _) | `Case _ -> true | _ -> false
+  let rec is_total e =
+    match e with
+    | `Const _ | `Var _ | `Lam _ -> true
+    | `Mu (`Lam (_, e)) -> is_total e
+    | `IfElse (c, t, e) -> is_total c && is_total t && is_total e
+    | `Product fs -> fs |> List.for_all (fun (_, e) -> is_total e)
+    | `Select (e, _) -> is_total e
+    | `Inject (_, e) -> is_total e
+    | `App (`Lam (_, e), x) -> is_total e && is_total x
+    | `App (`Const _, x) -> is_total x
+    | `App (`App (`Const _, x), y) -> is_total x && is_total y
+    | `Case (_, _) | `Mu _ | `Target _ | `App (_, _) -> false
 
-  let rec to_js_in_body ?(first = false) ids exp =
-    let open Reader in
-    match exp with
-    | `App (`Lam (i, e), v) -> (
-      match v with
-      | `Var _ -> to_js_in_body ~first ids (subst i v e)
-      | `App (`Lam (j, f), w) ->
+  let rec simplify e =
+    match e with
+    | `Const _ | `Target _ -> e
+    | `Var _ -> e
+    | `Lam (i, e) -> (
+      match simplify e with
+      | `App (f, `Var i')
+        when Id.equal i i' && (not (is_free i f)) && is_total f ->
+        f
+      | e -> `Lam (i, e))
+    | `App (f, x) -> (
+      match (simplify f, simplify x) with
+      | `Lam (i, e), `Var _ -> simplify (subst i x e)
+      | `Lam (i, e), `App (`Lam (j, f), y) ->
         let j', f' =
           if is_free j e || Id.equal i j then
             let j' = Id.freshen j in
@@ -151,12 +169,31 @@ module Exp = struct
           else
             (j, f)
         in
-        to_js_in_body ~first ids (`App (`Lam (j', `App (`Lam (i, e), f')), w))
-      | _ when Ids.mem i ids ->
+        simplify (`App (`Lam (j', `App (`Lam (i, e), f')), y))
+      | `Lam (i, e), x when is_total x && not (is_free i e) -> e
+      | `Lam (i, `Var i'), x when Id.equal i i' -> x
+      | f, x -> `App (f, x))
+    | `Mu e -> `Mu (simplify e)
+    | `IfElse (c, t, e) -> (
+      match simplify c with
+      | `Const (`LitBool c) -> simplify (if c then t else e)
+      | _ -> `IfElse (c, simplify t, simplify e))
+    | `Product fs -> `Product (fs |> List.map (fun (l, e) -> (l, simplify e)))
+    | `Select (e, l) -> `Select (simplify e, l)
+    | `Inject (l, e) -> `Inject (l, simplify e)
+    | `Case (e, cs) -> `Case (simplify e, simplify cs)
+
+  let binds = function `App (`Lam _, _) | `Case _ -> true | _ -> false
+
+  let rec to_js_in_body ?(first = false) ids exp =
+    let open Reader in
+    match exp with
+    | `App (`Lam (i, e), v) ->
+      if Ids.mem i ids then
         let i' = Id.freshen i in
         let vi' = `Var i' in
         to_js_in_body ~first ids (`App (`Lam (i', subst i vi' e), v))
-      | _ ->
+      else
         let* v =
           match v with
           | `Mu (`Lam (f, (`Lam (_, _) as l)))
@@ -167,7 +204,7 @@ module Exp = struct
         let* e = to_js_in_body (Ids.add i ids) e in
         return
           (braces_if first
-             (str "const " ^ Id.to_js i ^ str " = " ^ v ^ str "; " ^ e)))
+             (str "const " ^ Id.to_js i ^ str " = " ^ v ^ str "; " ^ e))
     | `IfElse (c, t, e) ->
       if first && not (binds t || binds e) then
         to_js ~body:true exp
@@ -185,7 +222,7 @@ module Exp = struct
       let* fs =
         fs
         |> traverse (fun (l, e) ->
-               let* e = to_js_in_body Ids.empty (`App (e, v)) in
+               let* e = to_js_in_body Ids.empty (simplify (`App (e, v))) in
                return (str "case '" ^ Label.to_js l ^ str "': {" ^ e ^ str "}"))
       in
       return
@@ -356,4 +393,6 @@ module Exp = struct
       return (parens_if (body || atom) (str (Buffer.contents buffer)))
 end
 
-let to_js exp = to_string (Exp.to_js ~body:true (Exp.erase exp) ())
+let to_js exp =
+  exp |> Exp.erase |> Exp.simplify |> Exp.to_js ~body:true |> Reader.run ()
+  |> to_string
