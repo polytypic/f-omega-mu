@@ -41,13 +41,13 @@ let js_use_def ?(max_width = 60) (def, o) =
     val annot =
       (match o#annot with
       | `Label (id, typ) ->
-        [Label.pp id; colon; [break_1; Typ.pp typ] |> concat |> nest 2]
+        [Label.pp id; colon; [break_1; Typ.pp typ] |> concat |> nest 1]
         |> concat |> group
       | `ExpId (id, typ) ->
-        [Exp.Id.pp id; colon; [break_1; Typ.pp typ] |> concat |> nest 2]
+        [Exp.Id.pp id; colon; [break_1; Typ.pp typ] |> concat |> nest 1]
         |> concat |> group
       | `TypId (id, kind) ->
-        [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 2]
+        [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 1]
         |> concat |> group)
       |> to_js_string ~max_width
   end
