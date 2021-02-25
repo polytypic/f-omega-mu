@@ -23,6 +23,7 @@
 - Documentation
   - non-trivial examples
 - ToJs:
+  - perform variable binding optimizations as a separate pass
   - optimize:
     - [tail calls](https://stackoverflow.com/a/54721813)
     - hoist constant values (e.g. `rec`, `["nil": {}]}` -> `[nil, empty]`)

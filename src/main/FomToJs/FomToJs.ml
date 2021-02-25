@@ -142,6 +142,16 @@ module Exp = struct
     | `App (`Lam (i, e), v) -> (
       match v with
       | `Var _ -> to_js_in_body ~first ids (subst i v e)
+      | `App (`Lam (j, f), w) ->
+        let j', f' =
+          if is_free j e || Id.equal i j then
+            let j' = Id.freshen j in
+            let vj' = `Var j' in
+            (j', subst j vj' f)
+          else
+            (j, f)
+        in
+        to_js_in_body ~first ids (`App (`Lam (j', `App (`Lam (i, e), f')), w))
       | _ when Ids.mem i ids ->
         let i' = Id.freshen i in
         let vi' = `Var i' in
