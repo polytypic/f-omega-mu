@@ -301,6 +301,7 @@ const check = throttled(
 check()
 
 fomCM.on('change', check)
+window.onresize = check
 
 //
 
