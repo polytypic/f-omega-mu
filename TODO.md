@@ -24,6 +24,7 @@
   - non-trivial examples
 - ToJs:
   - optimize:
+    - [tail calls](https://stackoverflow.com/a/54721813)
     - hoist constant values (e.g. `rec`, `["nil": {}]}` -> `[nil, empty]`)
     - specialize recursive definitions
       - mutually recursive function definitions
