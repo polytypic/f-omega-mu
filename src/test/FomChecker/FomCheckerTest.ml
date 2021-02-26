@@ -113,4 +113,6 @@ let () =
       } in
     to_list[int] a_stack
     |eof};
-  testChecksAs "target" "string" "target[string] \"'a string'\""
+  testChecksAs "target" "string" "target[string] \"'a string'\"";
+  testChecksAs "let type in const" "bool"
+    "let type t = int in 1 =[t] 2 || 3 !=[t] 4"

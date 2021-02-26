@@ -40,6 +40,18 @@ module Const = struct
     | `OpLogicalAnd | `OpLogicalOr -> Typ.arrow at bool (Typ.arrow at bool bool)
     | `OpLogicalNot -> Typ.arrow at bool bool
 
+  (* Substitution *)
+
+  let subst i t c =
+    match c with
+    | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
+    | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+    | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
+    | `OpLogicalNot | `OpLogicalOr ->
+      c
+    | `OpEq t' -> `OpEq (Typ.subst i t t')
+    | `OpEqNot t' -> `OpEqNot (Typ.subst i t t')
+
   let lit_false = `LitBool false
   let lit_true = `LitBool true
 end
@@ -97,7 +109,7 @@ let bin_op at lhs op rhs =
 
 let rec let_typ_in id typ exp =
   match exp with
-  | `Const _ -> exp
+  | `Const (at, c) -> `Const (at, Const.subst id typ c)
   | `Var _ -> exp
   | `Lam (at, i, t, e) -> `Lam (at, i, Typ.subst id typ t, let_typ_in id typ e)
   | `App (at, fn, arg) -> `App (at, let_typ_in id typ fn, let_typ_in id typ arg)

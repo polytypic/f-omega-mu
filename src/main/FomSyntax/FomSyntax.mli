@@ -107,6 +107,10 @@ module Exp : sig
     (* Typing *)
 
     val type_of : Loc.t -> t -> Typ.t
+
+    (* Substitution *)
+
+    val subst : Typ.Id.t -> Typ.t -> t -> t
   end
 
   module Id : Id.S

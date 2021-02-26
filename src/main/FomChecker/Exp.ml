@@ -46,7 +46,7 @@ let rec check_head e =
 and check it : _ -> Typ.t =
   let open Reader in
   match it with
-  | `Const (at, c) -> return (Const.type_of at c)
+  | `Const (at, c) -> typ_check_and_norm (Const.type_of at c)
   | `Var (at, x) -> (
     let* x_typ_opt e = Env.find_opt x e#get_exp_env in
     match x_typ_opt with
