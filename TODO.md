@@ -23,6 +23,7 @@
 - Documentation
   - non-trivial examples
 - ToJs:
+  - rewrite simplify to be closer to linear time
   - optimize:
     - [tail calls](https://stackoverflow.com/a/54721813)
     - hoist constant values (e.g. `rec`, `["nil": {}]}` -> `[nil, empty]`)
