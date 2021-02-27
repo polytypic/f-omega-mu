@@ -143,23 +143,28 @@ module Typ = struct
     | `App (_, fn, arg) -> is_free id fn || is_free id arg
     | `Mu (_, typ) | `ForAll (_, typ) | `Exists (_, typ) -> is_free id typ
 
-  let rec subst id the inn =
-    match inn with
-    | `Mu (at, typ) -> `Mu (at, subst id the typ)
-    | `Const _ -> inn
-    | `Var (_, id') -> if Id.equal id id' then the else inn
-    | `Lam (at, id', kind, body) ->
-      if Id.equal id id' then
-        inn
-      else if is_free id' the then
-        let id'' = Id.freshen id' in
-        let vid'' = `Var (at, id'') in
-        `Lam (at, id'', kind, subst id the (subst id' vid'' body))
+  let rec subst ?(replaced : Id.t -> unit = ignore) i' t' = function
+    | `Mu (at, t) -> `Mu (at, subst ~replaced i' t' t)
+    | `Const _ as inn -> inn
+    | `Var (_, i) as inn ->
+      if Id.equal i i' then (
+        replaced i;
+        t')
       else
-        `Lam (at, id', kind, subst id the body)
-    | `App (at, fn, arg) -> `App (at, subst id the fn, subst id the arg)
-    | `ForAll (at, typ) -> `ForAll (at, subst id the typ)
-    | `Exists (at, typ) -> `Exists (at, subst id the typ)
+        inn
+    | `Lam (at, i, k, t) as inn ->
+      if Id.equal i i' then
+        inn
+      else if is_free i t' then
+        let i'' = Id.freshen i in
+        let vi'' = `Var (at, i'') in
+        `Lam (at, i'', k, subst ~replaced i' t' (subst i vi'' t))
+      else
+        `Lam (at, i, k, subst ~replaced i' t' t)
+    | `App (at, f, x) ->
+      `App (at, subst ~replaced i' t' f, subst ~replaced i' t' x)
+    | `ForAll (at, t) -> `ForAll (at, subst ~replaced i' t' t)
+    | `Exists (at, t) -> `Exists (at, subst ~replaced i' t' t)
 
   (* Comparison *)
 

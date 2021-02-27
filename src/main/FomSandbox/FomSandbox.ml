@@ -49,6 +49,9 @@ let js_use_def ?(max_width = 60) (def, o) =
         |> concat |> group
       | `TypId (id, kind) ->
         [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 1]
+        |> concat |> group
+      | `TypAlias (id, typ) ->
+        [Typ.Id.pp id; space; equals; [break_1; Typ.pp typ] |> concat |> nest 1]
         |> concat |> group)
       |> to_js_string ~max_width
   end
@@ -146,8 +149,8 @@ let js_codemirror_mode =
         let typ =
           Js.to_string input
           |> parse_utf_8 Grammar.program Lexer.plain
-          |> elaborate |> Exp.check |> Reader.run env |> Typ.pp
-          |> to_js_string ~max_width
+          |> elaborate |> Reader.run env |> Exp.check |> Reader.run env
+          |> Typ.pp |> to_js_string ~max_width
         in
         object%js
           val typ = typ
@@ -202,7 +205,9 @@ let js_codemirror_mode =
       try
         Js.to_string input
         |> parse_utf_8 Grammar.program Lexer.plain
-        |> elaborate |> to_js |> Js.string
+        |> elaborate
+        |> Reader.run (Env.empty ())
+        |> to_js |> Js.string
       with _ -> Js.string ""
 
     method token input =

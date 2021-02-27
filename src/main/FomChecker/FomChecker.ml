@@ -1,4 +1,4 @@
-open FomSource
+open FomAnnot
 
 (* *)
 
@@ -7,17 +7,7 @@ module Typ = Typ
 module Exp = Exp
 
 module Env = struct
-  let empty
-      ?(annotations :
-          ( Loc.t,
-            < annot :
-                [ `Label of Label.t * Typ.t
-                | `ExpId of Exp.Id.t * Typ.t
-                | `TypId of Typ.Id.t * Kind.t ]
-            ; def : Loc.t
-            ; uses : Loc.t list ref > )
-          Hashtbl.t =
-        Hashtbl.create ~random:true 1000) () =
+  let empty ?(annot : Annot.t = Annot.empty ()) () =
     object
       val exp_env = Exp.Env.empty
 
@@ -31,6 +21,6 @@ module Env = struct
 
       method map_typ_env f = {<typ_env = f typ_env>}
 
-      method annotations = annotations
+      method annotations = annot
     end
 end

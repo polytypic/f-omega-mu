@@ -1,4 +1,5 @@
 open FomBasis
+open FomAnnot
 open FomDiag
 
 (* *)

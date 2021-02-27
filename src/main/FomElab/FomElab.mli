@@ -1,1 +1,3 @@
-val elaborate : FomCST.Exp.t -> FomAST.Exp.t
+open FomAnnot
+
+val elaborate : FomCST.Exp.t -> < annotations : Annot.t ; .. > -> FomAST.Exp.t

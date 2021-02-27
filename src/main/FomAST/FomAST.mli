@@ -75,7 +75,7 @@ module Typ : sig
   (* Substitution *)
 
   val is_free : Id.t -> t -> bool
-  val subst : Id.t -> t -> t -> t
+  val subst : ?replaced:(Id.t -> unit) -> Id.t -> t -> t -> t
 
   (* Formatting *)
 

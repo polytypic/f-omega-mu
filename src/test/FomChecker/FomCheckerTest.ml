@@ -31,8 +31,10 @@ let testChecksAs name typ exp =
   test name @@ fun () ->
   try
     let expected = parse_typ typ |> Typ.norm in
+    let env = Env.empty () in
     let actual =
-      exp |> parse_exp |> elaborate |> Exp.check |> Reader.run (Env.empty ())
+      exp |> parse_exp |> elaborate |> Reader.run env |> Exp.check
+      |> Reader.run env
     in
     if not (Typ.equal_of_norm expected actual) then (
       let open FomPP in
