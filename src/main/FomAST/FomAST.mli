@@ -121,25 +121,27 @@ module Exp : sig
 
   module Id : Id.S
 
-  type t =
+  type 't f =
     [ `Const of Loc.t * Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Typ.t * t
-    | `App of Loc.t * t * t
-    | `Gen of Loc.t * Typ.Id.t * Kind.t * t
-    | `Inst of Loc.t * t * Typ.t
-    | `LetIn of Loc.t * Id.t * t * t
-    | `Mu of Loc.t * t
-    | `IfElse of Loc.t * t * t * t
-    | `Product of Loc.t * (Label.t * t) list
-    | `Select of Loc.t * t * Label.t
-    | `Inject of Loc.t * Label.t * t * Typ.t
-    | `Case of Loc.t * t * t
-    | `Pack of Loc.t * Typ.t * t * Typ.t
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * t * t
+    | `Lam of Loc.t * Id.t * Typ.t * 't
+    | `App of Loc.t * 't * 't
+    | `Gen of Loc.t * Typ.Id.t * Kind.t * 't
+    | `Inst of Loc.t * 't * Typ.t
+    | `LetIn of Loc.t * Id.t * 't * 't
+    | `Mu of Loc.t * 't
+    | `IfElse of Loc.t * 't * 't * 't
+    | `Product of Loc.t * (Label.t * 't) list
+    | `Select of Loc.t * 't * Label.t
+    | `Inject of Loc.t * Label.t * 't * Typ.t
+    | `Case of Loc.t * 't * 't
+    | `Pack of Loc.t * Typ.t * 't * Typ.t
+    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 't * 't
     | `Target of Loc.t * Typ.t * string ]
 
-  val at : t -> Loc.t
+  type t = [ | t f]
+
+  val at : 't f -> Loc.t
 
   (* Substitution *)
 
