@@ -23,10 +23,14 @@ let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
 let whitespace = [%sedlex.regexp? Plus (Chars " \t\n\r")]
 let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star '0' .. '9']
 
-let id =
+(* *)
+
+let id_first =
   [%sedlex.regexp?
-    ( Sub (tr8876_ident_char, (lambda_lower | lambda_upper | mu_lower)),
-      Star (tr8876_ident_char | '_' | '0' .. '9') )]
+    Sub (tr8876_ident_char, (lambda_lower | lambda_upper | mu_lower))]
+
+let id_rest = [%sedlex.regexp? tr8876_ident_char | '_' | '0' .. '9']
+let id = [%sedlex.regexp? id_first, Star id_rest | '_', Plus id_rest]
 
 (* *)
 
