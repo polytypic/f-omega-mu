@@ -47,14 +47,14 @@ const onWorker = function (init, before, onWorker, after) {
   }
 }
 
-function clearMarkers(markers) {
+const clearMarkers = function (markers) {
   markers.forEach(function (mark) {
     mark.clear()
   })
   markers.length = 0
 }
 
-function getWidth(editor) {
+const getWidth = function (editor) {
   const charWidth = editor.defaultCharWidth()
   const scrollArea = editor.getScrollInfo()
   const scrollLeft = editor.doc.scrollLeft
