@@ -153,23 +153,24 @@ const prepareDefUses = function () {
 
 const duMarkers = []
 
-const duAt = function (line, ch, offset) {
-  const token = fomCM.getTokenAt({line: line, ch: ch + offset})
-  return (
-    token &&
-    token.start <= ch &&
-    ch <= token.end &&
-    duMap[line] &&
-    duMap[line][token.start]
-  )
+const duAt = function (cursor, offset) {
+  if (undefined === offset) {
+    return duAt(cursor, 0) || duAt(cursor, 1)
+  } else {
+    const token = fomCM.getTokenAt({line: cursor.line, ch: cursor.ch + offset})
+    return (
+      token &&
+      token.start <= cursor.ch &&
+      cursor.ch <= token.end &&
+      duMap[cursor.line] &&
+      duMap[cursor.line][token.start]
+    )
+  }
 }
 
 const updateDefUses = throttled(100, function () {
   clearMarkers(duMarkers)
-  const cursor = fomCM.getCursor()
-  const line = cursor.line
-  const ch = cursor.ch
-  const du = duAt(line, ch, 0) || duAt(line, ch, 1)
+  const du = duAt(fomCM.getCursor())
   if (du) {
     duMarkers.push(
       fomCM.markText(du.def.begins, du.def.ends, {
@@ -370,6 +371,26 @@ fomCM.on('keyup', function (_, event) {
         {line: line, ch: ch + 1}
       )
       fomCM.replaceSelection(replacement)
+    }
+  } else if (event.key === 'F2') {
+    const cursor = fomCM.getCursor()
+    const du = duAt(cursor)
+    if (du) {
+      const selections = []
+      let primary = 0
+      function at(loc) {
+        if (
+          cursor.line === loc.begins.line &&
+          loc.begins.ch <= cursor.ch &&
+          cursor.ch <= loc.ends.ch
+        ) {
+          primary = selections.length
+        }
+        selections.push({anchor: loc.begins, head: loc.ends})
+      }
+      at(du.def)
+      du.uses.forEach(at)
+      fomCM.setSelections(selections, primary)
     }
   }
 })
