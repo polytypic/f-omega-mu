@@ -2,8 +2,9 @@ open Js_of_ocaml
 open FomBasis
 open FomPP
 open FomSource
-open FomSyntax
+open FomAST
 open FomParser
+open FomElab
 open FomChecker
 open FomToJs
 
@@ -145,7 +146,8 @@ let js_codemirror_mode =
         let typ =
           Js.to_string input
           |> parse_utf_8 Grammar.program Lexer.plain
-          |> Exp.check |> Reader.run env |> Typ.pp |> to_js_string ~max_width
+          |> elaborate |> Exp.check |> Reader.run env |> Typ.pp
+          |> to_js_string ~max_width
         in
         object%js
           val typ = typ
@@ -200,7 +202,7 @@ let js_codemirror_mode =
       try
         Js.to_string input
         |> parse_utf_8 Grammar.program Lexer.plain
-        |> to_js |> Js.string
+        |> elaborate |> to_js |> Js.string
       with _ -> Js.string ""
 
     method token input =

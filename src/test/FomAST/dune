@@ -1,0 +1,3 @@
+(test
+ (name FomASTTest)
+ (libraries FomAST FomParser FomTest))

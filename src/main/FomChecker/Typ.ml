@@ -3,7 +3,7 @@ open FomBasis
 
 (* *)
 
-include FomSyntax.Typ
+include FomAST.Typ
 
 (* *)
 
@@ -111,7 +111,7 @@ let rec is_contractive ids typ =
 
 let is_contractive = is_contractive Ids.empty
 
-module Set = Set.Make (Compare.Pair (FomSyntax.Typ) (FomSyntax.Typ))
+module Set = Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
 
 let support (lhs, rhs) =
   match (lhs, rhs) with

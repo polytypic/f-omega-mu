@@ -1,5 +1,5 @@
 open FomTest
-open FomSyntax
+open FomAST
 
 let parse_typ utf_8 =
   let open FomParser in

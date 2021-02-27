@@ -1,6 +1,6 @@
 open FomSource
 open FomBasis
-open FomSyntax
+open FomAST
 
 type cstr = Str of string | Join of cstr * cstr
 

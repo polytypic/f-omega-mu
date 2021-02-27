@@ -1,4 +1,4 @@
-include FomSyntax.Kind
+include FomAST.Kind
 
 let rec equal lhs rhs =
   match (lhs, rhs) with

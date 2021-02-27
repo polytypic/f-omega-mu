@@ -1,6 +1,6 @@
 open FomPP
 open FomSource
-open FomSyntax
+open FomAST
 
 module Error = struct
   (* Syntax errors *)

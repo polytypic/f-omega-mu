@@ -1,0 +1,3 @@
+(library
+ (name FomCST)
+ (libraries FomAST FomDiag))

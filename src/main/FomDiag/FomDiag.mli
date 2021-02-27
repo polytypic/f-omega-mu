@@ -1,5 +1,5 @@
 open FomSource
-open FomSyntax
+open FomAST
 
 module Error : sig
   (* Syntax errprs *)

@@ -3,7 +3,7 @@ open FomDiag
 
 (* *)
 
-include FomSyntax.Exp
+include FomAST.Exp
 
 (* *)
 

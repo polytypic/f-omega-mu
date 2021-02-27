@@ -1,7 +1,9 @@
+open FomBasis
 open FomSource
 open FomTest
 open FomChecker
 open FomParser
+open FomElab
 
 let parse_typ = parse_utf_8 Grammar.typ_exp Lexer.plain
 let parse_exp = parse_utf_8 Grammar.program Lexer.plain
@@ -29,7 +31,9 @@ let testChecksAs name typ exp =
   test name @@ fun () ->
   try
     let expected = parse_typ typ |> Typ.norm in
-    let actual = Exp.check (parse_exp exp) (Env.empty ()) in
+    let actual =
+      exp |> parse_exp |> elaborate |> Exp.check |> Reader.run (Env.empty ())
+    in
     if not (Typ.equal_of_norm expected actual) then (
       let open FomPP in
       [

@@ -1,4 +1,4 @@
-open FomSyntax
+open FomCST
 
 module Buffer : sig
   type t

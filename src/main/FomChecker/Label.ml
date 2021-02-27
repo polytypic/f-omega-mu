@@ -1,1 +1,1 @@
-include FomSyntax.Label
+include FomAST.Label

@@ -1,5 +1,5 @@
 module Label = struct
-  open FomSyntax.Label
+  open FomAST.Label
 
   let def ({at; _} as id) typ r =
     if not (Hashtbl.mem r#annotations at) then
@@ -19,9 +19,9 @@ module Label = struct
 end
 
 module Exp = struct
-  open FomSyntax.Exp.Id
+  open FomAST.Exp.Id
 
-  let def ({at; _} as id : FomSyntax.Exp.Id.t) typ r =
+  let def ({at; _} as id : FomAST.Exp.Id.t) typ r =
     if not (Hashtbl.mem r#annotations at) then
       let uses = ref [] in
       Hashtbl.add r#annotations at
@@ -39,7 +39,7 @@ module Exp = struct
 end
 
 module Typ = struct
-  open FomSyntax.Typ.Id
+  open FomAST.Typ.Id
 
   let def ({at; _} as id) kind r =
     if not (Hashtbl.mem r#annotations at) then

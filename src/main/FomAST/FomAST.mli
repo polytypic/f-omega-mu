@@ -1,4 +1,5 @@
 open FomSource
+open FomPP
 
 module Kind : sig
   type t = [`Star of Loc.t | `Arrow of Loc.t * t * t]
@@ -11,7 +12,7 @@ module Kind : sig
 
   (* Formatting *)
 
-  val pp : t -> FomPP.document
+  val pp : t -> document
 end
 
 module Label : Id.S
@@ -37,7 +38,7 @@ module Typ : sig
 
     (* Formatting *)
 
-    val pp : t -> FomPP.document
+    val pp : t -> document
   end
 
   module Id : Id.S
@@ -78,7 +79,7 @@ module Typ : sig
 
   (* Formatting *)
 
-  val pp : t -> FomPP.document
+  val pp : t -> document
 end
 
 module Exp : sig
@@ -111,6 +112,11 @@ module Exp : sig
     (* Substitution *)
 
     val subst : Typ.Id.t -> Typ.t -> t -> t
+
+    (* Constants *)
+
+    val lit_false : t
+    val lit_true : t
   end
 
   module Id : Id.S
@@ -134,13 +140,6 @@ module Exp : sig
     | `Target of Loc.t * Typ.t * string ]
 
   val at : t -> Loc.t
-
-  (* Macros *)
-
-  val var_of_label : Label.t -> t
-  val bin_op : Loc.t -> t -> t -> t -> t
-  val let_typ_in : Typ.Id.t -> Typ.t -> t -> t
-  val lit_bool : Loc.t -> bool -> t
 
   (* Substitution *)
 

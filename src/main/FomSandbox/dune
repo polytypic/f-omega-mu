@@ -1,5 +1,5 @@
 (executable
  (name FomSandbox)
  (modes js)
- (libraries FomChecker FomParser FomToJs)
+ (libraries FomChecker FomElab FomParser FomToJs)
  (preprocess (pps js_of_ocaml-ppx)))
