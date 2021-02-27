@@ -7,8 +7,7 @@ module Error = struct
 
   let syntax at = function
     | "" -> Diagnostic.error (at, utf8string "Syntax error") []
-    | lexeme ->
-      Diagnostic.error (at, utf8format "Syntax error: \"…%s…\"" lexeme) []
+    | lexeme -> Diagnostic.error (at, utf8format "Syntax error: %s" lexeme) []
 
   let duplicated_label at l =
     Diagnostic.error
