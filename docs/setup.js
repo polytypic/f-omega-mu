@@ -278,7 +278,7 @@ const check = throttled(
 
         result.diagnostics.forEach(function (diagnostic) {
           const css = fomCM.getAllMarks().length
-            ? 'text-shadow: 0px 0px 10px orange; text-decoration: underline'
+            ? 'text-shadow: 0px 0px 10px orange'
             : 'text-shadow: 0px 0px 10px red'
           diagnosticMarkers.push(
             fomCM.markText(diagnostic.begins, diagnostic.ends, {
