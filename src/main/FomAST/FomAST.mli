@@ -117,6 +117,10 @@ module Exp : sig
 
     val lit_false : t
     val lit_true : t
+
+    (* Formatting *)
+
+    val pp : t -> document
   end
 
   module Id : Id.S

@@ -318,6 +318,29 @@ module Exp = struct
 
     let lit_false = `LitBool false
     let lit_true = `LitBool true
+
+    (* Formatting *)
+
+    let pp = function
+      | `LitBool bool -> if bool then true' else false'
+      | `LitNat i -> Bigint.to_string i |> utf8string
+      | `LitString s -> utf8string s
+      | `OpArithAdd -> plus
+      | `OpArithDiv -> slash
+      | `OpArithMinus -> minus
+      | `OpArithMul -> star
+      | `OpArithPlus -> plus
+      | `OpArithRem -> percent
+      | `OpArithSub -> minus
+      | `OpCmpGt -> langle
+      | `OpCmpGtEq -> greater_equal
+      | `OpCmpLt -> rangle
+      | `OpCmpLtEq -> less_equal
+      | `OpEq t -> [equals; brackets (Typ.pp t)] |> concat
+      | `OpEqNot t -> [not_equal; brackets (Typ.pp t)] |> concat
+      | `OpLogicalAnd -> logical_and
+      | `OpLogicalNot -> logical_not
+      | `OpLogicalOr -> logical_or
   end
 
   module Id = Id.Make ()
