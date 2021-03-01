@@ -20,14 +20,6 @@ module Exp = struct
 
   let var_of_label ({it; at} : Label.t) = `Var (at, Id.id at it)
 
-  let bin_op at lhs op rhs =
-    match op with
-    | `Const (_, `OpLogicalAnd) ->
-      `IfElse (at, lhs, rhs, `Const (at, Const.lit_false))
-    | `Const (_, `OpLogicalOr) ->
-      `IfElse (at, lhs, `Const (at, Const.lit_true), rhs)
-    | _ -> `App (at, `App (at, op, lhs), rhs)
-
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
 end

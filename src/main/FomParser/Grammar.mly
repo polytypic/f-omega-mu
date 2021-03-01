@@ -177,7 +177,7 @@ exp_app:
 exp_inf:
   | e=exp_app                                           {e}
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
-  | l=exp_inf o=bop r=exp_inf                           {Exp.bin_op $loc l o r}
+  | l=exp_inf o=bop r=exp_inf                           {`App ($loc, `App ($loc, o, l), r)}
   | e=exp_inf"case"cs=exp_inf                           {`Case ($loc, e, cs)}
 
 %inline uop:
