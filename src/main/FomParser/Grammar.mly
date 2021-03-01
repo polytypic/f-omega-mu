@@ -106,7 +106,7 @@ typ_rid:
   | i=Id                                                {Typ.Id.id $loc i}
 
 typ_bid:
-  | Underscore                                          {Typ.Id.id $loc"_"}
+  | Underscore                                          {Typ.Id.id $loc "_"}
   | i=typ_rid                                           {i}
 
 typ_bind:
