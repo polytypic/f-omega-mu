@@ -251,6 +251,8 @@ module Typ = struct
 
   and labeled labels typs =
     List.combine labels typs
+    |> List.stable_sort
+         (Compare.the (fun ({Label.at; _}, _) -> fst at) Pos.compare)
     |> List.map (function
          | l, `Var (_, {Id.it = i; _}) when i = l.Label.it -> Label.pp l
          | label, typ ->

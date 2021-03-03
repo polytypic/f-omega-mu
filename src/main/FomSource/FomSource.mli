@@ -4,6 +4,10 @@ module Pos : sig
   type t = Lexing.position
 
   val column_of : t -> int
+
+  (* Comparison *)
+
+  val compare : t -> t -> int
 end
 
 module Loc : sig
