@@ -25,10 +25,15 @@ module Kind = struct
     match kind with
     | `Star _ -> star
     | `Arrow (_, dom, cod) ->
-      [pp true dom; break_1; arrow_right; space; pp false cod]
-      |> concat |> parens_if atomize
+      [pp true dom; space_arrow_right_break_1; pp false cod]
+      |> concat
+      |> if atomize then egyptian parens 2 else id
 
   let pp kind = pp false kind |> FomPP.group
+
+  let pp_annot = function
+    | `Star _ -> empty
+    | kind -> [colon; pp kind |> align] |> concat
 end
 
 module Label = Id.Make ()
@@ -83,19 +88,17 @@ module Typ = struct
     (* Formatting *)
 
     let pp =
-      let labeled labels =
-        labels |> List.map Label.pp |> separate (concat [comma; break 1])
+      let labeled brackets labels =
+        labels |> List.map Label.pp |> separate comma_break_1
+        |> egyptian brackets 2
       in
-      let int = string "int" in
-      let bool = string "bool" in
-      let string = string "string" in
       function
       | `Arrow -> arrow_right
-      | `Bool -> bool
-      | `Int -> int
-      | `String -> string
-      | `Product labels -> labeled labels |> braces
-      | `Sum labels -> labeled labels |> angles
+      | `Bool -> bool'
+      | `Int -> int'
+      | `String -> string'
+      | `Product labels -> labeled braces labels
+      | `Sum labels -> labeled angles labels
   end
 
   module Id = Id.Make ()
@@ -217,30 +220,47 @@ module Typ = struct
 
   (* Formatting *)
 
-  let rec binding atomize head id kind body =
-    let kind_annot =
-      match kind with
-      | `Star _ -> empty
-      | _ -> [colon; break_0; Kind.pp kind] |> concat
-    in
+  let some_spaces = Some spaces
+
+  let rec hanging = function
+    | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
+      some_spaces
+    | `App _ as t -> (
+      match linearize t with
+      | (`Const (_, `Product labels), typs | `Const (_, `Sum labels), typs)
+        when List.length labels = List.length typs ->
+        some_spaces
+      | `Var _, [x] -> hanging x
+      | _ -> None)
+    | _ -> None
+
+  let rec binding atomize head i k t =
     [
-      [head; Id.pp id; kind_annot] |> concat |> nest 1 |> group;
-      [dot; break_0; pp false body] |> concat |> nest 1 |> group;
+      [head; Id.pp i; Kind.pp_annot k; dot] |> concat |> nest 2 |> group;
+      (match hanging t with
+      | Some _ -> pp false t
+      | None -> [break_0; pp false t |> group] |> concat |> nest 2 |> group);
     ]
-    |> concat |> parens_if atomize
+    |> concat
+    |> if atomize then egyptian parens 2 else id
 
   and quantifier atomize symbol (typ : t) =
     match typ with
     | `Lam (_, id, kind, body) -> binding atomize symbol id kind body
-    | _ -> [symbol; pp false typ |> parens] |> concat |> nest 1
+    | _ -> [symbol; pp false typ |> egyptian parens 2] |> concat
 
   and labeled labels typs =
     List.combine labels typs
     |> List.map (function
          | l, `Var (_, {Id.it = i; _}) when i = l.Label.it -> Label.pp l
          | label, typ ->
-           [Label.pp label; colon; break_1; pp false typ]
-           |> concat |> nest 1 |> group)
+           [
+             [Label.pp label; colon] |> concat;
+             (match hanging typ with
+             | Some (lhs, _) -> [lhs; pp false typ] |> concat
+             | None -> [break_1; pp false typ] |> concat |> nest 2 |> group);
+           ]
+           |> concat)
     |> separate comma_break_1
 
   and pp atomize (typ : t) =
@@ -251,15 +271,31 @@ module Typ = struct
     | `App (_, fn, arg) -> (
       match linearize typ with
       | `Const (_, `Arrow), [dom; cod] ->
-        [pp true dom; break_1; arrow_right; space; pp false cod]
-        |> concat |> parens_if atomize
+        [
+          pp true dom;
+          [
+            (match hanging cod with
+            | Some (lhs, _) -> [space_arrow_right; lhs] |> concat
+            | None -> space_arrow_right_break_1);
+            pp false cod;
+          ]
+          |> concat;
+        ]
+        |> concat
+        |> if atomize then egyptian parens 2 else id
       | `Const (_, `Product labels), typs
         when List.length labels = List.length typs ->
-        labeled labels typs |> braces
+        labeled labels typs |> egyptian braces 2
       | `Const (_, `Sum labels), typs when List.length labels = List.length typs
         ->
-        labeled labels typs |> brackets
-      | _ -> [pp true fn; break_1; pp true arg] |> concat |> group)
+        labeled labels typs |> egyptian brackets 2
+      | _ ->
+        [
+          pp true fn;
+          (match hanging arg with Some (sep, _) -> sep | None -> break_1);
+          pp true arg;
+        ]
+        |> concat |> group)
     | `Mu (_, typ) -> quantifier atomize FomPP.mu_lower typ
     | `ForAll (_, typ) -> quantifier atomize FomPP.for_all typ
     | `Exists (_, typ) -> quantifier atomize FomPP.exists typ
@@ -341,8 +377,8 @@ module Exp = struct
       | `OpCmpGtEq -> greater_equal
       | `OpCmpLt -> rangle
       | `OpCmpLtEq -> less_equal
-      | `OpEq t -> [equals; brackets (Typ.pp t)] |> concat
-      | `OpEqNot t -> [not_equal; brackets (Typ.pp t)] |> concat
+      | `OpEq t -> [equals; Typ.pp t |> egyptian brackets 2] |> concat
+      | `OpEqNot t -> [not_equal; Typ.pp t |> egyptian brackets 2] |> concat
       | `OpLogicalAnd -> logical_and
       | `OpLogicalNot -> logical_not
       | `OpLogicalOr -> logical_or

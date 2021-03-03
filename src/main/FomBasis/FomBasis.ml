@@ -4,6 +4,7 @@ module ListExt = ListExt
 module UTF8 = UTF8
 module Reader = Reader
 
+let id x = x
 let failwithf = Exn.failwithf
 
 (* *)

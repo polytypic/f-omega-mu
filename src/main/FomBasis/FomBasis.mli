@@ -41,6 +41,9 @@ module Reader : sig
   val traverse : ('x -> ('e, 'y) t) -> 'x list -> ('e, 'y list) t
 end
 
+val id : 'a -> 'a
+(** Identity function. *)
+
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
 (** Fail with formatted message. *)
 

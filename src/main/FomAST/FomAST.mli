@@ -13,6 +13,7 @@ module Kind : sig
   (* Formatting *)
 
   val pp : t -> document
+  val pp_annot : t -> document
 end
 
 module Label : Id.S
@@ -79,6 +80,7 @@ module Typ : sig
 
   (* Formatting *)
 
+  val hanging : t -> (document * document) option
   val pp : t -> document
 end
 

@@ -42,17 +42,32 @@ let js_use_def ?(max_width = 60) (def, o) =
     val annot =
       (match o#annot with
       | `Label (id, typ) ->
-        [Label.pp id; colon; [break_1; Typ.pp typ] |> concat |> nest 1]
-        |> concat |> group
+        [
+          [Label.pp id; colon] |> concat;
+          (match Typ.hanging typ with
+          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
+          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
+        ]
+        |> concat
       | `ExpId (id, typ) ->
-        [Exp.Id.pp id; colon; [break_1; Typ.pp typ] |> concat |> nest 1]
-        |> concat |> group
+        [
+          [Exp.Id.pp id; colon] |> concat;
+          (match Typ.hanging typ with
+          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
+          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
+        ]
+        |> concat
       | `TypId (id, kind) ->
-        [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 1]
+        [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 2]
         |> concat |> group
       | `TypAlias (id, typ) ->
-        [Typ.Id.pp id; space; equals; [break_1; Typ.pp typ] |> concat |> nest 1]
-        |> concat |> group)
+        [
+          [Typ.Id.pp id; space_equals] |> concat;
+          (match Typ.hanging typ with
+          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
+          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
+        ]
+        |> concat)
       |> to_js_string ~max_width
   end
 
@@ -75,19 +90,18 @@ let js_codemirror_mode =
         |> List.map (fun key ->
                [
                  utf8string (Js.to_string key);
-                 space_equals;
-                 [break_1; format (Js.Unsafe.get obj key)]
-                 |> concat |> nest 1 |> group;
+                 space_equals_space;
+                 format (Js.Unsafe.get obj key);
                ]
                |> concat |> group)
-        |> separate comma_break_1 |> braces
+        |> separate comma_break_1 |> egyptian braces 2
       and format_array array =
         [
           utf8string (Js.to_string (Js.Unsafe.get array 0));
-          space_equals;
-          [break_1; format (Js.Unsafe.get array 1)] |> concat |> nest 1 |> group;
+          space_equals_space;
+          format (Js.Unsafe.get array 1);
         ]
-        |> concat |> brackets
+        |> concat |> egyptian brackets 2
       and format value =
         match Hashtbl.find_opt known value with
         | None ->
@@ -128,8 +142,7 @@ let js_codemirror_mode =
           in
           Hashtbl.remove known value;
           if !used then
-            [mu_lower; utf8format "α_%d" n; dot; break_0; result]
-            |> concat |> nest 1 |> group
+            [mu_lower; utf8format "α_%d" n; dot; result] |> concat |> group
           else
             result
         | Some (n, used) ->
