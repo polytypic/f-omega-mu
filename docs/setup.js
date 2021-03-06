@@ -228,6 +228,8 @@ const compile = onWorker(
     return {exp: fomCM.getValue(), width: getWidth(fomCM)}
   },
   function (params) {
+    console.log(fom.prettier(params.exp, params.width))
+
     const js = fom.compile(params.exp)
     try {
       return prettier

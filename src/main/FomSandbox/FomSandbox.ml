@@ -151,6 +151,11 @@ let js_codemirror_mode =
       in
       format value |> to_js_string ~max_width
 
+    method prettier input max_width =
+      Js.to_string input
+      |> parse_utf_8 Grammar.program Lexer.plain
+      |> FomCST.Exp.pp |> to_js_string ~max_width
+
     method check input max_width =
       let env = Env.empty () in
       let def_uses () =
