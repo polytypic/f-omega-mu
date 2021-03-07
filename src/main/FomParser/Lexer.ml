@@ -19,8 +19,17 @@ let logical_and = [%sedlex.regexp? 0x2227 (* ∧ *)]
 let logical_or = [%sedlex.regexp? 0x2228 (* ∨ *)]
 let logical_not = [%sedlex.regexp? 0x00ac (* ¬ *)]
 let not_equal = [%sedlex.regexp? 0x2260 (* ≠ *)]
-let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
+
+(* *)
+
+let line_comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
+
+(* *)
+
 let whitespace = [%sedlex.regexp? Plus (Chars " \t\n\r")]
+
+(* *)
+
 let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star '0' .. '9']
 
 (* *)
@@ -53,9 +62,9 @@ let string = [%sedlex.regexp? "\"", Star char, "\""]
 let lit_true = LitBool true
 let lit_false = LitBool false
 
-let rec token_or_comment buffer =
+let rec token_or_comment ({Buffer.lexbuf; _} as buffer) =
   let return = return_from buffer in
-  match%sedlex buffer with
+  match%sedlex lexbuf with
   | "%" -> return Percent
   | "(" -> return ParenLhs
   | ")" -> return ParenRhs
@@ -110,8 +119,13 @@ let rec token_or_comment buffer =
   (* *)
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
   (* *)
-  | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
-  | whitespace -> token_or_comment buffer
+  | line_comment -> return (LineComment (Buffer.lexeme_utf_8 buffer))
+  | whitespace ->
+    let lhs, rhs = Buffer.loc buffer in
+    if lhs.pos_lnum + 1 < rhs.pos_lnum then
+      return LineEmpty
+    else
+      token_or_comment buffer
   (* *)
   | eof -> return EOF
   (* *)
@@ -121,7 +135,12 @@ let rec token_or_comment buffer =
 
 let rec token buffer =
   match token_or_comment buffer with
-  | Comment _, _, _ -> token buffer
+  | LineComment comment, lhs, rhs ->
+    buffer.comments <- ((lhs, rhs), `LineComment comment) :: buffer.comments;
+    token buffer
+  | LineEmpty, lhs, rhs ->
+    buffer.comments <- ((lhs, rhs), `LineEmpty) :: buffer.comments;
+    token buffer
   | other -> other
 
 type t = Buffer.t -> unit -> token * Lexing.position * Lexing.position
@@ -158,7 +177,6 @@ let token_info_utf_8 input =
       | Case -> keyword
       | Colon -> punctuation
       | Comma -> punctuation
-      | Comment _ -> comment
       | Dot -> punctuation
       | DoubleAngleLhs -> punctuation
       | DoubleAngleRhs -> punctuation
@@ -178,6 +196,8 @@ let token_info_utf_8 input =
       | Less -> operator
       | LessEqual -> operator
       | Let -> keyword
+      | LineComment _ -> comment
+      | LineEmpty -> comment
       | LitBool _ -> atom
       | LitNat _ -> number
       | LitString _ -> string

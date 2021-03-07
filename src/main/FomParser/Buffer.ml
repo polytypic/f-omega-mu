@@ -1,9 +1,13 @@
 open FomBasis
+open FomSource
 
-type t = Sedlexing.lexbuf
+type t = {
+  lexbuf : Sedlexing.lexbuf;
+  mutable comments : (Loc.t * Comment.t) list;
+}
 
-let loc = Sedlexing.lexing_positions
-let lexeme_utf_8 = Sedlexing.Utf8.lexeme
+let loc {lexbuf; _} = Sedlexing.lexing_positions lexbuf
+let lexeme_utf_8 {lexbuf; _} = Sedlexing.Utf8.lexeme lexbuf
 
 let init filename lexbuf =
   Sedlexing.set_filename lexbuf filename;
@@ -13,4 +17,6 @@ let init filename lexbuf =
 let from_utf_8 ?(filename = "") input =
   let lexbuf = input |> UTF8.to_uchar_array |> Sedlexing.from_uchar_array in
   init filename lexbuf;
-  lexbuf
+  {lexbuf; comments = []}
+
+let comments {comments; _} = List.rev comments

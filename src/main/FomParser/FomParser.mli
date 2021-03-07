@@ -1,10 +1,18 @@
+open FomSource
 open FomCST
+
+module Comment : sig
+  type t = [`LineComment of string | `LineEmpty]
+end
 
 module Buffer : sig
   type t
 
   val from_utf_8 : ?filename:string -> string -> t
   (** Create a new buffer from UTF-8 string. *)
+
+  val comments : t -> (Loc.t * Comment.t) list
+  (** Return comments recorded by the lexer. *)
 end
 
 module Lexer : sig

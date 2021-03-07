@@ -3,7 +3,9 @@
 %token <string> LitString
 
 %token <string> Id
-%token <string> Comment
+
+%token <string> LineComment
+%token LineEmpty
 
 %token Bool "bool"
 %token Case "case"

@@ -1,3 +1,4 @@
+module Comment = Comment
 module Buffer = Buffer
 module Lexer = Lexer
 
