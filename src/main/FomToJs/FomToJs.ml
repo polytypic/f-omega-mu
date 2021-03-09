@@ -211,7 +211,7 @@ module Exp = struct
       | e -> `Lam (i, e))
     | `App (f, x) -> (
       match (simplify f, simplify x) with
-      | `Lam (i, e), (`Product fs as x) -> (
+      | (`Lam (i, e) as f), (`Product fs as x) -> (
         let m =
           fs |> List.to_seq
           |> Seq.map (fun (l, _) ->
