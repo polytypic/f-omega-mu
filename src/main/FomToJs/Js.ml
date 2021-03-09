@@ -57,7 +57,7 @@ let strict_mode_reserved =
 let future_always_reserved = StringSet.of_list ["enum"]
 let future_module_reserved = StringSet.of_list ["await"]
 let literal = StringSet.of_list ["false"; "null"; "true"]
-let special_identifier = StringSet.of_list ["arguments"; "get"; "set"]
+let special_identifier = StringSet.of_list ["arguments"; "eval"; "get"; "set"]
 
 let illegal_id =
   [
