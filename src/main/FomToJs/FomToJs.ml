@@ -340,6 +340,7 @@ module Exp = struct
       | 0, _ -> return (Const.to_js c)
       | n, _ -> failwithf "Unsupported arity %d" n)
     | `Var i -> return (Id.to_js i)
+    | `Lam (i, `Mu (`Var i')) when Id.equal i i' -> return @@ str "rec"
     | `Lam (i, e) ->
       let* e = to_js_in_body ~first:true (Ids.singleton i) e in
       return (parens_if atom (Id.to_js i ^ str " => " ^ e))
