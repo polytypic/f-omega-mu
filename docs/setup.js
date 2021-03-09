@@ -351,7 +351,7 @@ const replacements = {
   exists: '∃',
   forall: '∀',
   fun: 'λ',
-  gen: 'Λ ',
+  gen: 'Λ',
   rec: 'μ',
   '||': '∨ ',
   '!': '¬',
