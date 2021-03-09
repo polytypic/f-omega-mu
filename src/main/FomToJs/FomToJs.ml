@@ -101,15 +101,31 @@ module Exp = struct
     | `Gen (_, _, _, e) | `Inst (_, e, _) | `Pack (_, _, e, _) -> erase e
     | `Target (_, _, s) -> `Target s
 
-  let rec is_free i = function
-    | `Const _ | `Target _ -> false
-    | `Var i' -> Id.equal i' i
-    | `Lam (i', e) -> (not (Id.equal i' i)) && is_free i e
-    | `App (f, x) -> is_free i f || is_free i x
-    | `IfElse (c, t, e) -> is_free i c || is_free i t || is_free i e
-    | `Product fs -> fs |> List.exists (fun (_, e) -> is_free i e)
-    | `Mu e | `Select (e, _) | `Inject (_, e) -> is_free i e
-    | `Case (e, cs) -> is_free i e || is_free i cs
+  let ( <+> ) lhs rhs =
+    match lhs with
+    | `None -> rhs ()
+    | `Many -> `Many
+    | `One -> ( match rhs () with `None -> `One | _ -> `Many)
+
+  let rec card_of i = function
+    | `Const _ | `Target _ -> `None
+    | `Var i' -> if Id.equal i' i then `One else `None
+    | `Lam (i', e) -> if Id.equal i' i then `None else card_of i e
+    | `App (f, x) -> card_of i f <+> fun () -> card_of i x
+    | `IfElse (c, t, e) ->
+      card_of i c <+> fun () ->
+      card_of i t <+> fun () -> card_of i e
+    | `Product fs ->
+      let rec sum = function
+        | [] -> `None
+        | (_, e) :: fs -> card_of i e <+> fun () -> sum fs
+      in
+      sum fs
+    | `Mu e -> ( match card_of i e with `One -> `Many | other -> other)
+    | `Select (e, _) | `Inject (_, e) -> card_of i e
+    | `Case (e, cs) -> card_of i e <+> fun () -> card_of i cs
+
+  let is_free i e = card_of i e <> `None
 
   let rec subst i the inn =
     match inn with
@@ -211,6 +227,9 @@ module Exp = struct
       | e -> `Lam (i, e))
     | `App (f, x) -> (
       match (simplify f, simplify x) with
+      | `Lam (i, e), x when is_total x && not (is_free i e) -> e
+      | `Lam (i, e), x when is_total x && `One = card_of i e ->
+        simplify (subst i x e)
       | (`Lam (i, e) as f), (`Product fs as x) -> (
         let m =
           fs |> List.to_seq
@@ -240,7 +259,6 @@ module Exp = struct
             (j, f)
         in
         simplify (`App (`Lam (j', `App (`Lam (i, e), f')), y))
-      | `Lam (i, e), x when is_total x && not (is_free i e) -> e
       | `Lam (i, `Var i'), x when Id.equal i i' -> x
       | f, x -> `App (f, x))
     | `Mu e -> `Mu (simplify e)
