@@ -106,11 +106,9 @@ module Exp = struct
     | `Var i' -> Id.equal i' i
     | `Lam (i', e) -> (not (Id.equal i' i)) && is_free i e
     | `App (f, x) -> is_free i f || is_free i x
-    | `Mu e -> is_free i e
     | `IfElse (c, t, e) -> is_free i c || is_free i t || is_free i e
     | `Product fs -> fs |> List.exists (fun (_, e) -> is_free i e)
-    | `Select (e, _) -> is_free i e
-    | `Inject (_, e) -> is_free i e
+    | `Mu e | `Select (e, _) | `Inject (_, e) -> is_free i e
     | `Case (e, cs) -> is_free i e || is_free i cs
 
   let rec subst i the inn =
