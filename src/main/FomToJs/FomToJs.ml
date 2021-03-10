@@ -365,8 +365,9 @@ module Exp = struct
     | `Mu (`Lam (f, `Lam (x, e))) ->
       let* e = to_js_in_body (Ids.singleton x) e in
       return
-        (str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {" ^ e
-       ^ str "}")
+        (parens_if atom
+           (str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {" ^ e
+          ^ str "}"))
     | `Mu f ->
       let* f = to_js f in
       return (str "rec(" ^ f ^ str ")")
