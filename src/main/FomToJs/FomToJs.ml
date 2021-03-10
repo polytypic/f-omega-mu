@@ -273,137 +273,129 @@ module Exp = struct
 
   let binds = function `App (`Lam _, _) | `Case _ -> true | _ -> false
 
-  let rec to_js_in_body ?(first = false) ?(block = false) ids exp =
+  let rec to_js_stmts ?(add_braces = false) ?(add_return = false) ids exp =
     let open Reader in
     match exp with
     | `App (`Lam (i, e), v) ->
       if Ids.mem i ids then
         let i' = Id.freshen i in
         let vi' = `Var i' in
-        to_js_in_body ~first ~block ids (`App (`Lam (i', subst i vi' e), v))
+        to_js_stmts ~add_braces ~add_return ids
+        @@ `App (`Lam (i', subst i vi' e), v)
       else
         let* v =
           match v with
           | `Mu (`Lam (f, (`Lam (_, _) as l)))
             when Id.equal i f || not (is_free i l) ->
-            to_js (subst f (`Var i) l)
-          | _ -> to_js v
+            to_js_expr (subst f (`Var i) l)
+          | _ -> to_js_expr v
         in
-        let* e = to_js_in_body (Ids.add i ids) e in
-        return
-          (braces_if first
-             (str "const " ^ Id.to_js i ^ str " = " ^ v ^ str "; " ^ e))
+        let* e =
+          to_js_stmts ~add_return:(add_braces || add_return) (Ids.add i ids) e
+        in
+        return @@ braces_if add_braces @@ str "const " ^ Id.to_js i ^ str " = "
+        ^ v ^ str "; " ^ e
     | `IfElse (c, t, e) ->
-      if first && not (binds t || binds e) then
-        to_js ~body:true exp
+      if add_braces && not (binds t || binds e) then
+        to_js_expr ~body:true exp
       else
-        let* c = to_js c in
-        let* t = to_js_in_body Ids.empty t in
-        let* e = to_js_in_body Ids.empty e in
-        return
-          (braces_if first
-             (str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"))
+        let* c = to_js_expr c in
+        let add_return = add_braces || add_return in
+        let* t = to_js_stmts ~add_return Ids.empty t in
+        let* e = to_js_stmts ~add_return Ids.empty e in
+        return @@ braces_if add_braces @@ str "if (" ^ c ^ str ") {" ^ t
+        ^ str "} else {" ^ e ^ str "}"
     | `Case (x, `Product fs) ->
       let i = Id.id Loc.dummy "$1" in
       let v = `Var i in
-      let* x = to_js x in
+      let* x = to_js_expr x in
       let* fs =
         fs
         |> traverse (fun (l, e) ->
                let* e =
-                 to_js_in_body ~first:true ~block:true Ids.empty
-                   (simplify (`App (e, v)))
+                 to_js_stmts ~add_braces:true ~add_return:true Ids.empty
+                 @@ simplify
+                 @@ `App (e, v)
                in
-               return (str "case '" ^ Label.to_js l ^ str "': " ^ e))
+               return @@ str "case '" ^ Label.to_js l ^ str "': " ^ e)
       in
-      return
-        (braces_if first
-           (str "const [$0, $1] = " ^ x ^ str "; switch ($0) "
-           ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
-           ^ str "}"))
+      return @@ braces_if add_braces @@ str "const [$0, $1] = " ^ x
+      ^ str "; switch ($0) "
+      ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
+      ^ str "}"
     | `Case (x, cs) ->
-      let* x = to_js x in
-      let* cs = to_js ~atom:true cs in
-      return
-        (braces_if first
-           (str "const $ = " ^ x ^ str "; return " ^ cs ^ str "[$[0]]($[1])"))
+      let* x = to_js_expr x in
+      let* cs = to_js_expr ~atom:true cs in
+      return @@ braces_if add_braces @@ str "const $ = " ^ x ^ str "; return "
+      ^ cs ^ str "[$[0]]($[1])"
     | _ ->
-      if first && not block then
-        to_js ~body:true exp
+      if add_return then
+        let* e = to_js_expr exp in
+        return @@ str "return " ^ e
       else
-        let* e = to_js exp in
-        return (str "return " ^ e)
+        to_js_expr ~body:true exp
 
-  and to_js_wrap_as_body e =
-    let open Reader in
-    let* e = to_js_in_body ~first:true Ids.empty e in
-    return (str "(() => " ^ e ^ str ")()")
-
-  and to_js ?(body = false) ?(atom = false) exp =
+  and to_js_expr ?(body = false) ?(atom = false) exp =
     let open Reader in
     match exp with
     | `Const c -> (
       match Const.type_of Loc.dummy c |> Typ.arity_and_result with
       | 2, result ->
-        return
-          (parens_if atom
-             (str "$1 => $2 => "
-             ^ coerce_to_int_if (Typ.is_int result)
-                 (str "$1 " ^ Const.to_js c ^ str " $2")))
+        return @@ parens_if atom @@ str "$1 => $2 => "
+        ^ coerce_to_int_if (Typ.is_int result)
+            (str "$1 " ^ Const.to_js c ^ str " $2")
       | 1, result ->
-        return
-          (parens_if atom
-             (str "$ => "
-             ^ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ str " $")))
-      | 0, _ -> return (Const.to_js c)
+        return @@ parens_if atom @@ str "$ => "
+        ^ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ str " $")
+      | 0, _ -> return @@ Const.to_js c
       | n, _ -> failwithf "Unsupported arity %d" n)
-    | `Var i -> return (Id.to_js i)
+    | `Var i -> return @@ Id.to_js i
     | `Lam (i, `Mu (`Var i')) when Id.equal i i' -> return @@ str "rec"
     | `Lam (i, e) ->
-      let* e = to_js_in_body ~first:true (Ids.singleton i) e in
-      return (parens_if atom (Id.to_js i ^ str " => " ^ e))
+      let* e = to_js_stmts ~add_braces:true (Ids.singleton i) e in
+      return @@ parens_if atom @@ Id.to_js i ^ str " => " ^ e
     | `Mu (`Lam (f, `Lam (x, e))) ->
-      let* e = to_js_in_body (Ids.singleton x) e in
-      return
-        (parens_if atom
-           (str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {" ^ e
-          ^ str "}"))
+      let* e = to_js_stmts ~add_return:true (Ids.singleton x) e in
+      return @@ parens_if atom @@ str "function " ^ Id.to_js f ^ str "("
+      ^ Id.to_js x ^ str ") {" ^ e ^ str "}"
     | `Mu f ->
-      let* f = to_js f in
-      return (str "rec(" ^ f ^ str ")")
+      let* f = to_js_expr f in
+      return @@ str "rec(" ^ f ^ str ")"
     | `IfElse (c, t, e) ->
-      let* c = to_js c in
-      let* t = to_js t in
-      let* e = to_js e in
-      return (parens_if atom (c ^ str " ? " ^ t ^ str " : " ^ e))
+      let* c = to_js_expr c in
+      let* t = to_js_expr t in
+      let* e = to_js_expr e in
+      return @@ parens_if atom @@ c ^ str " ? " ^ t ^ str " : " ^ e
     | `Product fs ->
       let* fs =
         fs
         |> traverse (function
              | l, `Var i
                when l.Label.it = i.Id.it && not (Js.is_illegal_id i.it) ->
-               return (Label.to_js l)
+               return @@ Label.to_js l
              | l, e ->
-               let* e = to_js e in
-               return (Label.to_js l ^ str ": " ^ e))
+               let* e = to_js_expr e in
+               return @@ Label.to_js l ^ str ": " ^ e)
       in
       return
-        (parens_if (body || atom)
-           ((fs |> List.fold_left (fun es e -> es ^ e ^ str ", ") (str "{"))
-           ^ str "}"))
+      @@ parens_if (body || atom)
+      @@ (fs |> List.fold_left (fun es e -> es ^ e ^ str ", ") (str "{"))
+      ^ str "}"
     | `Select (e, l) ->
-      let* e = to_js ~atom:true e in
+      let* e = to_js_expr ~atom:true e in
       return (e ^ str "." ^ Label.to_js l)
     | `Inject (l, e) ->
-      let* e = to_js e in
-      return
-        (parens_if atom (str "[\"" ^ Label.to_js l ^ str "\", " ^ e ^ str "]"))
-    | `App (`Lam (_, _), _) | `Case _ -> to_js_wrap_as_body exp
+      let* e = to_js_expr e in
+      return @@ parens_if atom @@ str "[\"" ^ Label.to_js l ^ str "\", " ^ e
+      ^ str "]"
+    | (`App (`Lam (_, _), _) | `Case _) as e ->
+      let* e = to_js_stmts ~add_braces:true Ids.empty e in
+      return (str "(() => " ^ e ^ str ")()")
     | `App (f, x) -> (
       let default () =
-        let* f = to_js ~atom:true f in
-        let* x = to_js x in
-        return (f ^ str "(" ^ x ^ str ")")
+        let* f = to_js_expr ~atom:true f in
+        let* x = to_js_expr x in
+        return @@ f ^ str "(" ^ x ^ str ")"
       in
       match exp with
       | `App (`App (`Const c, lhs), rhs) ->
@@ -411,25 +403,23 @@ module Exp = struct
         if n <> 2 then
           default ()
         else
-          let* lhs = to_js ~atom:true lhs in
-          let* rhs = to_js ~atom:true rhs in
-          return
-            (parens_if atom
-               (coerce_to_int_if (Typ.is_int result)
-                  (lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs)))
+          let* lhs = to_js_expr ~atom:true lhs in
+          let* rhs = to_js_expr ~atom:true rhs in
+          return @@ parens_if atom
+          @@ coerce_to_int_if (Typ.is_int result)
+          @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs
       | `App (`Const c, rhs) ->
         let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
         if n <> 1 then
           default ()
         else
-          let* rhs = to_js ~atom:true rhs in
-          return
-            (parens_if atom
-               (coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ rhs)))
+          let* rhs = to_js_expr ~atom:true rhs in
+          return @@ parens_if atom
+          @@ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ rhs)
       | _ -> default ())
     | `Target lit ->
       let buffer = Buffer.create (String.length lit * 2) in
-      let encoder = Uutf.encoder `UTF_8 (`Buffer buffer) in
+      let encoder = Uutf.encoder `UTF_8 @@ `Buffer buffer in
       let hex_to_int h c =
         (h lsl 4)
         lor
@@ -444,7 +434,7 @@ module Exp = struct
       |> Uutf.String.fold_utf_8
            (fun (s, i) _ u ->
              let encode c =
-               Uutf.encode encoder (`Uchar c) |> ignore;
+               Uutf.encode encoder @@ `Uchar c |> ignore;
                (`Unescaped, i + 1)
              in
              match (s, u) with
@@ -483,9 +473,10 @@ module Exp = struct
            (`Unescaped, 0)
       |> ignore;
       Uutf.encode encoder `End |> ignore;
-      return (parens_if (body || atom) (str (Buffer.contents buffer)))
+      return @@ parens_if (body || atom) @@ str (Buffer.contents buffer)
 end
 
 let to_js exp =
-  exp |> Exp.erase |> Exp.simplify |> Exp.to_js ~body:true |> Reader.run ()
-  |> to_string
+  exp |> Exp.erase |> Exp.simplify
+  |> Exp.to_js_stmts Exp.Ids.empty
+  |> Reader.run () |> to_string
