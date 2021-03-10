@@ -20,6 +20,7 @@
     - `double`
     - `array` (as immutable?)
     - `println`
+  - naïve modules/export
 - Documentation
   - non-trivial examples
 - ToJs:
@@ -36,3 +37,4 @@
   - features:
     - optional freezing of constants
     - source maps
+    - generate modules
