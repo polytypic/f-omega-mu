@@ -26,8 +26,53 @@
 - Documentation
   - non-trivial examples
 - ToJs:
-  - rewrite simplify to be closer to linear time
-  - optimize:
+
+  - type based simplifier
+    - eliminate dead code when type is known to be uninhabited (e.g. empty sum)
+  - simplifier
+
+    - hoist `let` expressions
+
+      ```
+      if let x = 1 in ... then ... else ...
+      ```
+
+      out of subexpressions
+
+      ```
+      let x = 1 in
+      if ... then ... else ...
+      ```
+
+      where possible
+
+    - inline elimination form continuations systematically to expose redexes
+
+    - more comprehensive constant folding
+
+      - systematically rewrite commutative and associative expression to expose
+        constant foldable subexpressions
+
+    - rewrite simplify to be closer to linear time
+    - specialize case analyzing function
+
+      ```
+      let f = fun x =>
+        x case { C1 = ..., ... }
+      ```
+
+      to a set of case analyzing functions
+
+      ```
+      let F1 = fun v1 => ... in
+      let ... in
+      let f = fun x =>
+        x case { C1 = F1, ... }
+      ```
+
+      to avoid allocating sum objects
+
+  - code generation
     - [tail calls](https://stackoverflow.com/a/54721813)
     - hoist constant values (e.g. `rec`, `["nil": {}]}` -> `[nil, empty]`)
     - specialize recursive definitions
@@ -35,8 +80,6 @@
       - product types
       - sum types
     - use destructuring e.g. for `λl.l case r` when `l` is not free in `r`
-    - eliminate dead code when type is known to be uninhabited (e.g. empty sum)
-  - features:
-    - optional freezing of constants
+  - features
     - source maps
     - generate modules

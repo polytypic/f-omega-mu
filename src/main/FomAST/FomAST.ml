@@ -310,9 +310,9 @@ module Exp = struct
   let int = `Const (Loc.dummy, `Int)
 
   module Const = struct
-    type t =
+    type 'nat t =
       [ `LitBool of bool
-      | `LitNat of Bigint.t
+      | `LitNat of 'nat
       | `LitString of string
       | `OpArithAdd
       | `OpArithDiv
@@ -389,7 +389,7 @@ module Exp = struct
   module Id = Id.Make ()
 
   type 't f =
-    [ `Const of Loc.t * Const.t
+    [ `Const of Loc.t * Bigint.t Const.t
     | `Var of Loc.t * Id.t
     | `Lam of Loc.t * Id.t * Typ.t * 't
     | `App of Loc.t * 't * 't

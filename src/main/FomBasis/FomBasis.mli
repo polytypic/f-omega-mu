@@ -38,7 +38,19 @@ module Reader : sig
 
   (* *)
 
+  val ( &&& ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
+  val ( ||| ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
+
+  (* *)
+
+  val lift1 : ('d1 -> 'c) -> ('e, 'd1) t -> ('e, 'c) t
+  val lift2 : ('d1 -> 'd2 -> 'c) -> ('e, 'd1) t -> ('e, 'd2) t -> ('e, 'c) t
+
+  (* *)
+
   val traverse : ('x -> ('e, 'y) t) -> 'x list -> ('e, 'y list) t
+  val for_all : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
+  val exists : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
 end
 
 val id : 'a -> 'a

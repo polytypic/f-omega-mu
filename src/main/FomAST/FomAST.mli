@@ -86,9 +86,9 @@ end
 
 module Exp : sig
   module Const : sig
-    type t =
+    type 'nat t =
       [ `LitBool of bool
-      | `LitNat of Bigint.t
+      | `LitNat of 'nat
       | `LitString of string
       | `OpArithAdd
       | `OpArithDiv
@@ -109,26 +109,26 @@ module Exp : sig
 
     (* Typing *)
 
-    val type_of : Loc.t -> t -> Typ.t
+    val type_of : Loc.t -> 'nat t -> Typ.t
 
     (* Substitution *)
 
-    val subst : Typ.Id.t -> Typ.t -> t -> t
+    val subst : Typ.Id.t -> Typ.t -> 'nat t -> 'nat t
 
     (* Constants *)
 
-    val lit_false : t
-    val lit_true : t
+    val lit_false : 'nat t
+    val lit_true : 'nat t
 
     (* Formatting *)
 
-    val pp : t -> document
+    val pp : Bigint.t t -> document
   end
 
   module Id : Id.S
 
   type 't f =
-    [ `Const of Loc.t * Const.t
+    [ `Const of Loc.t * Bigint.t Const.t
     | `Var of Loc.t * Id.t
     | `Lam of Loc.t * Id.t * Typ.t * 't
     | `App of Loc.t * 't * 't

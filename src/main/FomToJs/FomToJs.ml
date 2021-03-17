@@ -38,14 +38,7 @@ module Exp = struct
 
     let to_js = function
       | `LitBool bool -> Bool.to_string bool |> str
-      | `LitNat nat ->
-        let open Bigint in
-        let nat = bit_and nat bi_2_pow_32_minus_1 in
-        (* TODO: Warn when literal is truncated. *)
-        if nat < bi_2_pow_31 then
-          nat |> to_string |> str
-        else
-          str "(" ^ (nat - bi_2_pow_32 |> to_string |> str) ^ str ")"
+      | `LitNat nat -> Int32.to_string nat |> str
       | `LitString lit -> str lit
       | `OpArithAdd -> str "+"
       | `OpArithDiv -> str "/"
@@ -63,6 +56,99 @@ module Exp = struct
       | `OpLogicalAnd -> str "&&"
       | `OpLogicalNot -> str "!"
       | `OpLogicalOr -> str "||"
+
+    let erase = function
+      | `LitNat nat ->
+        let open Bigint in
+        let nat = bit_and nat bi_2_pow_32_minus_1 in
+        (* TODO: Warn when literal is truncated. *)
+        `LitNat
+          (Int32.of_string
+             (if nat < bi_2_pow_31 then
+                to_string nat
+             else
+               nat - bi_2_pow_32 |> to_string))
+      | ( `LitBool _ | `LitString _ | `OpArithAdd | `OpArithDiv | `OpArithMinus
+        | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt
+        | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
+        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr ) as other ->
+        other
+
+    let is_commutative = function
+      | `OpArithAdd | `OpArithMul | `OpEq _ | `OpEqNot _ -> true
+      | `LitBool _ | `LitNat _ | `LitString _ | `OpArithDiv | `OpArithMinus
+      | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq
+      | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr ->
+        false
+
+    let simplify_uop = function
+      (* + *)
+      | `OpArithPlus, x -> Some x
+      (* - *)
+      | `OpArithMinus, `Const (`LitNat v) ->
+        Some (`Const (`LitNat (Int32.neg v)))
+      | `OpArithMinus, `App (`Const `OpArithMinus, x) -> Some x
+      (* ! *)
+      | `OpLogicalNot, `App (`Const `OpLogicalNot, x) -> Some x
+      | `OpLogicalNot, `Const (`LitBool v) -> Some (`Const (`LitBool (not v)))
+      | _ -> None
+
+    (* TODO: More comprehensive constant folding rules *)
+    let simplify_bop = function
+      (* + *)
+      | `OpArithAdd, `Const (`LitNat x), `Const (`LitNat y) ->
+        Some (`Const (`LitNat (Int32.add x y)))
+      | ( `OpArithAdd,
+          `App (`App (`Const `OpArithAdd, x), `Const (`LitNat y)),
+          `Const (`LitNat z) ) ->
+        Some
+          (`App
+            (`App (`Const `OpArithAdd, x), `Const (`LitNat (Int32.add y z))))
+      | `OpArithAdd, (`Const _ as c), x ->
+        Some (`App (`App (`Const `OpArithAdd, x), c))
+      | `OpArithAdd, `App (`App (`Const `OpArithAdd, x), (`Const _ as c)), y ->
+        Some
+          (`App
+            ( `App (`Const `OpArithAdd, `App (`App (`Const `OpArithAdd, x), y)),
+              c ))
+      | `OpArithAdd, x, `Const (`LitNat 0l) -> Some x
+      | `OpArithAdd, x, `App (`Const `OpArithMinus, y) ->
+        Some (`App (`App (`Const `OpArithSub, x), y))
+      | `OpArithAdd, `Var i, `Var j when Id.equal i j ->
+        Some (`App (`App (`Const `OpArithMul, `Const (`LitNat 2l)), `Var i))
+      (* / *)
+      | `OpArithDiv, _, `Const (`LitNat 0l)
+      | `OpArithDiv, `Const (`LitNat 0l), _ ->
+        Some (`Const (`LitNat 0l))
+      | `OpArithDiv, `Const (`LitNat x), `Const (`LitNat y) ->
+        Some (`Const (`LitNat (Int32.div x y)))
+      | `OpArithDiv, x, `Const (`LitNat 1l) -> Some x
+      | `OpArithDiv, x, `Const (`LitNat -1l) ->
+        Some (`App (`Const `OpArithMinus, x))
+      (* * *)
+      | `OpArithMul, `Const (`LitNat x), `Const (`LitNat y) ->
+        Some (`Const (`LitNat (Int32.mul x y)))
+      | `OpArithMul, x, `Const (`LitNat 1l)
+      | `OpArithMul, `Const (`LitNat 1l), x ->
+        Some x
+      | `OpArithMul, x, `Const (`LitNat -1l)
+      | `OpArithMul, `Const (`LitNat -1l), x ->
+        Some (`App (`Const `OpArithMinus, x))
+      | `OpArithMul, _, `Const (`LitNat 0l)
+      | `OpArithMul, `Const (`LitNat 0l), _ ->
+        Some (`Const (`LitNat 0l))
+      (* - *)
+      | `OpArithSub, `Var i, `Var j when Id.equal i j ->
+        Some (`Const (`LitNat 0l))
+      | `OpArithSub, `Const (`LitNat x), `Const (`LitNat y) ->
+        Some (`Const (`LitNat (Int32.sub x y)))
+      | `OpArithSub, x, `Const (`LitNat 0l) -> Some x
+      | `OpArithSub, `Const (`LitNat 0l), x ->
+        Some (`App (`Const `OpArithMinus, x))
+      | `OpArithSub, x, `App (`Const `OpArithMinus, y) ->
+        Some (`App (`App (`Const `OpArithAdd, x), y))
+      (* *)
+      | _ -> None
   end
 
   module Id = struct
@@ -82,11 +168,11 @@ module Exp = struct
   let braces exp = str "{" ^ exp ^ str "}"
   let braces_if bool exp = if bool then braces exp else exp
 
+  module Env = Map.Make (Id)
   module Ids = Set.Make (Id)
 
-  let rec erase it =
-    match it with
-    | `Const (_, c) -> `Const c
+  let rec erase = function
+    | `Const (_, c) -> `Const (Const.erase c)
     | `Var (_, i) -> `Var i
     | `Lam (_, i, _, e) -> `Lam (i, erase e)
     | `App (_, f, x) -> `App (erase f, erase x)
@@ -97,35 +183,54 @@ module Exp = struct
     | `Product (_, fs) -> `Product (fs |> List.map (fun (l, e) -> (l, erase e)))
     | `Select (_, e, l) -> `Select (erase e, l)
     | `Inject (_, l, e, _) -> `Inject (l, erase e)
-    | `Case (_, e, cs) -> `Case (erase e, erase cs)
+    | `Case (_, s, cs) -> `Case (erase s, erase cs)
     | `Gen (_, _, _, e) | `Inst (_, e, _) | `Pack (_, _, e, _) -> erase e
     | `Target (_, _, s) -> `Target s
 
-  let ( <+> ) lhs rhs =
-    match lhs with
-    | `None -> rhs ()
-    | `Many -> `Many
-    | `One -> ( match rhs () with `None -> `One | _ -> `Many)
-
-  let rec card_of i = function
-    | `Const _ | `Target _ -> `None
-    | `Var i' -> if Id.equal i' i then `One else `None
-    | `Lam (i', e) -> if Id.equal i' i then `None else card_of i e
-    | `App (f, x) -> card_of i f <+> fun () -> card_of i x
+  let rec bottomUp fn = function
+    | (`Target _ | `Const _ | `Var _) as e -> fn e
+    | `App (f, x) -> fn (`App (bottomUp fn f, bottomUp fn x))
     | `IfElse (c, t, e) ->
-      card_of i c <+> fun () ->
-      card_of i t <+> fun () -> card_of i e
+      fn (`IfElse (bottomUp fn c, bottomUp fn t, bottomUp fn e))
     | `Product fs ->
-      let rec sum = function
-        | [] -> `None
-        | (_, e) :: fs -> card_of i e <+> fun () -> sum fs
-      in
-      sum fs
-    | `Mu e -> ( match card_of i e with `One -> `Many | other -> other)
-    | `Select (e, _) | `Inject (_, e) -> card_of i e
-    | `Case (e, cs) -> card_of i e <+> fun () -> card_of i cs
+      fn (`Product (fs |> List.map (fun (l, e) -> (l, bottomUp fn e))))
+    | `Mu e -> fn (`Mu (bottomUp fn e))
+    | `Lam (i, e) -> fn (`Lam (i, bottomUp fn e))
+    | `Inject (l, e) -> fn (`Inject (l, bottomUp fn e))
+    | `Select (e, l) -> fn (`Select (bottomUp fn e, l))
+    | `Case (s, cs) -> fn (`Case (bottomUp fn s, bottomUp fn cs))
 
-  let is_free i e = card_of i e <> `None
+  let size =
+    bottomUp @@ function
+    | `Target _ | `Const _ | `Var _ -> 1
+    | `App (f, x) -> f + x + 1
+    | `IfElse (c, t, e) -> c + t + e + 1
+    | `Product fs -> fs |> List.fold_left (fun s (_, e) -> s + e) 1
+    | `Mu e | `Lam (_, e) | `Inject (_, e) | `Select (e, _) -> e + 1
+    | `Case (s, cs) -> s + cs + 1
+
+  (*
+  let free =
+    bottomUp @@ function
+    | `Var i -> Ids.singleton i
+    | `Lam (i, e) -> Ids.remove i e
+    | `Target _ | `Const _ -> Ids.empty
+    | `App (f, x) -> Ids.union f x
+    | `IfElse (c, t, e) -> Ids.union c (Ids.union t e)
+    | `Product fs ->
+      fs |> List.fold_left (fun s (_, e) -> Ids.union s e) Ids.empty
+    | `Mu e | `Inject (_, e) | `Select (e, _) -> e
+    | `Case (s, cs) -> Ids.union s cs
+*)
+  let rec is_free i' = function
+    | `Const _ | `Target _ -> false
+    | `Var i -> Id.equal i' i
+    | `Lam (i, e) -> (not (Id.equal i' i)) && is_free i' e
+    | `App (f, x) -> is_free i' f || is_free i' x
+    | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
+    | `Product fs -> fs |> List.exists (snd >> is_free i')
+    | `Mu e | `Select (e, _) | `Inject (_, e) -> is_free i' e
+    | `Case (s, cs) -> is_free i' s || is_free i' cs
 
   let rec subst i the inn =
     match inn with
@@ -148,107 +253,112 @@ module Exp = struct
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case (e, cs) -> `Case (subst i the e, subst i the cs)
 
-  let rec is_total e =
-    match e with
-    | `Const _ | `Var _ | `Lam _ -> true
-    | `Mu (`Lam (_, e)) -> is_total e
-    | `IfElse (c, t, e) -> is_total c && is_total t && is_total e
-    | `Product fs -> fs |> List.for_all (fun (_, e) -> is_total e)
-    | `Select (e, _) -> is_total e
-    | `Inject (_, e) -> is_total e
-    | `App (`Lam (_, e), x) -> is_total e && is_total x
+  let dummy_id = Id.id Loc.dummy ""
+  let dummy_var = `Var dummy_id
+
+  let lam fn =
+    let i = Id.freshen dummy_id in
+    `Lam (i, fn @@ `Var i)
+
+  let rec is_total =
+    let open Reader in
+    function
+    | `Const _ | `Var _ | `Lam _ -> return true
+    | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
+    | `Product fs -> fs |> for_all (fun (_, e) -> is_total e)
+    | `Mu (`Lam (i, e)) -> is_total e << Env.add i e
+    | `Select (e, _) | `Inject (_, e) -> is_total e
+    | `App (`Var f, x) -> (
+      let* f_opt r = Env.find_opt f r in
+      match f_opt with None -> return false | Some f -> is_total (`App (f, x)))
+    | `App (`Lam (i, e), x) -> is_total x &&& (is_total e << Env.add i x)
     | `App (`Const _, x) -> is_total x
-    | `App (`App (`Const _, x), y) -> is_total x && is_total y
-    | `Case (_, _) | `Mu _ | `Target _ | `App (_, _) -> false
+    | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
+    | `Case (s, `Product fs) ->
+      is_total s
+      &&& (fs |> for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
+    | `Case (_, _) | `Mu _ | `Target _ | `App (_, _) -> return false
 
-  module LabelMap = Map.Make (Label)
+  let is_lam = function `Lam _ -> true | _ -> false
 
-  let rec inline_select i m e =
-    let ( let* ) = Option.bind in
-    let traverse f xs =
-      let rec loop ys = function
-        | [] -> Some (List.rev ys)
-        | x :: xs ->
-          let* y = f x in
-          loop (y :: ys) xs
-      in
-      loop [] xs
-    in
-    match e with
-    | `Select (`Var i', l) when Id.equal i i' -> Some (`Var (LabelMap.find l m))
-    | `Var i' -> if Id.equal i i' then None else Some e
-    | `Const _ | `Target _ -> Some e
-    | `Lam (i', b) ->
-      if Id.equal i i' then
-        Some e
+  let to_lam continue k i e =
+    let i, e =
+      if is_free i k then
+        let i' = Id.freshen i in
+        let vi' = `Var i' in
+        (i', subst i vi' e)
       else
-        let* b = inline_select i m b in
-        Some (`Lam (i', b))
-    | `App (f, x) ->
-      let* f = inline_select i m f in
-      let* x = inline_select i m x in
-      Some (`App (f, x))
-    | `Mu e ->
-      let* e = inline_select i m e in
-      Some (`Mu e)
-    | `IfElse (c, t, e) ->
-      let* c = inline_select i m c in
-      let* t = inline_select i m t in
-      let* e = inline_select i m e in
-      Some (`IfElse (c, t, e))
-    | `Product fs ->
-      let* fs =
-        fs
-        |> traverse (fun (l, e) ->
-               let* e = inline_select i m e in
-               Some (l, e))
-      in
-      Some (`Product fs)
-    | `Select (e, l) ->
-      let* e = inline_select i m e in
-      Some (`Select (e, l))
-    | `Inject (l, e) ->
-      let* e = inline_select i m e in
-      Some (`Inject (l, e))
-    | `Case (e, cs) ->
-      let* e = inline_select i m e in
-      let* cs = inline_select i m cs in
-      Some (`Case (e, cs))
+        (i, e)
+    in
+    `Lam (i, continue e k)
 
-  let rec simplify e =
+  let may_inline_continuation = function
+    | `IfElse _ | `App (`Lam _, _) -> true
+    | `Case (_, `Product fs) when List.for_all (snd >> is_lam) fs -> true
+    | _ -> false
+
+  let rec inline_continuation e k =
     match e with
-    | `Const _ | `Target _ -> e
-    | `Var _ -> e
+    | `IfElse (c, t, e) ->
+      `IfElse (c, inline_continuation t k, inline_continuation e k)
+    | `Case (s, `Product fs) when List.for_all (snd >> is_lam) fs ->
+      let fs =
+        fs
+        |> List.map (function
+             | l, `Lam (i, e) -> (l, to_lam inline_continuation k i e)
+             | _ -> failwith "impossible")
+      in
+      `Case (s, `Product fs)
+    | `App (`Lam (i, e), v) -> `App (to_lam inline_continuation k i e, v)
+    | ( `Const _ | `Var _ | `Lam _ | `Mu _ | `Product _ | `Select _ | `Inject _
+      | `App _ | `Case _ | `Target _ ) as e ->
+      `App (k, e)
+
+  let may_hoist_let = function `App (`Lam _, _) -> true | _ -> false
+
+  let rec hoist_let e k =
+    match e with
+    | `App (`Lam (i, e), x) -> `App (to_lam hoist_let k i e, x)
+    | e -> `App (k, e)
+
+  let rec simplify =
+    let open Reader in
+    function
+    | (`Const _ | `Target _ | `Var _) as e -> return e
+    | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
+      when Id.equal i x && Id.equal j y && Const.is_commutative c ->
+      return @@ `Const c
     | `Lam (i, e) -> (
-      match simplify e with
-      | `App (f, `Var i')
-        when Id.equal i i' && (not (is_free i f)) && is_total f ->
-        f
-      | e -> `Lam (i, e))
+      let* e = simplify e in
+      let default () = return @@ `Lam (i, e) in
+      match e with
+      | `App (f, `Var i') when Id.equal i i' && not (is_free i f) ->
+        let* f_is_total = is_total f in
+        if f_is_total then
+          return f
+        else
+          default ()
+      | _ -> default ())
     | `App (f, x) -> (
-      match (simplify f, simplify x) with
-      | `Lam (i, e), x when is_total x && not (is_free i e) -> e
-      | `Lam (i, e), x when is_total x && `One = card_of i e ->
-        simplify (subst i x e)
-      | (`Lam (i, e) as f), (`Product fs as x) -> (
-        let m =
-          fs |> List.to_seq
-          |> Seq.map (fun (l, _) ->
-                 let i = Id.freshen {Id.it = l.Label.it; at = l.at} in
-                 (l, i))
-          |> LabelMap.of_seq
-        in
-        match inline_select i m e with
-        | None -> `App (f, x)
-        | Some e ->
-          fs |> List.rev
-          |> List.fold_left
-               (fun b (l, e) ->
-                 let i = LabelMap.find l m in
-                 `App (`Lam (i, b), e))
-               e
-          |> simplify)
-      | `Lam (i, e), `Var _ -> simplify (subst i x e)
+      let* f = simplify f in
+      let* x = simplify x in
+      let* f =
+        match f with
+        | `Lam (i, e) ->
+          let* e = simplify e << Env.add i x in
+          return @@ `Lam (i, e)
+        | _ -> return f
+      in
+      let default () = return @@ `App (f, x) in
+      match (f, x) with
+      | `Const c, x -> (
+        match Const.simplify_uop (c, x) with
+        | Some e -> simplify e
+        | None -> return @@ `App (`Const c, x))
+      | `App (`Const c, x), y -> (
+        match Const.simplify_bop (c, x, y) with
+        | Some e -> simplify e
+        | None -> return @@ `App (`App (`Const c, x), y))
       | `Lam (i, e), `App (`Lam (j, f), y) ->
         let j', f' =
           if is_free j e || Id.equal i j then
@@ -258,23 +368,93 @@ module Exp = struct
           else
             (j, f)
         in
-        simplify (`App (`Lam (j', `App (`Lam (i, e), f')), y))
-      | `Lam (i, `Var i'), x when Id.equal i i' -> x
-      | f, x -> `App (f, x))
-    | `Mu e -> `Mu (simplify e)
+        simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
+      | `Lam (i, `Var i'), x when Id.equal i i' -> return x
+      | `Lam (i, e), x ->
+        let apply () = simplify (subst i x e) in
+        let* x_is_total = is_total x in
+        if x_is_total then
+          let* applied = apply () in
+          let* defaulted = default () in
+          return
+            (if size applied * 3 < size defaulted * 4 then
+               applied
+            else
+              defaulted)
+        else
+          default ()
+      | _ -> default ())
+    | `Mu e ->
+      let* e = simplify e in
+      return @@ `Mu e
     | `IfElse (c, t, e) -> (
-      match simplify c with
+      let* c = simplify c in
+      match c with
       | `Const (`LitBool c) -> simplify (if c then t else e)
-      | _ -> `IfElse (c, simplify t, simplify e))
-    | `Product fs -> `Product (fs |> List.map (fun (l, e) -> (l, simplify e)))
-    | `Select (e, l) -> `Select (simplify e, l)
-    | `Inject (l, e) -> `Inject (l, simplify e)
-    | `Case (e, cs) -> `Case (simplify e, simplify cs)
+      | _ ->
+        let* t = simplify t in
+        let* e = simplify e in
+        return @@ `IfElse (c, t, e))
+    | `Product fs ->
+      let* fs =
+        fs
+        |> traverse (fun (l, e) ->
+               let* e = simplify e in
+               return (l, e))
+      in
+      return @@ `Product fs
+    | `Select (e, l) -> (
+      let* e = simplify e in
+      let default () = return @@ `Select (e, l) in
+      match e with
+      | `Product fs ->
+        let* fs_are_total =
+          fs
+          |> List.filter (fst >> Label.equal l >> not)
+          |> for_all (fun (_, e) -> is_total e)
+        in
+        if fs_are_total then
+          return @@ (fs |> List.find (fst >> Label.equal l) |> snd)
+        else
+          default ()
+      | _ -> default ())
+    | `Inject (l, e) ->
+      let* e = simplify e in
+      return @@ `Inject (l, e)
+    | `Case (s, cs) ->
+      let* s = simplify s in
+      let* cs = simplify cs in
+      let default () = return @@ `Case (s, cs) in
+      let* cs_is_total = is_total cs in
+      if cs_is_total then
+        match (s, cs) with
+        | `Inject (l, e), `Product fs ->
+          simplify @@ `App (List.find (fst >> Label.equal l) fs |> snd, e)
+        | _, `Product _ when may_inline_continuation s ->
+          let* inlined =
+            simplify (inline_continuation s (lam @@ fun s -> `Case (s, cs)))
+          in
+          let* defaulted = default () in
+          return
+            (if size inlined * 3 < size defaulted * 4 then
+               inlined
+            else
+              defaulted)
+        | _ -> default ()
+      else
+        default ()
 
   let binds = function `App (`Lam _, _) | `Case _ -> true | _ -> false
 
   let rec to_js_stmts ?(add_braces = false) ?(add_return = false) ids exp =
     let open Reader in
+    let default () =
+      if add_return then
+        let* e = to_js_expr exp in
+        return @@ str "return " ^ e
+      else
+        to_js_expr ~body:true exp
+    in
     match exp with
     | `App (`Lam (i, e), v) ->
       if Ids.mem i ids then
@@ -297,7 +477,7 @@ module Exp = struct
         ^ v ^ str "; " ^ e
     | `IfElse (c, t, e) ->
       if add_braces && not (binds t || binds e) then
-        to_js_expr ~body:true exp
+        default ()
       else
         let* c = to_js_expr c in
         let add_return = add_braces || add_return in
@@ -305,35 +485,32 @@ module Exp = struct
         let* e = to_js_stmts ~add_return Ids.empty e in
         return @@ braces_if add_braces @@ str "if (" ^ c ^ str ") {" ^ t
         ^ str "} else {" ^ e ^ str "}"
-    | `Case (x, `Product fs) ->
-      let i = Id.id Loc.dummy "$1" in
-      let v = `Var i in
+    | `Case (x, `Product fs) when add_braces || add_return ->
+      let i0 = Id.freshen dummy_id in
+      let i1 = Id.freshen dummy_id in
+      let v1 = `Var i1 in
       let* x = to_js_expr x in
       let* fs =
         fs
         |> traverse (fun (l, e) ->
+               let* e = simplify @@ `App (e, v1) in
                let* e =
-                 to_js_stmts ~add_braces:true ~add_return:true Ids.empty
-                 @@ simplify
-                 @@ `App (e, v)
+                 to_js_stmts ~add_braces:true ~add_return:true Ids.empty e
                in
                return @@ str "case '" ^ Label.to_js l ^ str "': " ^ e)
       in
-      return @@ braces_if add_braces @@ str "const [$0, $1] = " ^ x
-      ^ str "; switch ($0) "
+      return @@ braces_if add_braces @@ str "const [" ^ Id.to_js i0 ^ str ", "
+      ^ Id.to_js i1 ^ str "] = " ^ x ^ str "; switch (" ^ Id.to_js i0 ^ str ") "
       ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
       ^ str "}"
-    | `Case (x, cs) ->
+    | `Case (x, cs) when add_braces || add_return ->
+      let i = Id.freshen dummy_id in
       let* x = to_js_expr x in
       let* cs = to_js_expr ~atom:true cs in
-      return @@ braces_if add_braces @@ str "const $ = " ^ x ^ str "; return "
-      ^ cs ^ str "[$[0]]($[1])"
-    | _ ->
-      if add_return then
-        let* e = to_js_expr exp in
-        return @@ str "return " ^ e
-      else
-        to_js_expr ~body:true exp
+      return @@ braces_if add_braces @@ str "const " ^ Id.to_js i ^ str " = "
+      ^ x ^ str "; return " ^ cs ^ str "[" ^ Id.to_js i ^ str "[0]]("
+      ^ Id.to_js i ^ str "[1])"
+    | _ -> default ()
 
   and to_js_expr ?(body = false) ?(atom = false) exp =
     let open Reader in
@@ -388,9 +565,13 @@ module Exp = struct
       let* e = to_js_expr e in
       return @@ parens_if atom @@ str "[\"" ^ Label.to_js l ^ str "\", " ^ e
       ^ str "]"
-    | (`App (`Lam (_, _), _) | `Case _) as e ->
-      let* e = to_js_stmts ~add_braces:true Ids.empty e in
-      return (str "(() => " ^ e ^ str ")()")
+    | `App (`Lam (i, e), v) ->
+      let* v = to_js_expr v in
+      let* e = to_js_stmts ~add_braces:true (Ids.singleton i) e in
+      return @@ str "(" ^ Id.to_js i ^ str " => " ^ e ^ str ")(" ^ v ^ str ")"
+    | `Case _ as e ->
+      let* e = to_js_stmts ~add_return:true Ids.empty e in
+      return @@ str "(() => {" ^ e ^ str "})()"
     | `App (f, x) -> (
       let default () =
         let* f = to_js_expr ~atom:true f in
@@ -477,6 +658,6 @@ module Exp = struct
 end
 
 let to_js exp =
-  exp |> Exp.erase |> Exp.simplify
+  exp |> Exp.erase |> Exp.simplify |> Reader.run Exp.Env.empty
   |> Exp.to_js_stmts Exp.Ids.empty
-  |> Reader.run () |> to_string
+  |> Reader.run Exp.Env.empty |> to_string
