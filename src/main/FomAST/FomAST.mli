@@ -61,6 +61,7 @@ module Typ : sig
   val var_of_label : Label.t -> t
   val product : Loc.t -> (Label.t * t) list -> t
   val sum : Loc.t -> (Label.t * t) list -> t
+  val zero : Loc.t -> t
 
   (* Comparison *)
 

@@ -10,10 +10,12 @@ let () =
       ( _,
         {it = "α"; at = {pos_lnum = 1; pos_bol = 0; pos_cnum = 1; _}, _},
         `Star _,
-        `Lam
+        `LamPat
           ( _,
-            {it = "x"; at = {pos_lnum = 2; pos_bol = 6; pos_cnum = 9; _}, _},
-            `Var (_, {it = "α"; _}),
+            `Id
+              ( _,
+                {it = "x"; at = {pos_lnum = 2; pos_bol = 6; pos_cnum = 9; _}, _},
+                `Var (_, {it = "α"; _}) ),
             `Var (_, {it = "x"; _}) ) ) ->
     ()
   | _ -> verify false

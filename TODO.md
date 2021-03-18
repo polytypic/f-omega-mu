@@ -14,7 +14,8 @@
   - equality
   - existential types (missing proper error messages)
   - tuples
-  - destructuring sugar
+  - more flexible destructuring (placement of type annotations, partial
+    patterns)
   - check recursive expressions for safety
   - more support for (JavaScript) primitives
     - bitwise operations on `int`

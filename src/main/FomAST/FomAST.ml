@@ -136,6 +136,7 @@ module Typ = struct
 
   let product at = labeled (fun x -> `Product x) at
   let sum at = labeled (fun x -> `Sum x) at
+  let zero at = `Const (at, `Sum [])
 
   (* Substitution *)
 

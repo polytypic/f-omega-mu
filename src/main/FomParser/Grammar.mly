@@ -145,6 +145,23 @@ typ:
 
 //
 
+annot_let:
+  |                                                     {Typ.zero $loc}
+
+annot_lam:
+  | ":" t=typ                                           {t}
+
+lab_pat(annot):
+  | l=label "=" p=pat(annot)                            {(l, `Pat p)}
+  | l=label a=annot                                     {(l, `Ann a)}
+
+pat(annot):
+  | i=exp_bid a=annot                                   {`Id ($loc, i, a)}
+  | "{"fs=lab_list(lab_pat(annot))"}"                   {`Product ($loc, fs)}
+  | "<<"p=pat(annot_let)"/"t=typ_bid">>"e=annot         {`Pack ($loc, p, t, e)}
+
+//
+
 lab_exp:
   | l=label"="e=exp                                     {(l, e)}
   | l=label                                             {(l, Exp.var_of_label l)}
@@ -205,7 +222,7 @@ exp_inf:
   | "%"                                                 {`Const ($loc, `OpArithRem)}
 
 exp_bind(head):
-  | head i=exp_bid":"t=typ"."e=exp                      {`Lam ($loc, i, t, e)}
+  | head p=pat(annot_lam) "." e=exp                     {`LamPat ($loc, p, e)}
 
 exp:
   | e=exp_inf                                           {e}
@@ -214,8 +231,7 @@ exp:
   | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
   | "if"c=exp"then"t=exp"else"e=exp                     {`IfElse ($loc, c, t, e)}
   | "let""type"i=typ_bid"="t=typ"in"e=exp               {`LetTypIn ($loc, i, t, e)}
-  | "let"i=exp_bid"="v=exp"in"e=exp                     {`LetIn ($loc, i, v, e)}
-  | "let""<<"i=exp_bid"/"t=typ_bid">>""="v=exp"in"e=exp {`UnpackIn ($loc, t, i, v, e)}
+  | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, v, e)}
 
 //
 

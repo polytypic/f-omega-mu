@@ -20,6 +20,10 @@ Below is an approximation of the detailed
       | '∀' (tid (':' kind)? '.' typ | '(' typ ')')   // Universal type
       | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')   // Recursive type
 
+  pat : eid                                           // Variable pattern
+      | '{' (label '=' pat)* '}'                      // Product pattern
+      | '<<' pat '/' tid '>>'                         // Existential pack pattern
+
   exp : '(' exp ')'
       | eid                                           // Variable (*1)
       | (int | 'true' | 'false' | string)             // Literals
@@ -30,12 +34,11 @@ Below is an approximation of the detailed
       | exp exp                                       // Apply function
       | uop exp                                       // Apply unary operator
       | exp bop exp                                   // Apply binary operator
-      | 'let' eid '=' exp 'in' exp                    // Binding
       | 'let' 'type' tid '=' typ 'in' exp             // Type binding (*2)
-      | 'let' '<<' eid '/' tid '>>' '=' exp 'in' exp  // Existential unpacking (*3)
+      | 'let' pat '=' exp 'in' exp                    // Binding (*3)
       | 'if' exp 'then' exp 'else' exp                // Conditional (*4)
-      | 'λ' eid ':' typ '.' exp                       // Function
-      | 'μ' (eid ':' typ '.' exp | '(' exp ')')       // Recursive expression (*5)
+      | 'λ' pat ':' typ '.' exp                       // Function (*3)
+      | 'μ' (pat ':' typ '.' exp | '(' exp ')')       // Recursive expression (*5)
       | 'Λ' tid (':' kind)? '.' exp                   // Generalization
       | exp '[' typ ']'                               // Instantiation
       | 'target' '[' typ ']' string                   // Inline target (JavaScript) code
@@ -64,8 +67,9 @@ Below is an approximation of the detailed
 2. Bindings of types simply substitute the type into the body expression. System
    Fωμ does not have singleton kinds, for example.
 
-3. Existential unpacking has the usual side condition of not allowing the type
-   variable to escape.
+3. Type annotations must be specified in function parameters and recursive
+   expressions and cannot be specified in `let` bindings. Existential unpacking
+   has the usual side condition of not allowing the type variable to escape.
 
 4. This Fωμ implementation is strict.
 

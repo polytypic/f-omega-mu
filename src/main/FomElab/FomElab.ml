@@ -87,13 +87,41 @@ let rec let_typ_in i' t' =
     let* t = subst i' t' t in
     return @@ `Target (at, t, s)
 
+let rec type_of_pat_lam = function
+  | `Id (_, _, t) -> t
+  | `Product (at, fs) ->
+    Typ.product at
+      (fs
+      |> List.map (function
+           | l, `Pat p -> (l, type_of_pat_lam p)
+           | l, `Ann t -> (l, t)))
+  | `Pack (_, _, _, t) -> t
+
+let rec elaborate_pat p' e' = function
+  | `Id (at, i, _) -> `LetIn (at, i, p', e')
+  | `Product (at, fs) ->
+    fs |> List.rev
+    |> List.fold_left
+         (fun e' -> function
+           | l, `Pat p ->
+             let i = Exp.Id.freshen (Exp.Id.id l.Label.at l.it) in
+             `LetIn
+               (at, i, `Select (at, p', l), elaborate_pat (`Var (at, i)) e' p)
+           | l, `Ann _ ->
+             `LetIn (at, Exp.Id.id l.Label.at l.it, `Select (at, p', l), e'))
+         e'
+  | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
+  | `Pack (at, p, t, _) ->
+    let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
+    `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
+
 let rec elaborate =
   let open Reader in
   function
   | `Const _ as ast -> return ast
   | `Var _ as ast -> return ast
   | `Target _ as ast -> return ast
-  | `Lam (at, i, t, e) ->
+  | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
     let* e = elaborate e in
     return @@ `Lam (at, i, t, e)
   | `App (at, f, x) ->
@@ -106,7 +134,7 @@ let rec elaborate =
   | `Inst (at, e, t) ->
     let* e = elaborate e in
     return @@ `Inst (at, e, t)
-  | `LetIn (at, i, v, e) ->
+  | `LetIn (at, i, v, e) | `LetPat (at, `Id (_, i, _), v, e) ->
     let* v = elaborate v in
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
@@ -143,7 +171,18 @@ let rec elaborate =
   | `Pack (at, t, e, x) ->
     let* e = elaborate e in
     return @@ `Pack (at, t, e, x)
-  | `UnpackIn (at, ti, ei, v, e) ->
+  | `UnpackIn (at, ti, ei, v, e)
+  | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), v, e) ->
     let* v = elaborate v in
     let* e = elaborate e in
     return @@ `UnpackIn (at, ti, ei, v, e)
+  | `LamPat (at, p, e) ->
+    let* e = elaborate e in
+    let t = type_of_pat_lam p in
+    let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
+    return @@ `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
+  | `LetPat (at, p, v, e) ->
+    let* v = elaborate v in
+    let* e = elaborate e in
+    let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
+    return @@ `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)
