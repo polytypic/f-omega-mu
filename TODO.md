@@ -10,6 +10,7 @@
   - pretty printer for expressions
   - take precendence and associativity properly into account in pretty printing
 - Language
+  - bidirectional type checking to reduce and generalize annotations
   - equality
   - existential types (missing proper error messages)
   - tuples
