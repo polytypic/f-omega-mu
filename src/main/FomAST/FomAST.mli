@@ -149,9 +149,4 @@ module Exp : sig
   type t = [ | t f]
 
   val at : 't f -> Loc.t
-
-  (* Substitution *)
-
-  val is_free : Id.t -> t -> bool
-  val subst : Id.t -> t -> t -> t
 end
