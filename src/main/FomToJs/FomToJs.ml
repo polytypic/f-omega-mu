@@ -314,12 +314,14 @@ module Exp = struct
       | `App _ | `Case _ | `Target _ ) as e ->
       `App (k, e)
 
+  (*
   let may_hoist_let = function `App (`Lam _, _) -> true | _ -> false
 
   let rec hoist_let e k =
     match e with
     | `App (`Lam (i, e), x) -> `App (to_lam hoist_let k i e, x)
     | e -> `App (k, e)
+  *)
 
   let rec simplify =
     let open Reader in
