@@ -50,11 +50,18 @@ let js_use_def ?(max_width = 60) (def, o) =
         ]
         |> concat
       | `ExpId (id, typ) ->
+        let is_gen_id = String.index_opt id.Exp.Id.it '$' = Some 0 in
         [
-          [Exp.Id.pp id; colon] |> concat;
+          (if is_gen_id then
+             empty
+          else
+            [Exp.Id.pp id; colon] |> concat);
           (match Typ.hanging typ with
-          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
-          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
+          | Some (sep, _) ->
+            [(if is_gen_id then empty else sep); Typ.pp typ] |> concat
+          | None ->
+            [(if is_gen_id then empty else break_1); Typ.pp typ]
+            |> concat |> nest 2 |> group);
         ]
         |> concat
       | `TypId (id, kind) ->
