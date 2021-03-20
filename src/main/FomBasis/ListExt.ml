@@ -1,5 +1,12 @@
 open Compare
 
+let for_alli p =
+  let rec loop i = function
+    | [] -> true
+    | x :: xs -> p i x && loop (i + 1) xs
+  in
+  loop 0
+
 let equal_with equal xs ys =
   try List.for_all2 equal xs ys with Invalid_argument _ -> false
 

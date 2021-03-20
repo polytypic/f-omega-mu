@@ -21,7 +21,18 @@ let to_string cstr =
 module Label = struct
   include Label
 
-  let to_js (label : t) = str label.it
+  let is_numeric {it; _} = '0' <= it.[0] && it.[0] <= '9'
+  let to_str {it; _} = str it
+
+  (* *)
+
+  let to_js_label = to_str
+
+  let to_js_select l =
+    if is_numeric l then str "[" ^ to_str l ^ str "]" else str "." ^ to_str l
+
+  let to_js_atom l =
+    if is_numeric l then to_str l else str "\"" ^ to_str l ^ str "\""
 end
 
 module Exp = struct
@@ -499,7 +510,7 @@ module Exp = struct
                let* e =
                  to_js_stmts ~add_braces:true ~add_return:true Ids.empty e
                in
-               return @@ str "case '" ^ Label.to_js l ^ str "': " ^ e)
+               return @@ str "case " ^ Label.to_js_atom l ^ str ": " ^ e)
       in
       return @@ braces_if add_braces @@ str "const [" ^ Id.to_js i0 ^ str ", "
       ^ Id.to_js i1 ^ str "] = " ^ x ^ str "; switch (" ^ Id.to_js i0 ^ str ") "
@@ -551,10 +562,10 @@ module Exp = struct
         |> traverse (function
              | l, `Var i
                when l.Label.it = i.Id.it && not (Js.is_illegal_id i.it) ->
-               return @@ Label.to_js l
+               return @@ Label.to_js_label l
              | l, e ->
                let* e = to_js_expr e in
-               return @@ Label.to_js l ^ str ": " ^ e)
+               return @@ Label.to_js_label l ^ str ": " ^ e)
       in
       return
       @@ parens_if (body || atom)
@@ -562,10 +573,10 @@ module Exp = struct
       ^ str "}"
     | `Select (e, l) ->
       let* e = to_js_expr ~atom:true e in
-      return (e ^ str "." ^ Label.to_js l)
+      return (e ^ Label.to_js_select l)
     | `Inject (l, e) ->
       let* e = to_js_expr e in
-      return @@ parens_if atom @@ str "[\"" ^ Label.to_js l ^ str "\", " ^ e
+      return @@ parens_if atom @@ str "[" ^ Label.to_js_atom l ^ str ", " ^ e
       ^ str "]"
     | `App (`Lam (i, e), v) ->
       let* v = to_js_expr v in

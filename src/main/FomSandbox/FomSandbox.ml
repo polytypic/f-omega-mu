@@ -92,16 +92,25 @@ let js_codemirror_mode =
     method format (value : unit Js.t) max_width =
       let known = Hashtbl.create 100 in
       let rec format_object obj =
-        let keys = Js.object_keys obj in
-        keys |> Js.to_array |> Array.to_list
-        |> List.map (fun key ->
-               [
-                 utf8string (Js.to_string key);
-                 space_equals_space;
-                 format (Js.Unsafe.get obj key);
-               ]
-               |> concat |> group)
-        |> separate comma_break_1 |> egyptian braces 2
+        let keys = Js.object_keys obj |> Js.to_array |> Array.to_list in
+        if
+          keys
+          |> List.map (Js.to_string >> Label.id Loc.dummy)
+          |> Tuple.is_tuple
+        then
+          keys
+          |> List.map (Js.Unsafe.get obj >> format)
+          |> separate comma_break_1 |> egyptian parens 2
+        else
+          keys
+          |> List.map (fun key ->
+                 [
+                   utf8string (Js.to_string key);
+                   space_equals_space;
+                   format (Js.Unsafe.get obj key);
+                 ]
+                 |> concat |> group)
+          |> separate comma_break_1 |> egyptian braces 2
       and format_array array =
         [
           utf8string (Js.to_string (Js.Unsafe.get array 0));

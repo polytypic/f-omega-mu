@@ -36,7 +36,19 @@ module Kind = struct
     | kind -> [colon; pp kind |> align] |> concat
 end
 
-module Label = Id.Make ()
+module Label = struct
+  include Id.Make ()
+
+  (** If both labels are numberic, comparison is done by numeric value. *)
+  let compare {it = lhs; _} {it = rhs; _} =
+    try int_of_string lhs - int_of_string rhs
+    with Failure _ -> String.compare lhs rhs
+end
+
+module Tuple = struct
+  let is_tuple =
+    ListExt.for_alli (fun i l -> l.Label.it = Int.to_string (i + 1))
+end
 
 module Typ = struct
   module Const = struct
@@ -125,7 +137,6 @@ module Typ = struct
   (* Macros *)
 
   let arrow at dom cod = `App (at, `App (at, `Const (at, `Arrow), dom), cod)
-  let var_of_label ({it; at} : Label.t) = `Var (at, Id.id at it)
 
   let labeled tag at fields =
     let fields = List.sort (Compare.the fst Label.compare) fields in
@@ -266,6 +277,8 @@ module Typ = struct
            |> concat)
     |> separate comma_break_1
 
+  and tuple typs = typs |> List.map (pp false) |> separate comma_break_1
+
   and pp atomize (typ : t) =
     match typ with
     | `Const (_, const) -> Const.pp const
@@ -288,7 +301,10 @@ module Typ = struct
         |> if atomize then egyptian parens 2 else id
       | `Const (_, `Product labels), typs
         when List.length labels = List.length typs ->
-        labeled labels typs |> egyptian braces 2
+        if Tuple.is_tuple labels then
+          tuple typs |> egyptian parens 2
+        else
+          labeled labels typs |> egyptian braces 2
       | `Const (_, `Sum labels), typs when List.length labels = List.length typs
         ->
         labeled labels typs |> egyptian brackets 2

@@ -92,6 +92,7 @@ kind:
 
 label:
   | i=Id                                                {Label.id $loc i}
+  | n=LitNat                                            {Label.id $loc (Bigint.to_string n)}
 
 lab_list(item):
   | ls=list_n(item,",")                                 {check_lab_list ls}
@@ -100,7 +101,7 @@ lab_list(item):
 
 lab_typ:
   | l=label":"t=typ                                     {(l, t)}
-  | l=label                                             {(l, Typ.var_of_label l)}
+  | i=typ_rid                                           {(Typ.Id.to_label i, `Var ($loc, i))}
 
 typ_rid:
   | i=Id                                                {Typ.Id.id $loc i}
@@ -118,7 +119,7 @@ typ_atom:
   | "int"                                               {`Const ($loc, `Int)}
   | "bool"                                              {`Const ($loc, `Bool)}
   | "string"                                            {`Const ($loc, `String)}
-  | "("t=typ")"                                         {t}
+  | "("ts=list_n(typ,",")")"                            {Typ.tuple $loc ts}
   | "{"fs=lab_list(lab_typ)"}"                          {Typ.product $loc fs}
   | "["cs=lab_list(lab_typ)"]"                          {Typ.sum $loc cs}
   | "μ""("t=typ")"                                      {`Mu ($loc, t)}
@@ -157,6 +158,7 @@ lab_pat(annot):
 
 pat(annot):
   | i=exp_bid a=annot                                   {`Id ($loc, i, a)}
+  | "("ps=list_n(pat(annot),",")")"                     {Exp.Pat.tuple $loc ps}
   | "{"fs=lab_list(lab_pat(annot))"}"                   {`Product ($loc, fs)}
   | "<<"p=pat(annot_let)"/"t=typ_bid">>"e=annot         {`Pack ($loc, p, t, e)}
 
@@ -164,7 +166,7 @@ pat(annot):
 
 lab_exp:
   | l=label"="e=exp                                     {(l, e)}
-  | l=label                                             {(l, Exp.var_of_label l)}
+  | i=exp_rid                                           {(Exp.Id.to_label i, `Var ($loc, i))}
 
 exp_rid:
   | i=Id                                                {Exp.Id.id $loc i}
@@ -178,12 +180,11 @@ exp_atom:
   | l=LitBool                                           {Exp.lit_bool $loc l}
   | l=LitNat                                            {`Const ($loc, `LitNat l)}
   | l=LitString                                         {`Const ($loc, `LitString l)}
-  | "("e=exp")"                                         {e}
+  | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
   | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
   | "["c=lab_exp":"t=typ"]"                             {`Inject ($loc, fst c, snd c, t)}
   | "<<"e=exp":"f=typ"/"x=typ">>"                       {`Pack ($loc, x, e, f)}
   | e=exp_atom"."l=label                                {`Select ($loc, e, l)}
-  | "μ""("e=exp")"                                      {`Mu ($loc, e)}
   | "target""["t=typ"]"c=LitString                      {`Target ($loc, t, c)}
 
 exp_app:

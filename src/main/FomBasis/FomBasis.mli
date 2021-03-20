@@ -14,6 +14,7 @@ module Compare : sig
 end
 
 module ListExt : sig
+  val for_alli : (int -> 'a -> bool) -> 'a list -> bool
   val equal_with : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
   val compare_with : ('a -> 'a -> int) -> 'a list -> 'a list -> int
 end

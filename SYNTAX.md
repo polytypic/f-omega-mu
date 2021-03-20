@@ -1,6 +1,6 @@
 # Fωμ type checker &mdash; Syntax summary
 
-Below is an approximation of the detailed
+Below is an _approximation_ of the detailed
 [grammar](src/main/FomParser/Grammar.mly) of the language:
 
 ```g4
@@ -21,12 +21,14 @@ Below is an approximation of the detailed
       | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')   // Recursive type
 
   pat : eid                                           // Variable pattern
+      | '(' (pat ',')* ')'                            // Tuple pattern
       | '{' (label '=' pat)* '}'                      // Product pattern
       | '<<' pat '/' tid '>>'                         // Existential pack pattern
 
   exp : '(' exp ')'
       | eid                                           // Variable (*1)
       | (int | 'true' | 'false' | string)             // Literals
+      | '(' (exp ',')* '}'                            // Tuple introduction
       | '{' (label ('=' exp)? ',')* '}'               // Product introduction
       | exp '.' label                                 // Product elimination
       | '[' label ('=' exp)? ':' typ ']'              // Sum introduction

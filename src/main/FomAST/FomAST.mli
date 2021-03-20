@@ -18,6 +18,10 @@ end
 
 module Label : Id.S
 
+module Tuple : sig
+  val is_tuple : Label.t list -> bool
+end
+
 module Typ : sig
   module Const : sig
     type t =
@@ -58,7 +62,6 @@ module Typ : sig
   (* Macros *)
 
   val arrow : Loc.t -> t -> t -> t
-  val var_of_label : Label.t -> t
   val product : Loc.t -> (Label.t * t) list -> t
   val sum : Loc.t -> (Label.t * t) list -> t
   val zero : Loc.t -> t
