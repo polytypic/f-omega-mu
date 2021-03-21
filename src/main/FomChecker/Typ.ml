@@ -95,19 +95,22 @@ let rec norm typ =
   | `ForAll (at, typ') -> `ForAll (at, norm typ')
   | `Exists (at, typ') -> `Exists (at, norm typ')
 
+let unfold at' f mu xs =
+  norm (xs |> List.fold_left (fun f x -> `App (at', f, x)) (`App (at', f, mu)))
+
 let rec head_of_norm typ =
-  match typ with
-  | `Mu (at, f) -> head_of_norm (norm (`App (at, f, typ)))
+  match linearize typ with
+  | (`Mu (at', f) as mu), xs -> head_of_norm (unfold at' f mu xs)
   | _ -> typ
 
 module Ids = Set.Make (Id)
 
 let rec is_contractive ids typ =
   match typ with
-  | `Mu (_, `Lam (_, id, `Star _, `Var (_, id')))
+  | `Mu (_, `Lam (_, id, _, `Var (_, id')))
     when Id.equal id' id || Ids.mem id' ids ->
     false
-  | `Mu (_, `Lam (_, id, `Star _, body)) -> is_contractive (Ids.add id ids) body
+  | `Mu (_, `Lam (_, id, _, body)) -> is_contractive (Ids.add id ids) body
   | _ -> true
 
 let is_contractive = is_contractive Ids.empty
@@ -123,11 +126,6 @@ let support (lhs, rhs) =
     Some Set.empty
   | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
     Some (Set.singleton (lhs, rhs))
-  | `App (_, lhs_fn, lhs_arg), `App (_, rhs_fn, rhs_arg) ->
-    Some
-      (Set.union
-         (Set.singleton (lhs_fn, rhs_fn))
-         (Set.singleton (lhs_arg, rhs_arg)))
   | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
     when Kind.equal lhs_kind rhs_kind ->
     Some
@@ -137,18 +135,21 @@ let support (lhs, rhs) =
          else
            let new_var = `Var (at lhs, Id.freshen lhs_id) in
            (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)))
-  | `Mu (_, `Lam (_, _, `Star _, _)), `Mu (_, `Lam (_, _, `Star _, _))
+  | `Mu (_, _), `Mu (_, _)
     when (not (is_contractive lhs)) && not (is_contractive rhs) ->
     Some Set.empty
-  | `Mu (_, `Lam (_, lhs_id, `Star _, lhs_typ)), _ when is_contractive lhs ->
-    Some (Set.singleton (norm (subst lhs_id lhs lhs_typ), rhs))
-  | `Mu (_, lhs_typ), _ ->
-    Some (Set.singleton (norm (`App (at lhs, lhs_typ, lhs)), rhs))
-  | _, `Mu (_, `Lam (_, rhs_id, `Star _, rhs_typ)) when is_contractive rhs ->
-    Some (Set.singleton (lhs, norm (subst rhs_id rhs rhs_typ)))
-  | _, `Mu (_, rhs_typ) ->
-    Some (Set.singleton (lhs, norm (`App (at rhs, rhs_typ, rhs))))
-  | _ -> None
+  | _ -> (
+    match (linearize lhs, linearize rhs) with
+    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
+      when is_contractive lhs && is_contractive rhs ->
+      Some (Set.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+    | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
+      Some (Set.singleton (unfold lat lf lmu lxs, rhs))
+    | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
+      Some (Set.singleton (lhs, unfold rat rf rmu rxs))
+    | (lf, lxs), (rf, rxs) when List.length lxs = List.length rxs ->
+      Some (List.combine (lf :: lxs) (rf :: rxs) |> Set.of_list)
+    | _ -> None)
 
 let rec gfp a xs =
   Set.is_empty xs

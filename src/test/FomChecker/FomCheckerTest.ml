@@ -18,6 +18,7 @@ let () =
   let eq t1 t2 =
     Typ.equal_of_norm (parse_typ t1 |> Typ.norm) (parse_typ t2 |> Typ.norm)
   in
+  verify (eq "λt.μl.[nil:t,cons:l]" "μl:*→*.λt.[nil:t,cons:l t]");
   verify (eq "λx.μxs.x→xs" "λy.y→(μys.y→y→ys)");
   verify (eq "λx.x" "λy.μys.y");
   verify (eq "∀x.x→x" "∀y.y→y");
