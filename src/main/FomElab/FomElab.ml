@@ -138,8 +138,8 @@ let rec elaborate =
     let* v = elaborate v in
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
-  | `LetTypIn (_, (i : Typ.Id.t), t, e) ->
-    let* () = Annot.Typ.alias i t in
+  | `LetTypIn (_, i, t, e) ->
+    let* () = Annot.Typ.alias i (Typ.norm t) in
     let* e = elaborate e in
     let_typ_in i t e
   | `Mu (at, e) ->
