@@ -106,6 +106,7 @@ const typCM = CodeMirror(typDiv, {
   mode: 'fom',
   readOnly: true,
   theme: theme,
+  value: '...',
 })
 
 const fomCM = CodeMirror(fomDiv, {
@@ -186,7 +187,7 @@ const updateDefUses = throttled(100, function () {
     })
     typCM.setValue(du.annot)
   } else {
-    typCM.setValue(result.typ)
+    typCM.setValue(result.typ || '...')
   }
 })
 
