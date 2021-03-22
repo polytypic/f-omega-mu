@@ -75,26 +75,6 @@ and kind_of_cod checked_typ : _ -> Kind.t =
   | `Star _ -> failwith "Impossible"
   | `Arrow (_, _, c_kind) -> return c_kind
 
-let rec norm typ =
-  match typ with
-  | `Mu (at, typ') -> `Mu (at, norm typ')
-  | `Const _ -> typ
-  | `Var _ -> typ
-  | `Lam (at, id, kind, typ') -> (
-    let typ'' = norm typ' in
-    match typ'' with
-    | `App (_, fn, `Var (_, id')) when Id.equal id id' && not (is_free id fn) ->
-      fn
-    | _ -> `Lam (at, id, kind, typ''))
-  | `App (at, fn, arg) -> (
-    let fn' = norm fn in
-    let arg' = norm arg in
-    match fn' with
-    | `Lam (_, id, _, body) -> norm (subst id arg' body)
-    | _ -> `App (at, fn', arg'))
-  | `ForAll (at, typ') -> `ForAll (at, norm typ')
-  | `Exists (at, typ') -> `Exists (at, norm typ')
-
 let unfold at' f mu xs =
   norm (xs |> List.fold_left (fun f x -> `App (at', f, x)) (`App (at', f, mu)))
 

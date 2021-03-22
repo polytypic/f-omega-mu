@@ -181,6 +181,30 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst ~replaced i' t' t)
     | `Exists (at, t) -> `Exists (at, subst ~replaced i' t' t)
 
+  let rec norm typ =
+    match typ with
+    | `Mu (at, typ') -> (
+      match norm typ' with
+      | `Lam (_, i, _, t) when not (is_free i t) -> t
+      | typ' -> `Mu (at, typ'))
+    | `Const _ -> typ
+    | `Var _ -> typ
+    | `Lam (at, id, kind, typ') -> (
+      let typ'' = norm typ' in
+      match typ'' with
+      | `App (_, fn, `Var (_, id')) when Id.equal id id' && not (is_free id fn)
+        ->
+        fn
+      | _ -> `Lam (at, id, kind, typ''))
+    | `App (at, fn, arg) -> (
+      let fn' = norm fn in
+      let arg' = norm arg in
+      match fn' with
+      | `Lam (_, id, _, body) -> norm (subst id arg' body)
+      | _ -> `App (at, fn', arg'))
+    | `ForAll (at, typ') -> `ForAll (at, norm typ')
+    | `Exists (at, typ') -> `Exists (at, norm typ')
+
   (* Comparison *)
 
   let index = function
