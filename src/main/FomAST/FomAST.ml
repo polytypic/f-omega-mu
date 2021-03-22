@@ -110,7 +110,7 @@ module Typ = struct
       | `Int -> int'
       | `String -> string'
       | `Product labels -> labeled braces labels
-      | `Sum labels -> labeled angles labels
+      | `Sum labels -> labeled brackets labels
   end
 
   module Id = Id.Make ()
