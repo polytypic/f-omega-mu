@@ -115,6 +115,20 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
+module Env = Map.Make (Typ.Id)
+
+let rec subst_rec env = function
+  | `Mu (at, t) -> `Mu (at, subst_rec env t)
+  | `Const _ as inn -> inn
+  | `Var (_, i) as inn -> (
+    match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
+  | `Lam (at, i, k, t) ->
+    let env = Env.remove i env in
+    `Lam (at, i, k, subst_rec env t)
+  | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
+  | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
+  | `Exists (at, t) -> `Exists (at, subst_rec env t)
+
 let rec elaborate =
   let open Reader in
   function
@@ -142,6 +156,22 @@ let rec elaborate =
     let* () = Annot.Typ.alias i (Typ.norm t) in
     let* e = elaborate e in
     let_typ_in i t e
+  | `LetTypRecIn (at, bs, e) ->
+    let* e = elaborate e in
+    let env =
+      bs |> List.to_seq
+      |> Seq.map (fun ((i, k), t) -> (i, `Mu (at, `Lam (at, i, k, t))))
+      |> Env.of_seq
+    in
+    let rec loop e = function
+      | [] -> return e
+      | ((i, _), _) :: bs ->
+        let t = subst_rec env (`Var (at, i)) in
+        let* () = Annot.Typ.alias i (Typ.norm t) in
+        let* e = let_typ_in i t e in
+        loop e bs
+    in
+    loop e bs
   | `Mu (at, e) ->
     let* e = elaborate e in
     return @@ `Mu (at, e)

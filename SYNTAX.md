@@ -5,55 +5,56 @@ Below is an _approximation_ of the detailed
 
 ```g4
  kind : '(' kind ')'
-      | '*'                                           // Type
-      | kind '→' kind                                 // Type constructor
+      | '*'                                                       // Type
+      | kind '→' kind                                             // Type constructor
 
   typ : '(' typ ')'
-      | tid                                           // Type variable (*1)
-      | ('int' | 'bool' | 'string')                   // Builtin types
-      | typ '→' typ                                   // Function type
-      | '{' (label (':' typ)? ',')* '}'               // Product type
-      | '[' (label (':' typ)? ',')* ']'               // Sum type
-      | typ typ                                       // Apply type level function
-      | 'λ' tid (':' kind)? '.' typ                   // Type level function
-      | '∃' (tid (':' kind)? '.' typ | '(' typ ')')   // Existential type
-      | '∀' (tid (':' kind)? '.' typ | '(' typ ')')   // Universal type
-      | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')   // Recursive type
+      | tid                                                       // Type variable (*1)
+      | ('int' | 'bool' | 'string')                               // Builtin types
+      | typ '→' typ                                               // Function type
+      | '{' (label (':' typ)? ',')* '}'                           // Product type
+      | '[' (label (':' typ)? ',')* ']'                           // Sum type
+      | typ typ                                                   // Apply type level function
+      | 'λ' tid (':' kind)? '.' typ                               // Type level function
+      | '∃' (tid (':' kind)? '.' typ | '(' typ ')')               // Existential type
+      | '∀' (tid (':' kind)? '.' typ | '(' typ ')')               // Universal type
+      | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')               // Recursive type
 
-  pat : eid                                           // Variable pattern
-      | '(' (pat ',')* ')'                            // Tuple pattern
-      | '{' (label '=' pat)* '}'                      // Product pattern
-      | '<<' pat '/' tid '>>'                         // Existential pack pattern
+  pat : eid                                                       // Variable pattern
+      | '(' (pat ',')* ')'                                        // Tuple pattern
+      | '{' (label '=' pat)* '}'                                  // Product pattern
+      | '<<' pat '/' tid '>>'                                     // Existential pack pattern
 
   exp : '(' exp ')'
-      | eid                                           // Variable (*1)
-      | (int | 'true' | 'false' | string)             // Literals
-      | '(' (exp ',')* '}'                            // Tuple introduction
-      | '{' (label ('=' exp)? ',')* '}'               // Product introduction
-      | exp '.' label                                 // Product elimination
-      | '[' label ('=' exp)? ':' typ ']'              // Sum introduction
-      | '<<' exp ':' typ '/' typ '>>'                 // Existential packing
-      | exp exp                                       // Apply function
-      | uop exp                                       // Apply unary operator
-      | exp bop exp                                   // Apply binary operator
-      | 'let' 'type' tid '=' typ 'in' exp             // Type binding (*2)
-      | 'let' pat '=' exp 'in' exp                    // Binding (*3)
-      | 'if' exp 'then' exp 'else' exp                // Conditional (*4)
-      | 'λ' pat ':' typ '.' exp                       // Function (*3)
-      | 'μ' (pat ':' typ '.' exp | '(' exp ')')       // Recursive expression (*5)
-      | 'Λ' tid (':' kind)? '.' exp                   // Generalization
-      | exp '[' typ ']'                               // Instantiation
-      | 'target' '[' typ ']' string                   // Inline target (JavaScript) code
+      | eid                                                       // Variable (*1)
+      | (int | 'true' | 'false' | string)                         // Literals
+      | '(' (exp ',')* '}'                                        // Tuple introduction
+      | '{' (label ('=' exp)? ',')* '}'                           // Product introduction
+      | exp '.' label                                             // Product elimination
+      | '[' label ('=' exp)? ':' typ ']'                          // Sum introduction
+      | '<<' exp ':' typ '/' typ '>>'                             // Existential packing
+      | exp exp                                                   // Apply function
+      | uop exp                                                   // Apply unary operator
+      | exp bop exp                                               // Apply binary operator
+      | 'let' 'type' tid '=' typ 'in' exp                         // Type binding (*2)
+      | 'let' 'type' ('μ' tid (':' kind) '=' typ 'and')* 'in' exp // Recursive type bindings (*2)
+      | 'let' pat '=' exp 'in' exp                                // Binding (*3)
+      | 'if' exp 'then' exp 'else' exp                            // Conditional (*4)
+      | 'λ' pat ':' typ '.' exp                                   // Function (*3)
+      | 'μ' (pat ':' typ '.' exp | '(' exp ')')                   // Recursive expression (*5)
+      | 'Λ' tid (':' kind)? '.' exp                               // Generalization
+      | exp '[' typ ']'                                           // Instantiation
+      | 'target' '[' typ ']' string                               // Inline target (JavaScript) code
 
-  uop : '¬'                                           // Logical negation
-      | '+' | '-'                                     // Sign (*6)
+  uop : '¬'                                                       // Logical negation
+      | '+' | '-'                                                 // Sign (*6)
 
-  bop : '∨' | '∧'                                     // (L) Logical connectives (*7)
-      | ('=' | '≠') '[' typ ']'                       // (-) Polymorphic equality
-      | '>' | '≥' | '<' | '≤'                         // (-) Comparison
-      | 'case'                                        // (L) Sum elimination
-      | '+' | '-'                                     // (L) Additive
-      | '*' | '/' | '%'                               // (L) Multiplicative
+  bop : '∨' | '∧'                                                 // (L) Logical connectives (*7)
+      | ('=' | '≠') '[' typ ']'                                   // (-) Polymorphic equality
+      | '>' | '≥' | '<' | '≤'                                     // (-) Comparison
+      | 'case'                                                    // (L) Sum elimination
+      | '+' | '-'                                                 // (L) Additive
+      | '*' | '/' | '%'                                           // (L) Multiplicative
 ```
 
 **Notes:**

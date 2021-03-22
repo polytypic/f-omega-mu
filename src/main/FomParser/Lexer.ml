@@ -75,6 +75,7 @@ let rec token_or_comment buffer =
   | "}" -> return BraceRhs
   (* *)
   | "_" -> return Underscore
+  | "and" -> return And
   | "bool" -> return Bool
   | "case" -> return Case
   | "else" -> return Else
@@ -149,6 +150,7 @@ let token_info_utf_8 input =
     ends = rhs.pos_cnum - lhs.pos_bol;
     name =
       (match token with
+      | And -> keyword
       | ArrowRight -> operator
       | Bool -> builtin
       | BraceLhs -> punctuation

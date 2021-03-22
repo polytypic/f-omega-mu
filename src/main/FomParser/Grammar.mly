@@ -5,6 +5,7 @@
 %token <string> Id
 %token <string> Comment
 
+%token And "and"
 %token Bool "bool"
 %token Case "case"
 %token Else "else"
@@ -232,7 +233,11 @@ exp:
   | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
   | "if"c=exp"then"t=exp"else"e=exp                     {`IfElse ($loc, c, t, e)}
   | "let""type"i=typ_bid"="t=typ"in"e=exp               {`LetTypIn ($loc, i, t, e)}
+  | "let""type"bs=list_1(typ_mu_def, "and")"in"e=exp    {`LetTypRecIn ($loc, bs, e)}
   | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, v, e)}
+
+typ_mu_def:
+  | "μ"b=typ_bind"="t=typ                               {(b, t)}
 
 //
 
