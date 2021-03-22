@@ -109,7 +109,8 @@ module Typ = struct
       | `Bool -> bool'
       | `Int -> int'
       | `String -> string'
-      | `Product labels -> labeled braces labels
+      | `Product labels ->
+        labeled (if Tuple.is_tuple labels then parens else braces) labels
       | `Sum labels -> labeled brackets labels
   end
 
