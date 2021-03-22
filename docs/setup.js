@@ -205,8 +205,8 @@ const run = onWorker(
   },
   function (params) {
     try {
-      // TODO: Timeout
-      return fom.format(eval(params.js), params.width)
+      const result = timed('eval', () => eval(params.js))
+      return timed('format', () => fom.format(result, params.width))
     } catch (error) {
       return error.toString()
     }
@@ -229,7 +229,7 @@ const compile = onWorker(
     return {exp: fomCM.getValue(), width: getWidth(fomCM)}
   },
   function (params) {
-    const js = fom.compile(params.exp)
+    const js = timed('compile', () => fom.compile(params.exp))
     try {
       return prettier
         .format(js, {
@@ -269,7 +269,7 @@ const check = throttled(
       return {exp: fomCM.getValue(), width: width}
     },
     function (params) {
-      return fom.check(params.exp, params.width)
+      return timed('check', () => fom.check(params.exp, params.width))
     },
     function (data) {
       result = data
