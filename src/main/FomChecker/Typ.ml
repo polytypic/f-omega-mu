@@ -79,7 +79,7 @@ let unfold at' f mu xs =
   norm (xs |> List.fold_left (fun f x -> `App (at', f, x)) (`App (at', f, mu)))
 
 let rec head_of_norm typ =
-  match linearize typ with
+  match unapp typ with
   | (`Mu (at', f) as mu), xs -> head_of_norm (unfold at' f mu xs)
   | _ -> typ
 
@@ -119,7 +119,7 @@ let support (lhs, rhs) =
     when (not (is_contractive lhs)) && not (is_contractive rhs) ->
     Some Set.empty
   | _ -> (
-    match (linearize lhs, linearize rhs) with
+    match (unapp lhs, unapp rhs) with
     | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
       when is_contractive lhs && is_contractive rhs ->
       Some (Set.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))

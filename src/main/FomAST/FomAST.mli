@@ -72,7 +72,7 @@ module Typ : sig
 
   (*  *)
 
-  val linearize : t -> t * t list
+  val unapp : t -> t * t list
   val arity_and_result : t -> int * t
   val is_int : t -> bool
   val is_bool : t -> bool

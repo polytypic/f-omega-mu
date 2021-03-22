@@ -234,7 +234,7 @@ module Typ = struct
 
   (* *)
 
-  let linearize typ =
+  let unapp typ =
     let rec recurse = function
       | `App (_, f, x) ->
         let f, xs = recurse f in
@@ -263,7 +263,7 @@ module Typ = struct
     | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
       some_spaces
     | `App _ as t -> (
-      match linearize t with
+      match unapp t with
       | (`Const (_, `Product labels), typs | `Const (_, `Sum labels), typs)
         when List.length labels = List.length typs ->
         some_spaces
@@ -310,7 +310,7 @@ module Typ = struct
     | `Var (_, id) -> Id.pp id
     | `Lam (_, id, kind, body) -> binding atomize lambda_lower id kind body
     | `App (_, fn, arg) -> (
-      match linearize typ with
+      match unapp typ with
       | `Const (_, `Arrow), [dom; cod] ->
         [
           pp true dom;

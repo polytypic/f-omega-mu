@@ -29,13 +29,13 @@ let check_arrow_typ at typ =
 
 let check_product_typ at typ =
   let typ = Typ.head_of_norm typ in
-  match Typ.linearize typ with
+  match Typ.unapp typ with
   | `Const (_, `Product ls), typs -> List.combine ls typs
   | _ -> Error.typ_non_product at typ
 
 let check_sum_typ at typ =
   let typ = Typ.head_of_norm typ in
-  match Typ.linearize typ with
+  match Typ.unapp typ with
   | `Const (_, `Sum ls), typs -> List.combine ls typs
   | _ -> Error.typ_non_sum at typ
 
