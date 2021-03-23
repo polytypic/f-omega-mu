@@ -263,6 +263,12 @@ module Typ = struct
 
   (* Formatting *)
 
+  let prec_min = 0
+  let prec_arrow = 1
+  let prec_app = 2
+
+  (* *)
+
   let some_spaces = Some spaces
 
   let rec hanging = function
@@ -277,20 +283,20 @@ module Typ = struct
       | _ -> None)
     | _ -> None
 
-  let rec binding atomize head i k t =
+  let rec binding prec_outer head i k t =
     [
       [head; Id.pp i; Kind.pp_annot k; dot] |> concat |> nest 2 |> group;
       (match hanging t with
-      | Some _ -> pp false t
-      | None -> [break_0; pp false t |> group] |> concat |> nest 2 |> group);
+      | Some _ -> pp prec_min t
+      | None -> [break_0; pp prec_min t |> group] |> concat |> nest 2 |> group);
     ]
     |> concat
-    |> if atomize then egyptian parens 2 else id
+    |> if prec_min < prec_outer then egyptian parens 2 else id
 
-  and quantifier atomize symbol (typ : t) =
+  and quantifier prec_outer symbol (typ : t) =
     match typ with
-    | `Lam (_, id, kind, body) -> binding atomize symbol id kind body
-    | _ -> [symbol; pp false typ |> egyptian parens 2] |> concat
+    | `Lam (_, id, kind, body) -> binding prec_outer symbol id kind body
+    | _ -> [symbol; pp prec_min typ |> egyptian parens 2] |> concat
 
   and labeled labels typs =
     List.combine labels typs
@@ -302,34 +308,37 @@ module Typ = struct
            [
              [Label.pp label; colon] |> concat;
              (match hanging typ with
-             | Some (lhs, _) -> [lhs; pp false typ] |> concat
-             | None -> [break_1; pp false typ] |> concat |> nest 2 |> group);
+             | Some (lhs, _) -> [lhs; pp prec_min typ] |> concat
+             | None -> [break_1; pp prec_min typ] |> concat |> nest 2 |> group);
            ]
            |> concat)
     |> separate comma_break_1
 
-  and tuple typs = typs |> List.map (pp false) |> separate comma_break_1
+  and tuple typs = typs |> List.map (pp prec_min) |> separate comma_break_1
 
-  and pp atomize (typ : t) =
+  and pp prec_outer (typ : t) =
     match typ with
     | `Const (_, const) -> Const.pp const
     | `Var (_, id) -> Id.pp id
-    | `Lam (_, id, kind, body) -> binding atomize lambda_lower id kind body
-    | `App (_, fn, arg) -> (
+    | `Lam (_, id, kind, body) -> binding prec_outer lambda_lower id kind body
+    | `Mu (_, typ) -> quantifier prec_outer FomPP.mu_lower typ
+    | `ForAll (_, typ) -> quantifier prec_outer FomPP.for_all typ
+    | `Exists (_, typ) -> quantifier prec_outer FomPP.exists typ
+    | `App (_, _, _) -> (
       match unapp typ with
       | `Const (_, `Arrow), [dom; cod] ->
         [
-          pp true dom;
+          pp (prec_arrow + 1) dom;
           [
             (match hanging cod with
             | Some (lhs, _) -> [space_arrow_right; lhs] |> concat
             | None -> space_arrow_right_break_1);
-            pp false cod;
+            pp (prec_arrow - 1) cod;
           ]
           |> concat;
         ]
         |> concat
-        |> if atomize then egyptian parens 2 else id
+        |> if prec_arrow < prec_outer then egyptian parens 2 else id
       | `Const (_, `Product labels), typs
         when List.length labels = List.length typs ->
         if Tuple.is_tuple labels then
@@ -339,18 +348,12 @@ module Typ = struct
       | `Const (_, `Sum labels), typs when List.length labels = List.length typs
         ->
         labeled labels typs |> egyptian brackets 2
-      | _ ->
-        [
-          pp true fn;
-          (match hanging arg with Some (sep, _) -> sep | None -> break_1);
-          pp true arg;
-        ]
-        |> concat |> group)
-    | `Mu (_, typ) -> quantifier atomize FomPP.mu_lower typ
-    | `ForAll (_, typ) -> quantifier atomize FomPP.for_all typ
-    | `Exists (_, typ) -> quantifier atomize FomPP.exists typ
+      | f, xs ->
+        pp prec_app f :: (xs |> List.map (pp (prec_app + 1) >> group))
+        |> separate break_1
+        |> if prec_app < prec_outer then egyptian parens 2 else group)
 
-  let pp typ = pp false typ |> group
+  let pp typ = pp prec_min typ |> group
 end
 
 module Exp = struct

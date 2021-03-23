@@ -7,7 +7,6 @@
   - better parser and type checker error messages
   - more testing
   - pretty printer for expressions
-  - take precendence and associativity properly into account in pretty printing
 - Language
   - bidirectional type checking to reduce and generalize annotations
   - equality
