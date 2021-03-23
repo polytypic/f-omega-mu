@@ -4,7 +4,6 @@
   - highlight Fωμ based on grammar
 - General
   - perform `let type ... in ...` substitutions in a single pass
-  - use alpha conversion in structural term equality and comparison
   - better parser and type checker error messages
   - more testing
   - pretty printer for expressions

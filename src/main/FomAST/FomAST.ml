@@ -224,8 +224,12 @@ module Typ = struct
     | `Var (_, lhs), `Var (_, rhs) -> Id.compare lhs rhs
     | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
       ->
-      Id.compare lhs_id rhs_id <>? fun () ->
-      Kind.compare lhs_kind rhs_kind <>? fun () -> compare lhs_typ rhs_typ
+      Kind.compare lhs_kind rhs_kind <>? fun () ->
+      if Id.equal lhs_id rhs_id then
+        compare lhs_typ rhs_typ
+      else
+        let v = `Var (Loc.dummy, Id.fresh Loc.dummy) in
+        compare (subst lhs_id v lhs_typ) (subst rhs_id v rhs_typ)
     | `App (_, lhs_fn, lhs_arg), `App (_, rhs_fn, rhs_arg) ->
       compare lhs_fn rhs_fn <>? fun () -> compare lhs_arg rhs_arg
     | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
