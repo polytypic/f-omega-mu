@@ -1,3 +1,4 @@
+open FomSource
 open FomDiag
 open FomAnnot
 open FomBasis
@@ -85,11 +86,11 @@ let rec head_of_norm typ =
 module Ids = Set.Make (Id)
 
 let rec is_contractive ids typ =
-  match typ with
-  | `Mu (_, `Lam (_, id, _, `Var (_, id')))
-    when Id.equal id' id || Ids.mem id' ids ->
-    false
-  | `Mu (_, `Lam (_, id, _, body)) -> is_contractive (Ids.add id ids) body
+  match unapp typ with
+  | `Mu (_, `Lam (_, id, _, f)), xs -> (
+    match FomAST.Typ.app Loc.dummy f xs |> FomAST.Typ.norm |> unapp with
+    | `Var (_, id'), _ when Id.equal id' id || Ids.mem id' ids -> false
+    | typ, _ -> is_contractive (Ids.add id ids) typ)
   | _ -> true
 
 let is_contractive = is_contractive Ids.empty
