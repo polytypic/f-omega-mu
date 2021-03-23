@@ -112,7 +112,7 @@ let rec elaborate_pat p' e' = function
          e'
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
   | `Pack (at, p, t, _) ->
-    let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
+    let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
 module Env = Map.Make (Typ.Id)

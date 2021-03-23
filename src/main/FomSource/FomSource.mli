@@ -39,6 +39,7 @@ module Id : sig
     (* Constructors *)
 
     val id : Loc.t -> string -> t
+    val fresh : Loc.t -> t
 
     (* Freshening *)
 

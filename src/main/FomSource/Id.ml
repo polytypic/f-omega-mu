@@ -11,6 +11,7 @@ module type S = sig
   (* Constructors *)
 
   val id : Loc.t -> string -> t
+  val fresh : Loc.t -> t
 
   (* Freshening *)
 
@@ -38,10 +39,6 @@ module Make () : S = struct
 
   let pp {it; _} = FomPP.utf8string it
 
-  (* Constructors *)
-
-  let id at it = {it; at}
-
   (* Freshening *)
 
   let freshen {it; at} =
@@ -52,4 +49,9 @@ module Make () : S = struct
       | None -> it
     in
     {it = base ^ "$" ^ Int.to_string c; at}
+
+  (* Constructors *)
+
+  let id at it = {it; at}
+  let fresh at = freshen {it = ""; at}
 end

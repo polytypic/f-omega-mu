@@ -264,11 +264,10 @@ module Exp = struct
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case (e, cs) -> `Case (subst i the e, subst i the cs)
 
-  let dummy_id = Id.id Loc.dummy ""
-  let dummy_var = `Var dummy_id
+  let dummy_var = `Var (Id.fresh Loc.dummy)
 
   let lam fn =
-    let i = Id.freshen dummy_id in
+    let i = Id.fresh Loc.dummy in
     `Lam (i, fn @@ `Var i)
 
   let rec is_total =
@@ -499,8 +498,8 @@ module Exp = struct
         return @@ braces_if add_braces @@ str "if (" ^ c ^ str ") {" ^ t
         ^ str "} else {" ^ e ^ str "}"
     | `Case (x, `Product fs) when add_braces || add_return ->
-      let i0 = Id.freshen dummy_id in
-      let i1 = Id.freshen dummy_id in
+      let i0 = Id.fresh Loc.dummy in
+      let i1 = Id.fresh Loc.dummy in
       let v1 = `Var i1 in
       let* x = to_js_expr x in
       let* fs =
@@ -517,7 +516,7 @@ module Exp = struct
       ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
       ^ str "}"
     | `Case (x, cs) when add_braces || add_return ->
-      let i = Id.freshen dummy_id in
+      let i = Id.fresh Loc.dummy in
       let* x = to_js_expr x in
       let* cs = to_js_expr ~atom:true cs in
       return @@ braces_if add_braces @@ str "const " ^ Id.to_js i ^ str " = "
