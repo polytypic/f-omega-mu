@@ -98,38 +98,41 @@ let is_contractive = is_contractive Ids.empty
 module Set = Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
 
 let support (lhs, rhs) =
-  match (lhs, rhs) with
-  | `Const (_, lhs_const), `Const (_, rhs_const)
-    when Const.equal lhs_const rhs_const ->
+  if 0 = FomAST.Typ.compare lhs rhs then
     Some Set.empty
-  | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
-    Some Set.empty
-  | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
-    Some (Set.singleton (lhs, rhs))
-  | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
-    when Kind.equal lhs_kind rhs_kind ->
-    Some
-      (Set.singleton
-         (if Id.equal lhs_id rhs_id then
-            (lhs_typ, rhs_typ)
-         else
-           let new_var = `Var (at lhs, Id.freshen lhs_id) in
-           (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)))
-  | `Mu (_, _), `Mu (_, _)
-    when (not (is_contractive lhs)) && not (is_contractive rhs) ->
-    Some Set.empty
-  | _ -> (
-    match (unapp lhs, unapp rhs) with
-    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
-      when is_contractive lhs && is_contractive rhs ->
-      Some (Set.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
-    | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
-      Some (Set.singleton (unfold lat lf lmu lxs, rhs))
-    | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
-      Some (Set.singleton (lhs, unfold rat rf rmu rxs))
-    | (lf, lxs), (rf, rxs) when List.length lxs = List.length rxs ->
-      Some (List.combine (lf :: lxs) (rf :: rxs) |> Set.of_list)
-    | _ -> None)
+  else
+    match (lhs, rhs) with
+    | `Const (_, lhs_const), `Const (_, rhs_const)
+      when Const.equal lhs_const rhs_const ->
+      Some Set.empty
+    | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
+      Some Set.empty
+    | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
+      Some (Set.singleton (lhs, rhs))
+    | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
+      when Kind.equal lhs_kind rhs_kind ->
+      Some
+        (Set.singleton
+           (if Id.equal lhs_id rhs_id then
+              (lhs_typ, rhs_typ)
+           else
+             let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
+             (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)))
+    | _ -> (
+      match (unapp lhs, unapp rhs) with
+      | (`Mu _, _), (`Mu _, _)
+        when (not (is_contractive lhs)) && not (is_contractive rhs) ->
+        Some Set.empty
+      | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
+        when is_contractive lhs && is_contractive rhs ->
+        Some (Set.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+      | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
+        Some (Set.singleton (unfold lat lf lmu lxs, rhs))
+      | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
+        Some (Set.singleton (lhs, unfold rat rf rmu rxs))
+      | (lf, lxs), (rf, rxs) when List.length lxs = List.length rxs ->
+        Some (List.combine (lf :: lxs) (rf :: rxs) |> Set.of_list)
+      | _ -> None)
 
 let rec gfp assumptions goals =
   Set.is_empty goals
