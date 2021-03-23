@@ -131,15 +131,14 @@ let support (lhs, rhs) =
       Some (List.combine (lf :: lxs) (rf :: rxs) |> Set.of_list)
     | _ -> None)
 
-let rec gfp a xs =
-  Set.is_empty xs
+let rec gfp assumptions goals =
+  Set.is_empty goals
   ||
-  let x = Set.choose xs in
-  if Set.mem x a then
-    gfp a (Set.remove x xs)
-  else
-    match support x with
-    | None -> false
-    | Some s -> gfp (Set.add x a) (Set.union xs s)
+  let goal = Set.choose goals in
+  match support goal with
+  | None -> false
+  | Some sub_goals ->
+    gfp (Set.add goal assumptions)
+      (Set.union (Set.remove goal goals) (Set.diff sub_goals assumptions))
 
 let equal_of_norm lhs rhs = gfp Set.empty (Set.singleton (lhs, rhs))
