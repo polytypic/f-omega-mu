@@ -238,6 +238,8 @@ module Typ = struct
 
   (* *)
 
+  let app at = List.fold_left (fun f x -> `App (at, f, x))
+
   let unapp typ =
     let rec recurse = function
       | `App (_, f, x) ->

@@ -75,8 +75,7 @@ and kind_of_cod checked_typ : _ -> Kind.t =
   | `Star _ -> failwith "Impossible"
   | `Arrow (_, _, c_kind) -> return c_kind
 
-let unfold at' f mu xs =
-  norm (xs |> List.fold_left (fun f x -> `App (at', f, x)) (`App (at', f, mu)))
+let unfold at f mu xs = FomAST.Typ.app at (`App (at, f, mu)) xs |> norm
 
 let rec head_of_norm typ =
   match unapp typ with

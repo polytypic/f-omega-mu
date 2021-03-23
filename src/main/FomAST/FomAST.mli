@@ -72,6 +72,7 @@ module Typ : sig
 
   (*  *)
 
+  val app : Loc.t -> t -> t list -> t
   val unapp : t -> t * t list
   val arity_and_result : t -> int * t
   val is_int : t -> bool
