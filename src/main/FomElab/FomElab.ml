@@ -1,3 +1,4 @@
+open FomSource
 open FomBasis
 open FomAST
 open FomAnnot
@@ -156,17 +157,19 @@ let rec elaborate =
     let* () = Annot.Typ.alias i (Typ.norm t) in
     let* e = elaborate e in
     let_typ_in i t e
-  | `LetTypRecIn (at, bs, e) ->
+  | `LetTypRecIn (_, bs, e) ->
     let* e = elaborate e in
     let env =
       bs |> List.to_seq
-      |> Seq.map (fun ((i, k), t) -> (i, `Mu (at, `Lam (at, i, k, t))))
+      |> Seq.map (fun (((i : Typ.Id.t), k), t) ->
+             let at = Loc.union i.at (Typ.at t) in
+             (i, `Mu (at, `Lam (at, i, k, t))))
       |> Env.of_seq
     in
     let rec loop e = function
       | [] -> return e
-      | ((i, _), _) :: bs ->
-        let t = subst_rec env (`Var (at, i)) in
+      | (((i : Typ.Id.t), _), _) :: bs ->
+        let t = subst_rec env (`Var (i.at, i)) in
         let* () = Annot.Typ.alias i (Typ.norm t) in
         let* e = let_typ_in i t e in
         loop e bs
