@@ -70,13 +70,16 @@ module Typ : sig
 
   val compare : t -> t -> int
 
-  (*  *)
+  (* Type predicates *)
+
+  val is_int : t -> bool
+  val is_bool : t -> bool
+
+  (* Type applications *)
 
   val app : Loc.t -> t -> t list -> t
   val unapp : t -> t * t list
   val arity_and_result : t -> int * t
-  val is_int : t -> bool
-  val is_bool : t -> bool
 
   (* Substitution *)
 

@@ -150,6 +150,31 @@ module Typ = struct
   let sum at = labeled (fun x -> `Sum x) at
   let zero at = `Const (at, `Sum [])
 
+  (* Type predicates *)
+
+  let is_int = function `Const (_, `Int) -> true | _ -> false
+  let is_bool = function `Const (_, `Bool) -> true | _ -> false
+
+  (* Type applications *)
+
+  let app at = List.fold_left (fun f x -> `App (at, f, x))
+
+  let unapp typ =
+    let rec recurse = function
+      | `App (_, f, x) ->
+        let f, xs = recurse f in
+        (f, x :: xs)
+      | typ -> (typ, [])
+    in
+    let f, xs = recurse typ in
+    (f, List.rev xs)
+
+  let rec arity_and_result = function
+    | `App (_, `App (_, `Const (_, `Arrow), _), result) ->
+      let n, result = arity_and_result result in
+      (n + 1, result)
+    | typ -> (0, typ)
+
   (* Substitution *)
 
   let rec is_free id = function
@@ -235,31 +260,6 @@ module Typ = struct
     | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
       compare lhs rhs
     | _ -> index lhs - index rhs
-
-  (* *)
-
-  let app at = List.fold_left (fun f x -> `App (at, f, x))
-
-  let unapp typ =
-    let rec recurse = function
-      | `App (_, f, x) ->
-        let f, xs = recurse f in
-        (f, x :: xs)
-      | typ -> (typ, [])
-    in
-    let f, xs = recurse typ in
-    (f, List.rev xs)
-
-  let rec arity_and_result = function
-    | `App (_, `App (_, `Const (_, `Arrow), _), result) ->
-      let n, result = arity_and_result result in
-      (n + 1, result)
-    | typ -> (0, typ)
-
-  (* *)
-
-  let is_int = function `Const (_, `Int) -> true | _ -> false
-  let is_bool = function `Const (_, `Bool) -> true | _ -> false
 
   (* Formatting *)
 
