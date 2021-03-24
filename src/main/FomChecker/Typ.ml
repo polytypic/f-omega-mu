@@ -186,8 +186,9 @@ let support (lhs, rhs) =
         Some (Set.singleton (unfold lat lf lmu lxs, rhs))
       | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
         Some (Set.singleton (lhs, unfold rat rf rmu rxs))
-      | (lf, lxs), (rf, rxs) when List.length lxs = List.length rxs ->
-        Some (List.combine (lf :: lxs) (rf :: rxs) |> Set.of_list)
+      | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs
+        ->
+        Some (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Set.of_list)
       | _ -> None)
 
 let rec gfp assumptions goals =
