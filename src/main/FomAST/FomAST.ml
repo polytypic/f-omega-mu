@@ -18,6 +18,15 @@ module Kind = struct
       compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
     | _ -> index lhs - index rhs
 
+  (* *)
+
+  let arity =
+    let rec loop n = function
+      | `Star _ -> n
+      | `Arrow (_, _, c) -> loop (n + 1) c
+    in
+    loop 0
+
   (* Formatting *)
 
   let rec pp atomize kind =

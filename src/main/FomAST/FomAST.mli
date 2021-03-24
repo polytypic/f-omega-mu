@@ -10,6 +10,10 @@ module Kind : sig
 
   val compare : t -> t -> int
 
+  (* *)
+
+  val arity : t -> int
+
   (* Formatting *)
 
   val pp : t -> document

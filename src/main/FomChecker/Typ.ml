@@ -11,6 +11,56 @@ include FomAST.Typ
 
 module Env = Map.Make (Id)
 
+let rec find_map_from_all_apps_of i' p = function
+  | `Const _ -> None
+  | `Lam (_, i, _, t) ->
+    if Id.equal i i' then
+      None
+    else
+      find_map_from_all_apps_of i' p t
+  | `Mu (_, t) | `ForAll (_, t) | `Exists (_, t) ->
+    find_map_from_all_apps_of i' p t
+  | t -> (
+    match unapp t with
+    | (`Var (_, i) as f), xs ->
+      if Id.equal i i' then
+        match p t f xs with
+        | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
+        | some -> some
+      else
+        xs |> List.find_map (find_map_from_all_apps_of i' p)
+    | f, xs -> (
+      match find_map_from_all_apps_of i' p f with
+      | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
+      | some -> some))
+
+let find_opt_nested_arg_mu at f arity =
+  if arity <= 0 then
+    None
+  else
+    let i = Id.fresh at in
+    let v = `Var (at, i) in
+    let is = List.init arity (fun _ -> Id.fresh at) in
+    let vs = is |> List.map (fun i -> `Var (at, i)) in
+    app at (`App (at, f, v)) vs
+    |> norm
+    |> find_map_from_all_apps_of i @@ fun _ _ xs ->
+       xs
+       |> List.find_map @@ function
+          | `Var _ -> None
+          | t ->
+            is
+            |> List.find_map @@ fun i ->
+               if is_free i t then
+                 Some t
+               else
+                 None
+
+let find_opt_nested_arg t =
+  match unapp t with
+  | `Mu (at, f), xs -> find_opt_nested_arg_mu at f (List.length xs)
+  | _ -> None
+
 let rec check typ : _ -> Kind.t =
   let open Reader in
   let quantifier symbol f =
@@ -27,6 +77,8 @@ let rec check typ : _ -> Kind.t =
     | `Arrow (_, d_kind, c_kind) ->
       if not (Kind.equal d_kind c_kind) then
         Error.mu_kind at' f f_kind;
+      find_opt_nested_arg_mu at' f (Kind.arity c_kind)
+      |> Option.iter (Error.mu_nested at' typ);
       return c_kind)
   | `Const (at', c) -> return (Const.kind_of at' c)
   | `Var (at', i) -> (
@@ -88,7 +140,7 @@ module Ids = Set.Make (Id)
 let rec is_contractive ids typ =
   match unapp typ with
   | `Mu (_, `Lam (_, id, _, f)), xs -> (
-    match FomAST.Typ.app Loc.dummy f xs |> FomAST.Typ.norm |> unapp with
+    match app Loc.dummy f xs |> norm |> unapp with
     | `Var (_, id'), _ when Id.equal id' id || Ids.mem id' ids -> false
     | typ, _ -> is_contractive (Ids.add id ids) typ)
   | _ -> true
@@ -119,6 +171,10 @@ let support (lhs, rhs) =
              let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
              (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)))
     | _ -> (
+      find_opt_nested_arg lhs
+      |> Option.iter (fun arg -> Error.mu_nested (at lhs) lhs arg);
+      find_opt_nested_arg rhs
+      |> Option.iter (fun arg -> Error.mu_nested (at rhs) rhs arg);
       match (unapp lhs, unapp rhs) with
       | (`Mu _, _), (`Mu _, _)
         when (not (is_contractive lhs)) && not (is_contractive rhs) ->

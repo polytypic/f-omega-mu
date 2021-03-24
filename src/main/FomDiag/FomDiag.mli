@@ -10,6 +10,7 @@ module Error : sig
   (* Kind errors *)
 
   val mu_kind : Loc.t -> Typ.t -> Kind.t -> 'a
+  val mu_nested : Loc.t -> Typ.t -> Typ.t -> 'a
   val typ_var_unbound : Loc.t -> Typ.Id.t -> 'a
   val app_of_kind_star : Loc.t -> Typ.t -> Typ.t -> 'a
   val app_kind_mismatch : Loc.t -> Typ.t -> Kind.t -> Typ.t -> Kind.t -> 'a

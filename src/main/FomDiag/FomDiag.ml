@@ -32,6 +32,18 @@ module Error = struct
         |> concat |> group )
       [(Kind.at kind, utf8string "Invalid kind for μ type constructor")]
 
+  let mu_nested at typ arg =
+    Diagnostic.error
+      ( at,
+        [
+          utf8string "Nested types like";
+          [break_1; Typ.pp typ] |> concat |> nest 2;
+          break_1;
+          utf8string "are not allowed to keep type checking decidable";
+        ]
+        |> concat |> group )
+      [(Typ.at arg, utf8string "Nested type parameter")]
+
   let typ_var_unbound at id =
     Diagnostic.error
       (at, concat [utf8string "Unbound type variable "; Typ.Id.pp id])
