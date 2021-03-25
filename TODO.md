@@ -1,5 +1,12 @@
 # Fωμ type checker &mdash; TODO
 
+- Some known bugs:
+
+  - Mutually recursive definitions (recursive products using destructuring) are
+    not guaranteed to be translated correctly due to deconstructing the proxy
+    object too early &mdash; the simplifier often "fixes" this issue by inlining
+    the select operations
+
 - Sandbox
   - highlight Fωμ based on grammar
 - General

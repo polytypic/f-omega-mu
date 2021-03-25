@@ -37,8 +37,9 @@ Below is an _approximation_ of the detailed
       | uop exp                                                   // Apply unary operator
       | exp bop exp                                               // Apply binary operator
       | 'let' 'type' tid '=' typ 'in' exp                         // Type binding (*2)
-      | 'let' 'type' ('μ' tid (':' kind) '=' typ 'and')* 'in' exp // Recursive type bindings (*2)
+      | 'let' 'type' ('μ' tid (':' kind) '=' typ 'and')+ 'in' exp // Recursive type bindings (*2)
       | 'let' pat '=' exp 'in' exp                                // Binding (*3)
+      | 'let' ('μ' pat '=' exp)+ 'in' exp                         // Recursive bindings (*3)
       | 'if' exp 'then' exp 'else' exp                            // Conditional (*4)
       | 'λ' pat ':' typ '.' exp                                   // Function (*3)
       | 'μ' (pat ':' typ '.' exp | '(' exp ')')                   // Recursive expression (*5)
@@ -71,8 +72,9 @@ Below is an _approximation_ of the detailed
    Fωμ does not have singleton kinds, for example.
 
 3. Type annotations must be specified in function parameters and recursive
-   expressions and cannot be specified in `let` bindings. Existential unpacking
-   has the usual side condition of not allowing the type variable to escape.
+   expressions and cannot be specified in non-recursive `let` bindings.
+   Existential unpacking has the usual side condition of not allowing the type
+   variable to escape.
 
 4. This Fωμ implementation is strict.
 

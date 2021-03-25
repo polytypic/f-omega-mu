@@ -54,6 +54,7 @@ module Exp = struct
     | `LetTypIn of Loc.t * Typ.Id.t * Typ.t * 't
     | `LetTypRecIn of Loc.t * ((Typ.Id.t * Kind.t) * Typ.t) list * 't
     | `LetPat of Loc.t * Pat.t * 't * 't
+    | `LetPatRec of Loc.t * (Pat.t * 't) list * 't
     | `LamPat of Loc.t * Pat.t * 't ]
 
   type t = [ | t f]
@@ -63,6 +64,7 @@ module Exp = struct
     | `LetTypIn (at, _, _, _)
     | `LetTypRecIn (at, _, _)
     | `LetPat (at, _, _, _)
+    | `LetPatRec (at, _, _)
     | `LamPat (at, _, _) ->
       at
     | #Exp.f as ast -> Exp.at ast

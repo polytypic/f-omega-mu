@@ -209,6 +209,10 @@ let rec elaborate =
     let* v = elaborate v in
     let* e = elaborate e in
     return @@ `UnpackIn (at, ti, ei, v, e)
+  | `LetPatRec (at, pvs, e) ->
+    let p = pvs |> List.map fst |> FomCST.Exp.Pat.tuple at in
+    let v = pvs |> List.map snd |> FomCST.Exp.tuple at in
+    elaborate @@ `LetPat (at, p, `Mu (at, `LamPat (at, p, v)), e)
   | `LamPat (at, p, e) ->
     let* e = elaborate e in
     let t = type_of_pat_lam p in

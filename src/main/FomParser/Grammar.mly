@@ -235,9 +235,13 @@ exp:
   | "let""type"i=typ_bid"="t=typ"in"e=exp               {`LetTypIn ($loc, i, t, e)}
   | "let""type"bs=list_1(typ_mu_def, "and")"in"e=exp    {`LetTypRecIn ($loc, bs, e)}
   | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, v, e)}
+  | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(b, t)}
+
+mu_def:
+  | "μ"p=pat(annot_lam)"="v=exp                         {(p, v)}
 
 //
 
