@@ -1,17 +1,31 @@
 # Fωμ type checker &mdash; [![Build Status](https://travis-ci.org/polytypic/f-omega-mu.svg?branch=main)](https://travis-ci.org/polytypic/f-omega-mu)
 
-A type checker for Fωμ roughly based on the article
+A type checker for Fωμ inspired by the article
 
 <blockquote>
   <dl>
     <dt>
-      <a href="https://dl.acm.org/doi/10.1145/2914770.2837660">
+      <a href="http://ps.informatik.uni-tuebingen.de/research/functors/equirecursion-fomega-popl16.pdf">
         System F-omega with Equirecursive Types for Datatype-generic Programming
       </a>
     </dt>
     <dd>Yufei Cai, Paolo G. Giarrusso, and Klaus Ostermann</dd>
   </dl>
 </blockquote>
+
+The type system described in the above paper limits recursive types to kind `*`,
+which means that only regular datatypes are expressible.
+
+This project implements a generalized version that instead _disallows nested
+datatypes_. For example, the nested datatype
+
+```
+μnested:* → *.λt.(t, () → nested (t, t))
+```
+
+is disallowed due to the parameter `(t, t)`. Disallowing nested datatypes is
+enough to keep the number of distinct subtrees finite in the infinite expansions
+of recursive types and to keep type equivalance decidable.
 
 This is still very much Work-in-Progress with tons of missing features and
 probably more bugs than one could imagine.
