@@ -212,10 +212,10 @@ let rec elaborate =
   | `LamPat (at, p, e) ->
     let* e = elaborate e in
     let t = type_of_pat_lam p in
-    let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
+    let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     return @@ `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
   | `LetPat (at, p, v, e) ->
     let* v = elaborate v in
     let* e = elaborate e in
-    let i = Exp.Id.freshen (Exp.Id.id (FomCST.Exp.Pat.at p) "") in
+    let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     return @@ `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)
