@@ -2,6 +2,8 @@ open FomSource
 open FomAST
 
 module Annot = struct
+  let is_user_written it = '9' < it.[0]
+
   type t =
     ( Loc.t,
       < annot :
@@ -18,8 +20,8 @@ module Annot = struct
   module Label = struct
     open Label
 
-    let def ({at; _} as id) typ r =
-      if not (Hashtbl.mem r#annotations at) then
+    let def ({at; it} as id) typ r =
+      if is_user_written it && not (Hashtbl.mem r#annotations at) then
         let uses = ref [] in
         Hashtbl.add r#annotations at
           (object
@@ -30,16 +32,17 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; _} {at = def; _} r =
-      let o = Hashtbl.find r#annotations def in
-      o#uses := at :: o#uses.contents
+    let use {at; it} {at = def; _} r =
+      if is_user_written it then
+        let o = Hashtbl.find r#annotations def in
+        o#uses := at :: o#uses.contents
   end
 
   module Exp = struct
     open Exp.Id
 
-    let def ({at; _} as id : Exp.Id.t) typ r =
-      if not (Hashtbl.mem r#annotations at) then
+    let def ({at; it} as id : Exp.Id.t) typ r =
+      if is_user_written it && not (Hashtbl.mem r#annotations at) then
         let uses = ref [] in
         Hashtbl.add r#annotations at
           (object
@@ -50,9 +53,10 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; _} {at = def; _} r =
-      let o = Hashtbl.find r#annotations def in
-      o#uses := at :: o#uses.contents
+    let use {at; it} {at = def; _} r =
+      if is_user_written it then
+        let o = Hashtbl.find r#annotations def in
+        o#uses := at :: o#uses.contents
   end
 
   module Typ = struct
