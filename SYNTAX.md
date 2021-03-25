@@ -8,10 +8,10 @@ Below is an _approximation_ of the detailed
       | '*'                                                       // Type
       | kind '→' kind                                             // Type constructor
 
-  typ : '(' typ ')'
-      | tid                                                       // Type variable (*1)
+  typ : tid                                                       // Type variable (*1)
       | ('int' | 'bool' | 'string')                               // Builtin types
       | typ '→' typ                                               // Function type
+      | '(' (typ ',')* ')'                                        // Tuple type
       | '{' (label (':' typ)? ',')* '}'                           // Product type
       | '[' (label (':' typ)? ',')* ']'                           // Sum type
       | typ typ                                                   // Apply type level function
