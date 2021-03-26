@@ -42,7 +42,7 @@ module Error = struct
           utf8string "are not allowed to keep type checking decidable";
         ]
         |> concat |> group )
-      [(Typ.at arg, utf8string "Nested type parameter")]
+      [(Typ.at arg, utf8string "Nested argument passed to μ type constructor")]
 
   let typ_var_unbound at id =
     Diagnostic.error
