@@ -1,6 +1,10 @@
 # Fωμ type checker &mdash; [![Build Status](https://travis-ci.org/polytypic/f-omega-mu.svg?branch=main)](https://travis-ci.org/polytypic/f-omega-mu)
 
-A type checker for Fωμ inspired by the article
+A type checker for Fωμ _restricted to non-nested datatypes_.
+
+This is a generalized version of the type system for Fωμ\*, that is Fωμ
+_restricted to first-order recursive types_ of kind `*`, described in the
+article
 
 <blockquote>
   <dl>
@@ -9,23 +13,40 @@ A type checker for Fωμ inspired by the article
         System F-omega with Equirecursive Types for Datatype-generic Programming
       </a>
     </dt>
-    <dd>Yufei Cai, Paolo G. Giarrusso, and Klaus Ostermann</dd>
+    <dd>by Yufei Cai, Paolo G. Giarrusso, and Klaus Ostermann.</dd>
   </dl>
 </blockquote>
 
-The type system described in the above paper limits recursive types to kind `*`,
-which means that only regular datatypes are expressible.
-
-This project implements a generalized version that instead _disallows nested
-datatypes_. For example, the nested datatype
+While Fωμ\* is powerful enough to express regular datatypes, it requires type
+parameters of said datatypes to be hoisted outside of the `μ`. For example, the
+list type
 
 ```
-μnested:* → *.λt.(t, () → nested (t, t))
+μlist:* → *.λα:*.opt (α, list α)
 ```
 
-is disallowed due to the parameter `(t, t)`. Disallowing nested datatypes is
-enough to keep the number of distinct subtrees finite in the infinite expansions
-of recursive types and to keep type equivalance decidable.
+needs to be rewritten as
+
+```
+λα:*.μlist_1:*.opt (α, list_1)
+```
+
+Both of the above types are allowed by the generalized system and are also
+considered equivalent as show in this
+[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAAuAKgDoBtXHVzxOIABQBKADQgodALaiQ7ALogIuEmRCUaILNDggQLQD3Ah2DxCAkwhB8OPXgzjj2sy3HaSNWnXtpPAH0ARlM2Lj4LI1CnFwl3AxiQn01teDg6ADMgzxNwwGzgSN5WAA9OPJN2XlLfUgz6HOCwliKnMorklRq6+rh8AAt4fABrQuLWTzE86snk6a7qohNxbNyjfjUk2FDZNebN9U9UrSIpIA).
+
+In this generalized version, nested datatypes are not allowed. For example,
+
+```
+μnested:* → *.λα.(α, () → nested (α, α))
+```
+
+is disallowed due to the argument `(α, α)` as show in this
+[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOsiGEAO0pgH1yrbEBeEIG7gAB4AuQD3AraHHhiAVCEBJhCHkA6IYEbgBWoAUmgDRsZCEPqOaAlJbUiQRVg12WgA).
+
+Disallowing nested datatypes is enough to keep the number of distinct subtrees
+finite in the infinite expansions of recursive types and to keep type
+equivalance decidable.
 
 This is still very much Work-in-Progress with tons of missing features and
 probably more bugs than one could imagine.
