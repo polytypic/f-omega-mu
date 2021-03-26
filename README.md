@@ -37,7 +37,7 @@ considered equivalent as show in this
 In this generalized system, nested types are not allowed. For example,
 
 ```
-μnested:* → *.λα:*.(α, () → nested (α, α))
+μnested:* → *.λα:*.(α, nested (α, α))
 ```
 
 is disallowed due to the argument `(α, α)` as demonstrated in this
