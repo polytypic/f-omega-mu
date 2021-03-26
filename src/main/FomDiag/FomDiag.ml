@@ -21,7 +21,7 @@ module Error = struct
       ( at,
         [
           utf8string "μ(_) requires a type constructor of kind";
-          [break_1; utf8string "k→k"] |> concat |> nest 2;
+          [break_1; utf8string "k → k"] |> concat |> nest 2;
           break_1;
           utf8string "but given type";
           [break_1; Typ.pp typ] |> concat |> nest 2;
@@ -93,7 +93,7 @@ module Error = struct
         [
           quantifier;
           utf8string "(_) requires a type constructor of kind";
-          [break_1; utf8string "(_→*)→*"] |> concat |> nest 2;
+          [break_1; utf8string "(_ → *) → *"] |> concat |> nest 2;
           break_1;
           utf8string "but given type";
           [break_1; Typ.pp typ] |> concat |> nest 2;
