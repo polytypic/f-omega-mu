@@ -22,27 +22,27 @@ let check_typs_match at ~expected ~actual =
     Error.typ_mismatch at expected actual
 
 let check_arrow_typ at typ =
-  let typ = Typ.head_of_norm typ in
+  let typ = Typ.unfold_of_norm typ in
   match typ with
   | `App (_, `App (_, `Const (_, `Arrow), dom), cod) -> (dom, cod)
   | _ -> Error.typ_non_arrow at typ
 
 let check_product_typ at typ =
-  let typ = Typ.head_of_norm typ in
+  let typ = Typ.unfold_of_norm typ in
   match Typ.unapp typ with
   | `Const (_, `Product ls), typs -> List.combine ls typs
   | _ -> Error.typ_non_product at typ
 
 let check_sum_typ at typ =
-  let typ = Typ.head_of_norm typ in
+  let typ = Typ.unfold_of_norm typ in
   match Typ.unapp typ with
   | `Const (_, `Sum ls), typs -> List.combine ls typs
   | _ -> Error.typ_non_sum at typ
 
-let rec infer_head e =
+let rec infer_and_unfold e =
   let open Reader in
   let* e_typ = infer e in
-  return @@ Typ.head_of_norm e_typ
+  return @@ Typ.unfold_of_norm e_typ
 
 and infer it : _ -> Typ.t =
   let open Reader in
@@ -71,7 +71,7 @@ and infer it : _ -> Typ.t =
     let* r_typ e = Typ.Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
     return @@ `ForAll (at, Typ.norm (`Lam (at, d, d_kind, r_typ)))
   | `Inst (at, f, x_typ) -> (
-    let* f_typ = infer_head f in
+    let* f_typ = infer_and_unfold f in
     match f_typ with
     | `ForAll (_, f_con) -> (
       let* f_kind = Typ.kind_of f_con in
@@ -169,7 +169,7 @@ and infer it : _ -> Typ.t =
       | _ -> failwith "Impossible")
     | _ -> failwith "TODO: pack non existential")
   | `UnpackIn (at, tid, id, v, e) -> (
-    let* v_typ = infer_head v in
+    let* v_typ = infer_and_unfold v in
     match v_typ with
     | `Exists (_, v_con) -> (
       let* f_kind = Typ.kind_of v_con in

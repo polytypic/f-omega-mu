@@ -130,9 +130,9 @@ and kind_of_cod checked_typ : _ -> Kind.t =
 
 let unfold at f mu xs = FomAST.Typ.app at (`App (at, f, mu)) xs |> norm
 
-let rec head_of_norm typ =
+let rec unfold_of_norm typ =
   match unapp typ with
-  | (`Mu (at', f) as mu), xs -> head_of_norm (unfold at' f mu xs)
+  | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
   | _ -> typ
 
 module Ids = Set.Make (Id)
