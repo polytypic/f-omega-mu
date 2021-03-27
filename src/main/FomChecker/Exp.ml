@@ -14,7 +14,7 @@ let typ_check_and_norm typ =
   let open Reader in
   let* kind = Typ.check typ in
   match kind with
-  | `Star _ -> return (Typ.norm typ)
+  | `Star _ -> return @@ Typ.norm typ
   | _ -> Error.typ_of_kind_arrow (Typ.at typ) typ kind
 
 let check_typs_match at ~expected ~actual =
@@ -42,7 +42,7 @@ let check_sum_typ at typ =
 let rec check_head e =
   let open Reader in
   let* e_typ = check e in
-  return (Typ.head_of_norm e_typ)
+  return @@ Typ.head_of_norm e_typ
 
 and check it : _ -> Typ.t =
   let open Reader in
@@ -59,7 +59,7 @@ and check it : _ -> Typ.t =
     let* d_typ = typ_check_and_norm d_typ in
     let* () = Annot.Exp.def d d_typ in
     let* r_typ e = Env.add d (d, d_typ) |> e#map_exp_env |> check r in
-    return (Typ.arrow at d_typ r_typ)
+    return @@ Typ.arrow at d_typ r_typ
   | `App (_, f, x) ->
     let* f_typ = check f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
@@ -69,7 +69,7 @@ and check it : _ -> Typ.t =
   | `Gen (at, d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
     let* r_typ e = Typ.Env.add d (d, d_kind) |> e#map_typ_env |> check r in
-    return (`ForAll (at, Typ.norm (`Lam (at, d, d_kind, r_typ))))
+    return @@ `ForAll (at, Typ.norm (`Lam (at, d, d_kind, r_typ)))
   | `Inst (at, f, x_typ) -> (
     let* f_typ = check_head f in
     match f_typ with
@@ -80,7 +80,7 @@ and check it : _ -> Typ.t =
         let* x_kind = Typ.check x_typ in
         if not (Kind.equal d_kind x_kind) then
           Error.inst_kind_mismatch at f_typ d_kind x_typ x_kind;
-        return (Typ.norm (`App (at, f_con, x_typ)))
+        return @@ Typ.norm (`App (at, f_con, x_typ))
       | _ -> failwith "Impossible")
     | _ -> Error.inst_of_non_for_all at f f_typ)
   | `LetIn (_, d, x, r) ->
@@ -106,7 +106,7 @@ and check it : _ -> Typ.t =
              let* e_typ = check e in
              return (l, e_typ))
     in
-    return (Typ.product at fs)
+    return @@ Typ.product at fs
   | `Select (_, p, l) -> (
     let* p_typ = check p in
     match
@@ -149,8 +149,7 @@ and check it : _ -> Typ.t =
                check_typs_match (Typ.at c_dom) ~expected:c_dom ~actual:e_typ;
                check_typs_match (Typ.at c_cod) ~expected:c_cod ~actual:e_cod;
                let* () = Annot.Label.def l' e_typ in
-               let* () = Annot.Label.use l l' in
-               return ())
+               Annot.Label.use l l')
       in
       return e_cod)
   | `Pack (at', t, e, et) -> (
