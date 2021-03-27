@@ -227,6 +227,8 @@ exp_bind(head):
   | head p=pat(annot_lam) "." e=exp                     {`LamPat ($loc, p, e)}
 
 exp:
+  | e=uop"_"                                            {e}
+  | e=bop                                               {e}
   | e=exp_inf                                           {e}
   | e=exp_bind("μ")                                     {`Mu ($loc, e)}
   | e=exp_bind("λ")                                     {e}
