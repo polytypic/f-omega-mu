@@ -39,12 +39,12 @@ let check_sum_typ at typ =
   | `Const (_, `Sum ls), typs -> List.combine ls typs
   | _ -> Error.typ_non_sum at typ
 
-let rec check_head e =
+let rec infer_head e =
   let open Reader in
-  let* e_typ = check e in
+  let* e_typ = infer e in
   return @@ Typ.head_of_norm e_typ
 
-and check it : _ -> Typ.t =
+and infer it : _ -> Typ.t =
   let open Reader in
   match it with
   | `Const (at, c) -> typ_check_and_norm (Const.type_of at c)
@@ -58,20 +58,20 @@ and check it : _ -> Typ.t =
   | `Lam (at, d, d_typ, r) ->
     let* d_typ = typ_check_and_norm d_typ in
     let* () = Annot.Exp.def d d_typ in
-    let* r_typ e = Env.add d (d, d_typ) |> e#map_exp_env |> check r in
+    let* r_typ e = Env.add d (d, d_typ) |> e#map_exp_env |> infer r in
     return @@ Typ.arrow at d_typ r_typ
   | `App (_, f, x) ->
-    let* f_typ = check f in
+    let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
-    let* x_typ = check x in
+    let* x_typ = infer x in
     check_typs_match (at x) ~expected:d_typ ~actual:x_typ;
     return c_typ
   | `Gen (at, d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
-    let* r_typ e = Typ.Env.add d (d, d_kind) |> e#map_typ_env |> check r in
+    let* r_typ e = Typ.Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
     return @@ `ForAll (at, Typ.norm (`Lam (at, d, d_kind, r_typ)))
   | `Inst (at, f, x_typ) -> (
-    let* f_typ = check_head f in
+    let* f_typ = infer_head f in
     match f_typ with
     | `ForAll (_, f_con) -> (
       let* f_kind = Typ.kind_of f_con in
@@ -84,31 +84,31 @@ and check it : _ -> Typ.t =
       | _ -> failwith "Impossible")
     | _ -> Error.inst_of_non_for_all at f f_typ)
   | `LetIn (_, d, x, r) ->
-    let* x_typ = check x in
+    let* x_typ = infer x in
     let* () = Annot.Exp.def d x_typ in
-    fun e -> Env.add d (d, x_typ) |> e#map_exp_env |> check r
+    fun e -> Env.add d (d, x_typ) |> e#map_exp_env |> infer r
   | `Mu (at', f) ->
-    let* f_typ = check f in
+    let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
     check_typs_match at' ~expected:d_typ ~actual:c_typ;
     return c_typ
   | `IfElse (_, c, t, e) ->
-    let* c_typ = check c in
+    let* c_typ = infer c in
     check_typs_match (at c) ~expected:(`Const (at c, `Bool)) ~actual:c_typ;
-    let* t_typ = check t in
-    let* e_typ = check e in
+    let* t_typ = infer t in
+    let* e_typ = infer e in
     check_typs_match (at e) ~expected:t_typ ~actual:e_typ;
     return t_typ
   | `Product (at, fs) ->
     let* fs =
       fs
       |> traverse (fun (l, e) ->
-             let* e_typ = check e in
+             let* e_typ = infer e in
              return (l, e_typ))
     in
     return @@ Typ.product at fs
   | `Select (_, p, l) -> (
-    let* p_typ = check p in
+    let* p_typ = infer p in
     match
       check_product_typ (at p) p_typ
       |> List.find_opt (fun (l', _) -> Label.equal l' l)
@@ -127,14 +127,14 @@ and check it : _ -> Typ.t =
     | Some (l', l_typ) ->
       let* () = Annot.Label.def l' l_typ in
       let* () = Annot.Label.use l l' in
-      let* e_typ = check e in
+      let* e_typ = infer e in
       check_typs_match (at e) ~expected:l_typ ~actual:e_typ;
       return s_typ
     | None -> Error.sum_lacks (Typ.at s_typ) s_typ l)
   | `Case (at', s, cs) -> (
-    let* s_typ = check s in
+    let* s_typ = infer s in
     let s_fs = check_sum_typ (at s) s_typ in
-    let* cs_typ = check cs in
+    let* cs_typ = infer cs in
     let cs_fs = check_product_typ (at cs) cs_typ in
     if ListExt.compare_with (Compare.the fst Label.compare) s_fs cs_fs <> 0 then
       Error.labels_mismatch at' (List.map fst s_fs) (List.map fst cs_fs);
@@ -153,7 +153,7 @@ and check it : _ -> Typ.t =
       in
       return e_cod)
   | `Pack (at', t, e, et) -> (
-    let* e_typ = check e in
+    let* e_typ = infer e in
     let* t_kind = Typ.check t in
     let* et = typ_check_and_norm et in
     match et with
@@ -169,7 +169,7 @@ and check it : _ -> Typ.t =
       | _ -> failwith "Impossible")
     | _ -> failwith "TODO: pack non existential")
   | `UnpackIn (at, tid, id, v, e) -> (
-    let* v_typ = check_head v in
+    let* v_typ = infer_head v in
     match v_typ with
     | `Exists (_, v_con) -> (
       let* f_kind = Typ.kind_of v_con in
@@ -181,7 +181,7 @@ and check it : _ -> Typ.t =
         let* e_typ r =
           let r = r#map_typ_env (Typ.Env.add tid (tid, d_kind)) in
           let r = r#map_exp_env (Env.add id (id, id_typ)) in
-          check e r
+          infer e r
         in
         if Typ.is_free tid e_typ then
           failwith "TODO: Type variable escapes";

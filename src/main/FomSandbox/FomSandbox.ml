@@ -178,7 +178,7 @@ let js_codemirror_mode =
         let typ =
           Js.to_string input
           |> parse_utf_8 Grammar.program Lexer.plain
-          |> elaborate |> Reader.run env |> Exp.check |> Reader.run env
+          |> elaborate |> Reader.run env |> Exp.infer |> Reader.run env
           |> Typ.pp |> to_js_string ~max_width
         in
         object%js

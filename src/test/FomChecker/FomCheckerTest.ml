@@ -33,13 +33,13 @@ let () =
   verify (not (eq "∀x.x→x" "∀y.y→y→y"));
   verify (not (eq "λx.μxs.x→xs" "λy.y→y"))
 
-let testChecksAs name typ exp =
+let testInfersAs name typ exp =
   test name @@ fun () ->
   try
     let expected = parse_typ typ |> Typ.norm in
     let env = Env.empty () in
     let actual =
-      exp |> parse_exp |> elaborate |> Reader.run env |> Exp.check
+      exp |> parse_exp |> elaborate |> Reader.run env |> Exp.infer
       |> Reader.run env
     in
     if not (Typ.equal_of_norm expected actual) then (
@@ -57,7 +57,7 @@ let testChecksAs name typ exp =
     failwith (msg |> FomPP.to_string ~max_width:80)
 
 let () =
-  testChecksAs "fact" "int"
+  testInfersAs "fact" "int"
     {eof|
     let fact =
       rec fact: int -> int =>
@@ -67,7 +67,7 @@ let () =
           else n * fact (n - 1) in
     fact 5
     |eof};
-  testChecksAs "list encoding" "int"
+  testInfersAs "list encoding" "int"
     {eof|
     let type list = λt.μlist.∀r.{nil: r, cons: t → list → r} → r in
     let nil = Λt.Λr.λc:{nil: r, cons: t → list t → r}.c.nil in
@@ -77,7 +77,7 @@ let () =
     let pi_digits = cons[int] 3 (cons[int] 1 (cons[int] 4 (cons[int] 1 (nil[int])))) in
     fold[int][int] (λx:int.λs:int.x + s) 0 pi_digits
     |eof};
-  testChecksAs "generic fold"
+  testInfersAs "generic fold"
     {eof|∀f:*→*.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|eof}
     {eof|
     let type Functor = λf:*→*.∀a.∀b.(a → b) → (f a → f b) in
@@ -87,16 +87,16 @@ let () =
           λv: μ(f).
             algebra (fmap[μ(f)][a] doFold v)
     |eof};
-  testChecksAs "existential silly" "∃t.{an: t, do: t → t}"
+  testInfersAs "existential silly" "∃t.{an: t, do: t → t}"
     {eof|
     let type doan = ∃t.{do: t → t, an: t} in
     let x =《{do = λx:int.x+1, an = 1} : doan/int》in
     let《r / t》= x in
     《{do = r.do, an = r.do r.an} : doan/t》
     |eof};
-  testChecksAs "hungry function" "(μt.int → t) → μt.int → t"
+  testInfersAs "hungry function" "(μt.int → t) → μt.int → t"
     "λf:μt.int → t.f 1 2 3";
-  testChecksAs "stack ADT" "μlist.[nil: {}, cons: {hd: int, tl: list}]"
+  testInfersAs "stack ADT" "μlist.[nil: {}, cons: {hd: int, tl: list}]"
     {eof|
     let type option = λv.[none: {}, some: v] in
     let type list = λv.μlist.[nil: {}, cons: {hd: v, tl: list}] in
@@ -125,6 +125,6 @@ let () =
       } in
     to_list[int] a_stack
     |eof};
-  testChecksAs "target" "string" "target[string] \"'a string'\"";
-  testChecksAs "let type in const" "bool"
+  testInfersAs "target" "string" "target[string] \"'a string'\"";
+  testInfersAs "let type in const" "bool"
     "let type t = int in 1 =[t] 2 || 3 !=[t] 4"
