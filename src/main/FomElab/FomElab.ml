@@ -140,28 +140,37 @@ let rec elaborate =
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
   | `LetTypIn (_, i, t, e) ->
-    let t = Typ.norm t in
     let* () = Annot.Typ.alias i t in
     let* e = elaborate e in
     let_typ_in i t e
   | `LetTypRecIn (_, bs, e) ->
+    let* r r = r in
     let* e = elaborate e in
-    let subst =
+    let assoc =
       bs
       |> List.map (fun (((i : Typ.Id.t), k), t) ->
              let at = Loc.union i.at (Typ.at t) in
-             (i, `Mu (at, `Lam (at, i, k, t))))
-      |> FomAST.Typ.subst_rec
+             let t = `Mu (at, `Lam (at, i, k, t)) in
+             Annot.Typ.alias i t r;
+             (i, t))
+    in
+    let to_def =
+      assoc |> List.to_seq |> Seq.map (fun (i, _) -> (i, i)) |> Typ.Env.of_seq
+    in
+    let replaced use =
+      let def = Typ.Env.find use to_def in
+      Annot.Typ.use use def r
+    in
+    let subst =
+      assoc |> List.to_seq |> Typ.Env.of_seq |> Typ.subst_rec ~replaced
     in
     let rec loop e = function
       | [] -> return e
-      | (((i : Typ.Id.t), _), _) :: bs ->
-        let t = Typ.norm @@ subst @@ `Var (i.at, i) in
-        let* () = Annot.Typ.alias i t in
-        let* e = let_typ_in i t e in
-        loop e bs
+      | (i, t) :: assoc ->
+        let* e = let_typ_in i (subst t) e in
+        loop e assoc
     in
-    loop e bs
+    loop e assoc
   | `Mu (at, e) ->
     let* e = elaborate e in
     return @@ `Mu (at, e)

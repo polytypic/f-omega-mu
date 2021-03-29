@@ -87,11 +87,14 @@ module Typ : sig
 
   (* Substitution *)
 
-  val free : t -> Id.t list
+  module IdSet : Set.S with type elt = Id.t
+  module Env : Map.S with type key = Id.t
+
+  val free : t -> IdSet.t
   val is_free : Id.t -> t -> bool
   val subst : ?replaced:(Id.t -> unit) -> Id.t -> t -> t -> t
-  val subst_par : ?replaced:(Id.t -> unit) -> (Id.t * t) list -> t -> t
-  val subst_rec : (Id.t * t) list -> t -> t
+  val subst_par : ?replaced:(Id.t -> unit) -> t Env.t -> t -> t
+  val subst_rec : ?replaced:(Id.t -> unit) -> t Env.t -> t -> t
   val norm : t -> t
 
   (* Formatting *)

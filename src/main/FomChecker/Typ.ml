@@ -9,8 +9,6 @@ include FomAST.Typ
 
 (* *)
 
-module Env = Map.Make (Id)
-
 let rec find_map_from_all_apps_of i' p = function
   | `Const _ -> None
   | `Lam (_, i, _, t) ->
@@ -135,27 +133,25 @@ let rec unfold_of_norm typ =
   | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
   | _ -> typ
 
-module Ids = Set.Make (Id)
-
 let rec is_contractive ids typ =
   match unapp typ with
   | `Mu (_, `Lam (_, id, _, f)), xs -> (
     match app Loc.dummy f xs |> norm |> unapp with
-    | `Var (_, id'), _ when Id.equal id' id || Ids.mem id' ids -> false
-    | typ, _ -> is_contractive (Ids.add id ids) typ)
+    | `Var (_, id'), _ when Id.equal id' id || IdSet.mem id' ids -> false
+    | typ, _ -> is_contractive (IdSet.add id ids) typ)
   | _ -> true
 
-let is_contractive = is_contractive Ids.empty
+let is_contractive = is_contractive IdSet.empty
 
 module Set = Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
 
 let regularize_free_vars (lhs, rhs) =
-  let free_vars = free @@ `App (Loc.dummy, lhs, rhs) (* TODO *) in
   let subst =
-    free_vars
+    IdSet.union (free lhs) (free rhs)
+    |> IdSet.elements
     |> List.mapi (fun i (v : Id.t) ->
            (v, `Var (v.at, Id.id v.at ("#" ^ string_of_int i))))
-    |> subst_par
+    |> List.to_seq |> Env.of_seq |> subst_par
   in
   (subst lhs, subst rhs)
 

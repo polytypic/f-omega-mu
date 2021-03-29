@@ -195,31 +195,33 @@ module Typ = struct
     | `App (_, f, x) -> IdSet.union (free f) (free x)
     | `Mu (_, e) | `ForAll (_, e) | `Exists (_, e) -> free e
 
-  let free = free >> IdSet.elements
-
   module Env = Map.Make (Id)
 
-  let rec subst_rec env = function
-    | `Mu (at, t) -> `Mu (at, subst_rec env t)
+  let rec subst_rec replaced env = function
+    | `Mu (at, t) -> `Mu (at, subst_rec replaced env t)
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
-      match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
+      match Env.find_opt i env with
+      | None -> inn
+      | Some t ->
+        replaced i;
+        subst_rec replaced env t)
     | `Lam (at, i, k, t) as inn ->
       let env = Env.remove i env in
       if Env.is_empty env then
         inn
       else
-        `Lam (at, i, k, subst_rec env t)
-    | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
-    | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
-    | `Exists (at, t) -> `Exists (at, subst_rec env t)
+        `Lam (at, i, k, subst_rec replaced env t)
+    | `App (at, f, x) ->
+      `App (at, subst_rec replaced env f, subst_rec replaced env x)
+    | `ForAll (at, t) -> `ForAll (at, subst_rec replaced env t)
+    | `Exists (at, t) -> `Exists (at, subst_rec replaced env t)
 
-  let subst_rec assoc =
-    let env = assoc |> List.to_seq |> Env.of_seq in
+  let subst_rec ?(replaced : Id.t -> unit = ignore) env =
     if Env.is_empty env then
       id
     else
-      subst_rec env
+      subst_rec replaced env
 
   let rec is_free id = function
     | `Const _ -> false
@@ -252,15 +254,14 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst_par replaced env t)
     | `Exists (at, t) -> `Exists (at, subst_par replaced env t)
 
-  let subst_par ?(replaced : Id.t -> unit = ignore) assoc =
-    let env = assoc |> List.to_seq |> Env.of_seq in
+  let subst_par ?(replaced : Id.t -> unit = ignore) env =
     if Env.is_empty env then
       id
     else
       subst_par replaced env
 
   let subst ?(replaced : Id.t -> unit = ignore) i' t' =
-    subst_par ~replaced [(i', t')]
+    subst_par ~replaced (Env.add i' t' Env.empty)
 
   let rec norm typ =
     match typ with
