@@ -156,7 +156,7 @@ and infer it : _ -> Typ.t =
     let* e_typ = infer e in
     let* t_kind = Typ.check t in
     let* et = typ_check_and_norm et in
-    match et with
+    match Typ.unfold_of_norm et with
     | `Exists (_, et_con) -> (
       let* et_kind = Typ.kind_of et_con in
       match et_kind with
