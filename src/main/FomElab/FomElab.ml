@@ -140,7 +140,8 @@ let rec elaborate =
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
   | `LetTypIn (_, i, t, e) ->
-    let* () = Annot.Typ.alias i (Typ.norm t) in
+    let t = Typ.norm t in
+    let* () = Annot.Typ.alias i t in
     let* e = elaborate e in
     let_typ_in i t e
   | `LetTypRecIn (_, bs, e) ->
@@ -155,8 +156,8 @@ let rec elaborate =
     let rec loop e = function
       | [] -> return e
       | (((i : Typ.Id.t), _), _) :: bs ->
-        let t = subst @@ `Var (i.at, i) in
-        let* () = Annot.Typ.alias i (Typ.norm t) in
+        let t = Typ.norm @@ subst @@ `Var (i.at, i) in
+        let* () = Annot.Typ.alias i t in
         let* e = let_typ_in i t e in
         loop e bs
     in
