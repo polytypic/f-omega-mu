@@ -149,6 +149,16 @@ let is_contractive = is_contractive Ids.empty
 
 module Set = Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
 
+let regularize_free_vars (lhs, rhs) =
+  let free_vars = free @@ `App (Loc.dummy, lhs, rhs) (* TODO *) in
+  let subst =
+    free_vars
+    |> List.mapi (fun i (v : Id.t) ->
+           (v, `Var (v.at, Id.id v.at ("#" ^ string_of_int i))))
+    |> subst_par
+  in
+  (subst lhs, subst rhs)
+
 let support (lhs, rhs) =
   if 0 = FomAST.Typ.compare lhs rhs then
     Some Set.empty
@@ -163,13 +173,14 @@ let support (lhs, rhs) =
       Some (Set.singleton (lhs, rhs))
     | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
       when Kind.equal lhs_kind rhs_kind ->
-      Some
-        (Set.singleton
-           (if Id.equal lhs_id rhs_id then
-              (lhs_typ, rhs_typ)
-           else
-             let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
-             (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)))
+      let entry =
+        if Id.equal lhs_id rhs_id then
+          (lhs_typ, rhs_typ)
+        else
+          let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
+          (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
+      in
+      Some (entry |> regularize_free_vars |> Set.singleton)
     | _ -> (
       find_opt_nested_arg lhs
       |> Option.iter (fun arg -> Error.mu_nested (at lhs) lhs arg);
@@ -201,4 +212,5 @@ let rec gfp assumptions goals =
     gfp (Set.add goal assumptions)
       (Set.union (Set.remove goal goals) (Set.diff sub_goals assumptions))
 
-let equal_of_norm lhs rhs = gfp Set.empty (Set.singleton (lhs, rhs))
+let equal_of_norm lhs rhs =
+  (lhs, rhs) |> regularize_free_vars |> Set.singleton |> gfp Set.empty
