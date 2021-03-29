@@ -193,14 +193,22 @@ module Typ = struct
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
       match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
-    | `Lam (at, i, k, t) ->
+    | `Lam (at, i, k, t) as inn ->
       let env = Env.remove i env in
-      `Lam (at, i, k, subst_rec env t)
+      if Env.is_empty env then
+        inn
+      else
+        `Lam (at, i, k, subst_rec env t)
     | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
     | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
     | `Exists (at, t) -> `Exists (at, subst_rec env t)
 
-  let subst_rec = List.to_seq >> Env.of_seq >> subst_rec
+  let subst_rec assoc =
+    let env = assoc |> List.to_seq |> Env.of_seq in
+    if Env.is_empty env then
+      id
+    else
+      subst_rec env
 
   let rec is_free id = function
     | `Const _ -> false
