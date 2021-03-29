@@ -186,6 +186,22 @@ module Typ = struct
 
   (* Substitution *)
 
+  module Env = Map.Make (Id)
+
+  let rec subst_rec env = function
+    | `Mu (at, t) -> `Mu (at, subst_rec env t)
+    | `Const _ as inn -> inn
+    | `Var (_, i) as inn -> (
+      match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
+    | `Lam (at, i, k, t) ->
+      let env = Env.remove i env in
+      `Lam (at, i, k, subst_rec env t)
+    | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
+    | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
+    | `Exists (at, t) -> `Exists (at, subst_rec env t)
+
+  let subst_rec = List.to_seq >> Env.of_seq >> subst_rec
+
   let rec is_free id = function
     | `Const _ -> false
     | `Var (_, id') -> Id.equal id id'

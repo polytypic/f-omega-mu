@@ -89,6 +89,7 @@ module Typ : sig
 
   val is_free : Id.t -> t -> bool
   val subst : ?replaced:(Id.t -> unit) -> Id.t -> t -> t -> t
+  val subst_rec : (Id.t * t) list -> t -> t
   val norm : t -> t
 
   (* Formatting *)

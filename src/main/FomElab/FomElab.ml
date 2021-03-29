@@ -116,20 +116,6 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
-module Env = Map.Make (Typ.Id)
-
-let rec subst_rec env = function
-  | `Mu (at, t) -> `Mu (at, subst_rec env t)
-  | `Const _ as inn -> inn
-  | `Var (_, i) as inn -> (
-    match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
-  | `Lam (at, i, k, t) ->
-    let env = Env.remove i env in
-    `Lam (at, i, k, subst_rec env t)
-  | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
-  | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
-  | `Exists (at, t) -> `Exists (at, subst_rec env t)
-
 let rec elaborate =
   let open Reader in
   function
@@ -159,17 +145,17 @@ let rec elaborate =
     let_typ_in i t e
   | `LetTypRecIn (_, bs, e) ->
     let* e = elaborate e in
-    let env =
-      bs |> List.to_seq
-      |> Seq.map (fun (((i : Typ.Id.t), k), t) ->
+    let subst =
+      bs
+      |> List.map (fun (((i : Typ.Id.t), k), t) ->
              let at = Loc.union i.at (Typ.at t) in
              (i, `Mu (at, `Lam (at, i, k, t))))
-      |> Env.of_seq
+      |> FomAST.Typ.subst_rec
     in
     let rec loop e = function
       | [] -> return e
       | (((i : Typ.Id.t), _), _) :: bs ->
-        let t = subst_rec env (`Var (i.at, i)) in
+        let t = subst @@ `Var (i.at, i) in
         let* () = Annot.Typ.alias i (Typ.norm t) in
         let* e = let_typ_in i t e in
         loop e bs
