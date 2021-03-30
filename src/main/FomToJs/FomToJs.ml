@@ -396,9 +396,11 @@ module Exp = struct
         else
           default ()
       | _ -> default ())
-    | `Mu e ->
+    | `Mu e -> (
       let* e = simplify e in
-      return @@ `Mu e
+      match e with
+      | `Lam (i, e) when not (is_free i e) -> return e
+      | e -> return @@ `Mu e)
     | `IfElse (c, t, e) -> (
       let* c = simplify c in
       match c with
