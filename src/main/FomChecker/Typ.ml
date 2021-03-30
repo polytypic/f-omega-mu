@@ -178,10 +178,6 @@ let support (lhs, rhs) =
       in
       Some (entry |> regularize_free_vars |> Set.singleton)
     | _ -> (
-      find_opt_nested_arg lhs
-      |> Option.iter (fun arg -> Error.mu_nested (at lhs) lhs arg);
-      find_opt_nested_arg rhs
-      |> Option.iter (fun arg -> Error.mu_nested (at rhs) rhs arg);
       match (unapp lhs, unapp rhs) with
       | (`Mu _, _), (`Mu _, _)
         when (not (is_contractive lhs)) && not (is_contractive rhs) ->
