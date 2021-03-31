@@ -6,6 +6,7 @@ open FomAST
 open FomParser
 open FomElab
 open FomChecker
+open FomEnv
 open FomToJs
 
 let to_js_string ?(max_width = 80) doc = to_string ~max_width doc |> Js.string

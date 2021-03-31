@@ -84,7 +84,7 @@ let rec check typ : _ -> Kind.t =
     match i_kind_opt with
     | None -> Error.typ_var_unbound at' i
     | Some (def, i_kind) ->
-      let* () = Annot.Typ.use i def in
+      let* () = Annot.Typ.use i def.Id.at in
       return i_kind)
   | `Lam (at', d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in

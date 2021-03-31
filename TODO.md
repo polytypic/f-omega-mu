@@ -10,7 +10,6 @@
 - Sandbox
   - highlight Fωμ based on grammar
 - General
-  - perform `let type ... in ...` substitutions in a single pass
   - better parser and type checker error messages
   - more testing
   - pretty printer for expressions

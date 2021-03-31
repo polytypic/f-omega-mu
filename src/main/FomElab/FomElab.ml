@@ -1,92 +1,6 @@
-open FomSource
 open FomBasis
 open FomAST
 open FomAnnot
-
-let subst i' t' t r =
-  Typ.subst ~replaced:(fun i -> Annot.Typ.use i i' r) i' t' t
-
-let rec let_typ_in i' t' =
-  let open Reader in
-  function
-  | `Const (at, c) -> return @@ `Const (at, Exp.Const.subst i' t' c)
-  | `Var _ as exp -> return exp
-  | `Lam (at, i, t, e) ->
-    let* e = let_typ_in i' t' e in
-    let* t = subst i' t' t in
-    return @@ `Lam (at, i, t, e)
-  | `App (at, fn, arg) ->
-    let* fn = let_typ_in i' t' fn in
-    let* arg = let_typ_in i' t' arg in
-    return @@ `App (at, fn, arg)
-  | `Gen (at, i, k, e) as exp ->
-    if Typ.Id.equal i i' then
-      return exp
-    else if Typ.is_free i t' then
-      let i' = Typ.Id.freshen i in
-      let vi' = `Var (at, i') in
-      let* e = let_typ_in i' vi' e in
-      let* e = let_typ_in i' t' e in
-      return @@ `Gen (at, i', k, e)
-    else
-      let* e = let_typ_in i' t' e in
-      return @@ `Gen (at, i, k, e)
-  | `Inst (at, e, t) ->
-    let* e = let_typ_in i' t' e in
-    let* t = subst i' t' t in
-    return @@ `Inst (at, e, t)
-  | `LetIn (at, i, v, e) ->
-    let* v = let_typ_in i' t' v in
-    let* e = let_typ_in i' t' e in
-    return @@ `LetIn (at, i, v, e)
-  | `Mu (at, e) ->
-    let* e = let_typ_in i' t' e in
-    return @@ `Mu (at, e)
-  | `IfElse (at, c, t, e) ->
-    let* c = let_typ_in i' t' c in
-    let* t = let_typ_in i' t' t in
-    let* e = let_typ_in i' t' e in
-    return @@ `IfElse (at, c, t, e)
-  | `Product (at, fs) ->
-    let* fs =
-      fs
-      |> traverse (fun (l, e) ->
-             let* e = let_typ_in i' t' e in
-             return (l, e))
-    in
-    return @@ `Product (at, fs)
-  | `Select (at, e, l) ->
-    let* e = let_typ_in i' t' e in
-    return @@ `Select (at, e, l)
-  | `Inject (at, l, e, t) ->
-    let* e = let_typ_in i' t' e in
-    let* t = subst i' t' t in
-    return @@ `Inject (at, l, e, t)
-  | `Case (at, s, cs) ->
-    let* s = let_typ_in i' t' s in
-    let* cs = let_typ_in i' t' cs in
-    return @@ `Case (at, s, cs)
-  | `Pack (at, t, e, et) ->
-    let* e = let_typ_in i' t' e in
-    let* t = subst i' t' t in
-    let* et = subst i' t' et in
-    return @@ `Pack (at, t, e, et)
-  | `UnpackIn (at, ti, ei, v, e) ->
-    let* v = let_typ_in i' t' v in
-    if Typ.Id.equal ti i' then
-      return @@ `UnpackIn (at, ti, ei, v, e)
-    else if Typ.is_free ti t' then
-      let ti'' = Typ.Id.freshen ti in
-      let vti'' = `Var (at, ti'') in
-      let* e = let_typ_in ti vti'' e in
-      let* e = let_typ_in i' t' e in
-      return @@ `UnpackIn (at, ti'', ei, v, e)
-    else
-      let* e = let_typ_in i' t' e in
-      return @@ `UnpackIn (at, ti, ei, v, e)
-  | `Target (at, t, s) ->
-    let* t = subst i' t' t in
-    return @@ `Target (at, t, s)
 
 let rec type_of_pat_lam = function
   | `Id (_, _, t) -> t
@@ -116,13 +30,21 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
+let elaborate_typ t r =
+  let replaced i t = Annot.Typ.use i (Typ.at t) r in
+  Typ.subst_par ~replaced r#get_typ_aliases t
+
 let rec elaborate =
   let open Reader in
   function
-  | `Const _ as ast -> return ast
+  | `Const (at, c) ->
+    fun r ->
+      let replaced i t = Annot.Typ.use i (Typ.at t) r in
+      `Const (at, Exp.Const.subst_par ~replaced r#get_typ_aliases c)
   | `Var _ as ast -> return ast
   | `Target _ as ast -> return ast
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
+    let* t = elaborate_typ t in
     let* e = elaborate e in
     return @@ `Lam (at, i, t, e)
   | `App (at, f, x) ->
@@ -134,6 +56,7 @@ let rec elaborate =
     return @@ `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let* e = elaborate e in
+    let* t = elaborate_typ t in
     return @@ `Inst (at, e, t)
   | `LetIn (at, i, v, e) | `LetPat (at, `Id (_, i, _), v, e) ->
     let* v = elaborate v in
@@ -141,36 +64,25 @@ let rec elaborate =
     return @@ `LetIn (at, i, v, e)
   | `LetTypIn (_, i, t, e) ->
     let* () = Annot.Typ.alias i t in
-    let* e = elaborate e in
-    let_typ_in i t e
+    let* t = elaborate_typ t in
+    fun r ->
+      Typ.set_at i.at t |> Typ.Env.add i |> r#map_typ_aliases |> elaborate e
   | `LetTypRecIn (_, bs, e) ->
-    let* r r = r in
-    let* e = elaborate e in
-    let assoc =
+    let* assoc =
       bs
-      |> List.map (fun (((i : Typ.Id.t), k), t) ->
-             let at = Loc.union i.at (Typ.at t) in
+      |> traverse (fun ((i, k), t) ->
+             let at = i.Typ.Id.at in
              let t = `Mu (at, `Lam (at, i, k, t)) in
-             Annot.Typ.alias i t r;
-             (i, t))
+             let* () = Annot.Typ.alias i t in
+             let* t = elaborate_typ t in
+             return (i, t))
     in
-    let to_def =
-      assoc |> List.to_seq |> Seq.map (fun (i, _) -> (i, i)) |> Typ.Env.of_seq
-    in
-    let replaced use =
-      let def = Typ.Env.find use to_def in
-      Annot.Typ.use use def r
-    in
-    let subst =
-      assoc |> List.to_seq |> Typ.Env.of_seq |> Typ.subst_rec ~replaced
-    in
-    let rec loop e = function
-      | [] -> return e
-      | (i, t) :: assoc ->
-        let* e = let_typ_in i (subst t) e in
-        loop e assoc
-    in
-    loop e assoc
+    let env = assoc |> List.to_seq |> Typ.Env.of_seq in
+    let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
+    let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
+    fun r ->
+      Typ.Env.union (fun _ v _ -> Some v) env
+      |> r#map_typ_aliases |> elaborate e
   | `Mu (at, e) ->
     let* e = elaborate e in
     return @@ `Mu (at, e)
@@ -192,13 +104,16 @@ let rec elaborate =
     return @@ `Select (at, e, l)
   | `Inject (at, l, e, t) ->
     let* e = elaborate e in
+    let* t = elaborate_typ t in
     return @@ `Inject (at, l, e, t)
   | `Case (at, s, cs) ->
     let* s = elaborate s in
     let* cs = elaborate cs in
     return @@ `Case (at, s, cs)
   | `Pack (at, t, e, x) ->
+    let* t = elaborate_typ t in
     let* e = elaborate e in
+    let* x = elaborate_typ x in
     return @@ `Pack (at, t, e, x)
   | `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), v, e) ->
@@ -212,6 +127,7 @@ let rec elaborate =
   | `LamPat (at, p, e) ->
     let* e = elaborate e in
     let t = type_of_pat_lam p in
+    let* t = elaborate_typ t in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     return @@ `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
   | `LetPat (at, p, v, e) ->

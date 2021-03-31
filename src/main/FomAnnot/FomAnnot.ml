@@ -32,7 +32,7 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; it} {at = def; _} r =
+    let use {at; it} def r =
       if is_user_written it then
         let o = Hashtbl.find r#annotations def in
         o#uses := at :: o#uses.contents
@@ -53,7 +53,7 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; it} {at = def; _} r =
+    let use {at; it} def r =
       if is_user_written it then
         let o = Hashtbl.find r#annotations def in
         o#uses := at :: o#uses.contents
@@ -86,8 +86,9 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; _} {at = def; _} r =
-      let o = Hashtbl.find r#annotations def in
-      o#uses := at :: o#uses.contents
+    let use {at; _} def r =
+      match Hashtbl.find_opt r#annotations def with
+      | None -> ()
+      | Some o -> o#uses := at :: o#uses.contents
   end
 end

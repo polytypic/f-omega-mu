@@ -2,6 +2,7 @@ open FomBasis
 open FomSource
 open FomTest
 open FomChecker
+open FomEnv
 open FomParser
 open FomElab
 

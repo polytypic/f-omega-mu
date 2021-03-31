@@ -62,6 +62,7 @@ module Typ : sig
     | `Exists of Loc.t * t ]
 
   val at : t -> Loc.t
+  val set_at : Loc.t -> t -> t
 
   (* Macros *)
 
@@ -92,9 +93,9 @@ module Typ : sig
 
   val free : t -> IdSet.t
   val is_free : Id.t -> t -> bool
-  val subst : ?replaced:(Id.t -> unit) -> Id.t -> t -> t -> t
-  val subst_par : ?replaced:(Id.t -> unit) -> t Env.t -> t -> t
-  val subst_rec : ?replaced:(Id.t -> unit) -> t Env.t -> t -> t
+  val subst : ?replaced:(Id.t -> t -> unit) -> Id.t -> t -> t -> t
+  val subst_par : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t -> t
+  val subst_rec : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t -> t
   val norm : t -> t
 
   (* Formatting *)
@@ -132,7 +133,11 @@ module Exp : sig
 
     (* Substitution *)
 
-    val subst : Typ.Id.t -> Typ.t -> 'nat t -> 'nat t
+    val subst_par :
+      ?replaced:(Typ.Id.t -> Typ.t -> unit) ->
+      Typ.t Typ.Env.t ->
+      'nat t ->
+      'nat t
 
     (* Constants *)
 
@@ -145,6 +150,7 @@ module Exp : sig
   end
 
   module Id : Id.S
+  module Env : Map.S with type key = Id.t
 
   type 't f =
     [ `Const of Loc.t * Bigint.t Const.t

@@ -144,6 +144,15 @@ module Typ = struct
     | `Exists (at, _) ->
       at
 
+  let set_at at = function
+    | `Mu (_, t) -> `Mu (at, t)
+    | `Const (_, c) -> `Const (at, c)
+    | `Var (_, i) -> `Var (at, i)
+    | `Lam (_, i, k, t) -> `Lam (at, i, k, t)
+    | `App (_, f, x) -> `App (at, f, x)
+    | `ForAll (_, t) -> `ForAll (at, t)
+    | `Exists (_, t) -> `Exists (at, t)
+
   (* Macros *)
 
   let arrow at dom cod = `App (at, `App (at, `Const (at, `Arrow), dom), cod)
@@ -204,7 +213,7 @@ module Typ = struct
       match Env.find_opt i env with
       | None -> inn
       | Some t ->
-        replaced i;
+        replaced i t;
         subst_rec replaced env t)
     | `Lam (at, i, k, t) as inn ->
       let env = Env.remove i env in
@@ -217,7 +226,7 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst_rec replaced env t)
     | `Exists (at, t) -> `Exists (at, subst_rec replaced env t)
 
-  let subst_rec ?(replaced : Id.t -> unit = ignore) env =
+  let subst_rec ?(replaced = fun _ _ -> ()) env =
     if Env.is_empty env then
       id
     else
@@ -237,7 +246,7 @@ module Typ = struct
       match Env.find_opt i env with
       | None -> inn
       | Some t ->
-        replaced i;
+        replaced i t;
         t)
     | `Lam (at, i, k, t) as inn ->
       let env = Env.remove i env in
@@ -254,13 +263,13 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst_par replaced env t)
     | `Exists (at, t) -> `Exists (at, subst_par replaced env t)
 
-  let subst_par ?(replaced : Id.t -> unit = ignore) env =
+  let subst_par ?(replaced = fun _ _ -> ()) env =
     if Env.is_empty env then
       id
     else
       subst_par replaced env
 
-  let subst ?(replaced : Id.t -> unit = ignore) i' t' =
+  let subst ?(replaced = fun _ _ -> ()) i' t' =
     subst_par ~replaced (Env.add i' t' Env.empty)
 
   let rec norm typ =
@@ -456,15 +465,15 @@ module Exp = struct
 
     (* Substitution *)
 
-    let subst i t c =
+    let subst_par ?(replaced = fun _ _ -> ()) env c =
       match c with
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
       | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
       | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
       | `OpLogicalNot | `OpLogicalOr ->
         c
-      | `OpEq t' -> `OpEq (Typ.subst i t t')
-      | `OpEqNot t' -> `OpEqNot (Typ.subst i t t')
+      | `OpEq t -> `OpEq (Typ.subst_par ~replaced env t)
+      | `OpEqNot t -> `OpEqNot (Typ.subst_par ~replaced env t)
 
     let lit_false = `LitBool false
     let lit_true = `LitBool true
@@ -494,6 +503,7 @@ module Exp = struct
   end
 
   module Id = Id.Make ()
+  module Env = Map.Make (Id)
 
   type 't f =
     [ `Const of Loc.t * Bigint.t Const.t

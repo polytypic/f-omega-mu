@@ -1,0 +1,3 @@
+(library
+ (name FomEnv)
+ (libraries FomAST FomAnnot))
