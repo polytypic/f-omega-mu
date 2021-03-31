@@ -38,6 +38,11 @@ module Id : sig
     val at : t -> Loc.t
     val name : t -> Name.t
 
+    (* Special *)
+
+    val is_numeric : t -> bool
+    val is_fresh : t -> bool
+
     (* Comparison *)
 
     val equal : t -> t -> bool
@@ -56,7 +61,6 @@ module Id : sig
     (* Generated *)
 
     val fresh : Loc.t -> t
-    val is_fresh : t -> bool
 
     (* Freshening *)
 

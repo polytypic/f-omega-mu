@@ -44,6 +44,11 @@ module type S = sig
   val at : t -> Loc.t
   val name : t -> Name.t
 
+  (* Special *)
+
+  val is_numeric : t -> bool
+  val is_fresh : t -> bool
+
   (* Comparison *)
 
   val equal : t -> t -> bool
@@ -62,7 +67,6 @@ module type S = sig
   (* Generated *)
 
   val fresh : Loc.t -> t
-  val is_fresh : t -> bool
 
   (* Freshening *)
 
@@ -74,6 +78,10 @@ module Make () : S = struct
 
   let at {at; _} = at
   let name {name; _} = name
+
+  let is_numeric {name; _} =
+    let s = Name.to_string name in
+    0 < String.length s && '0' <= s.[0] && s.[0] <= '9'
 
   (* Comparison *)
 

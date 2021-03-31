@@ -20,7 +20,11 @@ module Annot = struct
 
     let def id typ r =
       let at = at id in
-      if (not (is_fresh id)) && not (Hashtbl.mem r#annotations at) then
+      if
+        (not (is_fresh id))
+        && (not (is_numeric id))
+        && not (Hashtbl.mem r#annotations at)
+      then
         let uses = ref [] in
         Hashtbl.add r#annotations at
           (object
@@ -33,7 +37,7 @@ module Annot = struct
 
     let use id def r =
       let at = at id in
-      if not (is_fresh id) then
+      if (not (is_fresh id)) && not (is_numeric id) then
         let o = Hashtbl.find r#annotations def in
         o#uses := at :: o#uses.contents
   end
@@ -43,7 +47,11 @@ module Annot = struct
 
     let def id typ r =
       let at = at id in
-      if (not (is_fresh id)) && not (Hashtbl.mem r#annotations at) then
+      if
+        (not (is_fresh id))
+        && (not (is_numeric id))
+        && not (Hashtbl.mem r#annotations at)
+      then
         let uses = ref [] in
         Hashtbl.add r#annotations at
           (object
@@ -56,7 +64,7 @@ module Annot = struct
 
     let use id def r =
       let at = at id in
-      if not (is_fresh id) then
+      if (not (is_fresh id)) && not (is_numeric id) then
         let o = Hashtbl.find r#annotations def in
         o#uses := at :: o#uses.contents
   end
