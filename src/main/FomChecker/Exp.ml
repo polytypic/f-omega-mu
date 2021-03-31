@@ -51,7 +51,7 @@ and infer it : _ -> Typ.t =
     match x_typ_opt with
     | None -> Error.var_unbound at x
     | Some (def, x_typ) ->
-      let* () = Annot.Exp.use x def.Id.at in
+      let* () = Annot.Exp.use x (Id.at def) in
       return x_typ)
   | `Lam (at, d, d_typ, r) ->
     let* d_typ = typ_check_and_norm d_typ in
@@ -113,7 +113,7 @@ and infer it : _ -> Typ.t =
     with
     | Some (l', l_typ) ->
       let* () = Annot.Label.def l' l_typ in
-      let* () = Annot.Label.use l l'.at in
+      let* () = Annot.Label.use l (Label.at l') in
       return l_typ
     | None -> Error.product_lacks (at p) p_typ l)
   | `Inject (_, l, e, s_typ) -> (
@@ -124,7 +124,7 @@ and infer it : _ -> Typ.t =
     with
     | Some (l', l_typ) ->
       let* () = Annot.Label.def l' l_typ in
-      let* () = Annot.Label.use l l'.at in
+      let* () = Annot.Label.use l (Label.at l') in
       let* e_typ = infer e in
       check_typs_match (at e) ~expected:l_typ ~actual:e_typ;
       return s_typ
@@ -147,7 +147,7 @@ and infer it : _ -> Typ.t =
                check_typs_match (Typ.at c_dom) ~expected:c_dom ~actual:e_typ;
                check_typs_match (Typ.at c_cod) ~expected:c_cod ~actual:e_cod;
                let* () = Annot.Label.def l' e_typ in
-               Annot.Label.use l l'.at)
+               Annot.Label.use l (Label.at l'))
       in
       return e_cod)
   | `Pack (at', t, e, et) -> (

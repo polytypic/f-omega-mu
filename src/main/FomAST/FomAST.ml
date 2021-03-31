@@ -48,15 +48,17 @@ end
 module Label = struct
   include Id.Make ()
 
-  (** If both labels are numberic, comparison is done by numeric value. *)
-  let compare {it = lhs; _} {it = rhs; _} =
+  (** If both labels are numeric, comparison is done by numeric value. *)
+  let compare lhs rhs =
+    let lhs = to_string lhs in
+    let rhs = to_string rhs in
     try int_of_string lhs - int_of_string rhs
     with Failure _ -> String.compare lhs rhs
 end
 
 module Tuple = struct
   let is_tuple =
-    ListExt.for_alli (fun i l -> l.Label.it = Int.to_string (i + 1))
+    ListExt.for_alli (fun i l -> Label.to_string l = Int.to_string (i + 1))
 end
 
 module Typ = struct
@@ -365,10 +367,9 @@ module Typ = struct
 
   and labeled labels typs =
     List.combine labels typs
-    |> List.stable_sort
-         (Compare.the (fun ({Label.at; _}, _) -> fst at) Pos.compare)
+    |> List.stable_sort (Compare.the (fst >> Label.at >> fst) Pos.compare)
     |> List.map (function
-         | l, `Var (_, {Id.it = i; _}) when i = l.Label.it -> Label.pp l
+         | l, `Var (_, i) when Id.name i = Label.name l -> Label.pp l
          | label, typ ->
            [
              [Label.pp label; colon] |> concat;

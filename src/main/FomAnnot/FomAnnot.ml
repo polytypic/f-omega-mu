@@ -2,8 +2,6 @@ open FomSource
 open FomAST
 
 module Annot = struct
-  let is_user_written it = '9' < it.[0]
-
   type t =
     ( Loc.t,
       < annot :
@@ -20,8 +18,9 @@ module Annot = struct
   module Label = struct
     open Label
 
-    let def ({at; it} as id) typ r =
-      if is_user_written it && not (Hashtbl.mem r#annotations at) then
+    let def id typ r =
+      let at = at id in
+      if (not (is_fresh id)) && not (Hashtbl.mem r#annotations at) then
         let uses = ref [] in
         Hashtbl.add r#annotations at
           (object
@@ -32,8 +31,9 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; it} def r =
-      if is_user_written it then
+    let use id def r =
+      let at = at id in
+      if not (is_fresh id) then
         let o = Hashtbl.find r#annotations def in
         o#uses := at :: o#uses.contents
   end
@@ -41,8 +41,9 @@ module Annot = struct
   module Exp = struct
     open Exp.Id
 
-    let def ({at; it} as id : Exp.Id.t) typ r =
-      if is_user_written it && not (Hashtbl.mem r#annotations at) then
+    let def id typ r =
+      let at = at id in
+      if (not (is_fresh id)) && not (Hashtbl.mem r#annotations at) then
         let uses = ref [] in
         Hashtbl.add r#annotations at
           (object
@@ -53,8 +54,9 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; it} def r =
-      if is_user_written it then
+    let use id def r =
+      let at = at id in
+      if not (is_fresh id) then
         let o = Hashtbl.find r#annotations def in
         o#uses := at :: o#uses.contents
   end
@@ -62,7 +64,8 @@ module Annot = struct
   module Typ = struct
     open Typ.Id
 
-    let def ({at; _} as id) kind r =
+    let def id kind r =
+      let at = at id in
       if not (Hashtbl.mem r#annotations at) then
         let uses = ref [] in
         Hashtbl.add r#annotations at
@@ -74,7 +77,8 @@ module Annot = struct
              method uses = uses
           end)
 
-    let alias ({at; _} as id) typ r =
+    let alias id typ r =
+      let at = at id in
       if not (Hashtbl.mem r#annotations at) then
         let uses = ref [] in
         Hashtbl.add r#annotations at
@@ -86,7 +90,8 @@ module Annot = struct
              method uses = uses
           end)
 
-    let use {at; _} def r =
+    let use id def r =
+      let at = at id in
       match Hashtbl.find_opt r#annotations def with
       | None -> ()
       | Some o -> o#uses := at :: o#uses.contents

@@ -51,7 +51,7 @@ let js_use_def ?(max_width = 60) (def, o) =
         ]
         |> concat
       | `ExpId (id, typ) ->
-        let is_gen_id = String.index_opt id.Exp.Id.it '$' = Some 0 in
+        let is_gen_id = Exp.Id.is_fresh id in
         [
           (if is_gen_id then
              empty
@@ -96,7 +96,7 @@ let js_codemirror_mode =
         let keys = Js.object_keys obj |> Js.to_array |> Array.to_list in
         if
           keys
-          |> List.map (Js.to_string >> Label.id Loc.dummy)
+          |> List.map (Js.to_string >> Label.of_string Loc.dummy)
           |> Tuple.is_tuple
         then
           keys

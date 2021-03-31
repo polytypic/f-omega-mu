@@ -1,3 +1,4 @@
+open FomAST
 open FomTest
 open FomParser
 
@@ -8,16 +9,18 @@ let () =
   match parse_program "Λα:*.\n  λx:α.x" with
   | `Gen
       ( _,
-        {it = "α"; at = {pos_lnum = 1; pos_bol = 0; pos_cnum = 1; _}, _},
+        ({at = {pos_lnum = 1; pos_bol = 0; pos_cnum = 1; _}, _; _} as alpha1),
         `Star _,
         `LamPat
           ( _,
             `Id
               ( _,
-                {it = "x"; at = {pos_lnum = 2; pos_bol = 6; pos_cnum = 9; _}, _},
-                `Var (_, {it = "α"; _}) ),
-            `Var (_, {it = "x"; _}) ) ) ->
-    ()
+                ({at = {pos_lnum = 2; pos_bol = 6; pos_cnum = 9; _}, _; _} as
+                x1),
+                `Var (_, alpha2) ),
+            `Var (_, x2) ) ) ->
+    verify (Typ.Id.to_string alpha1 = "α" && Typ.Id.equal alpha1 alpha2);
+    verify (Exp.Id.to_string x1 = "x" && 0 = Exp.Id.compare x1 x2)
   | _ -> verify false
 
 let () =

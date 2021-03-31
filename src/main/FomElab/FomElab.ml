@@ -19,11 +19,17 @@ let rec elaborate_pat p' e' = function
     |> List.fold_left
          (fun e' -> function
            | l, `Pat p ->
-             let i = Exp.Id.freshen (Exp.Id.id l.Label.at l.it) in
+             let i =
+               Exp.Id.freshen (Exp.Id.of_name (Label.at l) (Label.name l))
+             in
              `LetIn
                (at, i, `Select (at, p', l), elaborate_pat (`Var (at, i)) e' p)
            | l, `Ann _ ->
-             `LetIn (at, Exp.Id.id l.Label.at l.it, `Select (at, p', l), e'))
+             `LetIn
+               ( at,
+                 Exp.Id.of_name (Label.at l) (Label.name l),
+                 `Select (at, p', l),
+                 e' ))
          e'
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
   | `Pack (at, p, t, _) ->
@@ -66,12 +72,14 @@ let rec elaborate =
     let* () = Annot.Typ.alias i t in
     let* t = elaborate_typ t in
     fun r ->
-      Typ.set_at i.at t |> Typ.Env.add i |> r#map_typ_aliases |> elaborate e
+      t
+      |> Typ.set_at (Typ.Id.at i)
+      |> Typ.Env.add i |> r#map_typ_aliases |> elaborate e
   | `LetTypRecIn (_, bs, e) ->
     let* assoc =
       bs
       |> traverse (fun ((i, k), t) ->
-             let at = i.Typ.Id.at in
+             let at = Typ.Id.at i in
              let t = `Mu (at, `Lam (at, i, k, t)) in
              let* () = Annot.Typ.alias i t in
              let* t = elaborate_typ t in

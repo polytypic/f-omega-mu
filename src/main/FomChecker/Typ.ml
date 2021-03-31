@@ -84,7 +84,7 @@ let rec check typ : _ -> Kind.t =
     match i_kind_opt with
     | None -> Error.typ_var_unbound at' i
     | Some (def, i_kind) ->
-      let* () = Annot.Typ.use i def.Id.at in
+      let* () = Annot.Typ.use i (Id.at def) in
       return i_kind)
   | `Lam (at', d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
@@ -149,8 +149,8 @@ let regularize_free_vars (lhs, rhs) =
   let subst =
     IdSet.union (free lhs) (free rhs)
     |> IdSet.elements
-    |> List.mapi (fun i (v : Id.t) ->
-           (v, `Var (v.at, Id.id v.at ("#" ^ string_of_int i))))
+    |> List.mapi (fun i v ->
+           (v, `Var (Id.at v, Id.of_string (Id.at v) ("#" ^ string_of_int i))))
     |> List.to_seq |> Env.of_seq |> subst_par
   in
   (subst lhs, subst rhs)

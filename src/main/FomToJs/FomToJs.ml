@@ -21,8 +21,11 @@ let to_string cstr =
 module Label = struct
   include Label
 
-  let is_numeric {it; _} = '0' <= it.[0] && it.[0] <= '9'
-  let to_str {it; _} = str it
+  let is_numeric id =
+    let it = to_string id in
+    '0' <= it.[0] && it.[0] <= '9'
+
+  let to_str = to_string >> str
 
   (* *)
 
@@ -165,11 +168,12 @@ module Exp = struct
   module Id = struct
     include Id
 
-    let to_js ({it; _} : t) =
-      if Js.is_illegal_id it then
-        str it ^ str "$"
+    let to_js id =
+      let id = to_string id in
+      if Js.is_illegal_id id then
+        str id ^ str "$"
       else
-        str it
+        str id
   end
 
   let coerce_to_int exp = str "(" ^ exp ^ str ") | 0"
@@ -562,7 +566,8 @@ module Exp = struct
         fs
         |> traverse (function
              | l, `Var i
-               when l.Label.it = i.Id.it && not (Js.is_illegal_id i.it) ->
+               when Label.to_string l = Id.to_string i
+                    && not (Js.is_illegal_id (Id.to_string i)) ->
                return @@ Label.to_js_label l
              | l, e ->
                let* e = to_js_expr e in

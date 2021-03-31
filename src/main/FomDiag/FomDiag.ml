@@ -12,7 +12,7 @@ module Error = struct
   let duplicated_label at l =
     Diagnostic.error
       (at, concat [utf8string "Duplicated label "; Label.pp l])
-      [(l.at, utf8string "Initial"); (at, utf8string "Duplicate")]
+      [(Label.at l, utf8string "Initial"); (at, utf8string "Duplicate")]
 
   (* Kind errors *)
 
@@ -47,7 +47,7 @@ module Error = struct
   let typ_var_unbound at id =
     Diagnostic.error
       (at, concat [utf8string "Unbound type variable "; Typ.Id.pp id])
-      [(id.at, utf8string "Unbound type variable")]
+      [(Typ.Id.at id, utf8string "Unbound type variable")]
 
   let app_of_kind_star at fn arg =
     Diagnostic.error
@@ -117,7 +117,7 @@ module Error = struct
   let var_unbound at id =
     Diagnostic.error
       (at, concat [utf8string "Unbound variable "; Exp.Id.pp id])
-      [(id.at, FomPP.utf8string "Unbound variable")]
+      [(Exp.Id.at id, FomPP.utf8string "Unbound variable")]
 
   let typ_of_kind_arrow at typ kind =
     Diagnostic.error
@@ -241,7 +241,7 @@ module Error = struct
         |> concat |> group )
       [
         (at, [utf8string "Sum lacks label "; Label.pp label] |> concat);
-        (label.at, utf8string "Label not in sum type");
+        (Label.at label, utf8string "Label not in sum type");
       ]
 
   let labels_mismatch at lhs rhs =
@@ -251,7 +251,7 @@ module Error = struct
     let diff xs ys =
       Set.diff xs ys |> Set.elements
       |> List.map (fun l ->
-             (l.Label.at, concat [utf8string "Unmatched label "; Label.pp l]))
+             (Label.at l, concat [utf8string "Unmatched label "; Label.pp l]))
     in
     Diagnostic.error
       (at, utf8string "Labels do not match")

@@ -9,7 +9,7 @@ module Label = Label
 
 module Tuple = struct
   let labels at =
-    List.mapi (fun i t -> ({Label.at = at t; it = Int.to_string (i + 1)}, t))
+    List.mapi (fun i t -> (Label.of_string (at t) (Int.to_string (i + 1)), t))
 end
 
 module Typ = struct
@@ -18,7 +18,7 @@ module Typ = struct
   module Id = struct
     include Typ.Id
 
-    let to_label {it; at} = {Label.it; at}
+    let to_label i = Label.of_name (at i) (name i)
   end
 
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
@@ -30,7 +30,7 @@ module Exp = struct
   module Id = struct
     include Exp.Id
 
-    let to_label {it; at} = {Label.it; at}
+    let to_label i = Label.of_name (at i) (name i)
   end
 
   module Pat = struct
@@ -79,7 +79,7 @@ let check_lab_list fs =
   let rec check_dups = function
     | l1 :: (l2 :: _ as ls) ->
       if Label.equal l1 l2 then
-        Error.duplicated_label l2.at l1;
+        Error.duplicated_label (Label.at l2) l1;
       check_dups ls
     | _ -> fs
   in

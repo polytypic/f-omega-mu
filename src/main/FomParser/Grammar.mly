@@ -93,8 +93,8 @@ kind:
 //
 
 label:
-  | i=Id                                                {Label.id $loc i}
-  | n=LitNat                                            {Label.id $loc (Bigint.to_string n)}
+  | i=Id                                                {Label.of_string $loc i}
+  | n=LitNat                                            {Label.of_string $loc (Bigint.to_string n)}
 
 lab_list(item):
   | ls=list_n(item,",")                                 {check_lab_list ls}
@@ -106,10 +106,10 @@ lab_typ:
   | i=typ_rid                                           {(Typ.Id.to_label i, `Var ($loc, i))}
 
 typ_rid:
-  | i=Id                                                {Typ.Id.id $loc i}
+  | i=Id                                                {Typ.Id.of_string $loc i}
 
 typ_bid:
-  | Underscore                                          {Typ.Id.id $loc "_"}
+  | Underscore                                          {Typ.Id.of_string $loc "_"}
   | i=typ_rid                                           {i}
 
 typ_bind:
@@ -171,10 +171,10 @@ lab_exp:
   | i=exp_rid                                           {(Exp.Id.to_label i, `Var ($loc, i))}
 
 exp_rid:
-  | i=Id                                                {Exp.Id.id $loc i}
+  | i=Id                                                {Exp.Id.of_string $loc i}
 
 exp_bid:
-  | Underscore                                          {Exp.Id.id $loc "_"}
+  | Underscore                                          {Exp.Id.of_string $loc "_"}
   | i=exp_rid                                           {i}
 
 exp_atom:
