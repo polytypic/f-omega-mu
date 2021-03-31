@@ -63,11 +63,11 @@ let rec token_or_comment buffer =
   | "+" -> return Plus
   | "," -> return Comma
   | "-" -> return Minus
+  | "." | "=>" -> return Dot
   | "/" -> return Slash
   | ":" -> return Colon
   | "<" -> return Less
   | "=" -> return Equal
-  | "." | "=>" -> return Dot
   | ">" -> return Greater
   | "[" -> return BracketLhs
   | "]" -> return BracketRhs
