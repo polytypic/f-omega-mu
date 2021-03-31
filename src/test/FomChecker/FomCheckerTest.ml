@@ -126,6 +126,7 @@ let () =
       } in
     to_list[int] a_stack
     |eof};
-  testInfersAs "target" "string" "target[string] \"'a string'\"";
+  testInfersAs "target" "string"
+    "let type str = string in target[str] \"'a string'\"";
   testInfersAs "let type in const" "bool"
     "let type t = int in 1 =[t] 2 || 3 !=[t] 4"

@@ -48,7 +48,9 @@ let rec elaborate =
       let replaced i t = Annot.Typ.use i (Typ.at t) r in
       `Const (at, Exp.Const.subst_par ~replaced r#get_typ_aliases c)
   | `Var _ as ast -> return ast
-  | `Target _ as ast -> return ast
+  | `Target (at, t, s) ->
+    let* t = elaborate_typ t in
+    return @@ `Target (at, t, s)
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
     let* t = elaborate_typ t in
     let* e = elaborate e in
