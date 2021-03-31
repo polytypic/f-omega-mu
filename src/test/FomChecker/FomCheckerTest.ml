@@ -91,9 +91,9 @@ let () =
   testInfersAs "existential silly" "∃t.{an: t, do: t → t}"
     {eof|
     let type doan = ∃t.{do: t → t, an: t} in
-    let x =《{do = λx:int.x+1, an = 1} : doan/int》in
-    let《r / t》= x in
-    《{do = r.do, an = r.do r.an} : doan/t》
+    let x =《int\{do = λx:int.x+1, an = 1}》: doan in
+    let《t\r》= x in
+    《t\{do = r.do, an = r.do r.an}》: doan
     |eof};
   testInfersAs "hungry function" "(μt.int → t) → μt.int → t"
     "λf:μt.int → t.f 1 2 3";
@@ -106,23 +106,23 @@ let () =
       push: ∀v.v → t v → t v,
       pop: ∀v.t v → option {value: v, stack: t v}
     } in
-    let《S/stack》 =《{
-      empty = Λv.[nil = {} : list v],
-      push = Λv.λx:v.λxs:list v.[cons = {hd = x, tl = xs} : list v],
+    let《stack\S》 =《list\{
+      empty = Λv.[nil = {}] : list v,
+      push = Λv.λx:v.λxs:list v.[cons = {hd = x, tl = xs}] : list v,
       pop = Λv.λxs:list v.xs case {
         nil = λ_:{}.
-          [none = {} : option {value: v, stack: list v}],
+          [none = {}] : option {value: v, stack: list v},
         cons = λr:{hd: v, tl: list v}.
-          [some = {value = r.hd, stack = r.tl} : option {value: v, stack: list v}]
+          [some = {value = r.hd, stack = r.tl}] : option {value: v, stack: list v}
       }
-    }: Stack/list》in
+    }》: Stack in
     let a_stack = S.push[int] 4 (S.push[int] 1 (S.push[int] 3 (S.empty[int]))) in
     let to_list = Λv.μto_list:stack v → list v.λs:stack v.
       S.pop[v] s case {
         none = λ_:{}.
-          [nil = {} : list v],
+          [nil = {}] : list v,
         some = λr:{value: v, stack: stack v}.
-          [cons = {hd = r.value, tl = to_list r.stack} : list v]
+          [cons = {hd = r.value, tl = to_list r.stack}] : list v
       } in
     to_list[int] a_stack
     |eof};

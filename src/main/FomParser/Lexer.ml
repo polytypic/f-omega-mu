@@ -70,6 +70,7 @@ let rec token_or_comment buffer =
   | "=" -> return Equal
   | ">" -> return Greater
   | "[" -> return BracketLhs
+  | "\\" -> return Backslash
   | "]" -> return BracketRhs
   | "{" -> return BraceLhs
   | "}" -> return BraceRhs
@@ -152,6 +153,7 @@ let token_info_utf_8 input =
       (match token with
       | And -> keyword
       | ArrowRight -> operator
+      | Backslash -> punctuation
       | Bool -> builtin
       | BraceLhs -> punctuation
       | BraceRhs -> punctuation

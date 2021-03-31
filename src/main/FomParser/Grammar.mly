@@ -19,6 +19,7 @@
 %token Type "type"
 
 %token ArrowRight "→"
+%token Backslash "\\"
 %token BraceLhs "{"
 %token BraceRhs "}"
 %token BracketLhs "["
@@ -161,7 +162,7 @@ pat(annot):
   | i=exp_bid a=annot                                   {`Id ($loc, i, a)}
   | "("ps=list_n(pat(annot),",")")"                     {Exp.Pat.tuple $loc ps}
   | "{"fs=lab_list(lab_pat(annot))"}"                   {`Product ($loc, fs)}
-  | "<<"p=pat(annot_let)"/"t=typ_bid">>"e=annot         {`Pack ($loc, p, t, e)}
+  | "<<"t=typ_bid"\\"p=pat(annot_let)">>"e=annot        {`Pack ($loc, p, t, e)}
 
 //
 
@@ -183,8 +184,6 @@ exp_atom:
   | l=LitString                                         {`Const ($loc, `LitString l)}
   | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
   | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
-  | "["c=lab_exp":"t=typ"]"                             {`Inject ($loc, fst c, snd c, t)}
-  | "<<"e=exp":"f=typ"/"x=typ">>"                       {`Pack ($loc, x, e, f)}
   | e=exp_atom"."l=label                                {`Select ($loc, e, l)}
   | "target""["t=typ"]"c=LitString                      {`Target ($loc, t, c)}
 
@@ -226,10 +225,13 @@ exp_inf:
 exp_bind(head):
   | head p=pat(annot_lam) "." e=exp                     {`LamPat ($loc, p, e)}
 
-exp:
+exp_in:
   | e=uop"_"                                            {e}
   | e=bop                                               {e}
   | e=exp_inf                                           {e}
+
+exp:
+  | e=exp_in                                            {e}
   | e=exp_bind("μ")                                     {`Mu ($loc, e)}
   | e=exp_bind("λ")                                     {e}
   | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
@@ -238,6 +240,8 @@ exp:
   | "let""type"bs=list_1(typ_mu_def, "and")"in"e=exp    {`LetTypRecIn ($loc, bs, e)}
   | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, v, e)}
   | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
+  | "["c=lab_exp"]"":"t=typ                             {`Inject ($loc, fst c, snd c, t)}
+  | "<<"x=typ"\\"e=exp">>"":"f=typ                      {`Pack ($loc, x, e, f)}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(b, t)}

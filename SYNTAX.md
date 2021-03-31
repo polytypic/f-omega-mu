@@ -23,7 +23,7 @@ Below is an _approximation_ of the detailed
   pat : eid                                                       // Variable pattern
       | '(' (pat ',')* ')'                                        // Tuple pattern
       | '{' (label '=' pat)* '}'                                  // Product pattern
-      | '<<' pat '/' tid '>>'                                     // Existential pack pattern
+      | '<<' tid '\' pat '>>'                                     // Existential pack pattern
 
   exp : '(' exp ')'
       | eid                                                       // Variable (*1)
@@ -31,8 +31,8 @@ Below is an _approximation_ of the detailed
       | '(' (exp ',')* '}'                                        // Tuple introduction
       | '{' (label ('=' exp)? ',')* '}'                           // Product introduction
       | exp '.' label                                             // Product elimination
-      | '[' label ('=' exp)? ':' typ ']'                          // Sum introduction
-      | '<<' exp ':' typ '/' typ '>>'                             // Existential packing
+      | '[' label ('=' exp)? ']' ':' typ                          // Sum introduction
+      | '<<' typ '\' exp '>>' ':' typ                             // Existential packing
       | exp exp                                                   // Apply function
       | uop exp                                                   // Apply unary operator
       | exp bop exp                                               // Apply binary operator
