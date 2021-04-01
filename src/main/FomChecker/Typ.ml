@@ -181,6 +181,19 @@ let regularize_free_vars (lhs, rhs) =
   in
   (subst lhs, subst rhs)
 
+let intersect_labels ls ms =
+  let rec loop ps ls ms =
+    match (ls, ms) with
+    | [], _ -> Some (List.rev ps)
+    | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
+      if Label.equal ll ml then
+        loop ((mt, lt) :: ps) ls ms
+      else
+        loop ps lls ms
+    | _ :: _, [] -> None
+  in
+  loop [] ls ms
+
 let support (lhs, rhs) =
   if 0 = FomAST.Typ.compare lhs rhs then
     Some Set.empty
@@ -190,15 +203,11 @@ let support (lhs, rhs) =
       when Const.equal lhs_const rhs_const ->
       Some Set.empty
     | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-      Some ([(lhs_d, rhs_d); (lhs_c, rhs_c)] |> Set.of_list)
-    | `Product (_, lhs_ls), `Product (_, rhs_ls)
-    | `Sum (_, lhs_ls), `Sum (_, rhs_ls)
-      when ListExt.compare_with (Compare.the fst Label.compare) lhs_ls rhs_ls
-           = 0 ->
-      Some
-        (List.combine lhs_ls rhs_ls
-        |> List.map (fun ((_, lhs_t), (_, rhs_t)) -> (lhs_t, rhs_t))
-        |> Set.of_list)
+      Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> Set.of_list)
+    | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
+      intersect_labels rhs_ls lhs_ls |> Option.map Set.of_list
+    | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
+      intersect_labels lhs_ls rhs_ls |> Option.map (List.map swap >> Set.of_list)
     | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
       Some Set.empty
     | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
@@ -227,7 +236,10 @@ let support (lhs, rhs) =
         Some (Set.singleton (lhs, unfold rat rf rmu rxs))
       | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs
         ->
-        Some (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Set.of_list)
+        let goals =
+          List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Set.of_list
+        in
+        Some (goals |> Set.map (fun (lhs, rhs) -> (rhs, lhs)) |> Set.union goals)
       | _ -> None)
 
 let rec gfp assumptions goals =
@@ -240,5 +252,9 @@ let rec gfp assumptions goals =
     gfp (Set.add goal assumptions)
       (Set.union (Set.remove goal goals) (Set.diff sub_goals assumptions))
 
+let sub_of_norm sub sup =
+  (sub, sup) |> regularize_free_vars |> Set.singleton |> gfp Set.empty
+
 let equal_of_norm lhs rhs =
-  (lhs, rhs) |> regularize_free_vars |> Set.singleton |> gfp Set.empty
+  let goal = regularize_free_vars (lhs, rhs) in
+  [goal; swap goal] |> Set.of_list |> gfp Set.empty

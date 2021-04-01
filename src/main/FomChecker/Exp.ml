@@ -15,9 +15,13 @@ let typ_check_and_norm typ =
   | `Star _ -> return @@ Typ.norm typ
   | _ -> Error.typ_of_kind_arrow (Typ.at typ) typ kind
 
-let check_typs_match at ~expected ~actual =
-  if not (Typ.equal_of_norm expected actual) then
-    Error.typ_mismatch at expected actual
+let check_typs_sub at ~sub ~sup =
+  if not (Typ.sub_of_norm sub sup) then
+    Error.typ_mismatch at sub sup
+
+let check_typs_equal at ~exp ~act =
+  if not (Typ.equal_of_norm exp act) then
+    Error.typ_mismatch at exp act
 
 let check_arrow_typ at typ =
   match Typ.unfold_of_norm typ with
@@ -59,7 +63,7 @@ and infer it : _ -> Typ.t =
     let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
     let* x_typ = infer x in
-    check_typs_match (at x) ~expected:d_typ ~actual:x_typ;
+    check_typs_sub (at x) ~sub:x_typ ~sup:d_typ;
     return c_typ
   | `Gen (at, d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
@@ -85,14 +89,14 @@ and infer it : _ -> Typ.t =
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
-    check_typs_match at' ~expected:d_typ ~actual:c_typ;
+    check_typs_sub at' ~sub:c_typ ~sup:d_typ;
     return c_typ
   | `IfElse (_, c, t, e) ->
     let* c_typ = infer c in
-    check_typs_match (at c) ~expected:(`Const (at c, `Bool)) ~actual:c_typ;
+    check_typs_equal (at c) ~exp:(`Const (at c, `Bool)) ~act:c_typ;
     let* t_typ = infer t in
     let* e_typ = infer e in
-    check_typs_match (at e) ~expected:t_typ ~actual:e_typ;
+    check_typs_equal (at e) ~exp:t_typ ~act:e_typ;
     return t_typ
   | `Product (at, fs) ->
     let* fs =
@@ -123,7 +127,7 @@ and infer it : _ -> Typ.t =
       let* () = Annot.Label.def l' l_typ in
       let* () = Annot.Label.use l (Label.at l') in
       let* e_typ = infer e in
-      check_typs_match (at e) ~expected:l_typ ~actual:e_typ;
+      check_typs_sub (at e) ~sub:e_typ ~sup:l_typ;
       return s_typ
     | None -> Error.sum_lacks (Typ.at s_typ) s_typ l)
   | `Case (at', s, cs) -> (
@@ -141,8 +145,8 @@ and infer it : _ -> Typ.t =
       let* _ =
         List.combine cs_fs s_fs
         |> traverse (fun ((l, (c_dom, c_cod)), (l', e_typ)) ->
-               check_typs_match (Typ.at c_dom) ~expected:c_dom ~actual:e_typ;
-               check_typs_match (Typ.at c_cod) ~expected:c_cod ~actual:e_cod;
+               check_typs_sub (Typ.at c_dom) ~sub:e_typ ~sup:c_dom;
+               check_typs_equal (Typ.at c_cod) ~exp:c_cod ~act:e_cod;
                let* () = Annot.Label.def l' e_typ in
                Annot.Label.use l (Label.at l'))
       in
@@ -159,7 +163,7 @@ and infer it : _ -> Typ.t =
         if not (Kind.equal d_kind t_kind) then
           failwith "TODO: kind mismatch";
         let et_t = Typ.norm (`App (at', et_con, t)) in
-        check_typs_match (at e) ~expected:et_t ~actual:e_typ;
+        check_typs_sub (at e) ~sub:e_typ ~sup:et_t;
         return et
       | _ -> failwith "Impossible")
     | _ -> failwith "TODO: pack non existential")
