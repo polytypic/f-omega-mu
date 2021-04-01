@@ -129,4 +129,14 @@ let () =
   testInfersAs "target" "string"
     "let type str = string in target[str] \"'a string'\"";
   testInfersAs "let type in const" "bool"
-    "let type t = int in 1 =[t] 2 || 3 !=[t] 4"
+    "let type t = int in 1 =[t] 2 || 3 !=[t] 4";
+  testInfersAs "mutual rec" "()"
+    {eof|
+    let type opt = λt.[none: (), some: t] in
+    let type μstream:* → * = λt.() → opt (t, stream t) in
+    let μeven: int → stream int =
+      λx:int.λ().[some = (x, odd (x+1))] : opt (int, stream int)
+    and μodd: int → stream int =
+      λx:int.λ().[some = (x, even (x+1))] : opt (int, stream int)
+    in ()
+    |eof}
