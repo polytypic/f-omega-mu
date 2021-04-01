@@ -89,7 +89,8 @@ let js_codemirror_mode =
         let keys = Js.object_keys obj |> Js.to_array |> Array.to_list in
         if
           keys
-          |> List.map (Js.to_string >> Label.of_string Loc.dummy)
+          |> List.map (fun s ->
+                 (Js.to_string s |> Label.of_string Loc.dummy, ()))
           |> Tuple.is_tuple
         then
           keys

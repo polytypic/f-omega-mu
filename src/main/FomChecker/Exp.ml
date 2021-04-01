@@ -10,7 +10,7 @@ include FomAST.Exp
 
 let typ_check_and_norm typ =
   let open Reader in
-  let* kind = Typ.check typ in
+  let* kind = Typ.infer typ in
   match kind with
   | `Star _ -> return @@ Typ.norm typ
   | _ -> Error.typ_of_kind_arrow (Typ.at typ) typ kind
@@ -20,21 +20,18 @@ let check_typs_match at ~expected ~actual =
     Error.typ_mismatch at expected actual
 
 let check_arrow_typ at typ =
-  let typ = Typ.unfold_of_norm typ in
-  match typ with
-  | `App (_, `App (_, `Const (_, `Arrow), dom), cod) -> (dom, cod)
+  match Typ.unfold_of_norm typ with
+  | `Arrow (_, dom, cod) -> (dom, cod)
   | _ -> Error.typ_non_arrow at typ
 
 let check_product_typ at typ =
-  let typ = Typ.unfold_of_norm typ in
-  match Typ.unapp typ with
-  | `Const (_, `Product ls), typs -> List.combine ls typs
+  match Typ.unfold_of_norm typ with
+  | `Product (_, ls) -> ls
   | _ -> Error.typ_non_product at typ
 
 let check_sum_typ at typ =
-  let typ = Typ.unfold_of_norm typ in
-  match Typ.unapp typ with
-  | `Const (_, `Sum ls), typs -> List.combine ls typs
+  match Typ.unfold_of_norm typ with
+  | `Sum (_, ls) -> ls
   | _ -> Error.typ_non_sum at typ
 
 let rec infer_and_unfold e =
@@ -57,7 +54,7 @@ and infer it : _ -> Typ.t =
     let* d_typ = typ_check_and_norm d_typ in
     let* () = Annot.Exp.def d d_typ in
     let* r_typ e = Env.add d (d, d_typ) |> e#map_exp_env |> infer r in
-    return @@ Typ.arrow at d_typ r_typ
+    return @@ `Arrow (at, d_typ, r_typ)
   | `App (_, f, x) ->
     let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
@@ -75,7 +72,7 @@ and infer it : _ -> Typ.t =
       let* f_kind = Typ.kind_of f_con in
       match f_kind with
       | `Arrow (_, d_kind, `Star _) ->
-        let* x_kind = Typ.check x_typ in
+        let* x_kind = Typ.infer x_typ in
         if not (Kind.equal d_kind x_kind) then
           Error.inst_kind_mismatch at f_typ d_kind x_typ x_kind;
         return @@ Typ.norm (`App (at, f_con, x_typ))
@@ -152,7 +149,7 @@ and infer it : _ -> Typ.t =
       return e_cod)
   | `Pack (at', t, e, et) -> (
     let* e_typ = infer e in
-    let* t_kind = Typ.check t in
+    let* t_kind = Typ.infer t in
     let* et = typ_check_and_norm et in
     match Typ.unfold_of_norm et with
     | `Exists (_, et_con) -> (

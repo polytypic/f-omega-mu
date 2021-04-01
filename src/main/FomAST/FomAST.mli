@@ -23,18 +23,12 @@ end
 module Label : Id.S
 
 module Tuple : sig
-  val is_tuple : Label.t list -> bool
+  val is_tuple : (Label.t * 'a) list -> bool
 end
 
 module Typ : sig
   module Const : sig
-    type t =
-      [ `Arrow
-      | `Bool
-      | `Int
-      | `Product of Label.t list
-      | `Sum of Label.t list
-      | `String ]
+    type t = [`Bool | `Int | `String]
 
     (* Comparison *)
 
@@ -59,14 +53,16 @@ module Typ : sig
     | `Lam of Loc.t * Id.t * Kind.t * t
     | `App of Loc.t * t * t
     | `ForAll of Loc.t * t
-    | `Exists of Loc.t * t ]
+    | `Exists of Loc.t * t
+    | `Arrow of Loc.t * t * t
+    | `Product of Loc.t * (Label.t * t) list
+    | `Sum of Loc.t * (Label.t * t) list ]
 
   val at : t -> Loc.t
   val set_at : Loc.t -> t -> t
 
   (* Macros *)
 
-  val arrow : Loc.t -> t -> t -> t
   val product : Loc.t -> (Label.t * t) list -> t
   val sum : Loc.t -> (Label.t * t) list -> t
   val zero : Loc.t -> t

@@ -16,6 +16,22 @@ module Error = struct
 
   (* Kind errors *)
 
+  let kind_mismatch at expected_kind actual_kind =
+    Diagnostic.error
+      ( at,
+        [
+          utf8string "Expected type to have kind";
+          [break_1; Kind.pp expected_kind] |> concat |> nest 2;
+          break_1;
+          utf8string "but the type has kind";
+          [break_1; Kind.pp actual_kind] |> concat |> nest 2;
+        ]
+        |> concat |> group )
+      [
+        (at, utf8string "Kind mismatch");
+        (Kind.at expected_kind, utf8string "Expected type");
+      ]
+
   let mu_kind at typ kind =
     Diagnostic.error
       ( at,

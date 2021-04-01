@@ -134,7 +134,7 @@ typ_app:
 
 typ_inf:
   | t=typ_app                                           {t}
-  | d=typ_app"→"c=typ                                   {Typ.arrow $loc d c}
+  | d=typ_app"→"c=typ                                   {`Arrow ($loc, d, c)}
 
 typ_lam(head):
   | head b=typ_bind"."t=typ                             {`Lam ($loc, fst b, snd b, t)}

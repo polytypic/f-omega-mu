@@ -57,72 +57,39 @@ module Label = struct
 end
 
 module Tuple = struct
-  let is_tuple =
-    ListExt.for_alli (fun i l -> Label.to_string l = Int.to_string (i + 1))
+  let is_tuple labels =
+    labels
+    |> ListExt.for_alli (fun i (l, _) ->
+           Label.to_string l = Int.to_string (i + 1))
 end
 
 module Typ = struct
   module Const = struct
-    type t =
-      [ `Arrow
-      | `Bool
-      | `Int
-      | `Product of Label.t list
-      | `Sum of Label.t list
-      | `String ]
+    type t = [`Bool | `Int | `String]
 
     (* Comparison *)
 
     let equal lhs rhs =
       match (lhs, rhs) with
-      | `Arrow, `Arrow | `Bool, `Bool | `Int, `Int | `String, `String -> true
-      | `Product lhs, `Product rhs | `Sum lhs, `Sum rhs ->
-        ListExt.equal_with Label.equal lhs rhs
+      | `Bool, `Bool | `Int, `Int | `String, `String -> true
       | _ -> false
 
-    let index = function
-      | `Arrow -> 0
-      | `Bool -> 1
-      | `Int -> 2
-      | `Product _ -> 3
-      | `Sum _ -> 4
-      | `String -> 5
+    let index = function `Bool -> 0 | `Int -> 1 | `String -> 2
 
     let compare lhs rhs =
       match (lhs, rhs) with
-      | `Arrow, `Arrow -> 0
-      | `Bool, `Bool -> 0
-      | `Int, `Int -> 0
-      | `Product lhs, `Product rhs | `Sum lhs, `Sum rhs ->
-        ListExt.compare_with Label.compare lhs rhs
-      | `String, `String -> 0
+      | `Bool, `Bool | `Int, `Int | `String, `String -> 0
       | _ -> index lhs - index rhs
 
     (* Kinding *)
 
     let kind_of at t =
       let star = `Star at in
-      match t with
-      | `Arrow -> `Arrow (at, star, `Arrow (at, star, star))
-      | `Bool | `Int | `String -> star
-      | `Product labels | `Sum labels ->
-        List.fold_left (fun result _ -> `Arrow (at, star, result)) star labels
+      match t with `Bool | `Int | `String -> star
 
     (* Formatting *)
 
-    let pp =
-      let labeled brackets labels =
-        labels |> List.map Label.pp |> separate comma_break_1
-        |> egyptian brackets 2
-      in
-      function
-      | `Arrow -> arrow_right
-      | `Bool -> bool'
-      | `Int -> int'
-      | `String -> string'
-      | `Product labels ->
-        labeled (if Tuple.is_tuple labels then parens else braces) labels
-      | `Sum labels -> labeled brackets labels
+    let pp = function `Bool -> bool' | `Int -> int' | `String -> string'
   end
 
   module Id = Id.Make ()
@@ -134,7 +101,10 @@ module Typ = struct
     | `Lam of Loc.t * Id.t * Kind.t * t
     | `App of Loc.t * t * t
     | `ForAll of Loc.t * t
-    | `Exists of Loc.t * t ]
+    | `Exists of Loc.t * t
+    | `Arrow of Loc.t * t * t
+    | `Product of Loc.t * (Label.t * t) list
+    | `Sum of Loc.t * (Label.t * t) list ]
 
   let at = function
     | `Mu (at, _)
@@ -143,7 +113,10 @@ module Typ = struct
     | `Lam (at, _, _, _)
     | `App (at, _, _)
     | `ForAll (at, _)
-    | `Exists (at, _) ->
+    | `Exists (at, _)
+    | `Arrow (at, _, _)
+    | `Product (at, _)
+    | `Sum (at, _) ->
       at
 
   let set_at at = function
@@ -154,21 +127,16 @@ module Typ = struct
     | `App (_, f, x) -> `App (at, f, x)
     | `ForAll (_, t) -> `ForAll (at, t)
     | `Exists (_, t) -> `Exists (at, t)
+    | `Arrow (_, d, c) -> `Arrow (at, d, c)
+    | `Product (_, ls) -> `Product (at, ls)
+    | `Sum (_, ls) -> `Sum (at, ls)
 
   (* Macros *)
 
-  let arrow at dom cod = `App (at, `App (at, `Const (at, `Arrow), dom), cod)
-
-  let labeled tag at fields =
-    let fields = List.sort (Compare.the fst Label.compare) fields in
-    let labels = List.map fst fields in
-    let typs = List.map snd fields in
-    let ctor = `Const (at, tag labels) in
-    List.fold_left (fun f x -> `App (at, f, x)) ctor typs
-
-  let product at = labeled (fun x -> `Product x) at
-  let sum at = labeled (fun x -> `Sum x) at
-  let zero at = `Const (at, `Sum [])
+  let sort labels = List.sort (Compare.the fst Label.compare) labels
+  let product at fs = `Product (at, sort fs)
+  let sum at cs = `Sum (at, sort cs)
+  let zero at = `Sum (at, [])
 
   (* Type predicates *)
 
@@ -190,7 +158,7 @@ module Typ = struct
     (f, List.rev xs)
 
   let rec arity_and_result = function
-    | `App (_, `App (_, `Const (_, `Arrow), _), result) ->
+    | `Arrow (_, _, result) ->
       let n, result = arity_and_result result in
       (n + 1, result)
     | typ -> (0, typ)
@@ -205,6 +173,9 @@ module Typ = struct
     | `Lam (_, i, _, e) -> free e |> IdSet.remove i
     | `App (_, f, x) -> IdSet.union (free f) (free x)
     | `Mu (_, e) | `ForAll (_, e) | `Exists (_, e) -> free e
+    | `Arrow (_, d, c) -> IdSet.union (free d) (free c)
+    | `Product (_, ls) | `Sum (_, ls) ->
+      ls |> List.fold_left (fun s (_, t) -> IdSet.union s (free t)) IdSet.empty
 
   module Env = Map.Make (Id)
 
@@ -227,6 +198,12 @@ module Typ = struct
       `App (at, subst_rec replaced env f, subst_rec replaced env x)
     | `ForAll (at, t) -> `ForAll (at, subst_rec replaced env t)
     | `Exists (at, t) -> `Exists (at, subst_rec replaced env t)
+    | `Arrow (at, d, c) ->
+      `Arrow (at, subst_rec replaced env d, subst_rec replaced env c)
+    | `Product (at, ls) ->
+      `Product (at, ls |> List.map (fun (l, t) -> (l, subst_rec replaced env t)))
+    | `Sum (at, ls) ->
+      `Sum (at, ls |> List.map (fun (l, t) -> (l, subst_rec replaced env t)))
 
   let subst_rec ?(replaced = fun _ _ -> ()) env =
     if Env.is_empty env then
@@ -240,6 +217,9 @@ module Typ = struct
     | `Lam (_, id', _, body) -> (not (Id.equal id id')) && is_free id body
     | `App (_, fn, arg) -> is_free id fn || is_free id arg
     | `Mu (_, typ) | `ForAll (_, typ) | `Exists (_, typ) -> is_free id typ
+    | `Arrow (_, d, c) -> is_free id d || is_free id c
+    | `Product (_, ls) | `Sum (_, ls) ->
+      ls |> List.exists (fun (_, t) -> is_free id t)
 
   let rec subst_par replaced env = function
     | `Mu (at, t) -> `Mu (at, subst_par replaced env t)
@@ -264,6 +244,12 @@ module Typ = struct
       `App (at, subst_par replaced env f, subst_par replaced env x)
     | `ForAll (at, t) -> `ForAll (at, subst_par replaced env t)
     | `Exists (at, t) -> `Exists (at, subst_par replaced env t)
+    | `Arrow (at, d, c) ->
+      `Arrow (at, subst_par replaced env d, subst_par replaced env c)
+    | `Product (at, ls) ->
+      `Product (at, ls |> List.map (fun (l, t) -> (l, subst_par replaced env t)))
+    | `Sum (at, ls) ->
+      `Sum (at, ls |> List.map (fun (l, t) -> (l, subst_par replaced env t)))
 
   let subst_par ?(replaced = fun _ _ -> ()) env =
     if Env.is_empty env then
@@ -297,6 +283,10 @@ module Typ = struct
       | _ -> `App (at, fn', arg'))
     | `ForAll (at, typ') -> `ForAll (at, norm typ')
     | `Exists (at, typ') -> `Exists (at, norm typ')
+    | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
+    | `Product (at, ls) ->
+      `Product (at, ls |> List.map (fun (l, t) -> (l, norm t)))
+    | `Sum (at, ls) -> `Sum (at, ls |> List.map (fun (l, t) -> (l, norm t)))
 
   (* Comparison *)
 
@@ -308,6 +298,9 @@ module Typ = struct
     | `App _ -> 4
     | `ForAll _ -> 5
     | `Exists _ -> 6
+    | `Arrow _ -> 7
+    | `Product _ -> 8
+    | `Sum _ -> 9
 
   let rec compare lhs rhs =
     match (lhs, rhs) with
@@ -326,6 +319,14 @@ module Typ = struct
       compare lhs_fn rhs_fn <>? fun () -> compare lhs_arg rhs_arg
     | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
       compare lhs rhs
+    | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
+      compare lhs_d rhs_d <>? fun () -> compare lhs_c rhs_c
+    | `Product (_, lhs_ls), `Product (_, rhs_ls)
+    | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
+      ListExt.compare_with
+        (fun (lhs_l, lhs_t) (rhs_l, rhs_t) ->
+          Label.compare lhs_l rhs_l <>? fun () -> compare lhs_t rhs_t)
+        lhs_ls rhs_ls
     | _ -> index lhs - index rhs
 
   (* Formatting *)
@@ -341,13 +342,9 @@ module Typ = struct
   let rec hanging = function
     | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
       some_spaces
+    | `Product _ | `Sum _ -> some_spaces
     | `App _ as t -> (
-      match unapp t with
-      | (`Const (_, `Product labels), typs | `Const (_, `Sum labels), typs)
-        when List.length labels = List.length typs ->
-        some_spaces
-      | `Var _, [x] -> hanging x
-      | _ -> None)
+      match unapp t with `Var _, [x] -> hanging x | _ -> None)
     | _ -> None
 
   let rec binding prec_outer head i k t =
@@ -365,8 +362,8 @@ module Typ = struct
     | `Lam (_, id, kind, body) -> binding prec_outer symbol id kind body
     | _ -> [symbol; pp prec_min typ |> egyptian parens 2] |> concat
 
-  and labeled labels typs =
-    List.combine labels typs
+  and labeled labels =
+    labels
     |> List.stable_sort (Compare.the (fst >> Label.at >> fst) Pos.compare)
     |> List.map (function
          | l, `Var (_, i) when Id.name i = Label.name l -> Label.pp l
@@ -380,7 +377,8 @@ module Typ = struct
            |> concat)
     |> separate comma_break_1
 
-  and tuple typs = typs |> List.map (pp prec_min) |> separate comma_break_1
+  and tuple labels =
+    labels |> List.map (snd >> pp prec_min) |> separate comma_break_1
 
   and pp prec_outer (typ : t) =
     match typ with
@@ -390,30 +388,27 @@ module Typ = struct
     | `Mu (_, typ) -> quantifier prec_outer FomPP.mu_lower typ
     | `ForAll (_, typ) -> quantifier prec_outer FomPP.for_all typ
     | `Exists (_, typ) -> quantifier prec_outer FomPP.exists typ
+    | `Arrow (_, dom, cod) ->
+      [
+        pp (prec_arrow + 1) dom;
+        [
+          (match hanging cod with
+          | Some (lhs, _) -> [space_arrow_right; lhs] |> concat
+          | None -> space_arrow_right_break_1);
+          pp (prec_arrow - 1) cod;
+        ]
+        |> concat;
+      ]
+      |> concat
+      |> if prec_arrow < prec_outer then egyptian parens 2 else id
+    | `Product (_, labels) ->
+      if Tuple.is_tuple labels then
+        tuple labels |> egyptian parens 2
+      else
+        labeled labels |> egyptian braces 2
+    | `Sum (_, labels) -> labeled labels |> egyptian brackets 2
     | `App (_, _, _) -> (
       match unapp typ with
-      | `Const (_, `Arrow), [dom; cod] ->
-        [
-          pp (prec_arrow + 1) dom;
-          [
-            (match hanging cod with
-            | Some (lhs, _) -> [space_arrow_right; lhs] |> concat
-            | None -> space_arrow_right_break_1);
-            pp (prec_arrow - 1) cod;
-          ]
-          |> concat;
-        ]
-        |> concat
-        |> if prec_arrow < prec_outer then egyptian parens 2 else id
-      | `Const (_, `Product labels), typs
-        when List.length labels = List.length typs ->
-        if Tuple.is_tuple labels then
-          tuple typs |> egyptian parens 2
-        else
-          labeled labels typs |> egyptian braces 2
-      | `Const (_, `Sum labels), typs when List.length labels = List.length typs
-        ->
-        labeled labels typs |> egyptian brackets 2
       | f, xs ->
         pp prec_app f :: (xs |> List.map (pp (prec_app + 1) >> group))
         |> separate break_1
@@ -455,14 +450,14 @@ module Exp = struct
       | `LitNat _ -> `Const (at, `Int)
       | `LitString _ -> `Const (at, `String)
       | `OpArithAdd | `OpArithSub | `OpArithMul | `OpArithDiv | `OpArithRem ->
-        Typ.arrow at int (Typ.arrow at int int)
-      | `OpArithPlus | `OpArithMinus -> Typ.arrow at int int
+        `Arrow (at, int, `Arrow (at, int, int))
+      | `OpArithPlus | `OpArithMinus -> `Arrow (at, int, int)
       | `OpCmpLt | `OpCmpLtEq | `OpCmpGt | `OpCmpGtEq ->
-        Typ.arrow at int (Typ.arrow at int bool)
-      | `OpEq typ | `OpEqNot typ -> Typ.arrow at typ (Typ.arrow at typ bool)
+        `Arrow (at, int, `Arrow (at, int, bool))
+      | `OpEq typ | `OpEqNot typ -> `Arrow (at, typ, `Arrow (at, typ, bool))
       | `OpLogicalAnd | `OpLogicalOr ->
-        Typ.arrow at bool (Typ.arrow at bool bool)
-      | `OpLogicalNot -> Typ.arrow at bool bool
+        `Arrow (at, bool, `Arrow (at, bool, bool))
+      | `OpLogicalNot -> `Arrow (at, bool, bool)
 
     (* Substitution *)
 

@@ -18,7 +18,13 @@ let rec find_map_from_all_apps_of i' p = function
       find_map_from_all_apps_of i' p t
   | `Mu (_, t) | `ForAll (_, t) | `Exists (_, t) ->
     find_map_from_all_apps_of i' p t
-  | t -> (
+  | `Arrow (_, d, c) -> (
+    match find_map_from_all_apps_of i' p d with
+    | None -> find_map_from_all_apps_of i' p c
+    | some -> some)
+  | `Product (_, ls) | `Sum (_, ls) ->
+    ls |> List.find_map (snd >> find_map_from_all_apps_of i' p)
+  | (`App _ | `Var _) as t -> (
     match unapp t with
     | (`Var (_, i) as f), xs ->
       if Id.equal i i' then
@@ -59,17 +65,17 @@ let find_opt_nested_arg t =
   | `Mu (at, f), xs -> find_opt_nested_arg_mu at f (List.length xs)
   | _ -> None
 
-let rec check typ : _ -> Kind.t =
+let rec infer typ : _ -> Kind.t =
   let open Reader in
   let quantifier symbol f =
-    let* f_kind = check f in
+    let* f_kind = infer f in
     match f_kind with
     | `Arrow (_, _, (`Star _ as c_kind)) -> return c_kind
     | _ -> Error.quantifier_kind (at typ) symbol f f_kind
   in
   match typ with
   | `Mu (at', f) -> (
-    let* f_kind = check f in
+    let* f_kind = infer f in
     match f_kind with
     | `Star _ -> Error.mu_kind at' f f_kind
     | `Arrow (_, d_kind, c_kind) ->
@@ -88,19 +94,35 @@ let rec check typ : _ -> Kind.t =
       return i_kind)
   | `Lam (at', d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
-    let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> check r in
+    let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
     return (`Arrow (at', d_kind, r_kind))
   | `App (at', f, x) -> (
-    let* f_kind = check f in
+    let* f_kind = infer f in
     match f_kind with
     | `Star _ -> Error.app_of_kind_star at' f x
     | `Arrow (_, d_kind, c_kind) ->
-      let* x_kind = check x in
+      let* x_kind = infer x in
       if not (Kind.equal d_kind x_kind) then
         Error.app_kind_mismatch at' f d_kind x x_kind;
       return c_kind)
   | `ForAll (_, f) -> quantifier FomPP.for_all f
   | `Exists (_, f) -> quantifier FomPP.exists f
+  | `Arrow (at', d, c) ->
+    let star = `Star at' in
+    let* _ = check star d in
+    let* _ = check star c in
+    return star
+  | `Product (at', ls) | `Sum (at', ls) ->
+    let star = `Star at' in
+    let* _ = ls |> traverse (snd >> check star) in
+    return star
+
+and check expected t =
+  let open Reader in
+  let* actual = infer t in
+  if not (Kind.equal expected actual) then
+    Error.kind_mismatch (at t) expected actual;
+  return actual
 
 let rec kind_of checked_typ : _ -> Kind.t =
   let open Reader in
@@ -116,8 +138,12 @@ let rec kind_of checked_typ : _ -> Kind.t =
     let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> kind_of r in
     return (`Arrow (at', d_kind, r_kind))
   | `App (_, f, _) -> kind_of_cod f
-  | `ForAll (at', _) -> return (`Star at')
-  | `Exists (at', _) -> return (`Star at')
+  | `ForAll (at', _)
+  | `Exists (at', _)
+  | `Arrow (at', _, _)
+  | `Product (at', _)
+  | `Sum (at', _) ->
+    return @@ `Star at'
 
 and kind_of_cod checked_typ : _ -> Kind.t =
   let open Reader in
@@ -163,6 +189,16 @@ let support (lhs, rhs) =
     | `Const (_, lhs_const), `Const (_, rhs_const)
       when Const.equal lhs_const rhs_const ->
       Some Set.empty
+    | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
+      Some ([(lhs_d, rhs_d); (lhs_c, rhs_c)] |> Set.of_list)
+    | `Product (_, lhs_ls), `Product (_, rhs_ls)
+    | `Sum (_, lhs_ls), `Sum (_, rhs_ls)
+      when ListExt.compare_with (Compare.the fst Label.compare) lhs_ls rhs_ls
+           = 0 ->
+      Some
+        (List.combine lhs_ls rhs_ls
+        |> List.map (fun ((_, lhs_t), (_, rhs_t)) -> (lhs_t, rhs_t))
+        |> Set.of_list)
     | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
       Some Set.empty
     | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
