@@ -5,6 +5,7 @@ module UTF8 = UTF8
 module Reader = Reader
 
 let id x = x
+let swap (x, y) = (y, x)
 let failwithf = Exn.failwithf
 
 (* *)

@@ -57,6 +57,9 @@ end
 val id : 'a -> 'a
 (** Identity function. *)
 
+val swap : 'a * 'b -> 'b * 'a
+(** Swap elements of a pair. *)
+
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
 (** Fail with formatted message. *)
 
