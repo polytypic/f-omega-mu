@@ -251,7 +251,7 @@ module Typ = struct
       let env = Env.remove i env in
       if Env.is_empty env then
         inn
-      else if Env.exists (fun _ -> is_free i) env then
+      else if Env.exists (fun i' t' -> is_free i t' && is_free i' t) env then
         let i' = Id.freshen i in
         let v' = `Var (at, i') in
         let t' = subst_par replaced (Env.add i v' env) t in

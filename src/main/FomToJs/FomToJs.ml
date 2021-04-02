@@ -252,7 +252,7 @@ module Exp = struct
     | `Const _ | `Target _ -> inn
     | `Var i' -> if Id.equal i' i then the else inn
     | `Lam (i', e) ->
-      if Id.equal i' i then
+      if Id.equal i' i || not (is_free i e) then
         inn
       else if is_free i' the then
         let i'' = Id.freshen i' in
