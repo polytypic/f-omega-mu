@@ -147,15 +147,12 @@ module Typ = struct
 
   let app at = List.fold_left (fun f x -> `App (at, f, x))
 
-  let unapp typ =
-    let rec recurse = function
-      | `App (_, f, x) ->
-        let f, xs = recurse f in
-        (f, x :: xs)
-      | typ -> (typ, [])
+  let unapp t =
+    let rec loop xs = function
+      | `App (_, f, x) -> loop (x :: xs) f
+      | f -> (f, xs)
     in
-    let f, xs = recurse typ in
-    (f, List.rev xs)
+    loop [] t
 
   let rec arity_and_result = function
     | `Arrow (_, _, result) ->
