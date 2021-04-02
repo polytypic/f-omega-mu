@@ -2,6 +2,8 @@ open FomBasis
 open FomPP
 open FomSource
 
+let ignore2 _ _ = ()
+
 module Kind = struct
   type t = [`Star of Loc.t | `Arrow of Loc.t * t * t]
 
@@ -220,11 +222,8 @@ module Typ = struct
       in
       if ls == ls' then inn else `Sum (at, ls')
 
-  let subst_rec ?(replaced = fun _ _ -> ()) env =
-    if Env.is_empty env then
-      id
-    else
-      subst_rec replaced env
+  let subst_rec ?(replaced = ignore2) env t =
+    if Env.is_empty env then t else subst_rec replaced env t
 
   let rec is_free id = function
     | `Const _ -> false
@@ -284,14 +283,11 @@ module Typ = struct
       in
       if ls == ls' then inn else `Sum (at, ls')
 
-  let subst_par ?(replaced = fun _ _ -> ()) env =
-    if Env.is_empty env then
-      id
-    else
-      subst_par replaced env
+  let subst ?(replaced = ignore2) i' t' t =
+    subst_par replaced (Env.add i' t' Env.empty) t
 
-  let subst ?(replaced = fun _ _ -> ()) i' t' =
-    subst_par ~replaced (Env.add i' t' Env.empty)
+  let subst_par ?(replaced = ignore2) env t =
+    if Env.is_empty env then t else subst_par replaced env t
 
   let rec norm = function
     | `Mu (at, t) as inn -> (
@@ -503,7 +499,7 @@ module Exp = struct
 
     (* Substitution *)
 
-    let subst_par ?(replaced = fun _ _ -> ()) env c =
+    let subst_par ?(replaced = ignore2) env c =
       match c with
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
       | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
