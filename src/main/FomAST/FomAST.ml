@@ -143,7 +143,6 @@ module Typ = struct
   (* Type predicates *)
 
   let is_int = function `Const (_, `Int) -> true | _ -> false
-  let is_bool = function `Const (_, `Bool) -> true | _ -> false
 
   (* Type applications *)
 

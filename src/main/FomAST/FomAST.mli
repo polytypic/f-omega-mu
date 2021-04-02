@@ -74,7 +74,6 @@ module Typ : sig
   (* Type predicates *)
 
   val is_int : t -> bool
-  val is_bool : t -> bool
 
   (* Type applications *)
 
