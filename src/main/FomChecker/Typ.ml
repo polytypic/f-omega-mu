@@ -169,7 +169,30 @@ let rec is_contractive ids typ =
 
 let is_contractive = is_contractive IdSet.empty
 
-module Set = Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
+module Goals = struct
+  include Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
+
+  let is_trivial (lhs, rhs) = 0 = FomAST.Typ.compare lhs rhs
+
+  (* *)
+  let singleton goal = if is_trivial goal then empty else singleton goal
+
+  let singleton_eq goal =
+    if is_trivial goal then empty else of_list [goal; swap goal]
+
+  (* *)
+  let add goal goals = if is_trivial goal then goals else add goal goals
+  let add_inv = swap >> add
+
+  (* *)
+  let of_list_eq goals =
+    let goals = List.filter (is_trivial >> not) goals in
+    goals
+    |> List.fold_left (fun goals goal -> swap goal :: goals) goals
+    |> of_list
+
+  let of_list = List.filter (is_trivial >> not) >> of_list
+end
 
 let regularize_free_vars (lhs, rhs) =
   let subst =
@@ -181,80 +204,73 @@ let regularize_free_vars (lhs, rhs) =
   in
   (subst lhs, subst rhs)
 
-let intersect_labels ls ms =
-  let rec loop ps ls ms =
+let intersect_labels add ls ms =
+  let rec loop goals ls ms =
     match (ls, ms) with
-    | [], _ -> Some (List.rev ps)
+    | [], _ -> Some goals
     | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
       if Label.equal ll ml then
-        loop ((mt, lt) :: ps) ls ms
+        loop (add (mt, lt) goals) ls ms
       else
-        loop ps lls ms
+        loop goals lls ms
     | _ :: _, [] -> None
   in
-  loop [] ls ms
+  loop Goals.empty ls ms
 
 let support (lhs, rhs) =
-  if 0 = FomAST.Typ.compare lhs rhs then
-    Some Set.empty
-  else
-    match (lhs, rhs) with
-    | `Const (_, lhs_const), `Const (_, rhs_const)
-      when Const.equal lhs_const rhs_const ->
-      Some Set.empty
-    | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-      Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> Set.of_list)
-    | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
-      intersect_labels rhs_ls lhs_ls |> Option.map Set.of_list
-    | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-      intersect_labels lhs_ls rhs_ls |> Option.map (List.map swap >> Set.of_list)
-    | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
-      Some Set.empty
-    | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
-      Some (Set.singleton (lhs, rhs))
-    | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
-      when Kind.equal lhs_kind rhs_kind ->
-      let entry =
-        if Id.equal lhs_id rhs_id then
-          (lhs_typ, rhs_typ)
-        else
-          let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
-          (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
-      in
-      Some (entry |> regularize_free_vars |> Set.singleton)
-    | _ -> (
-      match (unapp lhs, unapp rhs) with
-      | (`Mu _, _), (`Mu _, _)
-        when (not (is_contractive lhs)) && not (is_contractive rhs) ->
-        Some Set.empty
-      | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
-        when is_contractive lhs && is_contractive rhs ->
-        Some (Set.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
-      | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
-        Some (Set.singleton (unfold lat lf lmu lxs, rhs))
-      | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
-        Some (Set.singleton (lhs, unfold rat rf rmu rxs))
-      | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs
-        ->
-        let goals =
-          List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Set.of_list
-        in
-        Some (goals |> Set.map (fun (lhs, rhs) -> (rhs, lhs)) |> Set.union goals)
-      | _ -> None)
+  match (lhs, rhs) with
+  | `Const (_, lhs_const), `Const (_, rhs_const)
+    when Const.equal lhs_const rhs_const ->
+    Some Goals.empty
+  | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
+    Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> Goals.of_list)
+  | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
+    intersect_labels Goals.add rhs_ls lhs_ls
+  | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
+    intersect_labels Goals.add_inv lhs_ls rhs_ls
+  | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
+    Some Goals.empty
+  | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
+    Some (Goals.singleton (lhs, rhs))
+  | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
+    when Kind.equal lhs_kind rhs_kind ->
+    let entry =
+      if Id.equal lhs_id rhs_id then
+        (lhs_typ, rhs_typ)
+      else
+        let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
+        (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
+    in
+    Some (entry |> regularize_free_vars |> Goals.singleton)
+  | _ -> (
+    match (unapp lhs, unapp rhs) with
+    | (`Mu _, _), (`Mu _, _)
+      when (not (is_contractive lhs)) && not (is_contractive rhs) ->
+      Some Goals.empty
+    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
+      when is_contractive lhs && is_contractive rhs ->
+      Some (Goals.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+    | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
+      Some (Goals.singleton (unfold lat lf lmu lxs, rhs))
+    | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
+      Some (Goals.singleton (lhs, unfold rat rf rmu rxs))
+    | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs ->
+      Some (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Goals.of_list_eq)
+    | _ -> None)
 
 let rec gfp assumptions goals =
-  Set.is_empty goals
+  Goals.is_empty goals
   ||
-  let goal = Set.choose goals in
+  let goal = Goals.choose goals in
   match support goal with
   | None -> false
   | Some sub_goals ->
-    gfp (Set.add goal assumptions)
-      (Set.union (Set.remove goal goals) (Set.diff sub_goals assumptions))
+    gfp
+      (Goals.add goal assumptions)
+      (Goals.union (Goals.remove goal goals) (Goals.diff sub_goals assumptions))
 
 let sub_of_norm sub sup =
-  (sub, sup) |> regularize_free_vars |> Set.singleton |> gfp Set.empty
+  (sub, sup) |> regularize_free_vars |> Goals.singleton |> gfp Goals.empty
 
 let equal_of_norm lhs rhs =
-  let goal = regularize_free_vars (lhs, rhs) in
-  [goal; swap goal] |> Set.of_list |> gfp Set.empty
+  (lhs, rhs) |> regularize_free_vars |> Goals.singleton_eq |> gfp Goals.empty
