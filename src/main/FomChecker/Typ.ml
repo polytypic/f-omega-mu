@@ -180,17 +180,17 @@ module Goals = struct
   let singleton goal = if is_trivial goal then empty else singleton goal
 
   let singleton_eq goal =
-    if is_trivial goal then empty else of_list [goal; swap goal]
+    if is_trivial goal then empty else of_list [goal; Pair.swap goal]
 
   (* *)
   let add goal goals = if is_trivial goal then goals else add goal goals
-  let add_inv = swap >> add
+  let add_inv = Pair.swap >> add
 
   (* *)
   let of_list_eq goals =
     let goals = List.filter (is_trivial >> not) goals in
     goals
-    |> List.fold_left (fun goals goal -> swap goal :: goals) goals
+    |> List.fold_left (fun goals goal -> Pair.swap goal :: goals) goals
     |> of_list
 
   let of_list = List.filter (is_trivial >> not) >> of_list

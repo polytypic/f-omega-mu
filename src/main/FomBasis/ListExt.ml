@@ -16,3 +16,11 @@ let rec compare_with compare xs ys =
   | [], _ -> 1
   | _, [] -> -1
   | x :: xs, y :: ys -> compare x y <>? fun () -> compare_with compare xs ys
+
+let rec map_phys_eq fn inn =
+  match inn with
+  | [] -> inn
+  | x :: xs as inn ->
+    let x' = fn x in
+    let xs' = map_phys_eq fn xs in
+    if x == x' && xs == xs' then inn else x' :: xs'

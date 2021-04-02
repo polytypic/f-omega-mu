@@ -17,6 +17,14 @@ module ListExt : sig
   val for_alli : (int -> 'a -> bool) -> 'a list -> bool
   val equal_with : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
   val compare_with : ('a -> 'a -> int) -> 'a list -> 'a list -> int
+  val map_phys_eq : ('a -> 'a) -> 'a list -> 'a list
+end
+
+module Pair : sig
+  val swap : 'a * 'b -> 'b * 'a
+  (** Swap elements of a pair. *)
+
+  val map_phys_eq : ('a -> 'a) -> ('b -> 'b) -> 'a * 'b -> 'a * 'b
 end
 
 module UTF8 : sig
@@ -56,9 +64,6 @@ end
 
 val id : 'a -> 'a
 (** Identity function. *)
-
-val swap : 'a * 'b -> 'b * 'a
-(** Swap elements of a pair. *)
 
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
 (** Fail with formatted message. *)
