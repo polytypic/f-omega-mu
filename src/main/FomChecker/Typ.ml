@@ -154,11 +154,6 @@ and kind_of_cod checked_typ : _ -> Kind.t =
 
 let unfold at f mu xs = FomAST.Typ.app at (`App (at, f, mu)) xs |> norm
 
-let rec unfold_of_norm typ =
-  match unapp typ with
-  | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
-  | _ -> typ
-
 let rec is_contractive ids typ =
   match unapp typ with
   | `Mu (_, `Lam (_, id, _, f)), xs -> (
@@ -168,6 +163,13 @@ let rec is_contractive ids typ =
   | _ -> true
 
 let is_contractive = is_contractive IdSet.empty
+
+let rec unfold_of_norm typ =
+  match unapp typ with
+  | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
+  | _ -> typ
+
+let unfold_of_norm typ = if is_contractive typ then unfold_of_norm typ else typ
 
 module Goals = struct
   include Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))

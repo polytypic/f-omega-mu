@@ -140,3 +140,30 @@ let () =
       λx:int.λ().[some = (x, even (x+1))] : opt (int, stream int)
     in ()
     |eof}
+
+let testErrors name exp =
+  test name @@ fun () ->
+  let env = Env.empty () in
+  match
+    try
+      Some
+        (exp |> parse_exp |> elaborate |> Reader.run env |> Exp.infer
+       |> Reader.run env)
+    with Diagnostic.Error _ -> None
+  with
+  | None -> ()
+  | Some unexpected ->
+    let open FomPP in
+    [
+      utf8string "Expected type checking to fail, but got type";
+      [break_1; Typ.pp unexpected] |> concat |> nest 2;
+    ]
+    |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
+    verify false
+
+let () =
+  testErrors "non contractive case"
+    {eof|
+    let type μnon_contractive:* → * = λt.non_contractive t in
+    λx:non_contractive int.x case {}
+    |eof}
