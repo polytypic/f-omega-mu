@@ -154,11 +154,12 @@ module Typ = struct
     in
     loop [] t
 
-  let rec arity_and_result = function
-    | `Arrow (_, _, result) ->
-      let n, result = arity_and_result result in
-      (n + 1, result)
-    | typ -> (0, typ)
+  let arity_and_result t =
+    let rec loop n = function
+      | `Arrow (_, _, c) -> loop (n + 1) c
+      | r -> (n, r)
+    in
+    loop 0 t
 
   (* Substitution *)
 
