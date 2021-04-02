@@ -5,8 +5,7 @@ val elaborate :
   (< annotations : Annot.t
    ; get_typ_aliases : FomAST.Typ.t FomAST.Typ.Env.t
    ; map_typ_aliases :
-       (FomAST.Typ.t FomAST.Typ.Env.t -> FomAST.Typ.t FomAST.Typ.Env.t) ->
-       'r
+       (FomAST.Typ.t FomAST.Typ.Env.t -> FomAST.Typ.t FomAST.Typ.Env.t) -> 'r
    ; .. >
    as
    'r) ->

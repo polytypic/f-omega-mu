@@ -29,9 +29,7 @@ module Annot = struct
         Hashtbl.add r#annotations at
           (object
              method def = at
-
              method annot = `Label (id, typ)
-
              method uses = uses
           end)
 
@@ -56,9 +54,7 @@ module Annot = struct
         Hashtbl.add r#annotations at
           (object
              method def = at
-
              method annot = `ExpId (id, typ)
-
              method uses = uses
           end)
 
@@ -79,9 +75,7 @@ module Annot = struct
         Hashtbl.add r#annotations at
           (object
              method def = at
-
              method annot = `TypId (id, kind)
-
              method uses = uses
           end)
 
@@ -92,9 +86,7 @@ module Annot = struct
         Hashtbl.add r#annotations at
           (object
              method def = at
-
              method annot = `TypAlias (id, typ)
-
              method uses = uses
           end)
 

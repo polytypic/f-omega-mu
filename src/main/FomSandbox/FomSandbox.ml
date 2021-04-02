@@ -14,30 +14,25 @@ let to_js_string ?(max_width = 80) doc = to_string ~max_width doc |> Js.string
 let js_pos pos =
   object%js
     val line = pos.Lexing.pos_lnum - 1
-
     val ch = Pos.column_of pos - 1
   end
 
 let js_token begins ends name =
   object%js
     val begins = begins
-
     val ends = ends
-
     val name = Js.string name
   end
 
 let js_loc (begins, ends) =
   object%js
     val begins = js_pos begins
-
     val ends = js_pos ends
   end
 
 let js_use_def ?(max_width = 60) (def, o) =
   object%js
     val def = js_loc def
-
     val uses = o#uses.contents |> List.map js_loc |> Array.of_list |> Js.array
 
     val annot =
@@ -178,9 +173,7 @@ let js_codemirror_mode =
         in
         object%js
           val typ = typ
-
           val defUses = def_uses ()
-
           val diagnostics = Js.array [||]
         end
       with exn ->
@@ -216,9 +209,7 @@ let js_codemirror_mode =
               |> Array.map (fun ((begins, ends), msg) ->
                      object%js
                        val begins = js_pos begins
-
                        val ends = js_pos ends
-
                        val message = msg |> to_js_string ~max_width
                      end)
               |> Js.array
