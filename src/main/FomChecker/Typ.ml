@@ -131,12 +131,12 @@ let rec infer typ : _ -> Kind.t =
   | `Exists (_, f) -> quantifier FomPP.exists f
   | `Arrow (at', d, c) ->
     let star = `Star at' in
-    let* _ = check star d in
-    let* _ = check star c in
+    let* () = check star d in
+    let* () = check star c in
     return star
   | `Product (at', ls) | `Sum (at', ls) ->
     let star = `Star at' in
-    let* _ = ls |> traverse (snd >> check star) in
+    let* () = ls |> iter (snd >> check star) in
     return star
 
 and check expected t =
@@ -144,7 +144,7 @@ and check expected t =
   let* actual = infer t in
   if not (Kind.equal expected actual) then
     Error.kind_mismatch (at t) expected actual;
-  return actual
+  return ()
 
 let rec kind_of checked_typ : _ -> Kind.t =
   let open Reader in

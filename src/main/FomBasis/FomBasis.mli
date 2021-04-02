@@ -58,6 +58,8 @@ module Reader : sig
   (* *)
 
   val traverse : ('x -> ('e, 'y) t) -> 'x list -> ('e, 'y list) t
+  val fold_left : ('y -> 'x -> ('e, 'y) t) -> 'y -> 'x list -> ('e, 'y) t
+  val iter : ('x -> ('e, unit) t) -> 'x list -> ('e, unit) t
   val for_all : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
   val exists : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
 end

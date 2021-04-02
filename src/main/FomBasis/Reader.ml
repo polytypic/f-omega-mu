@@ -22,14 +22,27 @@ let ( ||| ) lhs rhs =
   let* lhs = lhs in
   if lhs then return true else rhs
 
-let traverse f xs =
-  let rec loop ys = function
-    | [] -> return (List.rev ys)
+let fold_left yxy y xs =
+  let rec loop y = function
+    | [] -> return y
     | x :: xs ->
-      let* y = f x in
-      loop (y :: ys) xs
+      let* y = yxy y x in
+      loop y xs
   in
-  loop [] xs
+  loop y xs
+
+let iter f = fold_left (fun _ -> f) ()
+
+let traverse f xs =
+  let* ys =
+    xs
+    |> fold_left
+         (fun ys x ->
+           let* y = f x in
+           return (y :: ys))
+         []
+  in
+  return @@ List.rev ys
 
 let rec for_all p = function
   | [] -> return true
