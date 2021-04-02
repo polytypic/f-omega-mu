@@ -60,6 +60,18 @@ module Error = struct
         |> concat |> group )
       [(Typ.at arg, utf8string "Nested argument passed to μ type constructor")]
 
+  let mu_non_contractive at typ arg =
+    Diagnostic.error
+      ( at,
+        [
+          utf8string "Non-contractive types like";
+          [break_1; Typ.pp typ] |> concat |> nest 2;
+          break_1;
+          utf8string "are not allowed";
+        ]
+        |> concat |> group )
+      [(Typ.at arg, utf8string "Non-contractive apply of μ type constructor")]
+
   let typ_var_unbound at id =
     Diagnostic.error
       (at, concat [utf8string "Unbound type variable "; Typ.Id.pp id])

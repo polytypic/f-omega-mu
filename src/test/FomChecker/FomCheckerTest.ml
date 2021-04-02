@@ -10,14 +10,20 @@ let parse_typ = parse_utf_8 Grammar.typ_exp Lexer.plain
 let parse_exp = parse_utf_8 Grammar.program Lexer.plain
 
 let () =
-  test "Typ.is_contractive" @@ fun () ->
-  verify (Typ.is_contractive (parse_typ "μxs.x→xs"))
+  test "find_opt_non_contractive >> is_none" @@ fun () ->
+  verify
+    (Typ.find_opt_non_contractive Typ.IdSet.empty (parse_typ "μxs.x→xs")
+    |> Option.is_none)
 
 let () =
-  test "not Typ.is_contractive" @@ fun () ->
-  verify (not (Typ.is_contractive (parse_typ "μxs.xs")));
+  test "find_opt_non_contractive >> is_some" @@ fun () ->
   verify
-    (not (Typ.is_contractive (parse_typ "(μf:*→*→*.λx.λy.f y x) a b")))
+    (Typ.find_opt_non_contractive Typ.IdSet.empty (parse_typ "μxs.xs")
+    |> Option.is_some);
+  verify
+    (Typ.find_opt_non_contractive Typ.IdSet.empty
+       (parse_typ "(μf:*→*→*.λx.λy.f y x) a b")
+    |> Option.is_some)
 
 let () =
   test "Typ.equal_of_norm" @@ fun () ->

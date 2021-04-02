@@ -65,6 +65,25 @@ let find_opt_nested_arg t =
   | `Mu (at, f), xs -> find_opt_nested_arg_mu at f (List.length xs)
   | _ -> None
 
+let rec find_opt_non_contractive ids typ =
+  match unapp typ with
+  | `Mu (_, `Lam (_, id, _, f)), xs -> (
+    match app Loc.dummy f xs |> norm |> unapp with
+    | (`Var (_, id') as mu), _ when Id.equal id' id || IdSet.mem id' ids ->
+      Some mu
+    | typ, _ -> find_opt_non_contractive (IdSet.add id ids) typ)
+  | _ -> None
+
+let find_opt_non_contractive_mu at f arity =
+  match f with
+  | `Lam (_, id, _, f) -> (
+    let is = List.init arity (fun _ -> Id.fresh at) in
+    let xs = is |> List.map (fun i -> `Var (at, i)) in
+    match app Loc.dummy f xs |> norm |> unapp with
+    | (`Var (_, id') as mu), _ when Id.equal id' id -> Some mu
+    | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
+  | _ -> None
+
 let rec infer typ : _ -> Kind.t =
   let open Reader in
   let quantifier symbol f =
@@ -81,8 +100,11 @@ let rec infer typ : _ -> Kind.t =
     | `Arrow (_, d_kind, c_kind) ->
       if not (Kind.equal d_kind c_kind) then
         Error.mu_kind at' f f_kind;
-      find_opt_nested_arg_mu at' f (Kind.arity c_kind)
+      let c_arity = Kind.arity c_kind in
+      find_opt_nested_arg_mu at' f c_arity
       |> Option.iter (Error.mu_nested at' typ);
+      find_opt_non_contractive_mu at' f c_arity
+      |> Option.iter (Error.mu_non_contractive at' typ);
       return c_kind)
   | `Const (at', c) -> return (Const.kind_of at' c)
   | `Var (at', i) -> (
@@ -154,22 +176,10 @@ and kind_of_cod checked_typ : _ -> Kind.t =
 
 let unfold at f mu xs = FomAST.Typ.app at (`App (at, f, mu)) xs |> norm
 
-let rec is_contractive ids typ =
-  match unapp typ with
-  | `Mu (_, `Lam (_, id, _, f)), xs -> (
-    match app Loc.dummy f xs |> norm |> unapp with
-    | `Var (_, id'), _ when Id.equal id' id || IdSet.mem id' ids -> false
-    | typ, _ -> is_contractive (IdSet.add id ids) typ)
-  | _ -> true
-
-let is_contractive = is_contractive IdSet.empty
-
 let rec unfold_of_norm typ =
   match unapp typ with
   | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
   | _ -> typ
-
-let unfold_of_norm typ = if is_contractive typ then unfold_of_norm typ else typ
 
 module Goals = struct
   include Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
@@ -248,18 +258,10 @@ let support (lhs, rhs) =
   | _ -> (
     match (unapp lhs, unapp rhs) with
     | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs) ->
-      if is_contractive lhs then
-        if is_contractive rhs then
-          Some (Goals.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
-        else
-          None
-      else if is_contractive rhs then
-        None
-      else
-        Some Goals.empty
-    | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
+      Some (Goals.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+    | ((`Mu (lat, lf) as lmu), lxs), _ ->
       Some (Goals.singleton (unfold lat lf lmu lxs, rhs))
-    | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
+    | _, ((`Mu (rat, rf) as rmu), rxs) ->
       Some (Goals.singleton (lhs, unfold rat rf rmu rxs))
     | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs ->
       Some (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Goals.of_list_eq)
