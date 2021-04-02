@@ -221,37 +221,42 @@ let intersect_labels add ls ms =
 
 let support (lhs, rhs) =
   match (lhs, rhs) with
-  | `Const (_, lhs_const), `Const (_, rhs_const)
-    when Const.equal lhs_const rhs_const ->
-    Some Goals.empty
+  | `Const (_, lhs_const), `Const (_, rhs_const) ->
+    if Const.equal lhs_const rhs_const then Some Goals.empty else None
   | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
     Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> Goals.of_list)
   | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
     intersect_labels Goals.add rhs_ls lhs_ls
   | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
     intersect_labels Goals.add_inv lhs_ls rhs_ls
-  | `Var (_, lhs_id), `Var (_, rhs_id) when Id.equal lhs_id rhs_id ->
-    Some Goals.empty
+  | `Var (_, lhs_id), `Var (_, rhs_id) ->
+    if Id.equal lhs_id rhs_id then Some Goals.empty else None
   | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
     Some (Goals.singleton (lhs, rhs))
-  | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
-    when Kind.equal lhs_kind rhs_kind ->
-    let entry =
-      if Id.equal lhs_id rhs_id then
-        (lhs_typ, rhs_typ)
-      else
-        let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
-        (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
-    in
-    Some (entry |> regularize_free_vars |> Goals.singleton)
+  | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ) ->
+    if Kind.equal lhs_kind rhs_kind then
+      let goal =
+        if Id.equal lhs_id rhs_id then
+          (lhs_typ, rhs_typ)
+        else
+          let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
+          (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
+      in
+      Some (goal |> regularize_free_vars |> Goals.singleton)
+    else
+      None
   | _ -> (
     match (unapp lhs, unapp rhs) with
-    | (`Mu _, _), (`Mu _, _)
-      when (not (is_contractive lhs)) && not (is_contractive rhs) ->
-      Some Goals.empty
-    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs)
-      when is_contractive lhs && is_contractive rhs ->
-      Some (Goals.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs) ->
+      if is_contractive lhs then
+        if is_contractive rhs then
+          Some (Goals.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+        else
+          None
+      else if is_contractive rhs then
+        None
+      else
+        Some Goals.empty
     | ((`Mu (lat, lf) as lmu), lxs), _ when is_contractive lhs ->
       Some (Goals.singleton (unfold lat lf lmu lxs, rhs))
     | _, ((`Mu (rat, rf) as rmu), rxs) when is_contractive rhs ->
