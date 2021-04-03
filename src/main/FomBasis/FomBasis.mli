@@ -24,6 +24,7 @@ module Pair : sig
   val swap : 'a * 'b -> 'b * 'a
   (** Swap elements of a pair. *)
 
+  val map : ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd
   val map_phys_eq : ('a -> 'a) -> ('b -> 'b) -> 'a * 'b -> 'a * 'b
 end
 

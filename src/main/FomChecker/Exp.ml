@@ -138,7 +138,7 @@ and infer it : _ -> Typ.t =
     if ListExt.compare_with (Compare.the fst Label.compare) s_fs cs_fs <> 0 then
       Error.labels_mismatch at' (List.map fst s_fs) (List.map fst cs_fs);
     match
-      cs_fs |> List.map (fun (l, t) -> (l, check_arrow_typ (Typ.at t) t))
+      cs_fs |> List.map (Pair.map id @@ fun t -> check_arrow_typ (Typ.at t) t)
     with
     | [] -> return s_typ
     | (_, (_, e_cod)) :: _ as cs_fs ->

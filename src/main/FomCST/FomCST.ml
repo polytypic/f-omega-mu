@@ -1,3 +1,4 @@
+open FomBasis
 open FomAST
 open FomDiag
 open FomSource
@@ -46,7 +47,9 @@ module Exp = struct
       | [p] -> p
       | ps ->
         `Product
-          (at', ps |> Tuple.labels at |> List.map (fun (l, p) -> (l, `Pat p)))
+          ( at',
+            ps |> Tuple.labels at |> List.map (Pair.map id @@ fun p -> `Pat p)
+          )
   end
 
   type 't f =
