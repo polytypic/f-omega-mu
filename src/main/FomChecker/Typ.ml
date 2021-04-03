@@ -181,8 +181,10 @@ let rec unfold_of_norm typ =
   | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
   | _ -> typ
 
-module Goals = struct
-  include Set.Make (Compare.Pair (FomAST.Typ) (FomAST.Typ))
+module Goal = Compare.Pair (FomAST.Typ) (FomAST.Typ)
+
+module GoalSet = struct
+  include Set.Make (Goal)
 
   let is_trivial (lhs, rhs) = 0 = FomAST.Typ.compare lhs rhs
 
@@ -227,22 +229,22 @@ let intersect_labels add ls ms =
         loop goals lls ms
     | _ :: _, [] -> None
   in
-  loop Goals.empty ls ms
+  loop GoalSet.empty ls ms
 
 let support (lhs, rhs) =
   match (lhs, rhs) with
   | `Const (_, lhs_const), `Const (_, rhs_const) ->
-    if Const.equal lhs_const rhs_const then Some Goals.empty else None
+    if Const.equal lhs_const rhs_const then Some GoalSet.empty else None
   | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-    Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> Goals.of_list)
+    Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> GoalSet.of_list)
   | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
-    intersect_labels Goals.add rhs_ls lhs_ls
+    intersect_labels GoalSet.add rhs_ls lhs_ls
   | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-    intersect_labels Goals.add_inv lhs_ls rhs_ls
+    intersect_labels GoalSet.add_inv lhs_ls rhs_ls
   | `Var (_, lhs_id), `Var (_, rhs_id) ->
-    if Id.equal lhs_id rhs_id then Some Goals.empty else None
+    if Id.equal lhs_id rhs_id then Some GoalSet.empty else None
   | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
-    Some (Goals.singleton (lhs, rhs))
+    Some (GoalSet.singleton (lhs, rhs))
   | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ) ->
     if Kind.equal lhs_kind rhs_kind then
       let goal =
@@ -252,34 +254,38 @@ let support (lhs, rhs) =
           let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
           (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
       in
-      Some (goal |> regularize_free_vars |> Goals.singleton)
+      Some (goal |> regularize_free_vars |> GoalSet.singleton)
     else
       None
   | _ -> (
     match (unapp lhs, unapp rhs) with
     | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs) ->
-      Some (Goals.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
+      Some (GoalSet.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
     | ((`Mu (lat, lf) as lmu), lxs), _ ->
-      Some (Goals.singleton (unfold lat lf lmu lxs, rhs))
+      Some (GoalSet.singleton (unfold lat lf lmu lxs, rhs))
     | _, ((`Mu (rat, rf) as rmu), rxs) ->
-      Some (Goals.singleton (lhs, unfold rat rf rmu rxs))
+      Some (GoalSet.singleton (lhs, unfold rat rf rmu rxs))
     | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs ->
-      Some (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> Goals.of_list_eq)
+      Some
+        (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> GoalSet.of_list_eq)
     | _ -> None)
 
 let rec gfp assumptions goals =
-  Goals.is_empty goals
+  GoalSet.is_empty goals
   ||
-  let goal = Goals.choose goals in
+  let goal = GoalSet.choose goals in
   match support goal with
   | None -> false
   | Some sub_goals ->
     gfp
-      (Goals.add goal assumptions)
-      (Goals.union (Goals.remove goal goals) (Goals.diff sub_goals assumptions))
+      (GoalSet.add goal assumptions)
+      (GoalSet.union
+         (GoalSet.remove goal goals)
+         (GoalSet.diff sub_goals assumptions))
 
 let sub_of_norm sub sup =
-  (sub, sup) |> regularize_free_vars |> Goals.singleton |> gfp Goals.empty
+  (sub, sup) |> regularize_free_vars |> GoalSet.singleton |> gfp GoalSet.empty
 
 let equal_of_norm lhs rhs =
-  (lhs, rhs) |> regularize_free_vars |> Goals.singleton_eq |> gfp Goals.empty
+  (lhs, rhs) |> regularize_free_vars |> GoalSet.singleton_eq
+  |> gfp GoalSet.empty
