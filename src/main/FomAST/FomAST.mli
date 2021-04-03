@@ -46,17 +46,19 @@ module Typ : sig
 
   module Id : Id.S
 
-  type t =
-    [ `Mu of Loc.t * t
+  type 't f =
+    [ `Mu of Loc.t * 't
     | `Const of Loc.t * Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Kind.t * t
-    | `App of Loc.t * t * t
-    | `ForAll of Loc.t * t
-    | `Exists of Loc.t * t
-    | `Arrow of Loc.t * t * t
-    | `Product of Loc.t * (Label.t * t) list
-    | `Sum of Loc.t * (Label.t * t) list ]
+    | `Lam of Loc.t * Id.t * Kind.t * 't
+    | `App of Loc.t * 't * 't
+    | `ForAll of Loc.t * 't
+    | `Exists of Loc.t * 't
+    | `Arrow of Loc.t * 't * 't
+    | `Product of Loc.t * (Label.t * 't) list
+    | `Sum of Loc.t * (Label.t * 't) list ]
+
+  type t = [ | t f]
 
   val at : t -> Loc.t
   val set_at : Loc.t -> t -> t

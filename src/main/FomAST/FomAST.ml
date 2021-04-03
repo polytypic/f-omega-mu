@@ -96,17 +96,19 @@ module Typ = struct
 
   module Id = Id.Make ()
 
-  type t =
-    [ `Mu of Loc.t * t
+  type 't f =
+    [ `Mu of Loc.t * 't
     | `Const of Loc.t * Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Kind.t * t
-    | `App of Loc.t * t * t
-    | `ForAll of Loc.t * t
-    | `Exists of Loc.t * t
-    | `Arrow of Loc.t * t * t
-    | `Product of Loc.t * (Label.t * t) list
-    | `Sum of Loc.t * (Label.t * t) list ]
+    | `Lam of Loc.t * Id.t * Kind.t * 't
+    | `App of Loc.t * 't * 't
+    | `ForAll of Loc.t * 't
+    | `Exists of Loc.t * 't
+    | `Arrow of Loc.t * 't * 't
+    | `Product of Loc.t * (Label.t * 't) list
+    | `Sum of Loc.t * (Label.t * 't) list ]
+
+  type t = [ | t f]
 
   let at = function
     | `Mu (at, _)
