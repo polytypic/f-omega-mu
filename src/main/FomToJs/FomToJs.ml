@@ -197,7 +197,7 @@ module Exp = struct
     | `IfElse (_, c, t, e) -> `IfElse (erase c, erase t, erase e)
     | `Product (_, fs) -> `Product (fs |> List.map (Pair.map id erase))
     | `Select (_, e, l) -> `Select (erase e, l)
-    | `Inject (_, l, e, _) -> `Inject (l, erase e)
+    | `Inject (_, l, e) -> `Inject (l, erase e)
     | `Case (_, s, cs) -> `Case (erase s, erase cs)
     | `Gen (_, _, _, e) | `Inst (_, e, _) | `Pack (_, _, e, _) -> erase e
     | `Target (_, _, s) -> `Target s

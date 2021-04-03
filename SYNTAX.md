@@ -26,12 +26,13 @@ Below is an _approximation_ of the detailed
       | '<<' tid '\' pat '>>'                                     // Existential pack pattern
 
   exp : '(' exp ')'
+      | exp ':' typ                                               // Type ascription
       | eid                                                       // Variable (*1)
       | (int | 'true' | 'false' | string)                         // Literals
       | '(' (exp ',')* '}'                                        // Tuple introduction
       | '{' (label ('=' exp)? ',')* '}'                           // Product introduction
       | exp '.' label                                             // Product elimination
-      | '[' label ('=' exp)? ']' ':' typ                          // Sum introduction
+      | '[' label ('=' exp)? ']'                                  // Sum introduction
       | '<<' typ '\' exp '>>' ':' typ                             // Existential packing
       | exp exp                                                   // Apply function
       | uop exp                                                   // Apply unary operator

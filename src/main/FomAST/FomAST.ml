@@ -552,7 +552,7 @@ module Exp = struct
     | `IfElse of Loc.t * 't * 't * 't
     | `Product of Loc.t * (Label.t * 't) list
     | `Select of Loc.t * 't * Label.t
-    | `Inject of Loc.t * Label.t * 't * Typ.t
+    | `Inject of Loc.t * Label.t * 't
     | `Case of Loc.t * 't * 't
     | `Pack of Loc.t * Typ.t * 't * Typ.t
     | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 't * 't
@@ -572,7 +572,7 @@ module Exp = struct
     | `IfElse (at, _, _, _)
     | `Product (at, _)
     | `Select (at, _, _)
-    | `Inject (at, _, _, _)
+    | `Inject (at, _, _)
     | `Case (at, _, _)
     | `Pack (at, _, _, _)
     | `UnpackIn (at, _, _, _, _)

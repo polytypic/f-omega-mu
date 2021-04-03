@@ -181,7 +181,11 @@ let rec unfold_of_norm typ =
   | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
   | _ -> typ
 
-module Goal = Compare.Pair (FomAST.Typ) (FomAST.Typ)
+module Goal = struct
+  include Compare.Pair (FomAST.Typ) (FomAST.Typ)
+
+  let map f = Pair.map f f
+end
 
 module GoalSet = struct
   include Set.Make (Goal)
@@ -208,15 +212,18 @@ module GoalSet = struct
   let of_list = List.filter (is_trivial >> not) >> of_list
 end
 
-let regularize_free_vars (lhs, rhs) =
-  let subst =
-    IdSet.union (free lhs) (free rhs)
-    |> IdSet.elements
-    |> List.mapi (fun i v ->
-           (v, `Var (Id.at v, Id.of_string (Id.at v) ("#" ^ string_of_int i))))
-    |> List.to_seq |> Env.of_seq |> subst_par
-  in
-  (subst lhs, subst rhs)
+let free_vars_to_regular_assoc (lhs, rhs) =
+  IdSet.union (free lhs) (free rhs)
+  |> IdSet.elements
+  |> List.mapi (fun i v -> (v, Id.of_string (Id.at v) ("#" ^ string_of_int i)))
+
+let to_subst =
+  List.to_seq
+  >> Seq.map (Pair.map id @@ fun i -> `Var (Id.at i, i))
+  >> Env.of_seq >> subst_par
+
+let regularize_free_vars goal =
+  Goal.map (goal |> free_vars_to_regular_assoc |> to_subst) goal
 
 let intersect_labels add ls ms =
   let rec loop goals ls ms =
@@ -230,6 +237,14 @@ let intersect_labels add ls ms =
     | _ :: _, [] -> None
   in
   loop GoalSet.empty ls ms
+
+let unify_vars lhs_i lhs_t rhs_i rhs_t =
+  if Id.equal lhs_i rhs_i then
+    (lhs_i, (lhs_t, rhs_t))
+  else
+    let i = Id.fresh Loc.dummy in
+    let v = `Var (Loc.dummy, i) in
+    (i, (subst lhs_i v lhs_t, subst rhs_i v rhs_t))
 
 let support (lhs, rhs) =
   match (lhs, rhs) with
@@ -247,13 +262,7 @@ let support (lhs, rhs) =
     Some (GoalSet.singleton (lhs, rhs))
   | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ) ->
     if Kind.equal lhs_kind rhs_kind then
-      let goal =
-        if Id.equal lhs_id rhs_id then
-          (lhs_typ, rhs_typ)
-        else
-          let new_var = `Var (Loc.dummy, Id.fresh Loc.dummy) in
-          (subst lhs_id new_var lhs_typ, subst rhs_id new_var rhs_typ)
-      in
+      let _, goal = unify_vars lhs_id lhs_typ rhs_id rhs_typ in
       Some (goal |> regularize_free_vars |> GoalSet.singleton)
     else
       None
@@ -289,3 +298,133 @@ let sub_of_norm sub sup =
 let equal_of_norm lhs rhs =
   (lhs, rhs) |> regularize_free_vars |> GoalSet.singleton_eq
   |> gfp GoalSet.empty
+
+let rec to_strict (t : ['a FomAST.Typ.f | `Lazy of 'a Lazy.t] as 'a) =
+  match t with
+  | `Mu (at, t) -> `Mu (at, to_strict t)
+  | `Const _ as inn -> inn
+  | `Var _ as inn -> inn
+  | `Lam (at, i, k, t) -> `Lam (at, i, k, to_strict t)
+  | `App (at, f, x) -> `App (at, to_strict f, to_strict x)
+  | `ForAll (at, t) -> `ForAll (at, to_strict t)
+  | `Exists (at, t) -> `Exists (at, to_strict t)
+  | `Arrow (at, d, c) -> `Arrow (at, to_strict d, to_strict c)
+  | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map id to_strict))
+  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map id to_strict))
+  | `Lazy t -> Lazy.force t |> to_strict
+
+let rec to_lazy t =
+  match t with
+  | `Mu (at, t) -> `Mu (at, to_lazy t)
+  | `Const _ as inn -> inn
+  | `Var _ as inn -> inn
+  | `Lam (at, i, k, t) -> `Lam (at, i, k, to_lazy t)
+  | `App (at, f, x) -> `App (at, to_lazy f, to_lazy x)
+  | `ForAll (at, t) -> `ForAll (at, to_lazy t)
+  | `Exists (at, t) -> `Exists (at, to_lazy t)
+  | `Arrow (at, d, c) -> `Arrow (at, to_lazy d, to_lazy c)
+  | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map id to_lazy))
+  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map id to_lazy))
+
+module GoalMap = Map.Make (Goal)
+
+let join_of_norm lhs rhs =
+  let exception Fail in
+  let at = Loc.dummy in
+  let joins = ref GoalMap.empty in
+  let meets = ref GoalMap.empty in
+  let memo_in goals goal thunk =
+    match GoalMap.find_opt goal !goals with
+    | Some result -> result
+    | None ->
+      let result = `Lazy (lazy (thunk ())) in
+      goals := GoalMap.add goal result !goals;
+      result
+  in
+  let rec join ((lhs, rhs) as goal) =
+    memo_in joins goal @@ fun () ->
+    if sub_of_norm lhs rhs then
+      to_lazy rhs
+    else if sub_of_norm rhs lhs then
+      to_lazy lhs
+    else
+      match goal with
+      | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
+        `Arrow (at, meet (lhs_d, rhs_d), join (lhs_c, rhs_c))
+      | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
+        `Product (at, intersection join [] (lhs_ls, rhs_ls))
+      | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
+        `Sum (at, union join [] (lhs_ls, rhs_ls))
+      | `Lam (_, lhs_i, lhs_k, lhs_t), `Lam (_, rhs_i, rhs_k, rhs_t) ->
+        binding join lhs_i lhs_k lhs_t rhs_i rhs_k rhs_t
+      | `ForAll (_, lhs_t), `ForAll (_, rhs_t) ->
+        `ForAll (at, join (lhs_t, rhs_t))
+      | `Exists (_, lhs_t), `Exists (_, rhs_t) ->
+        `Exists (at, join (lhs_t, rhs_t))
+      | _ -> mu join lhs rhs
+  and meet ((lhs, rhs) as goal) =
+    memo_in meets goal @@ fun () ->
+    if sub_of_norm lhs rhs then
+      to_lazy lhs
+    else if sub_of_norm rhs lhs then
+      to_lazy rhs
+    else
+      match goal with
+      | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
+        `Arrow (at, join (lhs_d, rhs_d), meet (lhs_c, rhs_c))
+      | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
+        `Product (at, union meet [] (lhs_ls, rhs_ls))
+      | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
+        `Sum (at, intersection meet [] (lhs_ls, rhs_ls))
+      | `Lam (_, lhs_i, lhs_k, lhs_t), `Lam (_, rhs_i, rhs_k, rhs_t) ->
+        binding meet lhs_i lhs_k lhs_t rhs_i rhs_k rhs_t
+      | `ForAll (_, lhs_t), `ForAll (_, rhs_t) ->
+        `ForAll (at, meet (lhs_t, rhs_t))
+      | `Exists (_, lhs_t), `Exists (_, rhs_t) ->
+        `Exists (at, meet (lhs_t, rhs_t))
+      | _ -> mu meet lhs rhs
+  and intersection op ls = function
+    | ( ((lhs_l, lhs_t) :: lhs_ls as lhs_lls),
+        ((rhs_l, rhs_t) :: rhs_ls as rhs_lls) ) ->
+      let c = Label.compare lhs_l rhs_l in
+      if c < 0 then
+        intersection op ls (lhs_ls, rhs_lls)
+      else if 0 < c then
+        intersection op ls (lhs_lls, rhs_ls)
+      else
+        intersection op ((lhs_l, op (lhs_t, rhs_t)) :: ls) (lhs_ls, rhs_ls)
+    | [], _ | _, [] -> List.rev ls
+  and union op ls = function
+    | ( ((lhs_l, lhs_t) :: lhs_ls as lhs_lls),
+        ((rhs_l, rhs_t) :: rhs_ls as rhs_lls) ) ->
+      let c = Label.compare lhs_l rhs_l in
+      if c < 0 then
+        union op ((lhs_l, to_lazy lhs_t) :: ls) (lhs_ls, rhs_lls)
+      else if 0 < c then
+        union op ((rhs_l, to_lazy rhs_t) :: ls) (lhs_lls, rhs_ls)
+      else
+        union op ((lhs_l, op (lhs_t, rhs_t)) :: ls) (lhs_ls, rhs_ls)
+    | (lhs_l, lhs_t) :: lhs_ls, [] ->
+      union op ((lhs_l, to_lazy lhs_t) :: ls) (lhs_ls, [])
+    | [], (rhs_l, rhs_t) :: rhs_ls ->
+      union op ((rhs_l, to_lazy rhs_t) :: ls) ([], rhs_ls)
+    | [], [] -> List.rev ls
+  and binding op lhs_i lhs_k lhs_t rhs_i rhs_k rhs_t =
+    if not (Kind.equal lhs_k rhs_k) then
+      raise Fail;
+    let i, goal = unify_vars lhs_i lhs_t rhs_i rhs_t in
+    let assoc = free_vars_to_regular_assoc goal in
+    op (Goal.map (to_subst assoc) goal)
+    |> to_strict
+    |> to_subst (assoc |> List.map Pair.swap)
+    |> to_lazy
+    |> fun t -> `Lam (at, i, lhs_k, t)
+  and mu op lhs rhs =
+    match (unapp lhs, unapp rhs) with
+    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs) ->
+      op (unfold lat lf lmu lxs, unfold rat rf rmu rxs)
+    | ((`Mu (lat, lf) as lmu), lxs), _ -> op (unfold lat lf lmu lxs, rhs)
+    | _, ((`Mu (rat, rf) as rmu), rxs) -> op (lhs, unfold rat rf rmu rxs)
+    | _ -> raise Fail
+  in
+  try Some (join (lhs, rhs) |> to_strict) with Fail -> None

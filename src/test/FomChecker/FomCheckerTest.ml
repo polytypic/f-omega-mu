@@ -141,9 +141,9 @@ let () =
     let type opt = λt.[none: (), some: t] in
     let type μstream:* → * = λt.() → opt (t, stream t) in
     let μeven: int → stream int =
-      λx:int.λ().[some = (x, odd (x+1))] : opt (int, stream int)
+      λx:int.λ().[some = (x, odd (x+1))]
     and μodd: int → stream int =
-      λx:int.λ().[some = (x, even (x+1))] : opt (int, stream int)
+      λx:int.λ().[some = (x, even (x+1))]
     in ()
     |eof}
 

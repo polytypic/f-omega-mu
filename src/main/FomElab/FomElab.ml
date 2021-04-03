@@ -111,10 +111,9 @@ let rec elaborate =
   | `Select (at, e, l) ->
     let* e = elaborate e in
     return @@ `Select (at, e, l)
-  | `Inject (at, l, e, t) ->
+  | `Inject (at, l, e) ->
     let* e = elaborate e in
-    let* t = elaborate_typ t in
-    return @@ `Inject (at, l, e, t)
+    return @@ `Inject (at, l, e)
   | `Case (at, s, cs) ->
     let* s = elaborate s in
     let* cs = elaborate cs in
@@ -144,3 +143,8 @@ let rec elaborate =
     let* e = elaborate e in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     return @@ `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)
+  | `Annot (at, e, t) ->
+    let* e = elaborate e in
+    let* t = elaborate_typ t in
+    let x = Exp.Id.fresh at in
+    return @@ `App (at, `Lam (at, x, t, `Var (at, x)), e)

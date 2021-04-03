@@ -161,7 +161,7 @@ module Exp : sig
     | `IfElse of Loc.t * 't * 't * 't
     | `Product of Loc.t * (Label.t * 't) list
     | `Select of Loc.t * 't * Label.t
-    | `Inject of Loc.t * Label.t * 't * Typ.t
+    | `Inject of Loc.t * Label.t * 't
     | `Case of Loc.t * 't * 't
     | `Pack of Loc.t * Typ.t * 't * Typ.t
     | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 't * 't

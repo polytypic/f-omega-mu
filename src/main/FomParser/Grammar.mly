@@ -184,6 +184,7 @@ exp_atom:
   | l=LitString                                         {`Const ($loc, `LitString l)}
   | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
   | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
+  | "["l=label"="e=exp"]"                               {`Inject ($loc, l, e)}
   | e=exp_atom"."l=label                                {`Select ($loc, e, l)}
   | "target""["t=typ"]"c=LitString                      {`Target ($loc, t, c)}
 
@@ -229,6 +230,7 @@ exp_in:
   | e=uop"_"                                            {e}
   | e=bop                                               {e}
   | e=exp_inf                                           {e}
+  | "["i=exp_rid"]"                                     {`Inject ($loc, Exp.Id.to_label i, `Var (Exp.Id.at i, i))}
 
 exp:
   | e=exp_in                                            {e}
@@ -240,8 +242,8 @@ exp:
   | "let""type"bs=list_1(typ_mu_def, "and")"in"e=exp    {`LetTypRecIn ($loc, bs, e)}
   | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, v, e)}
   | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
-  | "["c=lab_exp"]"":"t=typ                             {`Inject ($loc, fst c, snd c, t)}
   | "<<"x=typ"\\"e=exp">>"":"f=typ                      {`Pack ($loc, x, e, f)}
+  | e=exp_in":"t=typ                                    {`Annot ($loc, e, t)}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(b, t)}

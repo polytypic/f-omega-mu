@@ -23,6 +23,11 @@ let check_typs_equal at ~exp ~act =
   if not (Typ.equal_of_norm exp act) then
     Error.typ_mismatch at exp act
 
+let check_typs_join at lhs rhs =
+  match Typ.join_of_norm lhs rhs with
+  | None -> Error.typ_mismatch at lhs rhs
+  | Some typ -> typ
+
 let check_arrow_typ at typ =
   match Typ.unfold_of_norm typ with
   | `Arrow (_, dom, cod) -> (dom, cod)
@@ -96,8 +101,7 @@ and infer it : _ -> Typ.t =
     check_typs_equal (at c) ~exp:(`Const (at c, `Bool)) ~act:c_typ;
     let* t_typ = infer t in
     let* e_typ = infer e in
-    check_typs_equal (at e) ~exp:t_typ ~act:e_typ;
-    return t_typ
+    return @@ check_typs_join (at e) t_typ e_typ
   | `Product (at, fs) ->
     let* fs =
       fs
@@ -117,19 +121,9 @@ and infer it : _ -> Typ.t =
       let* () = Annot.Label.use l (Label.at l') in
       return l_typ
     | None -> Error.product_lacks (at p) p_typ l)
-  | `Inject (_, l, e, s_typ) -> (
-    let* s_typ = typ_check_and_norm s_typ in
-    match
-      check_sum_typ (Typ.at s_typ) s_typ
-      |> List.find_opt (fun (l', _) -> Label.equal l' l)
-    with
-    | Some (l', l_typ) ->
-      let* () = Annot.Label.def l' l_typ in
-      let* () = Annot.Label.use l (Label.at l') in
-      let* e_typ = infer e in
-      check_typs_sub (at e) ~sub:e_typ ~sup:l_typ;
-      return s_typ
-    | None -> Error.sum_lacks (Typ.at s_typ) s_typ l)
+  | `Inject (at, l, e) ->
+    let* e_typ = infer e in
+    return @@ Typ.sum at [(l, e_typ)]
   | `Case (at', s, cs) -> (
     let* s_typ = infer s in
     let s_fs = check_sum_typ (at s) s_typ in
@@ -142,15 +136,14 @@ and infer it : _ -> Typ.t =
     with
     | [] -> return s_typ
     | (_, (_, e_cod)) :: _ as cs_fs ->
-      let* _ =
-        List.combine cs_fs s_fs
-        |> traverse (fun ((l, (c_dom, c_cod)), (l', e_typ)) ->
-               check_typs_sub (Typ.at c_dom) ~sub:e_typ ~sup:c_dom;
-               check_typs_equal (Typ.at c_cod) ~exp:c_cod ~act:e_cod;
-               let* () = Annot.Label.def l' e_typ in
-               Annot.Label.use l (Label.at l'))
-      in
-      return e_cod)
+      List.combine cs_fs s_fs
+      |> fold_left
+           (fun e_cod ((l, (c_dom, c_cod)), (l', e_typ)) ->
+             check_typs_sub (Typ.at c_dom) ~sub:e_typ ~sup:c_dom;
+             let* () = Annot.Label.def l' e_typ in
+             let* () = Annot.Label.use l (Label.at l') in
+             return @@ check_typs_join (Typ.at c_cod) c_cod e_cod)
+           e_cod)
   | `Pack (at', t, e, et) -> (
     let* e_typ = infer e in
     let* t_kind = Typ.infer t in
