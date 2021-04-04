@@ -12,10 +12,7 @@ include FomAST.Typ
 let rec find_map_from_all_apps_of i' p = function
   | `Const _ -> None
   | `Lam (_, i, _, t) ->
-    if Id.equal i i' then
-      None
-    else
-      find_map_from_all_apps_of i' p t
+    if Id.equal i i' then None else find_map_from_all_apps_of i' p t
   | `Mu (_, t) | `ForAll (_, t) | `Exists (_, t) ->
     find_map_from_all_apps_of i' p t
   | `Arrow (_, d, c) -> (
@@ -53,12 +50,7 @@ let find_opt_nested_arg_mu at f arity =
        |> List.find_map @@ function
           | `Var _ -> None
           | t ->
-            is
-            |> List.find_map @@ fun i ->
-               if is_free i t then
-                 Some t
-               else
-                 None
+            is |> List.find_map @@ fun i -> if is_free i t then Some t else None
 
 let find_opt_nested_arg t =
   match unapp t with
@@ -106,7 +98,7 @@ let rec infer typ : _ -> Kind.t =
       find_opt_non_contractive_mu at' f c_arity
       |> Option.iter (Error.mu_non_contractive at' typ);
       return c_kind)
-  | `Const (at', c) -> return (Const.kind_of at' c)
+  | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
     let* i_kind_opt e = Env.find_opt i e#get_typ_env in
     match i_kind_opt with
@@ -117,7 +109,7 @@ let rec infer typ : _ -> Kind.t =
   | `Lam (at', d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
     let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
-    return (`Arrow (at', d_kind, r_kind))
+    return @@ `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) -> (
     let* f_kind = infer f in
     match f_kind with
@@ -146,11 +138,13 @@ and check expected t =
     Error.kind_mismatch (at t) expected actual;
   return ()
 
+(* *)
+
 let rec kind_of checked_typ : _ -> Kind.t =
   let open Reader in
   match checked_typ with
   | `Mu (_, f) -> kind_of_cod f
-  | `Const (at', c) -> return (Const.kind_of at' c)
+  | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
     let* i_kind_opt e = Env.find_opt i e#get_typ_env in
     match i_kind_opt with
@@ -158,7 +152,7 @@ let rec kind_of checked_typ : _ -> Kind.t =
     | Some (_, i_kind) -> return i_kind)
   | `Lam (at', d, d_kind, r) ->
     let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> kind_of r in
-    return (`Arrow (at', d_kind, r_kind))
+    return @@ `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)
   | `Exists (at', _)
@@ -173,6 +167,8 @@ and kind_of_cod checked_typ : _ -> Kind.t =
   match f_kind with
   | `Star _ -> failwith "Impossible"
   | `Arrow (_, _, c_kind) -> return c_kind
+
+(* *)
 
 let unfold at f mu xs = FomAST.Typ.app at (`App (at, f, mu)) xs |> norm
 
