@@ -17,7 +17,7 @@ let typ_check_and_norm typ =
 
 let check_typs_sub at ~sub ~sup =
   if not (Typ.sub_of_norm sub sup) then
-    Error.typ_mismatch at sub sup
+    Error.typ_mismatch at sup sub
 
 let check_typs_equal at ~exp ~act =
   if not (Typ.equal_of_norm exp act) then
