@@ -341,6 +341,7 @@ fomCM.on(
 //
 
 const replacements = {
+  '!': '¬',
   '!=': '≠ ',
   '&&': '∧ ',
   '->': '→ ',
@@ -349,13 +350,12 @@ const replacements = {
   '=>': '.',
   '>=': '≥ ',
   '>>': '》',
+  '||': '∨ ',
   exists: '∃',
   forall: '∀',
   fun: 'λ',
   gen: 'Λ',
   rec: 'μ',
-  '||': '∨ ',
-  '!': '¬',
 }
 
 fomCM.on('keyup', function (_, event) {
