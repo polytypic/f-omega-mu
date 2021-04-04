@@ -248,16 +248,12 @@ let unify_vars lhs_i lhs_t rhs_i rhs_t =
 
 let support (lhs, rhs) =
   match (lhs, rhs) with
-  | `Const (_, lhs_const), `Const (_, rhs_const) ->
-    if Const.equal lhs_const rhs_const then Some GoalSet.empty else None
   | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
     Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> GoalSet.of_list)
   | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
     intersect_labels GoalSet.add rhs_ls lhs_ls
   | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
     intersect_labels GoalSet.add_inv lhs_ls rhs_ls
-  | `Var (_, lhs_id), `Var (_, rhs_id) ->
-    if Id.equal lhs_id rhs_id then Some GoalSet.empty else None
   | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
     Some (GoalSet.singleton (lhs, rhs))
   | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ) ->
