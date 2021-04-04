@@ -54,9 +54,9 @@ module Exp = struct
 
   type 't f =
     [ 't Exp.f
-    | `LetTypIn of Loc.t * Typ.Id.t * Typ.t * 't
+    | `LetTypIn of Loc.t * Typ.Id.t * Kind.t option * Typ.t * 't
     | `LetTypRecIn of Loc.t * ((Typ.Id.t * Kind.t) * Typ.t) list * 't
-    | `LetPat of Loc.t * Pat.t * 't * 't
+    | `LetPat of Loc.t * Pat.t * Typ.t option * 't * 't
     | `LetPatRec of Loc.t * (Pat.t * 't) list * 't
     | `LamPat of Loc.t * Pat.t * 't
     | `Annot of Loc.t * 't * Typ.t ]
@@ -65,9 +65,9 @@ module Exp = struct
 
   let at (e : _ f) =
     match e with
-    | `LetTypIn (at, _, _, _)
+    | `LetTypIn (at, _, _, _, _)
     | `LetTypRecIn (at, _, _)
-    | `LetPat (at, _, _, _)
+    | `LetPat (at, _, _, _, _)
     | `LetPatRec (at, _, _)
     | `LamPat (at, _, _)
     | `Annot (at, _, _) ->

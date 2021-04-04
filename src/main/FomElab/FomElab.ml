@@ -39,6 +39,16 @@ let elaborate_typ t r =
   let replaced i t = Annot.Typ.use i (Typ.at t) r in
   Typ.subst_par ~replaced r#get_typ_aliases t
 
+let maybe_annot e tO =
+  let open Reader in
+  match tO with
+  | None -> return e
+  | Some t ->
+    let* t = elaborate_typ t in
+    let at = Typ.at t in
+    let i = Exp.Id.fresh at in
+    return @@ `App (at, `Lam (at, i, t, `Var (at, i)), e)
+
 let rec elaborate =
   let open Reader in
   function
@@ -65,13 +75,26 @@ let rec elaborate =
     let* e = elaborate e in
     let* t = elaborate_typ t in
     return @@ `Inst (at, e, t)
-  | `LetIn (at, i, v, e) | `LetPat (at, `Id (_, i, _), v, e) ->
+  | `LetIn (at, i, v, e) ->
     let* v = elaborate v in
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
-  | `LetTypIn (_, i, t, e) ->
+  | `LetPat (at, `Id (_, i, _), tO, v, e) ->
+    let* v = elaborate v in
+    let* v = maybe_annot v tO in
+    let* e = elaborate e in
+    return @@ `LetIn (at, i, v, e)
+  | `LetTypIn (_, i, kO, t, e) ->
     let* () = Annot.Typ.alias i t in
     let* t = elaborate_typ t in
+    let t =
+      match kO with
+      | None -> t
+      | Some k ->
+        let at = Kind.at k in
+        let i = Typ.Id.fresh at in
+        `App (at, `Lam (at, i, k, `Var (at, i)), t)
+    in
     fun r ->
       t
       |> Typ.set_at (Typ.Id.at i)
@@ -123,23 +146,28 @@ let rec elaborate =
     let* e = elaborate e in
     let* x = elaborate_typ x in
     return @@ `Pack (at, t, e, x)
-  | `UnpackIn (at, ti, ei, v, e)
-  | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), v, e) ->
+  | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
+    let* e = elaborate e in
+    return @@ `UnpackIn (at, ti, ei, v, e)
+  | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
+    let* v = elaborate v in
+    let* v = maybe_annot v tO in
     let* e = elaborate e in
     return @@ `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, pvs, e) ->
     let p = pvs |> List.map fst |> FomCST.Exp.Pat.tuple at in
     let v = pvs |> List.map snd |> FomCST.Exp.tuple at in
-    elaborate @@ `LetPat (at, p, `Mu (at, `LamPat (at, p, v)), e)
+    elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LamPat (at, p, e) ->
     let* e = elaborate e in
     let t = type_of_pat_lam p in
     let* t = elaborate_typ t in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     return @@ `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
-  | `LetPat (at, p, v, e) ->
+  | `LetPat (at, p, tO, v, e) ->
     let* v = elaborate v in
+    let* v = maybe_annot v tO in
     let* e = elaborate e in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     return @@ `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)

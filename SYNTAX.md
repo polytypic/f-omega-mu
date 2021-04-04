@@ -5,58 +5,58 @@ Below is an _approximation_ of the detailed
 
 ```g4
  kind : '(' kind ')'
-      | '*'                                                       // Type
-      | kind '→' kind                                             // Type constructor
+      | '*'                                                        // Type
+      | kind '→' kind                                              // Type constructor
 
-  typ : tid                                                       // Type variable (*1)
-      | ('int' | 'bool' | 'string')                               // Builtin types
-      | typ '→' typ                                               // Function type
-      | '(' (typ ',')* ')'                                        // Tuple type
-      | '{' (label (':' typ)? ',')* '}'                           // Product type
-      | '[' (label (':' typ)? ',')* ']'                           // Sum type
-      | typ typ                                                   // Apply type level function
-      | 'λ' tid (':' kind)? '.' typ                               // Type level function
-      | '∃' (tid (':' kind)? '.' typ | '(' typ ')')               // Existential type
-      | '∀' (tid (':' kind)? '.' typ | '(' typ ')')               // Universal type
-      | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')               // Recursive type
+  typ : tid                                                        // Type variable (*1)
+      | ('int' | 'bool' | 'string')                                // Builtin types
+      | typ '→' typ                                                // Function type
+      | '(' (typ ',')* ')'                                         // Tuple type
+      | '{' (label (':' typ)? ',')* '}'                            // Product type
+      | '[' (label (':' typ)? ',')* ']'                            // Sum type
+      | typ typ                                                    // Apply type level function
+      | 'λ' tid (':' kind)? '.' typ                                // Type level function
+      | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
+      | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
+      | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
 
-  pat : eid                                                       // Variable pattern
-      | '(' (pat ',')* ')'                                        // Tuple pattern
-      | '{' (label '=' pat)* '}'                                  // Product pattern
-      | '<<' tid '\' pat '>>'                                     // Existential pack pattern
+  pat : eid                                                        // Variable pattern
+      | '(' (pat ',')* ')'                                         // Tuple pattern
+      | '{' (label '=' pat)* '}'                                   // Product pattern
+      | '<<' tid '\' pat '>>'                                      // Existential pack pattern
 
   exp : '(' exp ')'
-      | exp ':' typ                                               // Type ascription
-      | eid                                                       // Variable (*1)
-      | (int | 'true' | 'false' | string)                         // Literals
-      | '(' (exp ',')* '}'                                        // Tuple introduction
-      | '{' (label ('=' exp)? ',')* '}'                           // Product introduction
-      | exp '.' label                                             // Product elimination
-      | '[' label ('=' exp)? ']'                                  // Sum introduction
-      | '<<' typ '\' exp '>>' ':' typ                             // Existential packing
-      | exp exp                                                   // Apply function
-      | uop exp                                                   // Apply unary operator
-      | exp bop exp                                               // Apply binary operator
-      | 'let' 'type' tid '=' typ 'in' exp                         // Type binding (*2)
-      | 'let' 'type' ('μ' tid (':' kind) '=' typ 'and')+ 'in' exp // Recursive type bindings (*2)
-      | 'let' pat '=' exp 'in' exp                                // Binding (*3)
-      | 'let' ('μ' pat '=' exp)+ 'in' exp                         // Recursive bindings (*3)
-      | 'if' exp 'then' exp 'else' exp                            // Conditional (*4)
-      | 'λ' pat ':' typ '.' exp                                   // Function (*3)
-      | 'μ' (pat ':' typ '.' exp | '(' exp ')')                   // Recursive expression (*5)
-      | 'Λ' tid (':' kind)? '.' exp                               // Generalization
-      | exp '[' typ ']'                                           // Instantiation
-      | 'target' '[' typ ']' string                               // Inline target (JavaScript) code
+      | exp ':' typ                                                // Type ascription
+      | eid                                                        // Variable (*1)
+      | (int | 'true' | 'false' | string)                          // Literals
+      | '(' (exp ',')* '}'                                         // Tuple introduction
+      | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
+      | exp '.' label                                              // Product elimination
+      | '[' label ('=' exp)? ']'                                   // Sum introduction
+      | '<<' typ '\' exp '>>' ':' typ                              // Existential packing
+      | exp exp                                                    // Apply function
+      | uop exp                                                    // Apply unary operator
+      | exp bop exp                                                // Apply binary operator
+      | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*2)
+      | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp // Recursive type bindings (*2)
+      | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*3)
+      | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*3)
+      | 'if' exp 'then' exp 'else' exp                             // Conditional (*4)
+      | 'λ' pat ':' typ '.' exp                                    // Function (*3)
+      | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*5)
+      | 'Λ' tid (':' kind)? '.' exp                                // Generalization
+      | exp '[' typ ']'                                            // Instantiation
+      | 'target' '[' typ ']' string                                // Inline target (JavaScript) code
 
-  uop : '¬'                                                       // Logical negation
-      | '+' | '-'                                                 // Sign (*6)
+  uop : '¬'                                                        // Logical negation
+      | '+' | '-'                                                  // Sign (*6)
 
-  bop : '∨' | '∧'                                                 // (L) Logical connectives (*7)
-      | ('=' | '≠') '[' typ ']'                                   // (-) Polymorphic equality
-      | '>' | '≥' | '<' | '≤'                                     // (-) Comparison
-      | 'case'                                                    // (L) Sum elimination
-      | '+' | '-'                                                 // (L) Additive
-      | '*' | '/' | '%'                                           // (L) Multiplicative
+  bop : '∨' | '∧'                                                  // (L) Logical connectives (*7)
+      | ('=' | '≠') '[' typ ']'                                    // (-) Polymorphic equality
+      | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
+      | 'case'                                                     // (L) Sum elimination
+      | '+' | '-'                                                  // (L) Additive
+      | '*' | '/' | '%'                                            // (L) Multiplicative
 ```
 
 **Notes:**
@@ -73,9 +73,9 @@ Below is an _approximation_ of the detailed
    Fωμ does not have singleton kinds, for example.
 
 3. Type annotations must be specified in function parameters and recursive
-   expressions and cannot be specified in non-recursive `let` bindings.
-   Existential unpacking has the usual side condition of not allowing the type
-   variable to escape.
+   expressions and are optional in non-recursive `let` bindings. Existential
+   unpacking has the usual side condition of not allowing the type variable to
+   escape.
 
 4. This Fωμ implementation is strict.
 
