@@ -182,7 +182,7 @@ let js_codemirror_mode =
             match exn with
             | Diagnostic.Error ((loc, overview), []) ->
               [Loc.pp loc; colon; break_1; overview]
-              |> concat |> nest 2 |> group |> to_js_string
+              |> concat |> nest 2 |> group |> to_js_string ~max_width
             | Diagnostic.Error ((_, overview), details) ->
               [
                 [overview; colon; break_0] |> concat;
@@ -196,7 +196,7 @@ let js_codemirror_mode =
                 ]
                 |> concat |> nest 2;
               ]
-              |> concat |> to_js_string
+              |> concat |> to_js_string ~max_width
             | Failure message -> Js.string message
             | exn -> Printexc.to_string exn |> Js.string
 
