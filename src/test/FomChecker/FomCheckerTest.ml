@@ -145,7 +145,11 @@ let () =
     and μodd: int → stream int =
       λx:int.λ().[some = (x, even (x+1))]
     in ()
-    |eof}
+    |eof};
+  testInfersAs "unions" "{x: int, y: int} → [x: int, y: int]"
+    "if true then λ{x:int}.[x] else λ{y:int}.[y]";
+  testInfersAs "intersections" "[] → {}"
+    "if true then λx:[x:int].{x} else λy:[y:int].{y}"
 
 let testErrors name exp =
   test name @@ fun () ->
