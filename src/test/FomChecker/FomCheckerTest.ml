@@ -26,9 +26,9 @@ let () =
     |> Option.is_some)
 
 let () =
-  test "Typ.equal_of_norm" @@ fun () ->
+  test "Typ.is_equal_of_norm" @@ fun () ->
   let eq t1 t2 =
-    Typ.equal_of_norm (parse_typ t1 |> Typ.norm) (parse_typ t2 |> Typ.norm)
+    Typ.is_equal_of_norm (parse_typ t1 |> Typ.norm, parse_typ t2 |> Typ.norm)
   in
   verify (eq "λt.μl.[nil:t,cons:l]" "μl:*→*.λt.[nil:t,cons:l t]");
   verify (eq "λx.μxs.x→xs" "λy.y→(μys.y→y→ys)");
@@ -49,7 +49,7 @@ let testInfersAs name typ exp =
       exp |> parse_exp |> elaborate |> Reader.run env |> Exp.infer
       |> Reader.run env
     in
-    if not (Typ.equal_of_norm expected actual) then (
+    if not (Typ.is_equal_of_norm (expected, actual)) then (
       let open FomPP in
       [
         utf8string "Types not equal";
@@ -149,7 +149,35 @@ let () =
   testInfersAs "unions" "{x: int, y: int} → [x: int, y: int]"
     "if true then λ{x:int}.[x] else λ{y:int}.[y]";
   testInfersAs "intersections" "[] → {}"
-    "if true then λx:[x:int].{x} else λy:[y:int].{y}"
+    "if true then λx:[x:int].{x} else λy:[y:int].{y}";
+  testInfersAs "trie" "()"
+    {eof|
+    let type opt = λα.[none: (), some: α] in
+    let type alt = λα.λβ.[In1: α, In2: β] in
+    let type μTrie:* → * → * = λκ.λν.∀ρ:* → * → *.Cases ρ → ρ κ ν
+    and μCases:(* → * → *) → * = λρ:* → * → *.{
+      Unit: ∀ν.                        opt ν → ρ ()          ν,
+      Alt : ∀ν.∀κ1.∀κ2.Trie κ1 ν → Trie κ2 ν → ρ (alt κ1 κ2) ν,
+      Pair: ∀ν.∀κ1.∀κ2.  Trie κ1 (Trie κ2 ν) → ρ (κ1, κ2)    ν
+    } in
+    let Unit = Λν.        λv:opt ν.                   Λr:* → * → *.λcs:Cases r.cs.Unit[ν] v in
+    let Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr:* → * → *.λcs:Cases r.cs.Alt[ν][κ1][κ2] t1 t2 in
+    let Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr:* → * → *.λcs:Cases r.cs.Pair[ν][κ1][κ2] t in
+    let match = Λρ:* → * → *.λcs:Cases ρ.Λκ.Λν.λt:Trie κ ν.t[ρ] cs in
+    let μlookup:∀κ.∀ν.Trie κ ν → κ → opt ν = match[λκ.λν.κ → opt ν] {
+      Unit = Λν.λv:opt ν.λ().v,
+      Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.case {
+          In1 = λk1:κ1.lookup[κ1][ν] t1 k1,
+          In2 = λk2:κ2.lookup[κ2][ν] t2 k2
+        },
+      Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).λ(k1:κ1, k2:κ2).
+        lookup[κ1][Trie κ2 ν] t k1 ▷  case {
+          none = λ().[none = ()],
+          some = λt:Trie κ2 ν.lookup[κ2][ν] t k2
+        }
+    } in
+    ()
+    |eof}
 
 let testErrors name exp =
   test name @@ fun () ->

@@ -89,29 +89,7 @@ module Error = struct
         ]
         |> concat |> group )
       [
-        (Typ.at fn, utf8string "Type does not take arguments");
-        (Typ.at arg, utf8string "Actual argument");
-      ]
-
-  let app_kind_mismatch at fn dom arg arg_kind =
-    Diagnostic.error
-      ( at,
-        [
-          utf8string "Type constructor";
-          [break_1; Typ.pp fn] |> concat |> nest 2;
-          break_1;
-          utf8string "takes a parameter of kind";
-          [break_1; Kind.pp dom] |> concat |> nest 2;
-          break_1;
-          utf8string "but given argument type";
-          [break_1; Typ.pp arg] |> concat |> nest 2;
-          break_1;
-          utf8string "has kind";
-          [break_1; Kind.pp arg_kind] |> concat |> nest 2;
-        ]
-        |> concat |> group )
-      [
-        (Kind.at dom, utf8string "Formal parameter");
+        (Typ.at fn, utf8string "Type does not take parameters");
         (Typ.at arg, utf8string "Actual argument");
       ]
 
@@ -173,28 +151,6 @@ module Error = struct
         |> concat |> group )
       [(Exp.at fn, utf8string "Target of instantiation")]
 
-  let inst_kind_mismatch at fn_typ dom arg arg_kind =
-    Diagnostic.error
-      ( at,
-        [
-          utf8string "Instantiation target has type";
-          [break_1; Typ.pp fn_typ] |> concat |> nest 2;
-          break_1;
-          utf8string "and takes a parameter of kind";
-          [break_1; Kind.pp dom] |> concat |> nest 2;
-          break_1;
-          utf8string "but given argument type";
-          [break_1; Typ.pp arg] |> concat |> nest 2;
-          break_1;
-          utf8string "has kind";
-          [break_1; Kind.pp arg_kind] |> concat |> nest 2;
-        ]
-        |> concat |> group )
-      [
-        (Kind.at dom, utf8string "Formal parameter");
-        (Typ.at arg, utf8string "Actual argument");
-      ]
-
   let typ_mismatch at expected_typ actual_typ =
     Diagnostic.error
       ( at,
@@ -246,7 +202,7 @@ module Error = struct
       ( at,
         [
           utf8string "Expected expression to have a type of the form";
-          [break_1; utf8string "{"; Label.pp label; utf8string ": _, …}"]
+          [break_1; utf8string "{"; Label.pp label; utf8string ": _, _}"]
           |> concat |> nest 2;
           break_1;
           utf8string "but the expression has type";
@@ -255,33 +211,19 @@ module Error = struct
         |> concat |> group )
       [(at, utf8string "Product lacks label")]
 
-  let sum_lacks at typ label =
+  let label_missing at label l_typ m_typ =
     Diagnostic.error
       ( at,
         [
-          utf8string "Expected expression to have a type of the form";
-          [break_1; utf8string "["; Label.pp label; utf8string ": _, …]"]
-          |> concat |> nest 2;
+          utf8string "Label";
+          [break_1; Label.pp label] |> concat |> nest 2;
           break_1;
-          utf8string "but the expression has type";
-          [break_1; Typ.pp typ] |> concat |> nest 2;
+          utf8string "missing from type";
+          [break_1; Typ.pp m_typ] |> concat |> nest 2;
+          break_1;
+          utf8string "to match the type";
+          [break_1; Typ.pp l_typ] |> concat |> nest 2;
         ]
         |> concat |> group )
-      [
-        (at, [utf8string "Sum lacks label "; Label.pp label] |> concat);
-        (Label.at label, utf8string "Label not in sum type");
-      ]
-
-  let labels_mismatch at lhs rhs =
-    let module Set = Set.Make (Label) in
-    let lhs = Set.of_list lhs in
-    let rhs = Set.of_list rhs in
-    let diff xs ys =
-      Set.diff xs ys |> Set.elements
-      |> List.map (fun l ->
-             (Label.at l, concat [utf8string "Unmatched label "; Label.pp l]))
-    in
-    Diagnostic.error
-      (at, utf8string "Labels do not match")
-      (diff lhs rhs @ diff rhs lhs)
+      [(Typ.at m_typ, utf8string "Label missing")]
 end

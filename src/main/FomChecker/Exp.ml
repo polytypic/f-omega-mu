@@ -15,19 +15,6 @@ let typ_check_and_norm typ =
   | `Star _ -> return @@ Typ.norm typ
   | _ -> Error.typ_of_kind_arrow (Typ.at typ) typ kind
 
-let check_typs_sub at ~sub ~sup =
-  if not (Typ.sub_of_norm sub sup) then
-    Error.typ_mismatch at sup sub
-
-let check_typs_equal at ~exp ~act =
-  if not (Typ.equal_of_norm exp act) then
-    Error.typ_mismatch at exp act
-
-let check_typs_join at lhs rhs =
-  match Typ.join_of_norm lhs rhs with
-  | None -> Error.typ_mismatch at lhs rhs
-  | Some typ -> typ
-
 let check_arrow_typ at typ =
   match Typ.unfold_of_norm typ with
   | `Arrow (_, dom, cod) -> (dom, cod)
@@ -68,7 +55,7 @@ and infer it : _ -> Typ.t =
     let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
     let* x_typ = infer x in
-    check_typs_sub (at x) ~sub:x_typ ~sup:d_typ;
+    Typ.check_sub_of_norm (at x) (x_typ, d_typ);
     return c_typ
   | `Gen (at, d, d_kind, r) ->
     let* () = Annot.Typ.def d d_kind in
@@ -82,8 +69,7 @@ and infer it : _ -> Typ.t =
       match f_kind with
       | `Arrow (_, d_kind, `Star _) ->
         let* x_kind = Typ.infer x_typ in
-        if not (Kind.equal d_kind x_kind) then
-          Error.inst_kind_mismatch at f_typ d_kind x_typ x_kind;
+        Kind.check_equal at d_kind x_kind;
         return @@ Typ.norm (`App (at, f_con, x_typ))
       | _ -> failwith "Impossible")
     | _ -> Error.inst_of_non_for_all at f f_typ)
@@ -94,14 +80,14 @@ and infer it : _ -> Typ.t =
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
-    check_typs_sub at' ~sub:c_typ ~sup:d_typ;
+    Typ.check_sub_of_norm at' (c_typ, d_typ);
     return c_typ
   | `IfElse (_, c, t, e) ->
     let* c_typ = infer c in
-    check_typs_equal (at c) ~exp:(`Const (at c, `Bool)) ~act:c_typ;
+    Typ.check_sub_of_norm (at c) (c_typ, `Const (at c, `Bool));
     let* t_typ = infer t in
     let* e_typ = infer e in
-    return @@ check_typs_join (at e) t_typ e_typ
+    return @@ Typ.join_of_norm (at e) (t_typ, e_typ)
   | `Product (at, fs) ->
     let* fs =
       fs
@@ -124,26 +110,20 @@ and infer it : _ -> Typ.t =
   | `Inject (at, l, e) ->
     let* e_typ = infer e in
     return @@ Typ.sum at [(l, e_typ)]
-  | `Case (at', s, cs) -> (
-    let* s_typ = infer s in
-    let s_fs = check_sum_typ (at s) s_typ in
+  | `Case (_, x, cs) ->
+    let* x_typ = infer x in
     let* cs_typ = infer cs in
     let cs_fs = check_product_typ (at cs) cs_typ in
-    if ListExt.compare_with (Compare.the fst Label.compare) s_fs cs_fs <> 0 then
-      Error.labels_mismatch at' (List.map fst s_fs) (List.map fst cs_fs);
-    match
-      cs_fs |> List.map (Pair.map id @@ fun t -> check_arrow_typ (Typ.at t) t)
-    with
-    | [] -> return s_typ
-    | (_, (_, e_cod)) :: _ as cs_fs ->
-      List.combine cs_fs s_fs
-      |> fold_left
-           (fun e_cod ((l, (c_dom, c_cod)), (l', e_typ)) ->
-             check_typs_sub (Typ.at c_dom) ~sub:e_typ ~sup:c_dom;
-             let* () = Annot.Label.def l' e_typ in
-             let* () = Annot.Label.use l (Label.at l') in
-             return @@ check_typs_join (Typ.at c_cod) c_cod e_cod)
-           e_cod)
+    let cs_arrows = cs_fs |> List.map (Pair.map id (check_arrow_typ (at cs))) in
+    let c_typ =
+      match cs_arrows |> List.map (snd >> snd) with
+      | [] -> Typ.zero (at cs)
+      | t :: ts ->
+        ts |> List.fold_left (fun a t -> Typ.join_of_norm (at cs) (a, t)) t
+    in
+    let d_typ = `Sum (at cs, cs_arrows |> List.map (Pair.map id fst)) in
+    Typ.check_sub_of_norm (at x) (x_typ, d_typ);
+    return c_typ
   | `Pack (at', t, e, et) -> (
     let* e_typ = infer e in
     let* t_kind = Typ.infer t in
@@ -153,10 +133,9 @@ and infer it : _ -> Typ.t =
       let* et_kind = Typ.kind_of et_con in
       match et_kind with
       | `Arrow (_, d_kind, `Star _) ->
-        if not (Kind.equal d_kind t_kind) then
-          failwith "TODO: kind mismatch";
+        Kind.check_equal at' d_kind t_kind;
         let et_t = Typ.norm (`App (at', et_con, t)) in
-        check_typs_sub (at e) ~sub:e_typ ~sup:et_t;
+        Typ.check_sub_of_norm (at e) (e_typ, et_t);
         return et
       | _ -> failwith "Impossible")
     | _ -> failwith "TODO: pack non existential")

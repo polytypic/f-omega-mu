@@ -116,8 +116,7 @@ let rec infer typ : _ -> Kind.t =
     | `Star _ -> Error.app_of_kind_star at' f x
     | `Arrow (_, d_kind, c_kind) ->
       let* x_kind = infer x in
-      if not (Kind.equal d_kind x_kind) then
-        Error.app_kind_mismatch at' f d_kind x x_kind;
+      Kind.check_equal at' x_kind d_kind;
       return c_kind)
   | `ForAll (_, f) -> quantifier FomPP.for_all f
   | `Exists (_, f) -> quantifier FomPP.exists f
@@ -134,8 +133,7 @@ let rec infer typ : _ -> Kind.t =
 and check expected t =
   let open Reader in
   let* actual = infer t in
-  if not (Kind.equal expected actual) then
-    Error.kind_mismatch (at t) expected actual;
+  Kind.check_equal (at t) expected actual;
   return ()
 
 (* *)
@@ -181,115 +179,97 @@ module Goal = struct
   include Compare.Pair (FomAST.Typ) (FomAST.Typ)
 
   let map f = Pair.map f f
-end
 
-module GoalSet = struct
-  include Set.Make (Goal)
+  let free_vars_to_regular_assoc (lhs, rhs) =
+    IdSet.union (free lhs) (free rhs)
+    |> IdSet.elements
+    |> List.mapi (fun i v ->
+           (v, Id.of_string (Id.at v) ("#" ^ string_of_int i)))
 
-  let is_trivial (lhs, rhs) = 0 = FomAST.Typ.compare lhs rhs
+  let to_subst =
+    List.to_seq
+    >> Seq.map (Pair.map id @@ fun i -> `Var (Id.at i, i))
+    >> Env.of_seq >> subst_par
 
-  (* *)
-  let singleton goal = if is_trivial goal then empty else singleton goal
+  let regularize_free_vars goal =
+    map (goal |> free_vars_to_regular_assoc |> to_subst) goal
 
-  let singleton_eq goal =
-    if is_trivial goal then empty else of_list [goal; Pair.swap goal]
-
-  (* *)
-  let add goal goals = if is_trivial goal then goals else add goal goals
-  let add_inv = Pair.swap >> add
-
-  (* *)
-  let of_list_eq goals =
-    let goals = List.filter (is_trivial >> not) goals in
-    goals
-    |> List.fold_left (fun goals goal -> Pair.swap goal :: goals) goals
-    |> of_list
-
-  let of_list = List.filter (is_trivial >> not) >> of_list
-end
-
-let free_vars_to_regular_assoc (lhs, rhs) =
-  IdSet.union (free lhs) (free rhs)
-  |> IdSet.elements
-  |> List.mapi (fun i v -> (v, Id.of_string (Id.at v) ("#" ^ string_of_int i)))
-
-let to_subst =
-  List.to_seq
-  >> Seq.map (Pair.map id @@ fun i -> `Var (Id.at i, i))
-  >> Env.of_seq >> subst_par
-
-let regularize_free_vars goal =
-  Goal.map (goal |> free_vars_to_regular_assoc |> to_subst) goal
-
-let intersect_labels add ls ms =
-  let rec loop goals ls ms =
-    match (ls, ms) with
-    | [], _ -> Some goals
-    | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
-      if Label.equal ll ml then
-        loop (add (mt, lt) goals) ls ms
-      else
-        loop goals lls ms
-    | _ :: _, [] -> None
-  in
-  loop GoalSet.empty ls ms
-
-let unify_vars lhs_i lhs_t rhs_i rhs_t =
-  if Id.equal lhs_i rhs_i then
-    (lhs_i, (lhs_t, rhs_t))
-  else
-    let i = Id.fresh Loc.dummy in
-    let v = `Var (Loc.dummy, i) in
-    (i, (subst lhs_i v lhs_t, subst rhs_i v rhs_t))
-
-let support (lhs, rhs) =
-  match (lhs, rhs) with
-  | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-    Some ([(rhs_d, lhs_d); (lhs_c, rhs_c)] |> GoalSet.of_list)
-  | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
-    intersect_labels GoalSet.add rhs_ls lhs_ls
-  | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-    intersect_labels GoalSet.add_inv lhs_ls rhs_ls
-  | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs) ->
-    Some (GoalSet.singleton (lhs, rhs))
-  | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ) ->
-    if Kind.equal lhs_kind rhs_kind then
-      let _, goal = unify_vars lhs_id lhs_typ rhs_id rhs_typ in
-      Some (goal |> regularize_free_vars |> GoalSet.singleton)
+  let unify_vars li lt ri rt =
+    if Id.equal li ri then
+      (li, (lt, rt))
     else
-      None
-  | _ -> (
-    match (unapp lhs, unapp rhs) with
-    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs) ->
-      Some (GoalSet.singleton (unfold lat lf lmu lxs, unfold rat rf rmu rxs))
-    | ((`Mu (lat, lf) as lmu), lxs), _ ->
-      Some (GoalSet.singleton (unfold lat lf lmu lxs, rhs))
-    | _, ((`Mu (rat, rf) as rmu), rxs) ->
-      Some (GoalSet.singleton (lhs, unfold rat rf rmu rxs))
-    | (lf, lx :: lxs), (rf, rx :: rxs) when List.length lxs = List.length rxs ->
-      Some
-        (List.combine (lf :: lx :: lxs) (rf :: rx :: rxs) |> GoalSet.of_list_eq)
-    | _ -> None)
+      let i = Id.fresh Loc.dummy in
+      let v = `Var (Loc.dummy, i) in
+      (i, (subst li v lt, subst ri v rt))
+end
 
-let rec gfp assumptions goals =
-  GoalSet.is_empty goals
-  ||
-  let goal = GoalSet.choose goals in
-  match support goal with
-  | None -> false
-  | Some sub_goals ->
-    gfp
-      (GoalSet.add goal assumptions)
-      (GoalSet.union
-         (GoalSet.remove goal goals)
-         (GoalSet.diff sub_goals assumptions))
+(* *)
 
-let sub_of_norm sub sup =
-  (sub, sup) |> regularize_free_vars |> GoalSet.singleton |> gfp GoalSet.empty
+let check_sub_of_norm, check_equal_of_norm =
+  let make_sub_and_eq at =
+    let module GoalSet = Set.Make (Goal) in
+    let goals = ref GoalSet.empty in
+    let rec sub ((l, r) as g) =
+      if 0 <> FomAST.Typ.compare l r && not (GoalSet.mem g !goals) then (
+        goals := GoalSet.add g !goals;
+        let rec subset op ls ms =
+          match (ls, ms) with
+          | [], _ -> ()
+          | (ll, _) :: _, [] -> Error.label_missing at ll l r
+          | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
+            let c = Label.compare ll ml in
+            if c = 0 then (
+              op (mt, lt);
+              subset op ls ms)
+            else if 0 < c then
+              subset op lls ms
+            else
+              Error.label_missing at ll l r
+        in
+        match g with
+        | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+          sub (rd, ld);
+          sub (lc, rc)
+        | `Product (_, lls), `Product (_, rls) -> subset sub rls lls
+        | `Sum (_, lls), `Sum (_, rls) -> subset (Pair.swap >> sub) lls rls
+        | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
+          sub (l, r)
+        | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+          Kind.check_equal at lk rk;
+          sub (Goal.unify_vars li lt ri rt |> snd |> Goal.regularize_free_vars)
+        | _ -> (
+          match (unapp l, unapp r) with
+          | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
+            sub (unfold la lf lmu lxs, unfold ra rf rmu rxs)
+          | ((`Mu (la, lf) as lmu), lxs), _ -> sub (unfold la lf lmu lxs, r)
+          | _, ((`Mu (ra, rf) as rmu), rxs) -> sub (l, unfold ra rf rmu rxs)
+          | (lf, lx :: lxs), (rf, rx :: rxs) ->
+            if List.length lxs <> List.length rxs then
+              Error.typ_mismatch at r l;
+            eq (lf, rf);
+            eq (lx, rx);
+            List.iter2 (fun l r -> eq (l, r)) lxs rxs
+          | _ -> Error.typ_mismatch at r l))
+    and eq g =
+      sub g;
+      sub (Pair.swap g)
+    in
+    (sub, eq)
+  in
+  let sub at g = g |> Goal.regularize_free_vars |> fst (make_sub_and_eq at) in
+  let eq at g = g |> Goal.regularize_free_vars |> snd (make_sub_and_eq at) in
+  (sub, eq)
 
-let equal_of_norm lhs rhs =
-  (lhs, rhs) |> regularize_free_vars |> GoalSet.singleton_eq
-  |> gfp GoalSet.empty
+let is_sub_of_norm, is_equal_of_norm =
+  let as_predicate check g =
+    try
+      check Loc.dummy g;
+      true
+    with Diagnostic.Error _ -> false
+  in
+  (as_predicate check_sub_of_norm, as_predicate check_equal_of_norm)
+
+(* *)
 
 let rec to_strict (t : ['a FomAST.Typ.f | `Lazy of 'a Lazy.t] as 'a) =
   match t with
@@ -303,10 +283,9 @@ let rec to_strict (t : ['a FomAST.Typ.f | `Lazy of 'a Lazy.t] as 'a) =
   | `Arrow (at, d, c) -> `Arrow (at, to_strict d, to_strict c)
   | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map id to_strict))
   | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map id to_strict))
-  | `Lazy t -> Lazy.force t |> to_strict
+  | `Lazy (lazy t) -> to_strict t
 
-let rec to_lazy t =
-  match t with
+let rec to_lazy = function
   | `Mu (at, t) -> `Mu (at, to_lazy t)
   | `Const _ as inn -> inn
   | `Var _ as inn -> inn
@@ -318,105 +297,81 @@ let rec to_lazy t =
   | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map id to_lazy))
   | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map id to_lazy))
 
-module GoalMap = Map.Make (Goal)
-
-let join_of_norm lhs rhs =
-  let exception Fail in
-  let at = Loc.dummy in
+let join_of_norm at g =
+  let module GoalMap = Map.Make (Goal) in
   let joins = ref GoalMap.empty in
   let meets = ref GoalMap.empty in
-  let memo_in goals goal thunk =
-    match GoalMap.find_opt goal !goals with
+  let rec intersection op os = function
+    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
+      let c = Label.compare ll rl in
+      if c < 0 then
+        intersection op os (lls, rlls)
+      else if 0 < c then
+        intersection op os (llls, rls)
+      else
+        intersection op ((ll, op (lt, rt)) :: os) (lls, rls)
+    | [], _ | _, [] -> List.rev os
+  in
+  let rec union op os = function
+    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
+      let c = Label.compare ll rl in
+      if c < 0 then
+        union op ((ll, to_lazy lt) :: os) (lls, rlls)
+      else if 0 < c then
+        union op ((rl, to_lazy rt) :: os) (llls, rls)
+      else
+        union op ((ll, op (lt, rt)) :: os) (lls, rls)
+    | (ll, lt) :: lls, [] -> union op ((ll, to_lazy lt) :: os) (lls, [])
+    | [], (rl, rt) :: rls -> union op ((rl, to_lazy rt) :: os) ([], rls)
+    | [], [] -> List.rev os
+  in
+  let synth map fst snd upper lower intersection union ((l, r) as g) =
+    match GoalMap.find_opt g !map with
     | Some result -> result
     | None ->
-      let result = `Lazy (lazy (thunk ())) in
-      goals := GoalMap.add goal result !goals;
+      let result =
+        if is_sub_of_norm g then
+          to_lazy (snd g)
+        else if is_sub_of_norm (Pair.swap g) then
+          to_lazy (fst g)
+        else
+          `Lazy
+            (lazy
+              (match g with
+              | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+                `Arrow (at, lower (ld, rd), upper (lc, rc))
+              | `Product (_, lls), `Product (_, rls) ->
+                `Product (at, intersection upper [] (lls, rls))
+              | `Sum (_, lls), `Sum (_, rls) ->
+                `Sum (at, union upper [] (lls, rls))
+              | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+                Kind.check_equal at lk rk;
+                let i, goal = Goal.unify_vars li lt ri rt in
+                let assoc = Goal.free_vars_to_regular_assoc goal in
+                let t =
+                  goal
+                  |> Goal.map (Goal.to_subst assoc)
+                  |> upper
+                  |> (to_strict
+                     >> Goal.to_subst (List.map Pair.swap assoc)
+                     >> to_lazy)
+                in
+                `Lam (at, i, lk, t)
+              | `ForAll (_, lt), `ForAll (_, rt) -> `ForAll (at, upper (lt, rt))
+              | `Exists (_, lt), `Exists (_, rt) -> `Exists (at, upper (lt, rt))
+              | _ -> (
+                match (unapp l, unapp r) with
+                | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
+                  upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
+                | ((`Mu (la, lf) as lmu), lxs), _ ->
+                  upper (unfold la lf lmu lxs, r)
+                | _, ((`Mu (ra, rf) as rmu), rxs) ->
+                  upper (l, unfold ra rf rmu rxs)
+                | _ -> Error.typ_mismatch at l r)))
+      in
+      map := GoalMap.add g result !map;
       result
   in
-  let rec join ((lhs, rhs) as goal) =
-    memo_in joins goal @@ fun () ->
-    if sub_of_norm lhs rhs then
-      to_lazy rhs
-    else if sub_of_norm rhs lhs then
-      to_lazy lhs
-    else
-      match goal with
-      | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-        `Arrow (at, meet (lhs_d, rhs_d), join (lhs_c, rhs_c))
-      | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
-        `Product (at, intersection join [] (lhs_ls, rhs_ls))
-      | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-        `Sum (at, union join [] (lhs_ls, rhs_ls))
-      | `Lam (_, lhs_i, lhs_k, lhs_t), `Lam (_, rhs_i, rhs_k, rhs_t) ->
-        binding join lhs_i lhs_k lhs_t rhs_i rhs_k rhs_t
-      | `ForAll (_, lhs_t), `ForAll (_, rhs_t) ->
-        `ForAll (at, join (lhs_t, rhs_t))
-      | `Exists (_, lhs_t), `Exists (_, rhs_t) ->
-        `Exists (at, join (lhs_t, rhs_t))
-      | _ -> mu join lhs rhs
-  and meet ((lhs, rhs) as goal) =
-    memo_in meets goal @@ fun () ->
-    if sub_of_norm lhs rhs then
-      to_lazy lhs
-    else if sub_of_norm rhs lhs then
-      to_lazy rhs
-    else
-      match goal with
-      | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-        `Arrow (at, join (lhs_d, rhs_d), meet (lhs_c, rhs_c))
-      | `Product (_, lhs_ls), `Product (_, rhs_ls) ->
-        `Product (at, union meet [] (lhs_ls, rhs_ls))
-      | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-        `Sum (at, intersection meet [] (lhs_ls, rhs_ls))
-      | `Lam (_, lhs_i, lhs_k, lhs_t), `Lam (_, rhs_i, rhs_k, rhs_t) ->
-        binding meet lhs_i lhs_k lhs_t rhs_i rhs_k rhs_t
-      | `ForAll (_, lhs_t), `ForAll (_, rhs_t) ->
-        `ForAll (at, meet (lhs_t, rhs_t))
-      | `Exists (_, lhs_t), `Exists (_, rhs_t) ->
-        `Exists (at, meet (lhs_t, rhs_t))
-      | _ -> mu meet lhs rhs
-  and intersection op ls = function
-    | ( ((lhs_l, lhs_t) :: lhs_ls as lhs_lls),
-        ((rhs_l, rhs_t) :: rhs_ls as rhs_lls) ) ->
-      let c = Label.compare lhs_l rhs_l in
-      if c < 0 then
-        intersection op ls (lhs_ls, rhs_lls)
-      else if 0 < c then
-        intersection op ls (lhs_lls, rhs_ls)
-      else
-        intersection op ((lhs_l, op (lhs_t, rhs_t)) :: ls) (lhs_ls, rhs_ls)
-    | [], _ | _, [] -> List.rev ls
-  and union op ls = function
-    | ( ((lhs_l, lhs_t) :: lhs_ls as lhs_lls),
-        ((rhs_l, rhs_t) :: rhs_ls as rhs_lls) ) ->
-      let c = Label.compare lhs_l rhs_l in
-      if c < 0 then
-        union op ((lhs_l, to_lazy lhs_t) :: ls) (lhs_ls, rhs_lls)
-      else if 0 < c then
-        union op ((rhs_l, to_lazy rhs_t) :: ls) (lhs_lls, rhs_ls)
-      else
-        union op ((lhs_l, op (lhs_t, rhs_t)) :: ls) (lhs_ls, rhs_ls)
-    | (lhs_l, lhs_t) :: lhs_ls, [] ->
-      union op ((lhs_l, to_lazy lhs_t) :: ls) (lhs_ls, [])
-    | [], (rhs_l, rhs_t) :: rhs_ls ->
-      union op ((rhs_l, to_lazy rhs_t) :: ls) ([], rhs_ls)
-    | [], [] -> List.rev ls
-  and binding op lhs_i lhs_k lhs_t rhs_i rhs_k rhs_t =
-    if not (Kind.equal lhs_k rhs_k) then
-      raise Fail;
-    let i, goal = unify_vars lhs_i lhs_t rhs_i rhs_t in
-    let assoc = free_vars_to_regular_assoc goal in
-    op (Goal.map (to_subst assoc) goal)
-    |> to_strict
-    |> to_subst (assoc |> List.map Pair.swap)
-    |> to_lazy
-    |> fun t -> `Lam (at, i, lhs_k, t)
-  and mu op lhs rhs =
-    match (unapp lhs, unapp rhs) with
-    | ((`Mu (lat, lf) as lmu), lxs), ((`Mu (rat, rf) as rmu), rxs) ->
-      op (unfold lat lf lmu lxs, unfold rat rf rmu rxs)
-    | ((`Mu (lat, lf) as lmu), lxs), _ -> op (unfold lat lf lmu lxs, rhs)
-    | _, ((`Mu (rat, rf) as rmu), rxs) -> op (lhs, unfold rat rf rmu rxs)
-    | _ -> raise Fail
-  in
-  try Some (join (lhs, rhs) |> to_strict) with Fail -> None
+  let rec join g = synth joins fst snd join meet intersection union g
+  and meet g = synth meets snd fst meet join union intersection g in
+  join g |> to_strict
