@@ -41,7 +41,7 @@ In this generalized system, nested types are not allowed. For example,
 ```
 
 is disallowed due to the argument `(α, α)` as demonstrated in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOsiGEAO0pgH1yrbEBeEIG7gAB4AuQD3AraHHhiAVCEBJhCHkA6IYEbgBWoAUmgDRsZCEPqOaAlJbUiQRVg12WgA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOsiGEGLQwHuAA7aOeALgBUIQEmEIYQF4QgbuBAjcBCAdAApZAGhA9YCECvWyAlPpBEuDJiy6UYAfXJVaiKdIAe-TX2NcYC554ZL9IA).
 
 Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type
