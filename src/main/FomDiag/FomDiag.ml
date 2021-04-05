@@ -138,19 +138,6 @@ module Error = struct
         |> concat |> group )
       [(Typ.at typ, utf8string "Invalid kind for type")]
 
-  let inst_of_non_for_all at fn fn_typ =
-    Diagnostic.error
-      ( at,
-        [
-          utf8string "Instantiation requires a type of the form";
-          [break_1; utf8string "∀_:_._"] |> concat |> nest 2;
-          break_1;
-          utf8string "but target has type";
-          [break_1; Typ.pp fn_typ] |> concat |> nest 2;
-        ]
-        |> concat |> group )
-      [(Exp.at fn, utf8string "Target of instantiation")]
-
   let typ_mismatch at expected_typ actual_typ =
     Diagnostic.error
       ( at,
@@ -167,35 +154,15 @@ module Error = struct
         (Typ.at expected_typ, utf8string "Expected type");
       ]
 
-  let typ_non_arrow at typ =
+  let typ_unexpected at mnemo typ =
     Diagnostic.error
       ( at,
         [
-          utf8string "Expected a function but the expression has type";
+          utf8format "Expected a %s type but the expression has type" mnemo;
           [break_1; Typ.pp typ] |> concat |> nest 2;
         ]
         |> concat |> group )
-      [(at, utf8string "Expected a function")]
-
-  let typ_non_product at typ =
-    Diagnostic.error
-      ( at,
-        [
-          utf8string "Expected a product but the expression has type";
-          [break_1; Typ.pp typ] |> concat |> nest 2;
-        ]
-        |> concat |> group )
-      [(at, utf8string "Expected a product")]
-
-  let typ_non_sum at typ =
-    Diagnostic.error
-      ( at,
-        [
-          utf8string "Expected a sum but the expression has type";
-          [break_1; Typ.pp typ] |> concat |> nest 2;
-        ]
-        |> concat |> group )
-      [(at, utf8string "Expected a sum")]
+      [(at, utf8format "Expected a %s type" mnemo)]
 
   let product_lacks at typ label =
     Diagnostic.error
@@ -226,4 +193,19 @@ module Error = struct
         ]
         |> concat |> group )
       [(Typ.at m_typ, utf8string "Label missing")]
+
+  let typ_var_escapes at i t =
+    Diagnostic.error
+      ( at,
+        [
+          utf8string "The ∃ type variable";
+          [break_1; Typ.Id.pp i] |> concat |> nest 2;
+          break_1;
+          utf8string "escapes as part of the type";
+          [break_1; Typ.pp t] |> concat |> nest 2;
+          break_1;
+          utf8string "of the expression";
+        ]
+        |> concat |> group )
+      [(Typ.Id.at i, utf8string "∃ type variable")]
 end

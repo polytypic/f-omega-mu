@@ -21,11 +21,9 @@ module Error : sig
 
   val var_unbound : Loc.t -> Exp.Id.t -> 'a
   val typ_of_kind_arrow : Loc.t -> Typ.t -> Kind.t -> 'a
-  val inst_of_non_for_all : Loc.t -> Exp.t -> Typ.t -> 'a
   val typ_mismatch : Loc.t -> Typ.t -> Typ.t -> 'a
-  val typ_non_arrow : Loc.t -> Typ.t -> 'a
-  val typ_non_product : Loc.t -> Typ.t -> 'a
-  val typ_non_sum : Loc.t -> Typ.t -> 'a
+  val typ_unexpected : Loc.t -> string -> Typ.t -> 'a
   val product_lacks : Loc.t -> Typ.t -> Label.t -> 'a
   val label_missing : Loc.t -> Label.t -> Typ.t -> Typ.t -> 'a
+  val typ_var_escapes : Loc.t -> Typ.Id.t -> Typ.t -> 'a
 end

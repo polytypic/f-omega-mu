@@ -16,7 +16,6 @@
 - Language
   - bidirectional type checking to reduce and generalize annotations
   - equality
-  - existential types (missing proper error messages)
   - more flexible destructuring (placement of type annotations, partial
     patterns)
   - check recursive expressions for safety
