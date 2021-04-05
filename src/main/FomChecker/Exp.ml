@@ -110,8 +110,7 @@ and infer it : _ -> Typ.t =
   | `Inject (at, l, e) ->
     let* e_typ = infer e in
     return @@ Typ.sum at [(l, e_typ)]
-  | `Case (_, x, cs) ->
-    let* x_typ = infer x in
+  | `Case (at', cs) ->
     let* cs_typ = infer cs in
     let cs_fs = check_product_typ (at cs) cs_typ in
     let cs_arrows = cs_fs |> List.map (Pair.map id (check_arrow_typ (at cs))) in
@@ -122,8 +121,7 @@ and infer it : _ -> Typ.t =
         ts |> List.fold_left (fun a t -> Typ.join_of_norm (at cs) (a, t)) t
     in
     let d_typ = `Sum (at cs, cs_arrows |> List.map (Pair.map id fst)) in
-    Typ.check_sub_of_norm (at x) (x_typ, d_typ);
-    return c_typ
+    return @@ `Arrow (at', d_typ, c_typ)
   | `Pack (at', t, e, et) -> (
     let* e_typ = infer e in
     let* t_kind = Typ.infer t in

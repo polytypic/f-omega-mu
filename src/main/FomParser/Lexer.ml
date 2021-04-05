@@ -19,6 +19,8 @@ let logical_and = [%sedlex.regexp? 0x2227 (* ∧ *)]
 let logical_or = [%sedlex.regexp? 0x2228 (* ∨ *)]
 let logical_not = [%sedlex.regexp? 0x00ac (* ¬ *)]
 let not_equal = [%sedlex.regexp? 0x2260 (* ≠ *)]
+let triangle_lhs = [%sedlex.regexp? 0x25c1 (* ◁ *)]
+let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
 let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
 let whitespace = [%sedlex.regexp? Plus (Chars " \t\n\r")]
 let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star '0' .. '9']
@@ -105,6 +107,8 @@ let rec token_or_comment buffer =
   | logical_or | "||" -> return LogicalOr
   | mu_lower | "rec" -> return MuLower
   | not_equal | "!=" -> return NotEqual
+  | triangle_lhs | "<|" -> return TriangleLhs
+  | triangle_rhs | "|>" -> return TriangleRhs
   (* *)
   | nat_10 -> return (LitNat (Buffer.lexeme_utf_8 buffer |> Bigint.of_string))
   (* *)
@@ -200,6 +204,8 @@ let token_info_utf_8 input =
       | String -> builtin
       | Target -> keyword
       | Then -> keyword
+      | TriangleLhs -> punctuation
+      | TriangleRhs -> punctuation
       | Type -> keyword
       | Underscore -> variable);
   }

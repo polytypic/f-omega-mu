@@ -137,10 +137,9 @@ let rec elaborate =
   | `Inject (at, l, e) ->
     let* e = elaborate e in
     return @@ `Inject (at, l, e)
-  | `Case (at, s, cs) ->
-    let* s = elaborate s in
+  | `Case (at, cs) ->
     let* cs = elaborate cs in
-    return @@ `Case (at, s, cs)
+    return @@ `Case (at, cs)
   | `Pack (at, t, e, x) ->
     let* t = elaborate_typ t in
     let* e = elaborate e in
@@ -176,3 +175,7 @@ let rec elaborate =
     let* t = elaborate_typ t in
     let x = Exp.Id.fresh at in
     return @@ `App (at, `Lam (at, x, t, `Var (at, x)), e)
+  | `AppL (at, x, f) | `AppR (at, f, x) ->
+    let* x = elaborate x in
+    let* f = elaborate f in
+    return @@ `App (at, f, x)

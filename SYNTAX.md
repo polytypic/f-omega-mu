@@ -33,28 +33,30 @@ Below is an _approximation_ of the detailed
       | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
       | exp '.' label                                              // Product elimination
       | '[' label ('=' exp)? ']'                                   // Sum introduction
+      | 'case' exp                                                 // Sum elimination (*2)
       | '<<' typ '\' exp '>>' ':' typ                              // Existential packing
       | exp exp                                                    // Apply function
+      | exp '◁' exp                                                // (R) Apply forward (*3)
+      | exp '▷' exp                                                // (L) Apply backward
       | uop exp                                                    // Apply unary operator
       | exp bop exp                                                // Apply binary operator
-      | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*2)
-      | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp // Recursive type bindings (*2)
-      | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*3)
-      | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*3)
-      | 'if' exp 'then' exp 'else' exp                             // Conditional (*4)
-      | 'λ' pat ':' typ '.' exp                                    // Function (*3)
-      | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*5)
+      | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*4)
+      | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp // Recursive type bindings (*4)
+      | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*5)
+      | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*5)
+      | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)
+      | 'λ' pat ':' typ '.' exp                                    // Function (*5)
+      | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*7)
       | 'Λ' tid (':' kind)? '.' exp                                // Generalization
       | exp '[' typ ']'                                            // Instantiation
       | 'target' '[' typ ']' string                                // Inline target (JavaScript) code
 
   uop : '¬'                                                        // Logical negation
-      | '+' | '-'                                                  // Sign (*6)
+      | '+' | '-'                                                  // Sign (*8)
 
-  bop : '∨' | '∧'                                                  // (L) Logical connectives (*7)
+  bop : '∨' | '∧'                                                  // (L) Logical connectives (*9)
       | ('=' | '≠') '[' typ ']'                                    // (-) Polymorphic equality
       | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
-      | 'case'                                                     // (L) Sum elimination
       | '+' | '-'                                                  // (L) Additive
       | '*' | '/' | '%'                                            // (L) Multiplicative
 ```
@@ -69,21 +71,26 @@ Below is an _approximation_ of the detailed
 1. Type variables are distinct from expression variables. `_` is allowed in
    place of a variable in bindings.
 
-2. Bindings of types simply substitute the type into the body expression. System
+2. The expression give to `case` must be a record of functions corresponding to
+   the sum to be eliminated. The result of `case` is a sum eliminating function.
+
+3. `f ◁ x` and `x ▷ f` are special syntax for function application.
+
+4. Bindings of types simply substitute the type into the body expression. System
    Fωμ does not have singleton kinds, for example.
 
-3. Type annotations must be specified in function parameters and recursive
+5. Type annotations must be specified in function parameters and recursive
    expressions and are optional in non-recursive `let` bindings. Existential
    unpacking has the usual side condition of not allowing the type variable to
    escape.
 
-4. This Fωμ implementation is strict.
+6. This Fωμ implementation is strict.
 
-5. Recursive expressions are currently not fully statically checked.
+7. Recursive expressions are currently not fully statically checked.
 
-6. When applied to literals, sign operators are interpreted at compile-time.
+8. When applied to literals, sign operators are interpreted at compile-time.
 
-7. Binary logical connectives, `∧` and `∨`, evaluate their arguments lazily.
+9. Binary logical connectives, `∧` and `∨`, evaluate their arguments lazily.
 
 ### Alternative tokens
 
@@ -102,5 +109,7 @@ Below is an _approximation_ of the detailed
 |            `≠` | `!=`                      |
 |            `≤` | `<=`                      |
 |            `≥` | `>=`                      |
+|            `▷` | <code>&#124&gt;</code>    |
+|            `◁` | <code>&lt;&#124</code>    |
 |           `《` | `<<`                      |
 |           `》` | `>>`                      |

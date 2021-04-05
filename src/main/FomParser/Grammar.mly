@@ -50,15 +50,18 @@
 %token Plus "+"
 %token Slash "/"
 %token Star "*"
+%token TriangleLhs "◁"
+%token TriangleRhs "▷"
 %token Underscore "_"
 
 %token EOF
 
+%right "◁"
+%left "▷"
 %left "∨"
 %left "∧"
 %nonassoc "=" "≠" "]"
 %nonassoc "<" "≤" "≥" ">"
-%left "case"
 %left "+" "-"
 %left "*" "/" "%"
 
@@ -192,12 +195,14 @@ exp_app:
   | e=exp_atom                                          {e}
   | f=exp_app x=exp_atom                                {`App ($loc, f, x)}
   | f=exp_app"["x=typ"]"                                {`Inst ($loc, f, x)}
+  | "case"cs=exp_atom                                   {`Case ($loc, cs)}
 
 exp_inf:
   | e=exp_app                                           {e}
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
+  | f=exp_inf"◁"x=exp_inf                               {`AppR ($loc, f, x)}
+  | x=exp_inf"▷"f=exp_inf                               {`AppL ($loc, x, f)}
   | l=exp_inf o=bop r=exp_inf                           {`App ($loc, `App ($loc, o, l), r)}
-  | e=exp_inf"case"cs=exp_inf                           {`Case ($loc, e, cs)}
 
 %inline uop:
   | "¬"                                                 {`Const ($loc, `OpLogicalNot)}

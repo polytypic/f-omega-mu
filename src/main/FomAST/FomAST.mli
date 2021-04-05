@@ -162,7 +162,7 @@ module Exp : sig
     | `Product of Loc.t * (Label.t * 't) list
     | `Select of Loc.t * 't * Label.t
     | `Inject of Loc.t * Label.t * 't
-    | `Case of Loc.t * 't * 't
+    | `Case of Loc.t * 't
     | `Pack of Loc.t * Typ.t * 't * Typ.t
     | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 't * 't
     | `Target of Loc.t * Typ.t * string ]

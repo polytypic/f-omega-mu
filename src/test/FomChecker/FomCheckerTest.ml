@@ -115,7 +115,7 @@ let () =
     let《stack\S》 =《list\{
       empty = Λv.[nil = {}] : list v,
       push = Λv.λx:v.λxs:list v.[cons = {hd = x, tl = xs}] : list v,
-      pop = Λv.λxs:list v.xs case {
+      pop = Λv.case {
         nil = λ_:{}.
           [none = {}] : option {value: v, stack: list v},
         cons = λr:{hd: v, tl: list v}.
@@ -124,7 +124,7 @@ let () =
     }》: Stack in
     let a_stack = S.push[int] 4 (S.push[int] 1 (S.push[int] 3 (S.empty[int]))) in
     let to_list = Λv.μto_list:stack v → list v.λs:stack v.
-      S.pop[v] s case {
+      S.pop[v] s ▷ case {
         none = λ_:{}.
           [nil = {}] : list v,
         some = λr:{value: v, stack: stack v}.
@@ -203,5 +203,5 @@ let () =
   testErrors "non contractive case"
     {eof|
     let type μnon_contractive:* → * = λt.non_contractive t in
-    λx:non_contractive int.x case {}
+    λx:non_contractive int.x ▷ case {}
     |eof}
