@@ -2,6 +2,10 @@
 
 set -eo pipefail
 
-dune build --profile release ./src/main/FomSandbox/FomSandbox.bc.js
-cp ./_build/default/src/main/FomSandbox/FomSandbox.bc.js docs/FomSandbox.js
-chmod +w docs/FomSandbox.js
+TARGET=src/main/FomSandbox/FomSandbox.bc.js
+OUTPUT=docs/FomSandbox.js
+
+dune build --profile release ./$TARGET
+
+echo "'use strict'"           > $OUTPUT
+cat ./_build/default/$TARGET >> $OUTPUT

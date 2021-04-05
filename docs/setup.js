@@ -1,5 +1,7 @@
 'use strict'
 
+FomSandbox(window)
+
 //
 
 const throttled = function (ms, fn) {
@@ -198,6 +200,7 @@ fomCM.on('cursorActivity', updateDefUses)
 const run = onWorker(
   function () {
     importScripts('FomSandbox.js')
+    FomSandbox(self)
     importScripts('prelude.js')
   },
   function () {
@@ -222,6 +225,7 @@ const run = onWorker(
 const compile = onWorker(
   function () {
     importScripts('FomSandbox.js')
+    FomSandbox(self)
     importScripts('https://unpkg.com/prettier@2.2.1/standalone.js')
     importScripts('https://unpkg.com/prettier@2.2.1/parser-babel.js')
   },
@@ -262,6 +266,7 @@ const check = throttled(
   onWorker(
     function () {
       importScripts('FomSandbox.js')
+      FomSandbox(self)
     },
     function () {
       clearMarkers(diagnosticMarkers)

@@ -2,4 +2,5 @@
  (name FomSandbox)
  (modes js)
  (libraries FomChecker FomEnv FomElab FomParser FomToJs)
- (preprocess (pps js_of_ocaml-ppx)))
+ (preprocess (pps js_of_ocaml-ppx))
+ (js_of_ocaml (flags --wrap-with-fun=FomSandbox)))
