@@ -336,10 +336,7 @@ module Exp = struct
       match e with
       | `App (f, `Var i') when Id.equal i i' && not (is_free i f) ->
         let* f_is_total = is_total f in
-        if f_is_total then
-          return f
-        else
-          default ()
+        if f_is_total then return f else default ()
       | _ -> default ())
     | `App (f, x) -> (
       let* f = simplify f in
