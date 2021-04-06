@@ -72,6 +72,7 @@ module JsType = struct
     Js.Unsafe.pure_js_expr "Function"
 
   let array' : Js.js_string Js.t Js.constr = Js.Unsafe.pure_js_expr "Array"
+  let object' : Js.js_string Js.t Js.constr = Js.Unsafe.pure_js_expr "Object"
 end
 
 let stringify = Js.Unsafe.pure_js_expr "JSON.stringify"
@@ -116,11 +117,13 @@ let js_codemirror_mode =
           Hashtbl.add known value (n, used);
           let result =
             match Js.typeof value |> Js.to_string with
-            | "object" ->
+            | "object" | "undefined" ->
               if Js.instanceof value JsType.array' then
                 format_array value
-              else
+              else if Js.instanceof value JsType.object' then
                 format_object value
+              else
+                utf8string "()"
             | "number" ->
               let float = Js.Unsafe.coerce value |> Js.float_of_number in
               utf8format "%.16g" float
