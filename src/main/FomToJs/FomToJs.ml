@@ -477,11 +477,13 @@ module Exp = struct
             to_js_expr (subst f (`Var i) l)
           | _ -> to_js_expr v
         in
+        let b =
+          if is_free i e then str "const " ^ Id.to_js i ^ str " = " else str ""
+        in
         let* e =
           to_js_stmts ~add_return:(add_braces || add_return) (Ids.add i ids) e
         in
-        return @@ braces_if add_braces @@ str "const " ^ Id.to_js i ^ str " = "
-        ^ v ^ str "; " ^ e
+        return @@ braces_if add_braces @@ b ^ v ^ str "; " ^ e
     | `IfElse (c, t, e) ->
       if add_braces && not (binds t || binds e) then
         default ()
