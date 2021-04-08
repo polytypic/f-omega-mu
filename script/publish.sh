@@ -2,13 +2,21 @@
 
 set -eo pipefail
 
-git branch -D gh-pages
+mkdir tmp
+cd tmp
+
+git clone git@github.com:polytypic/f-omega-mu.git
+cd f-omega-mu
+
 git checkout -b gh-pages
 
 rm docs/.gitignore
+
+script/docs.sh
 
 git add docs
 git commit -m 'Built GitHub pages'
 git push -f -u origin gh-pages
 
-git checkout main
+cd ../..
+rm -rf tmp
