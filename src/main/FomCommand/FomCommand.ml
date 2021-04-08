@@ -13,6 +13,14 @@ let read_file filename =
   close_in in_ch;
   contents
 
+let run_process_with_input command input =
+  let out = Unix.open_process_out command in
+  input |> List.iter (output_string out);
+  flush out;
+  match Unix.close_process_out out with
+  | Unix.WEXITED exit_code when exit_code = 0 -> ()
+  | _ -> failwith "Sub process didn't exit successfully"
+
 let compile filename =
   let exception Stop in
   let stop () = raise Stop in
@@ -32,12 +40,7 @@ let compile filename =
     let js = ast |> FomToJs.to_js in
     if !Options.stop = `Js then
       js |> Printf.printf "%s\n" |> stop;
-    let out = Unix.open_process_out "node" in
-    output_string out (read_file "docs/prelude.js");
-    output_string out ";\n";
-    output_string out js;
-    flush out;
-    close_out out
+    run_process_with_input "node" [read_file "docs/prelude.js"; ";\n"; js]
   with
   | Stop -> ()
   | exn ->
