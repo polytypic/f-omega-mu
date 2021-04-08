@@ -402,3 +402,24 @@ fomCM.on('keyup', function (_, event) {
     }
   }
 })
+
+//
+
+examples.forEach(function (example) {
+  const option = document.createElement('option')
+  option.value = example
+  option.innerText = example.replace(/^.*[/](.*)[.].*$/, '$1').toUpperCase()
+  exampleSelect.appendChild(option)
+})
+
+exampleSelect.onchange = function () {
+  const value = exampleSelect.value
+  if (value) {
+    const xhr = new XMLHttpRequest()
+    xhr.onload = function () {
+      fomCM.setValue(xhr.responseText)
+    }
+    xhr.open('GET', value)
+    xhr.send()
+  }
+}
