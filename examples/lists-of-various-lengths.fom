@@ -1,0 +1,64 @@
+# Types of lists of various lengths
+
+# An ordinary recursive list type
+let type μlist_of_0_to_n : * → * = λα.[nil: (), cons: (α, list_of_0_to_n α)] in
+
+# A list of exactly one element
+let type  list_of_1      : * → * = λα.[cons: (α, [nil: ()])] in
+
+# A list of one or more elements
+let type  list_of_1_to_n : * → * = λα.[cons: (α, list_of_0_to_n α)] in
+
+# An infinite list (due to strictness these are always cycles)
+let type μlist_of_inf    : * → * = λα.[cons: (α, list_of_inf α)] in
+
+# We now have the following subtype relationships:
+#
+#   list_of_1_to_n α  ⊂  list_of_0_to_n α
+#      list_of_inf α  ⊂  list_of_1_to_n α
+#        list_of_1 α  ⊂  list_of_1_to_n α
+#
+# Or as a hierarhy:
+#
+#             list_of_0_to_n α
+#                     |
+#             list_of_1_to_n α
+#                    / \
+#         list_of_1 α   list_of_inf α
+#
+# Moreover, lists of any finite length or more can be similarly specified
+# yielding the expected subtype relationships.
+
+let an_empty_list     : list_of_0_to_n int = [nil = ()] in
+let a_singleton_list  : list_of_1      int = [cons = (2, [nil = ()])] in
+let a_non_empty_list  : list_of_1_to_n int = [cons = (101, [nil = ()])] in
+let μan_infinite_list : list_of_inf    int = [cons = (42, an_infinite_list)] in
+
+# Type safe function to get the first element of a non-empty list:
+let head = Λα.case { cons = λ(x:α, _:list_of_0_to_n α).x } in
+
+let _ = head[int] an_infinite_list in
+let _ = head[int] a_non_empty_list in
+let _ = head[int] [cons = (4, an_empty_list)] in
+
+# Extract the only element of a one element list:
+let only = Λα.case { cons = λ(x: α, _:[nil: ()]).x } in
+
+let _ = only[int] a_singleton_list in
+
+# The type of `cycle` guarantees that it returns an infinite list:
+let cycle = Λα.λxxs:list_of_1_to_n α.
+  μcycle:list_of_inf α.
+    let μcomplete:list_of_0_to_n α → list_of_inf α = λxs:list_of_0_to_n α.
+      # Equality is work-in-progress 🤫
+      if xxs =[list_of_0_to_n α] xs then
+        cycle
+      else
+        xs ▷ case {
+          nil = λ().cycle,
+          cons = λ(x:α, xs:list_of_0_to_n α).[cons = (x, complete xs)]
+        } in
+    xxs ▷ case { cons = λ(x:α, xs:list_of_0_to_n α).[cons = (x, complete xs)] } in
+
+cycle[int] [cons = (4, a_singleton_list)]
+▷ cycle[int]

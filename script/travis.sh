@@ -43,3 +43,6 @@ folded "Build" \
 
 folded "Test" \
   dune test
+
+folded "Run examples" \
+  _build/default/src/main/FomCommand/FomCommand.exe examples/*.fom
