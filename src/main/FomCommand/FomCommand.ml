@@ -1,8 +1,7 @@
 open FomBasis
 
-let max_width = 80
-
 module Options = struct
+  let max_width = ref 80
   let stop : [`Typ | `Js | `Run] ref = ref `Run
 end
 
@@ -22,6 +21,7 @@ let run_process_with_input command input =
   | _ -> failwith "Sub process didn't exit successfully"
 
 let compile filename =
+  let max_width = !Options.max_width in
   let exception Stop in
   let stop () = raise Stop in
   try
@@ -74,6 +74,12 @@ let compile filename =
 let () =
   Arg.parse
     [
+      ( "-max-width",
+        Arg.Int
+          (fun w ->
+            if 20 <= w && w <= 200 then
+              Options.max_width := w),
+        "\tSet maximum width for various outputs" );
       ( "-stop",
         Arg.Symbol
           ( ["type"; "js"; "run"],
