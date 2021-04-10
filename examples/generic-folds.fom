@@ -52,14 +52,14 @@ let type Set = λelem.λset.{
 # Naïve Set implementation
 let Set = {
   make = Λelem.λeq:elem → elem → bool.
-    let type set = List elem in《set\{
-      empty = [None = ()],
-      singleton = List.one[elem],
-      remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y),
-      union = λl:set.λr:set.
-        List.concat[elem] l (List.filter[elem] (λi:elem.¬List.has[elem] (eq i) l) r),
-      to_list = λs:set.s
-    }》: ∃(Set elem)
+    let type set = List elem in
+    let empty = [None = ()] in
+    let singleton = List.one[elem] in
+    let remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y) in
+    let union = λl:set.λr:set.
+      List.concat[elem] l (List.filter[elem] (λi:elem.¬List.has[elem] (eq i) l) r) in
+    let to_list = λs:set.s in
+    《set\{empty, singleton, remove, union, to_list}》: ∃(Set elem)
 } in
 
 # Term type
