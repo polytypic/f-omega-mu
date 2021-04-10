@@ -417,7 +417,7 @@ exampleSelect.onchange = function () {
   if (value) {
     const xhr = new XMLHttpRequest()
     xhr.onload = function () {
-      fomCM.setValue(xhr.responseText)
+      fomCM.setValue(xhr.responseText.trim())
     }
     xhr.open('GET', value)
     xhr.send()
