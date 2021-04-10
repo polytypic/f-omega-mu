@@ -109,7 +109,7 @@ Below is an _approximation_ of the detailed
 |            `≠` | `!=`                      |
 |            `≤` | `<=`                      |
 |            `≥` | `>=`                      |
-|            `▷` | <code>&#124&gt;</code>    |
-|            `◁` | <code>&lt;&#124</code>    |
+|            `▷` | <code>&#124;&gt;</code>   |
+|            `◁` | <code>&lt;&#124;</code>   |
 |           `《` | `<<`                      |
 |           `》` | `>>`                      |
