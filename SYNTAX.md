@@ -37,7 +37,7 @@ Below is an _approximation_ of the detailed
       | '<<' typ '\' exp '>>' ':' typ                              // Existential packing
       | exp exp                                                    // Apply function
       | exp '◁' exp                                                // (R) Apply forward (*3)
-      | exp '▷' exp                                                // (L) Apply backward
+      | exp '▷' exp                                                // (L) Apply backward (*3)
       | uop exp                                                    // Apply unary operator
       | exp bop exp                                                // Apply binary operator
       | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*4)
