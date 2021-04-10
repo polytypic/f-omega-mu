@@ -4,61 +4,67 @@ Below is an _approximation_ of the detailed
 [grammar](src/main/FomParser/Grammar.mly) of the language:
 
 ```g4
- kind : '(' kind ')'
-      | '*'                                                        // Type
-      | kind '→' kind                                              // Type constructor
+kind
+  : '(' kind ')'
+  | '*'                                                        // Type
+  | kind '→' kind                                              // Type constructor
 
-  typ : tid                                                        // Type variable (*1)
-      | ('int' | 'bool' | 'string')                                // Builtin types
-      | typ '→' typ                                                // Function type
-      | '(' (typ ',')* ')'                                         // Tuple type
-      | '{' (label (':' typ)? ',')* '}'                            // Product type
-      | '[' (label (':' typ)? ',')* ']'                            // Sum type
-      | typ typ                                                    // Apply type level function
-      | 'λ' tid (':' kind)? '.' typ                                // Type level function
-      | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
-      | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
-      | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
+typ
+  : tid                                                        // Type variable (*1)
+  | ('int' | 'bool' | 'string')                                // Builtin types
+  | typ '→' typ                                                // Function type
+  | '(' (typ ',')* ')'                                         // Tuple type
+  | '{' (label (':' typ)? ',')* '}'                            // Product type
+  | '[' (label (':' typ)? ',')* ']'                            // Sum type
+  | typ typ                                                    // Apply type level function
+  | 'λ' tid (':' kind)? '.' typ                                // Type level function
+  | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
+  | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
+  | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
 
-  pat : eid                                                        // Variable pattern
-      | '(' (pat ',')* ')'                                         // Tuple pattern
-      | '{' (label '=' pat)* '}'                                   // Product pattern
-      | '<<' tid '\' pat '>>'                                      // Existential pack pattern
+pat
+  : eid                                                        // Variable pattern
+  | '(' (pat ',')* ')'                                         // Tuple pattern
+  | '{' (label '=' pat)* '}'                                   // Product pattern
+  | '<<' tid '\\' pat '>>'                                     // Existential pack pattern
 
-  exp : '(' exp ')'
-      | exp ':' typ                                                // Type ascription
-      | eid                                                        // Variable (*1)
-      | (int | 'true' | 'false' | string)                          // Literals
-      | '(' (exp ',')* '}'                                         // Tuple introduction
-      | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
-      | exp '.' label                                              // Product elimination
-      | '[' label ('=' exp)? ']'                                   // Sum introduction
-      | 'case' exp                                                 // Sum elimination (*2)
-      | '<<' typ '\' exp '>>' ':' typ                              // Existential packing
-      | exp exp                                                    // Apply function
-      | exp '◁' exp                                                // (R) Apply forward (*3)
-      | exp '▷' exp                                                // (L) Apply backward (*3)
-      | uop exp                                                    // Apply unary operator
-      | exp bop exp                                                // Apply binary operator
-      | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*4)
-      | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp // Recursive type bindings (*4)
-      | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*5)
-      | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*5)
-      | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)
-      | 'λ' pat ':' typ '.' exp                                    // Function (*5)
-      | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*7)
-      | 'Λ' tid (':' kind)? '.' exp                                // Generalization
-      | exp '[' typ ']'                                            // Instantiation
-      | 'target' '[' typ ']' string                                // Inline target (JavaScript) code
+exp
+  : '(' exp ')'
+  | exp ':' typ                                                // Type ascription
+  | eid                                                        // Variable (*1)
+  | (int | 'true' | 'false' | string)                          // Literals
+  | '(' (exp ',')* '}'                                         // Tuple introduction
+  | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
+  | exp '.' label                                              // Product elimination
+  | '[' label ('=' exp)? ']'                                   // Sum introduction
+  | 'case' exp                                                 // Sum elimination (*2)
+  | '<<' typ '\\' exp '>>' ':' typ                             // Existential packing
+  | exp exp                                                    // Apply function
+  | exp '◁' exp                                                // (R) Apply forward (*3)
+  | exp '▷' exp                                                // (L) Apply backward (*3)
+  | uop exp                                                    // Apply unary operator
+  | exp bop exp                                                // Apply binary operator
+  | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*4)
+  | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp // Recursive type bindings (*4)
+  | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*5)
+  | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*5)
+  | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)
+  | 'λ' pat ':' typ '.' exp                                    // Function (*5)
+  | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*7)
+  | 'Λ' tid (':' kind)? '.' exp                                // Generalization
+  | exp '[' typ ']'                                            // Instantiation
+  | 'target' '[' typ ']' string                                // Inline target (JavaScript) code
 
-  uop : '¬'                                                        // Logical negation
-      | '+' | '-'                                                  // Sign (*8)
+uop
+  : '¬'                                                        // Logical negation
+  | '+' | '-'                                                  // Sign (*8)
 
-  bop : '∨' | '∧'                                                  // (L) Logical connectives (*9)
-      | ('=' | '≠') '[' typ ']'                                    // (-) Polymorphic equality
-      | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
-      | '+' | '-'                                                  // (L) Additive
-      | '*' | '/' | '%'                                            // (L) Multiplicative
+bop
+  : '∨' | '∧'                                                  // (L) Logical connectives (*9)
+  | ('=' | '≠') '[' typ ']'                                    // (-) Polymorphic equality
+  | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
+  | '+' | '-'                                                  // (L) Additive
+  | '*' | '/' | '%'                                            // (L) Multiplicative
 ```
 
 **Notes:**
