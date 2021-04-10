@@ -8,6 +8,6 @@ let cons = Λt.λhd:t.λtl:list t.Λr.λc:{nil: r, cons: t → list t → r}.c.c
 let μfold:∀t.∀r.(t → r → r) → r → list t → r = Λt.Λr.λfn:t → r → r.λz:r.λxs:list t.
   xs[r] {nil = z, cons = λx:t.λxs:list t.fold[t][r] fn (fn x z) xs} in
 
-let pi_digits = cons[int] 3 (cons[int] 1 (cons[int] 4 (cons[int] 1 (nil[int])))) in
+let pi_digits = cons[int] 3 ◁ cons[int] 1 ◁ cons[int] 4 ◁ cons[int] 1 ◁ nil[int] in
 
 fold[int][int] (λx:int.λs:int.x + s) 0 pi_digits
