@@ -89,7 +89,7 @@ let rec elaborate_typ =
              return (l, t))
     in
     return @@ `Sum (at', ls)
-  | `LetTypIn (_, i, kO, t, e) ->
+  | `LetDefIn (_, `Typ (_, i, kO, t), e) ->
     let* t = elaborate_typ t in
     let* () = Annot.Typ.alias i t in
     let t =
@@ -104,7 +104,7 @@ let rec elaborate_typ =
       t
       |> Typ.set_at (Typ.Id.at i)
       |> Typ.Env.add i |> r#map_typ_aliases |> elaborate_typ e
-  | `LetTypRecIn (_, bs, e) ->
+  | `LetDefIn (_, `TypRec (_, bs), e) ->
     let* assoc =
       bs
       |> traverse (fun ((i, k), t) ->
@@ -164,7 +164,7 @@ let rec elaborate =
     let* v = maybe_annot v tO in
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
-  | `LetTypIn (_, i, kO, t, e) ->
+  | `LetDefIn (_, `Typ (_, i, kO, t), e) ->
     let* t = elaborate_typ t in
     let* () = Annot.Typ.alias i t in
     let t =
@@ -179,7 +179,7 @@ let rec elaborate =
       t
       |> Typ.set_at (Typ.Id.at i)
       |> Typ.Env.add i |> r#map_typ_aliases |> elaborate e
-  | `LetTypRecIn (_, bs, e) ->
+  | `LetDefIn (_, `TypRec (_, bs), e) ->
     let* assoc =
       bs
       |> traverse (fun ((i, k), t) ->

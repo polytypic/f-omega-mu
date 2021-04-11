@@ -67,6 +67,7 @@
 
 %start <Exp.t> program
 %start <Typ.t> typ_exp
+%start <Typ.t Typ.Def.f list> typ_defs
 
 %{ open FomCST %}
 
@@ -104,10 +105,10 @@ lab_list(item):
 
 //
 
-typ_def(inn):
-  | "let""type"i=typ_bid"="t=typ"in"e=inn               {`LetTypIn ($loc, i, None, t, e)}
-  | "let""type"i=typ_bid":"k=kind"="t=typ"in"e=inn      {`LetTypIn ($loc, i, Some k, t, e)}
-  | "let""type"bs=list_1(typ_mu_def, "and")"in"e=inn    {`LetTypRecIn ($loc, bs, e)}
+typ_def:
+  | "let""type"i=typ_bid"="t=typ                        {`Typ ($loc, i, None, t)}
+  | "let""type"i=typ_bid":"k=kind"="t=typ               {`Typ ($loc, i, Some k, t)}
+  | "let""type"bs=list_1(typ_mu_def, "and")             {`TypRec ($loc, bs)}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(b, t)}
@@ -158,7 +159,7 @@ typ:
   | t=typ_lam("∃")                                      {`Exists ($loc, t)}
   | t=typ_lam("∀")                                      {`ForAll ($loc, t)}
   | t=typ_lam("λ")                                      {t}
-  | t=typ_def(typ)                                      {t}
+  | d=typ_def"in"t=typ                                  {`LetDefIn ($loc, d, t)}
 
 //
 
@@ -254,7 +255,7 @@ exp:
   | e=exp_bind("λ")                                     {e}
   | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
   | "if"c=exp"then"t=exp"else"e=exp                     {`IfElse ($loc, c, t, e)}
-  | e=typ_def(exp)                                      {e}
+  | d=typ_def"in"e=exp                                  {`LetDefIn ($loc, d, e)}
   | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, None, v, e)}
   | "let"p=pat(annot_let)":"t=typ"="v=exp"in"e=exp      {`LetPat ($loc, p, Some t, v, e)}
   | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
@@ -271,3 +272,6 @@ program:
 
 typ_exp:
   | t=typ EOF                                           {t}
+
+typ_defs:
+  | ds=separated_list("in", typ_def) EOF                {ds}

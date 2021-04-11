@@ -28,6 +28,9 @@ module Grammar : sig
 
   val typ_exp : Typ.t t
   (** Grammar of Fωμ type expressions. *)
+
+  val typ_defs : Typ.t Typ.Def.f list t
+  (** Grammar of Fωμ type definitions. *)
 end
 
 val parse : 't Grammar.t -> Lexer.t -> Buffer.t -> 't
