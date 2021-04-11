@@ -21,6 +21,8 @@ typ
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
   | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
+  | 'let' 'type' tid (':' kind)? '=' typ 'in' typ              // Type binding (*4)
+  | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' typ // Recursive type bindings (*4)
 
 pat
   : eid                                                        // Variable pattern

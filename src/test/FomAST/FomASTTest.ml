@@ -1,5 +1,5 @@
+open FomBasis
 open FomTest
-open FomAST
 
 let parse_typ utf_8 =
   let open FomParser in
@@ -8,5 +8,9 @@ let parse_typ utf_8 =
 let () =
   test "Typ.to_string" @@ fun () ->
   let original = "∀x:*.μxs.(x→(x→x))→xs" in
-  let formatted = parse_typ original |> Typ.pp |> FomPP.to_string in
+  let formatted =
+    parse_typ original |> FomElab.elaborate_typ
+    |> Reader.run (FomEnv.Env.empty ())
+    |> FomAST.Typ.pp |> FomPP.to_string
+  in
   verify (formatted = "∀x.μxs.(x → x → x) → xs")

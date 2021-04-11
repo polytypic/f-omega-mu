@@ -35,9 +35,91 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
-let elaborate_typ t r =
-  let replaced i t = Annot.Typ.use i (Typ.at t) r in
-  Typ.subst_par ~replaced r#get_typ_aliases t
+let rec elaborate_typ =
+  let open Reader in
+  function
+  | `Mu (at', t) ->
+    let* t = elaborate_typ t in
+    return @@ `Mu (at', t)
+  | `Const (at', c) -> return @@ `Const (at', c)
+  | `Var (at', i) -> (
+    fun r ->
+      match Typ.Env.find_opt i r#get_typ_aliases with
+      | None -> `Var (at', i)
+      | Some t ->
+        Annot.Typ.use i (Typ.at t) r;
+        t)
+  | `Lam (at', i, k, t) ->
+    fun r ->
+      let r = Typ.Env.remove i |> r#map_typ_aliases in
+      if Typ.Env.exists (fun _ t' -> Typ.is_free i t') r#get_typ_aliases then
+        let i' = Typ.Id.freshen i in
+        let v' = `Var (at', i') in
+        let t = elaborate_typ t (Typ.Env.add i' v' |> r#map_typ_aliases) in
+        `Lam (at', i', k, t)
+      else
+        `Lam (at', i, k, elaborate_typ t r)
+  | `App (at', f, x) ->
+    let* f = elaborate_typ f in
+    let* x = elaborate_typ x in
+    return @@ `App (at', f, x)
+  | `ForAll (at', t) ->
+    let* t = elaborate_typ t in
+    return @@ `ForAll (at', t)
+  | `Exists (at', t) ->
+    let* t = elaborate_typ t in
+    return @@ `Exists (at', t)
+  | `Arrow (at', d, c) ->
+    let* d = elaborate_typ d in
+    let* c = elaborate_typ c in
+    return @@ `Arrow (at', d, c)
+  | `Product (at', ls) ->
+    let* ls =
+      ls
+      |> traverse (fun (l, t) ->
+             let* t = elaborate_typ t in
+             return (l, t))
+    in
+    return @@ `Product (at', ls)
+  | `Sum (at', ls) ->
+    let* ls =
+      ls
+      |> traverse (fun (l, t) ->
+             let* t = elaborate_typ t in
+             return (l, t))
+    in
+    return @@ `Sum (at', ls)
+  | `LetTypIn (_, i, kO, t, e) ->
+    let* t = elaborate_typ t in
+    let* () = Annot.Typ.alias i t in
+    let t =
+      match kO with
+      | None -> t
+      | Some k ->
+        let at = Kind.at k in
+        let i = Typ.Id.fresh at in
+        `App (at, `Lam (at, i, k, `Var (at, i)), t)
+    in
+    fun r ->
+      t
+      |> Typ.set_at (Typ.Id.at i)
+      |> Typ.Env.add i |> r#map_typ_aliases |> elaborate_typ e
+  | `LetTypRecIn (_, bs, e) ->
+    let* assoc =
+      bs
+      |> traverse (fun ((i, k), t) ->
+             let at = Typ.Id.at i in
+             let t = `Mu (at, `Lam (at, i, k, t)) in
+             let* t = elaborate_typ t in
+             let* () = Annot.Typ.alias i t in
+             return (i, t))
+    in
+    let env = assoc |> List.to_seq |> Typ.Env.of_seq in
+    let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
+    let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
+    fun r ->
+      Typ.Env.union (fun _ v _ -> Some v) env
+      |> r#map_typ_aliases |> elaborate_typ e
 
 let maybe_annot e tO =
   let open Reader in
@@ -53,9 +135,7 @@ let rec elaborate =
   let open Reader in
   function
   | `Const (at, c) ->
-    fun r ->
-      let replaced i t = Annot.Typ.use i (Typ.at t) r in
-      `Const (at, Exp.Const.subst_par ~replaced r#get_typ_aliases c)
+    fun r -> `Const (at, Exp.Const.map_typ (fun t -> elaborate_typ t r) c)
   | `Var _ as ast -> return ast
   | `Target (at, t, s) ->
     let* t = elaborate_typ t in
@@ -85,8 +165,8 @@ let rec elaborate =
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
   | `LetTypIn (_, i, kO, t, e) ->
-    let* () = Annot.Typ.alias i t in
     let* t = elaborate_typ t in
+    let* () = Annot.Typ.alias i t in
     let t =
       match kO with
       | None -> t
@@ -105,8 +185,8 @@ let rec elaborate =
       |> traverse (fun ((i, k), t) ->
              let at = Typ.Id.at i in
              let t = `Mu (at, `Lam (at, i, k, t)) in
-             let* () = Annot.Typ.alias i t in
              let* t = elaborate_typ t in
+             let* () = Annot.Typ.alias i t in
              return (i, t))
     in
     let env = assoc |> List.to_seq |> Typ.Env.of_seq in

@@ -6,7 +6,11 @@ open FomEnv
 open FomParser
 open FomElab
 
-let parse_typ = parse_utf_8 Grammar.typ_exp Lexer.plain
+let parse_typ =
+  parse_utf_8 Grammar.typ_exp Lexer.plain
+  >> elaborate_typ
+  >> Reader.run (FomEnv.Env.empty ())
+
 let parse_exp = parse_utf_8 Grammar.program Lexer.plain
 
 let () =

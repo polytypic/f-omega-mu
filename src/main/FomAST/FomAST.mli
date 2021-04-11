@@ -60,14 +60,18 @@ module Typ : sig
 
   type t = [ | t f]
 
-  val at : t -> Loc.t
-  val set_at : Loc.t -> t -> t
+  val at : 't f -> Loc.t
+  val set_at : Loc.t -> 't f -> 't f
 
   (* Macros *)
 
-  val product : Loc.t -> (Label.t * t) list -> t
-  val sum : Loc.t -> (Label.t * t) list -> t
-  val zero : Loc.t -> t
+  val product :
+    Loc.t -> (Label.t * 't) list -> [> `Product of Loc.t * (Label.t * 't) list]
+
+  val sum :
+    Loc.t -> (Label.t * 't) list -> [> `Sum of Loc.t * (Label.t * 't) list]
+
+  val zero : Loc.t -> [> `Sum of Loc.t * (Label.t * 't) list]
 
   (* Comparison *)
 
@@ -103,7 +107,7 @@ end
 
 module Exp : sig
   module Const : sig
-    type 'nat t =
+    type ('nat, 't) t =
       [ `LitBool of bool
       | `LitNat of 'nat
       | `LitString of string
@@ -118,56 +122,52 @@ module Exp : sig
       | `OpCmpGtEq
       | `OpCmpLt
       | `OpCmpLtEq
-      | `OpEq of Typ.t
-      | `OpEqNot of Typ.t
+      | `OpEq of 't
+      | `OpEqNot of 't
       | `OpLogicalAnd
       | `OpLogicalNot
       | `OpLogicalOr ]
 
     (* Typing *)
 
-    val type_of : Loc.t -> 'nat t -> Typ.t
+    val type_of : Loc.t -> ('nat, Typ.t) t -> Typ.t
 
     (* Substitution *)
 
-    val subst_par :
-      ?replaced:(Typ.Id.t -> Typ.t -> unit) ->
-      Typ.t Typ.Env.t ->
-      'nat t ->
-      'nat t
+    val map_typ : ('t -> 'u) -> ('nat, 't) t -> ('nat, 'u) t
 
     (* Constants *)
 
-    val lit_false : 'nat t
-    val lit_true : 'nat t
+    val lit_false : ('nat, 't) t
+    val lit_true : ('nat, 't) t
 
     (* Formatting *)
 
-    val pp : Bigint.t t -> document
+    val pp : (Bigint.t, Typ.t) t -> document
   end
 
   module Id : Id.S
   module Env : Map.S with type key = Id.t
 
-  type 't f =
-    [ `Const of Loc.t * Bigint.t Const.t
+  type ('e, 't) f =
+    [ `Const of Loc.t * (Bigint.t, 't) Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Typ.t * 't
-    | `App of Loc.t * 't * 't
-    | `Gen of Loc.t * Typ.Id.t * Kind.t * 't
-    | `Inst of Loc.t * 't * Typ.t
-    | `LetIn of Loc.t * Id.t * 't * 't
-    | `Mu of Loc.t * 't
-    | `IfElse of Loc.t * 't * 't * 't
-    | `Product of Loc.t * (Label.t * 't) list
-    | `Select of Loc.t * 't * Label.t
-    | `Inject of Loc.t * Label.t * 't
-    | `Case of Loc.t * 't
-    | `Pack of Loc.t * Typ.t * 't * Typ.t
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 't * 't
-    | `Target of Loc.t * Typ.t * string ]
+    | `Lam of Loc.t * Id.t * 't * 'e
+    | `App of Loc.t * 'e * 'e
+    | `Gen of Loc.t * Typ.Id.t * Kind.t * 'e
+    | `Inst of Loc.t * 'e * 't
+    | `LetIn of Loc.t * Id.t * 'e * 'e
+    | `Mu of Loc.t * 'e
+    | `IfElse of Loc.t * 'e * 'e * 'e
+    | `Product of Loc.t * (Label.t * 'e) list
+    | `Select of Loc.t * 'e * Label.t
+    | `Inject of Loc.t * Label.t * 'e
+    | `Case of Loc.t * 'e
+    | `Pack of Loc.t * 't * 'e * 't
+    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
+    | `Target of Loc.t * 't * string ]
 
-  type t = [ | t f]
+  type t = [ | (t, Typ.t) f]
 
-  val at : 't f -> Loc.t
+  val at : ('e, 't) f -> Loc.t
 end

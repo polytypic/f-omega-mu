@@ -104,6 +104,16 @@ lab_list(item):
 
 //
 
+typ_def(inn):
+  | "let""type"i=typ_bid"="t=typ"in"e=inn               {`LetTypIn ($loc, i, None, t, e)}
+  | "let""type"i=typ_bid":"k=kind"="t=typ"in"e=inn      {`LetTypIn ($loc, i, Some k, t, e)}
+  | "let""type"bs=list_1(typ_mu_def, "and")"in"e=inn    {`LetTypRecIn ($loc, bs, e)}
+
+typ_mu_def:
+  | "μ"b=typ_bind"="t=typ                               {(b, t)}
+
+//
+
 lab_typ:
   | l=label":"t=typ                                     {(l, t)}
   | i=typ_rid                                           {(Typ.Id.to_label i, `Var ($loc, i))}
@@ -148,6 +158,7 @@ typ:
   | t=typ_lam("∃")                                      {`Exists ($loc, t)}
   | t=typ_lam("∀")                                      {`ForAll ($loc, t)}
   | t=typ_lam("λ")                                      {t}
+  | t=typ_def(typ)                                      {t}
 
 //
 
@@ -243,17 +254,12 @@ exp:
   | e=exp_bind("λ")                                     {e}
   | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
   | "if"c=exp"then"t=exp"else"e=exp                     {`IfElse ($loc, c, t, e)}
-  | "let""type"i=typ_bid"="t=typ"in"e=exp               {`LetTypIn ($loc, i, None, t, e)}
-  | "let""type"i=typ_bid":"k=kind"="t=typ"in"e=exp      {`LetTypIn ($loc, i, Some k, t, e)}
-  | "let""type"bs=list_1(typ_mu_def, "and")"in"e=exp    {`LetTypRecIn ($loc, bs, e)}
+  | e=typ_def(exp)                                      {e}
   | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, None, v, e)}
   | "let"p=pat(annot_let)":"t=typ"="v=exp"in"e=exp      {`LetPat ($loc, p, Some t, v, e)}
   | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
   | "<<"x=typ"\\"e=exp">>"":"f=typ                      {`Pack ($loc, x, e, f)}
   | e=exp_in":"t=typ                                    {`Annot ($loc, e, t)}
-
-typ_mu_def:
-  | "μ"b=typ_bind"="t=typ                               {(b, t)}
 
 mu_def:
   | "μ"p=pat(annot_lam)"="v=exp                         {(p, v)}

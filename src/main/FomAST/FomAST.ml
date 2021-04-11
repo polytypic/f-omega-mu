@@ -461,7 +461,7 @@ module Exp = struct
   let int = `Const (Loc.dummy, `Int)
 
   module Const = struct
-    type 'nat t =
+    type ('nat, 't) t =
       [ `LitBool of bool
       | `LitNat of 'nat
       | `LitString of string
@@ -476,8 +476,8 @@ module Exp = struct
       | `OpCmpGtEq
       | `OpCmpLt
       | `OpCmpLtEq
-      | `OpEq of Typ.t
-      | `OpEqNot of Typ.t
+      | `OpEq of 't
+      | `OpEqNot of 't
       | `OpLogicalAnd
       | `OpLogicalNot
       | `OpLogicalOr ]
@@ -500,15 +500,14 @@ module Exp = struct
 
     (* Substitution *)
 
-    let subst_par ?(replaced = ignore2) env c =
-      match c with
-      | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
-      | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
-      | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-      | `OpLogicalNot | `OpLogicalOr ->
+    let map_typ tu = function
+      | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
+        | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+        | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
+        | `OpLogicalNot | `OpLogicalOr ) as c ->
         c
-      | `OpEq t -> `OpEq (Typ.subst_par ~replaced env t)
-      | `OpEqNot t -> `OpEqNot (Typ.subst_par ~replaced env t)
+      | `OpEq t -> `OpEq (tu t)
+      | `OpEqNot t -> `OpEqNot (tu t)
 
     let lit_false = `LitBool false
     let lit_true = `LitBool true
@@ -540,25 +539,25 @@ module Exp = struct
   module Id = Id.Make ()
   module Env = Map.Make (Id)
 
-  type 't f =
-    [ `Const of Loc.t * Bigint.t Const.t
+  type ('e, 't) f =
+    [ `Const of Loc.t * (Bigint.t, 't) Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Typ.t * 't
-    | `App of Loc.t * 't * 't
-    | `Gen of Loc.t * Typ.Id.t * Kind.t * 't
-    | `Inst of Loc.t * 't * Typ.t
-    | `LetIn of Loc.t * Id.t * 't * 't
-    | `Mu of Loc.t * 't
-    | `IfElse of Loc.t * 't * 't * 't
-    | `Product of Loc.t * (Label.t * 't) list
-    | `Select of Loc.t * 't * Label.t
-    | `Inject of Loc.t * Label.t * 't
-    | `Case of Loc.t * 't
-    | `Pack of Loc.t * Typ.t * 't * Typ.t
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 't * 't
-    | `Target of Loc.t * Typ.t * string ]
+    | `Lam of Loc.t * Id.t * 't * 'e
+    | `App of Loc.t * 'e * 'e
+    | `Gen of Loc.t * Typ.Id.t * Kind.t * 'e
+    | `Inst of Loc.t * 'e * 't
+    | `LetIn of Loc.t * Id.t * 'e * 'e
+    | `Mu of Loc.t * 'e
+    | `IfElse of Loc.t * 'e * 'e * 'e
+    | `Product of Loc.t * (Label.t * 'e) list
+    | `Select of Loc.t * 'e * Label.t
+    | `Inject of Loc.t * Label.t * 'e
+    | `Case of Loc.t * 'e
+    | `Pack of Loc.t * 't * 'e * 't
+    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
+    | `Target of Loc.t * 't * string ]
 
-  type t = [ | t f]
+  type t = [ | (t, Typ.t) f]
 
   let at = function
     | `Const (at, _)

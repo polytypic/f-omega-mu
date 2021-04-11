@@ -22,6 +22,17 @@ module Typ = struct
     let to_label i = Label.of_name (at i) (name i)
   end
 
+  type 't f =
+    [ 't Typ.f
+    | `LetTypIn of Loc.t * Id.t * Kind.t option * 't * 't
+    | `LetTypRecIn of Loc.t * ((Id.t * Kind.t) * 't) list * 't ]
+
+  type t = [ | t f]
+
+  let at = function
+    | `LetTypIn (at, _, _, _, _) | `LetTypRecIn (at, _, _) -> at
+    | #Typ.f as ast -> Typ.at ast
+
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
 end
 
@@ -52,21 +63,20 @@ module Exp = struct
           )
   end
 
-  type 't f =
-    [ 't Exp.f
-    | `AppL of Loc.t * 't * 't
-    | `AppR of Loc.t * 't * 't
-    | `LetTypIn of Loc.t * Typ.Id.t * Kind.t option * Typ.t * 't
-    | `LetTypRecIn of Loc.t * ((Typ.Id.t * Kind.t) * Typ.t) list * 't
-    | `LetPat of Loc.t * Pat.t * Typ.t option * 't * 't
-    | `LetPatRec of Loc.t * (Pat.t * 't) list * 't
-    | `LamPat of Loc.t * Pat.t * 't
-    | `Annot of Loc.t * 't * Typ.t ]
+  type 'e f =
+    [ ('e, Typ.t) Exp.f
+    | `AppL of Loc.t * 'e * 'e
+    | `AppR of Loc.t * 'e * 'e
+    | `LetTypIn of Loc.t * Typ.Id.t * Kind.t option * Typ.t * 'e
+    | `LetTypRecIn of Loc.t * ((Typ.Id.t * Kind.t) * Typ.t) list * 'e
+    | `LetPat of Loc.t * Pat.t * Typ.t option * 'e * 'e
+    | `LetPatRec of Loc.t * (Pat.t * 'e) list * 'e
+    | `LamPat of Loc.t * Pat.t * 'e
+    | `Annot of Loc.t * 'e * Typ.t ]
 
   type t = [ | t f]
 
-  let at (e : _ f) =
-    match e with
+  let at = function
     | `AppL (at, _, _)
     | `AppR (at, _, _)
     | `LetTypIn (at, _, _, _, _)
