@@ -18,6 +18,10 @@ module Loc : sig
   val dummy : t
   val union : t -> t -> t
 
+  (* Accessors *)
+
+  val filename : t -> string
+
   (* Formatting *)
 
   val pp : t -> document

@@ -2,6 +2,7 @@ type t = Pos.t * Pos.t
 
 let dummy = (Lexing.dummy_pos, Lexing.dummy_pos)
 let union l r = (fst l, snd r)
+let filename ((l : Pos.t), _) = l.pos_fname
 
 let pp ((lhs, rhs) : t) =
   let format_range lhs rhs =
