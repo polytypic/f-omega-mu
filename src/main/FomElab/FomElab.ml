@@ -35,6 +35,41 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
+let elaborate_def elaborate_typ elaborate_rec e =
+  let open Reader in
+  function
+  | `Typ (_, i, kO, t) ->
+    let* t = elaborate_typ t in
+    Annot.Typ.alias i t
+    >>
+    let t =
+      match kO with
+      | None -> t
+      | Some k ->
+        let at = Kind.at k in
+        let i = Typ.Id.fresh at in
+        `App (at, `Lam (at, i, k, `Var (at, i)), t)
+    in
+    fun r ->
+      t
+      |> Typ.set_at (Typ.Id.at i)
+      |> Typ.Env.add i |> r#map_typ_aliases |> elaborate_rec e
+  | `TypRec (_, bs) ->
+    let* assoc =
+      bs
+      |> traverse (fun ((i, k), t) ->
+             let at = Typ.Id.at i in
+             let t = `Mu (at, `Lam (at, i, k, t)) in
+             let* t = elaborate_typ t in
+             Annot.Typ.alias i t >> return (i, t))
+    in
+    let env = assoc |> List.to_seq |> Typ.Env.of_seq in
+    let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
+    let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
+    fun r ->
+      Typ.Env.union (fun _ v _ -> Some v) env
+      |> r#map_typ_aliases |> elaborate_rec e
+
 let rec elaborate_typ =
   let open Reader in
   function
@@ -89,37 +124,7 @@ let rec elaborate_typ =
              return (l, t))
     in
     return @@ `Sum (at', ls)
-  | `LetDefIn (_, `Typ (_, i, kO, t), e) ->
-    let* t = elaborate_typ t in
-    Annot.Typ.alias i t
-    >>
-    let t =
-      match kO with
-      | None -> t
-      | Some k ->
-        let at = Kind.at k in
-        let i = Typ.Id.fresh at in
-        `App (at, `Lam (at, i, k, `Var (at, i)), t)
-    in
-    fun r ->
-      t
-      |> Typ.set_at (Typ.Id.at i)
-      |> Typ.Env.add i |> r#map_typ_aliases |> elaborate_typ e
-  | `LetDefIn (_, `TypRec (_, bs), e) ->
-    let* assoc =
-      bs
-      |> traverse (fun ((i, k), t) ->
-             let at = Typ.Id.at i in
-             let t = `Mu (at, `Lam (at, i, k, t)) in
-             let* t = elaborate_typ t in
-             Annot.Typ.alias i t >> return (i, t))
-    in
-    let env = assoc |> List.to_seq |> Typ.Env.of_seq in
-    let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
-    let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
-    fun r ->
-      Typ.Env.union (fun _ v _ -> Some v) env
-      |> r#map_typ_aliases |> elaborate_typ e
+  | `LetDefIn (_, def, e) -> elaborate_def elaborate_typ elaborate_typ e def
 
 let maybe_annot e tO =
   let open Reader in
@@ -164,37 +169,7 @@ let rec elaborate =
     let* v = maybe_annot v tO in
     let* e = elaborate e in
     return @@ `LetIn (at, i, v, e)
-  | `LetDefIn (_, `Typ (_, i, kO, t), e) ->
-    let* t = elaborate_typ t in
-    Annot.Typ.alias i t
-    >>
-    let t =
-      match kO with
-      | None -> t
-      | Some k ->
-        let at = Kind.at k in
-        let i = Typ.Id.fresh at in
-        `App (at, `Lam (at, i, k, `Var (at, i)), t)
-    in
-    fun r ->
-      t
-      |> Typ.set_at (Typ.Id.at i)
-      |> Typ.Env.add i |> r#map_typ_aliases |> elaborate e
-  | `LetDefIn (_, `TypRec (_, bs), e) ->
-    let* assoc =
-      bs
-      |> traverse (fun ((i, k), t) ->
-             let at = Typ.Id.at i in
-             let t = `Mu (at, `Lam (at, i, k, t)) in
-             let* t = elaborate_typ t in
-             Annot.Typ.alias i t >> return (i, t))
-    in
-    let env = assoc |> List.to_seq |> Typ.Env.of_seq in
-    let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
-    let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
-    fun r ->
-      Typ.Env.union (fun _ v _ -> Some v) env
-      |> r#map_typ_aliases |> elaborate e
+  | `LetDefIn (_, def, e) -> elaborate_def elaborate_typ elaborate e def
   | `Mu (at, e) ->
     let* e = elaborate e in
     return @@ `Mu (at, e)
