@@ -509,6 +509,15 @@ module Exp = struct
       | `OpEq t -> `OpEq (tu t)
       | `OpEqNot t -> `OpEqNot (tu t)
 
+    let collect_typ = function
+      | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
+      | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+      | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
+      | `OpLogicalNot | `OpLogicalOr ->
+        []
+      | `OpEq t -> [t]
+      | `OpEqNot t -> [t]
+
     let lit_false = `LitBool false
     let lit_true = `LitBool true
 

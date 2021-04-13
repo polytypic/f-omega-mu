@@ -135,6 +135,7 @@ module Exp : sig
     (* Substitution *)
 
     val map_typ : ('t -> 'u) -> ('nat, 't) t -> ('nat, 'u) t
+    val collect_typ : ('nat, 't) t -> 't list
 
     (* Constants *)
 
