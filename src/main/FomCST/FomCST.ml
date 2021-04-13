@@ -36,7 +36,7 @@ module Typ = struct
 end
 
 module Exp = struct
-  module Const = Exp.Const
+  include Exp
 
   module Id = struct
     include Exp.Id
