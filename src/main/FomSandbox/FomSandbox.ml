@@ -90,7 +90,7 @@ let js_codemirror_mode =
           |> Tuple.is_tuple
         then
           keys
-          |> List.map (Js.Unsafe.get obj >> format)
+          |> List.map (Js.Unsafe.get obj >>> format)
           |> separate comma_break_1 |> egyptian parens 2
         else
           keys

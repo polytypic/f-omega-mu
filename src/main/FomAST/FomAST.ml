@@ -403,7 +403,7 @@ module Typ = struct
 
   and labeled labels =
     labels
-    |> List.stable_sort (Compare.the (fst >> Label.at >> fst) Pos.compare)
+    |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
     |> List.map (function
          | l, `Var (_, i) when Id.name i = Label.name l -> Label.pp l
          | label, typ ->
@@ -417,7 +417,7 @@ module Typ = struct
     |> separate comma_break_1
 
   and tuple labels =
-    labels |> List.map (snd >> pp prec_min) |> separate comma_break_1
+    labels |> List.map (snd >>> pp prec_min) |> separate comma_break_1
 
   and pp prec_outer (typ : t) =
     match typ with
@@ -449,7 +449,7 @@ module Typ = struct
     | `App (_, _, _) -> (
       match unapp typ with
       | f, xs ->
-        pp prec_app f :: (xs |> List.map (pp (prec_app + 1) >> group))
+        pp prec_app f :: (xs |> List.map (pp (prec_app + 1) >>> group))
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
 

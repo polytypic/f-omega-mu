@@ -91,7 +91,8 @@ let rec elaborate_typ =
     return @@ `Sum (at', ls)
   | `LetDefIn (_, `Typ (_, i, kO, t), e) ->
     let* t = elaborate_typ t in
-    let* () = Annot.Typ.alias i t in
+    Annot.Typ.alias i t
+    >>
     let t =
       match kO with
       | None -> t
@@ -111,8 +112,7 @@ let rec elaborate_typ =
              let at = Typ.Id.at i in
              let t = `Mu (at, `Lam (at, i, k, t)) in
              let* t = elaborate_typ t in
-             let* () = Annot.Typ.alias i t in
-             return (i, t))
+             Annot.Typ.alias i t >> return (i, t))
     in
     let env = assoc |> List.to_seq |> Typ.Env.of_seq in
     let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
@@ -166,7 +166,8 @@ let rec elaborate =
     return @@ `LetIn (at, i, v, e)
   | `LetDefIn (_, `Typ (_, i, kO, t), e) ->
     let* t = elaborate_typ t in
-    let* () = Annot.Typ.alias i t in
+    Annot.Typ.alias i t
+    >>
     let t =
       match kO with
       | None -> t
@@ -186,8 +187,7 @@ let rec elaborate =
              let at = Typ.Id.at i in
              let t = `Mu (at, `Lam (at, i, k, t)) in
              let* t = elaborate_typ t in
-             let* () = Annot.Typ.alias i t in
-             return (i, t))
+             Annot.Typ.alias i t >> return (i, t))
     in
     let env = assoc |> List.to_seq |> Typ.Env.of_seq in
     let* replaced r i t = Annot.Typ.use i (Typ.at t) r in

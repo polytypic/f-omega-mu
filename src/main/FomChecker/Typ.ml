@@ -20,7 +20,7 @@ let rec find_map_from_all_apps_of i' p = function
     | None -> find_map_from_all_apps_of i' p c
     | some -> some)
   | `Product (_, ls) | `Sum (_, ls) ->
-    ls |> List.find_map (snd >> find_map_from_all_apps_of i' p)
+    ls |> List.find_map (snd >>> find_map_from_all_apps_of i' p)
   | (`App _ | `Var _) as t -> (
     match unapp t with
     | (`Var (_, i) as f), xs ->
@@ -103,13 +103,11 @@ let rec infer typ : _ -> Kind.t =
     let* i_kind_opt e = Env.find_opt i e#get_typ_env in
     match i_kind_opt with
     | None -> Error.typ_var_unbound at' i
-    | Some (def, i_kind) ->
-      let* () = Annot.Typ.use i (Id.at def) in
-      return i_kind)
+    | Some (def, i_kind) -> Annot.Typ.use i (Id.at def) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
-    let* () = Annot.Typ.def d d_kind in
-    let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
-    return @@ `Arrow (at', d_kind, r_kind)
+    Annot.Typ.def d d_kind
+    >> let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
+       return @@ `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) -> (
     let* f_kind = infer f in
     match f_kind with
@@ -122,13 +120,10 @@ let rec infer typ : _ -> Kind.t =
   | `Exists (_, f) -> quantifier FomPP.exists f
   | `Arrow (at', d, c) ->
     let star = `Star at' in
-    let* () = check star d in
-    let* () = check star c in
-    return star
+    check star d >> check star c >> return star
   | `Product (at', ls) | `Sum (at', ls) ->
     let star = `Star at' in
-    let* () = ls |> iter (snd >> check star) in
-    return star
+    ls |> iter (snd >>> check star) >> return star
 
 and check expected t =
   let open Reader in
@@ -188,8 +183,8 @@ module Goal = struct
 
   let to_subst =
     List.to_seq
-    >> Seq.map (Pair.map id @@ fun i -> `Var (Id.at i, i))
-    >> Env.of_seq >> subst_par
+    >>> Seq.map (Pair.map id @@ fun i -> `Var (Id.at i, i))
+    >>> Env.of_seq >>> subst_par
 
   let regularize_free_vars goal =
     map (goal |> free_vars_to_regular_assoc |> to_subst) goal
@@ -231,7 +226,7 @@ let check_sub_of_norm, check_equal_of_norm =
           sub (rd, ld);
           sub (lc, rc)
         | `Product (_, lls), `Product (_, rls) -> subset sub rls lls
-        | `Sum (_, lls), `Sum (_, rls) -> subset (Pair.swap >> sub) lls rls
+        | `Sum (_, lls), `Sum (_, rls) -> subset (Pair.swap >>> sub) lls rls
         | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
           sub (l, r)
         | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
@@ -353,8 +348,8 @@ let join_of_norm at g =
                   |> Goal.map (Goal.to_subst assoc)
                   |> upper
                   |> (to_strict
-                     >> Goal.to_subst (List.map Pair.swap assoc)
-                     >> to_lazy)
+                     >>> Goal.to_subst (List.map Pair.swap assoc)
+                     >>> to_lazy)
                 in
                 `Lam (at, i, lk, t)
               | `ForAll (_, lt), `ForAll (_, rt) -> `ForAll (at, upper (lt, rt))

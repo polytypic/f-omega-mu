@@ -25,7 +25,7 @@ module Label = struct
     let it = to_string id in
     '0' <= it.[0] && it.[0] <= '9'
 
-  let to_str = to_string >> str
+  let to_str = to_string >>> str
 
   (* *)
 
@@ -226,7 +226,7 @@ module Exp = struct
     | `Lam (i, e) -> (not (Id.equal i' i)) && is_free i' e
     | `App (f, x) -> is_free i' f || is_free i' x
     | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
-    | `Product fs -> fs |> List.exists (snd >> is_free i')
+    | `Product fs -> fs |> List.exists (snd >>> is_free i')
     | `Mu e | `Select (e, _) | `Inject (_, e) | `Case e -> is_free i' e
 
   let rec subst i the inn =
@@ -262,12 +262,12 @@ module Exp = struct
     | `Const _ | `Var _ | `Lam _ -> return true
     | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
     | `Product fs -> fs |> for_all (fun (_, e) -> is_total e)
-    | `Mu (`Lam (i, e)) -> is_total e << Env.add i e
+    | `Mu (`Lam (i, e)) -> is_total e <<< Env.add i e
     | `Select (e, _) | `Inject (_, e) -> is_total e
     | `App (`Var f, x) -> (
       let* f_opt r = Env.find_opt f r in
       match f_opt with None -> return false | Some f -> is_total (`App (f, x)))
-    | `App (`Lam (i, e), x) -> is_total x &&& (is_total e << Env.add i x)
+    | `App (`Lam (i, e), x) -> is_total x &&& (is_total e <<< Env.add i x)
     | `App (`Const _, x) -> is_total x
     | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
     | `App (`Case (`Product fs), s) ->
@@ -278,7 +278,7 @@ module Exp = struct
 
   let rec is_lam_or_case = function
     | `Lam _ -> true
-    | `Case (`Product fs) -> List.for_all (snd >> is_lam_or_case) fs
+    | `Case (`Product fs) -> List.for_all (snd >>> is_lam_or_case) fs
     | _ -> false
 
   let to_lam continue k i e =
@@ -341,7 +341,7 @@ module Exp = struct
       let* f =
         match f with
         | `Lam (i, e) ->
-          let* e = simplify e << Env.add i x in
+          let* e = simplify e <<< Env.add i x in
           return @@ `Lam (i, e)
         | _ -> return f
       in
@@ -352,7 +352,7 @@ module Exp = struct
         if cs_is_total then
           match (s, cs) with
           | `Inject (l, e), `Product fs ->
-            simplify @@ `App (List.find (fst >> Label.equal l) fs |> snd, e)
+            simplify @@ `App (List.find (fst >>> Label.equal l) fs |> snd, e)
           | _, `Product _ when may_inline_continuation s ->
             let* inlined =
               simplify
@@ -428,11 +428,11 @@ module Exp = struct
       | `Product fs ->
         let* fs_are_total =
           fs
-          |> List.filter (fst >> Label.equal l >> not)
+          |> List.filter (fst >>> Label.equal l >>> not)
           |> for_all (fun (_, e) -> is_total e)
         in
         if fs_are_total then
-          return @@ (fs |> List.find (fst >> Label.equal l) |> snd)
+          return @@ (fs |> List.find (fst >>> Label.equal l) |> snd)
         else
           default ()
       | _ -> default ())

@@ -13,6 +13,41 @@ module Compare : sig
     Set.OrderedType with type t = Lhs.t * Rhs.t
 end
 
+module Monad : sig
+  module type Monad = sig
+    type ('t1, 'x) t
+
+    val return : 'x -> ('e, 'x) t
+    val ( let* ) : ('e, 'x) t -> ('x -> ('e, 'y) t) -> ('e, 'y) t
+  end
+
+  module type S = sig
+    include Monad
+
+    val ( >> ) : ('r, unit) t -> ('r, 'x) t -> ('r, 'x) t
+
+    (* *)
+
+    val lift1 : ('d1 -> 'c) -> ('e, 'd1) t -> ('e, 'c) t
+    val lift2 : ('d1 -> 'd2 -> 'c) -> ('e, 'd1) t -> ('e, 'd2) t -> ('e, 'c) t
+
+    (* *)
+
+    val ( &&& ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
+    val ( ||| ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
+
+    (* *)
+
+    val traverse : ('x -> ('e, 'y) t) -> 'x list -> ('e, 'y list) t
+    val fold_left : ('y -> 'x -> ('e, 'y) t) -> 'y -> 'x list -> ('e, 'y) t
+    val iter : ('x -> ('e, unit) t) -> 'x list -> ('e, unit) t
+    val for_all : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
+    val exists : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
+  end
+
+  module Make (Core : Monad) : S with type ('t1, 'x) t = ('t1, 'x) Core.t
+end
+
 module ListExt : sig
   val for_alli : (int -> 'a -> bool) -> 'a list -> bool
   val equal_with : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
@@ -37,32 +72,9 @@ module UTF8 : sig
 end
 
 module Reader : sig
-  type ('e, 'x) t = 'e -> 'x
+  include Monad.S with type ('e, 'x) t = 'e -> 'x
 
   val run : 'e -> ('e, 'x) t -> 'x
-
-  (* *)
-
-  val return : 'x -> ('e, 'x) t
-  val ( let* ) : ('e, 'x) t -> ('x -> ('e, 'y) t) -> ('e, 'y) t
-
-  (* *)
-
-  val ( &&& ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
-  val ( ||| ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
-
-  (* *)
-
-  val lift1 : ('d1 -> 'c) -> ('e, 'd1) t -> ('e, 'c) t
-  val lift2 : ('d1 -> 'd2 -> 'c) -> ('e, 'd1) t -> ('e, 'd2) t -> ('e, 'c) t
-
-  (* *)
-
-  val traverse : ('x -> ('e, 'y) t) -> 'x list -> ('e, 'y list) t
-  val fold_left : ('y -> 'x -> ('e, 'y) t) -> 'y -> 'x list -> ('e, 'y) t
-  val iter : ('x -> ('e, unit) t) -> 'x list -> ('e, unit) t
-  val for_all : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
-  val exists : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
 end
 
 val id : 'a -> 'a
@@ -74,5 +86,5 @@ val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
 val ( <>? ) : int -> (unit -> int) -> int
 (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
 
-val ( >> ) : ('a -> 'b) -> ('b -> 'c) -> 'a -> 'c
-val ( << ) : ('b -> 'c) -> ('a -> 'b) -> 'a -> 'c
+val ( >>> ) : ('a -> 'b) -> ('b -> 'c) -> 'a -> 'c
+val ( <<< ) : ('b -> 'c) -> ('a -> 'b) -> 'a -> 'c
