@@ -8,7 +8,9 @@ let rec type_of_pat_lam = function
     Typ.product at
       (fs
       |> List.map
-           (Pair.map id @@ function `Pat p -> type_of_pat_lam p | `Ann t -> t))
+           (Pair.map Fun.id @@ function
+            | `Pat p -> type_of_pat_lam p
+            | `Ann t -> t))
   | `Pack (_, _, _, t) -> t
 
 let rec elaborate_pat p' e' = function

@@ -6,7 +6,6 @@ module UTF8 = UTF8
 module Reader = Reader
 module Monad = Monad
 
-let id x = x
 let failwithf = Exn.failwithf
 
 (* *)

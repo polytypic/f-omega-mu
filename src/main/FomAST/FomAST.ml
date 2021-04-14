@@ -38,7 +38,7 @@ module Kind = struct
     | `Arrow (_, dom, cod) ->
       [pp true dom; space_arrow_right_break_1; pp false cod]
       |> concat
-      |> if atomize then egyptian parens 2 else id
+      |> if atomize then egyptian parens 2 else Fun.id
 
   let pp kind = pp false kind |> FomPP.group
 
@@ -214,12 +214,16 @@ module Typ = struct
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
       let ls' =
-        ls |> ListExt.map_phys_eq (Pair.map_phys_eq id (subst_rec replaced env))
+        ls
+        |> ListExt.map_phys_eq
+             (Pair.map_phys_eq Fun.id (subst_rec replaced env))
       in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
       let ls' =
-        ls |> ListExt.map_phys_eq (Pair.map_phys_eq id (subst_rec replaced env))
+        ls
+        |> ListExt.map_phys_eq
+             (Pair.map_phys_eq Fun.id (subst_rec replaced env))
       in
       if ls == ls' then inn else `Sum (at, ls')
 
@@ -275,12 +279,16 @@ module Typ = struct
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
       let ls' =
-        ls |> ListExt.map_phys_eq (Pair.map_phys_eq id (subst_par replaced env))
+        ls
+        |> ListExt.map_phys_eq
+             (Pair.map_phys_eq Fun.id (subst_par replaced env))
       in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
       let ls' =
-        ls |> ListExt.map_phys_eq (Pair.map_phys_eq id (subst_par replaced env))
+        ls
+        |> ListExt.map_phys_eq
+             (Pair.map_phys_eq Fun.id (subst_par replaced env))
       in
       if ls == ls' then inn else `Sum (at, ls')
 
@@ -317,10 +325,10 @@ module Typ = struct
       let c' = norm c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
-      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq id norm) in
+      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm) in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
-      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq id norm) in
+      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm) in
       if ls == ls' then inn else `Sum (at, ls')
 
   (* Comparison *)
@@ -394,7 +402,7 @@ module Typ = struct
       | None -> [break_0; pp prec_min t |> group] |> concat |> nest 2 |> group);
     ]
     |> concat
-    |> if prec_min < prec_outer then egyptian parens 2 else id
+    |> if prec_min < prec_outer then egyptian parens 2 else Fun.id
 
   and quantifier prec_outer symbol (typ : t) =
     match typ with
@@ -439,7 +447,7 @@ module Typ = struct
         |> concat;
       ]
       |> concat
-      |> if prec_arrow < prec_outer then egyptian parens 2 else id
+      |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
     | `Product (_, labels) ->
       if Tuple.is_tuple labels then
         tuple labels |> egyptian parens 2

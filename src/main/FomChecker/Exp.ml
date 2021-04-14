@@ -119,14 +119,16 @@ let rec infer it : _ -> Typ.t =
   | `Case (at', cs) ->
     let* cs_typ = infer cs in
     let cs_fs = check_product_typ (at cs) cs_typ in
-    let cs_arrows = cs_fs |> List.map (Pair.map id (check_arrow_typ (at cs))) in
+    let cs_arrows =
+      cs_fs |> List.map (Pair.map Fun.id (check_arrow_typ (at cs)))
+    in
     let c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
       | [] -> Typ.zero (at cs)
       | t :: ts ->
         ts |> List.fold_left (fun a t -> Typ.join_of_norm (at cs) (a, t)) t
     in
-    let d_typ = `Sum (at cs, cs_arrows |> List.map (Pair.map id fst)) in
+    let d_typ = `Sum (at cs, cs_arrows |> List.map (Pair.map Fun.id fst)) in
     return @@ `Arrow (at', d_typ, c_typ)
   | `Pack (at', t, e, et) ->
     let* e_typ = infer e in

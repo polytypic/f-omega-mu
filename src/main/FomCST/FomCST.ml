@@ -58,8 +58,8 @@ module Exp = struct
       | ps ->
         `Product
           ( at',
-            ps |> Tuple.labels at |> List.map (Pair.map id @@ fun p -> `Pat p)
-          )
+            ps |> Tuple.labels at
+            |> List.map (Pair.map Fun.id @@ fun p -> `Pat p) )
   end
 
   type 'e f =

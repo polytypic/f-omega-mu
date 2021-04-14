@@ -77,9 +77,6 @@ module Reader : sig
   val run : 'e -> ('e, 'x) t -> 'x
 end
 
-val id : 'a -> 'a
-(** Identity function. *)
-
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
 (** Fail with formatted message. *)
 

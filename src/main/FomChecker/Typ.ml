@@ -183,7 +183,7 @@ module Goal = struct
 
   let to_subst =
     List.to_seq
-    >>> Seq.map (Pair.map id @@ fun i -> `Var (Id.at i, i))
+    >>> Seq.map (Pair.map Fun.id @@ fun i -> `Var (Id.at i, i))
     >>> Env.of_seq >>> subst_par
 
   let regularize_free_vars goal =
@@ -276,8 +276,9 @@ let rec to_strict (t : ['a FomAST.Typ.f | `Lazy of 'a Lazy.t] as 'a) =
   | `ForAll (at, t) -> `ForAll (at, to_strict t)
   | `Exists (at, t) -> `Exists (at, to_strict t)
   | `Arrow (at, d, c) -> `Arrow (at, to_strict d, to_strict c)
-  | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map id to_strict))
-  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map id to_strict))
+  | `Product (at, ls) ->
+    `Product (at, ls |> List.map (Pair.map Fun.id to_strict))
+  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map Fun.id to_strict))
   | `Lazy (lazy t) -> to_strict t
 
 let rec to_lazy = function
@@ -289,8 +290,8 @@ let rec to_lazy = function
   | `ForAll (at, t) -> `ForAll (at, to_lazy t)
   | `Exists (at, t) -> `Exists (at, to_lazy t)
   | `Arrow (at, d, c) -> `Arrow (at, to_lazy d, to_lazy c)
-  | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map id to_lazy))
-  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map id to_lazy))
+  | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map Fun.id to_lazy))
+  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map Fun.id to_lazy))
 
 let join_of_norm at g =
   let module GoalMap = Map.Make (Goal) in
