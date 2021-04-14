@@ -31,7 +31,7 @@ needs to be rewritten as
 ```
 
 Both of the above types are allowed by this generalized system and are also
-considered equivalent as show in this
+considered equivalent as shown in this
 [example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAAuAKgDoBtXHVzxOIABQBKADQgodALaiQ7ALogIuEmRCUaILNDggQLQD3Ah2DxCAkwhB8OPXgzjj2sy3HaSNWnXtpPAH0ARlM2Lj4LI1CnFwl3AxiQn01teDg6ADMgzxNwwGzgSN5WAA9OPJN2XlLfUgz6HOCwliKnMorklRq6+rh8AAt4fABrQuLWTzE86snk6a7qohNxbNyjfjUk2FDZNebN9U9UrSJB4ZGgA).
 
 In this generalized system, nested types are not allowed. For example,
