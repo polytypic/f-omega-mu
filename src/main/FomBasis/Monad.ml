@@ -68,7 +68,7 @@ module Make (Core : Monad) = struct
     in
     loop y xs
 
-  let iter f = fold_left (fun _ -> f) ()
+  let iter f = fold_left (Fun.const f) ()
 
   let traverse f xs =
     let* ys =
