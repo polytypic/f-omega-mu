@@ -1,3 +1,8 @@
+type 'a uop = 'a -> 'a
+type 'a bop = 'a -> 'a -> 'a
+type 'a bpr = 'a -> 'a -> bool
+type 'a cmp = 'a -> 'a -> int
+
 module Exn = Exn
 module Compare = Compare
 module ListExt = ListExt

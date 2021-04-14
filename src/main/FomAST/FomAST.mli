@@ -1,3 +1,4 @@
+open FomBasis
 open FomSource
 open FomPP
 
@@ -8,7 +9,7 @@ module Kind : sig
 
   (* Comparison *)
 
-  val compare : t -> t -> int
+  val compare : t cmp
 
   (* *)
 
@@ -32,8 +33,8 @@ module Typ : sig
 
     (* Comparison *)
 
-    val equal : t -> t -> bool
-    val compare : t -> t -> int
+    val equal : t bpr
+    val compare : t cmp
 
     (* Kinding *)
 
@@ -61,7 +62,7 @@ module Typ : sig
   type t = [ | t f]
 
   val at : 't f -> Loc.t
-  val set_at : Loc.t -> 't f -> 't f
+  val set_at : Loc.t -> 't f uop
 
   (* Macros *)
 
@@ -75,7 +76,7 @@ module Typ : sig
 
   (* Comparison *)
 
-  val compare : t -> t -> int
+  val compare : t cmp
 
   (* Type predicates *)
 
@@ -94,9 +95,9 @@ module Typ : sig
 
   val free : t -> IdSet.t
   val is_free : Id.t -> t -> bool
-  val subst : ?replaced:(Id.t -> t -> unit) -> Id.t -> t -> t -> t
-  val subst_par : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t -> t
-  val subst_rec : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t -> t
+  val subst : ?replaced:(Id.t -> t -> unit) -> Id.t -> t -> t uop
+  val subst_par : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t uop
+  val subst_rec : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t uop
   val norm : t -> t
 
   (* Formatting *)

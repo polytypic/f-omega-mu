@@ -1,3 +1,8 @@
+type 'a uop = 'a -> 'a
+type 'a bop = 'a -> 'a -> 'a
+type 'a bpr = 'a -> 'a -> bool
+type 'a cmp = 'a -> 'a -> int
+
 module Exn : sig
   val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
   (** Fail with formatted message. *)
@@ -7,7 +12,7 @@ module Compare : sig
   val ( <>? ) : int -> (unit -> int) -> int
   (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
 
-  val the : ('a -> 'b) -> ('b -> 'b -> int) -> 'a -> 'a -> int
+  val the : ('a -> 'b) -> 'b cmp -> 'a cmp
 
   module Pair (Lhs : Set.OrderedType) (Rhs : Set.OrderedType) :
     Set.OrderedType with type t = Lhs.t * Rhs.t
@@ -17,8 +22,8 @@ module Monad : sig
   module type Monad = sig
     type ('t1, 'x) t
 
-    val return : 'x -> ('e, 'x) t
-    val ( let* ) : ('e, 'x) t -> ('x -> ('e, 'y) t) -> ('e, 'y) t
+    val return : 'x -> ('t1, 'x) t
+    val ( let* ) : ('t1, 'x) t -> ('x -> ('t1, 'y) t) -> ('t1, 'y) t
   end
 
   module type S = sig
@@ -33,8 +38,8 @@ module Monad : sig
 
     (* *)
 
-    val ( &&& ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
-    val ( ||| ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
+    val ( &&& ) : ('e, bool) t bop
+    val ( ||| ) : ('e, bool) t bop
 
     (* *)
 
@@ -50,9 +55,9 @@ end
 
 module ListExt : sig
   val for_alli : (int -> 'a -> bool) -> 'a list -> bool
-  val equal_with : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
-  val compare_with : ('a -> 'a -> int) -> 'a list -> 'a list -> int
-  val map_phys_eq : ('a -> 'a) -> 'a list -> 'a list
+  val equal_with : 'a bpr -> 'a list bpr
+  val compare_with : 'a cmp -> 'a list cmp
+  val map_phys_eq : 'a uop -> 'a list uop
 end
 
 module Pair : sig
@@ -60,7 +65,7 @@ module Pair : sig
   (** Swap elements of a pair. *)
 
   val map : ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd
-  val map_phys_eq : ('a -> 'a) -> ('b -> 'b) -> 'a * 'b -> 'a * 'b
+  val map_phys_eq : 'a uop -> 'b uop -> ('a * 'b) uop
 end
 
 module UTF8 : sig
