@@ -4,6 +4,77 @@ open FomSource
 
 let ignore2 _ _ = ()
 
+module LitString = struct
+  type t = string
+
+  let compare = String.compare
+
+  (* *)
+
+  let of_utf8_json = Fun.id
+  let to_utf8_json = Fun.id
+
+  (* *)
+
+  let to_utf8 lit =
+    let buffer = Buffer.create (String.length lit * 2) in
+    let encoder = Uutf.encoder `UTF_8 @@ `Buffer buffer in
+    let hex_to_int h c =
+      (h lsl 4)
+      lor
+      if Uchar.of_char '0' <= c && c <= Uchar.of_char '9' then
+        Uchar.to_int c - Uchar.to_int (Uchar.of_char '0')
+      else if Uchar.of_char 'a' <= c && c <= Uchar.of_char 'f' then
+        Uchar.to_int c - Uchar.to_int (Uchar.of_char 'a') + 10
+      else
+        Uchar.to_int c - Uchar.to_int (Uchar.of_char 'A') + 10
+    in
+    lit
+    |> Uutf.String.fold_utf_8
+         (fun (s, i) _ u ->
+           let encode c =
+             Uutf.encode encoder @@ `Uchar c |> ignore;
+             (`Unescaped, i + 1)
+           in
+           match (s, u) with
+           | `Unescaped, `Uchar c ->
+             if Uchar.of_char '\\' = c then
+               (`Escaped, i + 1)
+             else if Uchar.of_char '"' = c then
+               (`Unescaped, i + 1)
+             else
+               encode c
+           | `Escaped, `Uchar c ->
+             if
+               Uchar.of_char '"' = c
+               || Uchar.of_char '\\' = c
+               || Uchar.of_char '/' = c
+             then
+               encode c
+             else if Uchar.of_char 'b' = c then
+               encode (Uchar.of_char '\b')
+             else if Uchar.of_char 'f' = c then
+               encode (Uchar.of_int 0x0c)
+             else if Uchar.of_char 'n' = c then
+               encode (Uchar.of_char '\n')
+             else if Uchar.of_char 'r' = c then
+               encode (Uchar.of_char '\r')
+             else if Uchar.of_char 't' = c then
+               encode (Uchar.of_char '\t')
+             else
+               (`Hex0, i + 1)
+           | `Hex0, `Uchar c -> (`Hex1 (hex_to_int 0 c), i + 1)
+           | `Hex1 h, `Uchar c -> (`Hex2 (hex_to_int h c), i + 1)
+           | `Hex2 h, `Uchar c -> (`Hex3 (hex_to_int h c), i + 1)
+           | `Hex3 h, `Uchar c -> encode (Uchar.of_int (hex_to_int h c))
+           | _, `Malformed _ ->
+             failwithf "Malformed UTF-8 in string literal at char index %d" i)
+         (`Unescaped, 0)
+    |> ignore;
+    Uutf.encode encoder `End |> ignore;
+    Buffer.contents buffer
+end
+
 module Kind = struct
   type t = [`Star of Loc.t | `Arrow of Loc.t * t * t]
 

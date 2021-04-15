@@ -1,6 +1,6 @@
 %token <Bigint.t> LitNat
 %token <bool> LitBool
-%token <string> LitString
+%token <FomCST.LitString.t> LitString
 
 %token <string> Id
 %token <string> Comment

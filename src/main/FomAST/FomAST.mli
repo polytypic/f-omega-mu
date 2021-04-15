@@ -2,6 +2,17 @@ open FomBasis
 open FomSource
 open FomPP
 
+module LitString : sig
+  include Map.OrderedType
+
+  val of_utf8_json : string -> t
+  val to_utf8_json : t -> string
+
+  (* *)
+
+  val to_utf8 : t -> string
+end
+
 module Kind : sig
   type t = [`Star of Loc.t | `Arrow of Loc.t * t * t]
 
@@ -111,7 +122,7 @@ module Exp : sig
     type ('nat, 't) t =
       [ `LitBool of bool
       | `LitNat of 'nat
-      | `LitString of string
+      | `LitString of LitString.t
       | `OpArithAdd
       | `OpArithDiv
       | `OpArithMinus
@@ -167,7 +178,7 @@ module Exp : sig
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
     | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
-    | `Target of Loc.t * 't * string ]
+    | `Target of Loc.t * 't * LitString.t ]
 
   type t = [ | (t, Typ.t) f]
 

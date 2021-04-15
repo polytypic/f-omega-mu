@@ -112,7 +112,9 @@ let rec token_or_comment buffer =
   (* *)
   | nat_10 -> return (LitNat (Buffer.lexeme_utf_8 buffer |> Bigint.of_string))
   (* *)
-  | string -> return (LitString (Buffer.lexeme_utf_8 buffer))
+  | string ->
+    return
+      (LitString (Buffer.lexeme_utf_8 buffer |> FomCST.LitString.of_utf8_json))
   (* *)
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
   (* *)

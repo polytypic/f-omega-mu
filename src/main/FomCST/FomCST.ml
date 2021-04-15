@@ -5,6 +5,7 @@ open FomSource
 
 (* *)
 
+module LitString = LitString
 module Kind = Kind
 module Label = Label
 
