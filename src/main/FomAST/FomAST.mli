@@ -10,6 +10,7 @@ module LitString : sig
 
   (* *)
 
+  val of_utf8 : string -> t
   val to_utf8 : t -> string
 end
 

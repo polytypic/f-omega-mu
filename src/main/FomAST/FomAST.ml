@@ -16,6 +16,47 @@ module LitString = struct
 
   (* *)
 
+  let of_utf8 str =
+    let buffer = Buffer.create (String.length str * 2) in
+    let encoder = Uutf.encoder `UTF_8 @@ `Buffer buffer in
+    let encode c = Uutf.encode encoder @@ `Uchar c |> ignore in
+    let to_hex i =
+      Uchar.of_int
+        (i
+        +
+        if 0 <= i && i <= 9 then
+          Uchar.to_int (Uchar.of_char '0')
+        else
+          Uchar.to_int (Uchar.of_char 'a') - 10)
+    in
+    encode @@ Uchar.of_char '"';
+    str
+    |> Uutf.String.fold_utf_8
+         (fun i _ -> function
+           | `Malformed _ ->
+             failwithf "Malformed UTF-8 in string at char index %d" i
+           | `Uchar u ->
+             let c = Uchar.to_int u in
+             if (0x0000 <= c && c <= 0x001f) || (0x007f <= c && c <= 0x009f)
+             then (
+               encode @@ Uchar.of_char '\\';
+               encode @@ Uchar.of_char 'u';
+               encode @@ to_hex ((c lsr 12) land 0xf);
+               encode @@ to_hex ((c lsr 8) land 0xf);
+               encode @@ to_hex ((c lsr 4) land 0xf);
+               encode @@ to_hex ((c lsr 0) land 0xf))
+             else if Uchar.of_char '"' = u || Uchar.of_char '\\' = u then (
+               encode @@ Uchar.of_char '\\';
+               encode u)
+             else
+               encode u;
+             i + 1)
+         0
+    |> ignore;
+    encode @@ Uchar.of_char '"';
+    Uutf.encode encoder `End |> ignore;
+    Buffer.contents buffer
+
   let to_utf8 lit =
     let buffer = Buffer.create (String.length lit * 2) in
     let encoder = Uutf.encoder `UTF_8 @@ `Buffer buffer in
