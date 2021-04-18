@@ -10,6 +10,8 @@ module Pair = Pair
 module UTF8 = UTF8
 module Reader = Reader
 module Conser = Conser
+module FilenameExt = FilenameExt
+module StringExt = StringExt
 module Monad = Monad
 
 let failwithf = Exn.failwithf

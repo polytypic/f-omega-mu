@@ -8,6 +8,10 @@ module Exn : sig
   (** Fail with formatted message. *)
 end
 
+module FilenameExt : sig
+  val canonic : string -> string
+end
+
 module Compare : sig
   val ( <>? ) : int -> (unit -> int) -> int
   (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
@@ -90,6 +94,15 @@ module Reader : sig
   include Monad.S with type ('e, 'x) t = 'e -> 'x
 
   val run : 'e -> ('e, 'x) t -> 'x
+end
+
+module StringExt : sig
+  val is_prefix : string bpr
+  val is_suffix : string bpr
+  val drop : int -> string uop
+  val drop_last : int -> string uop
+  val split : int -> string -> string * string
+  val split_on_char : char -> string -> string list
 end
 
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
