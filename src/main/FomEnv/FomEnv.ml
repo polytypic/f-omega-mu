@@ -14,5 +14,11 @@ module Env = struct
       val typ_aliases = Typ.Env.empty
       method get_typ_aliases = typ_aliases
       method map_typ_aliases f = {<typ_aliases = f typ_aliases>}
+      val includes = Typ.IncludeMap.empty
+      method get_includes = includes
+      method map_includes f = {<includes = f includes>}
+      val imports = Exp.ImportMap.empty
+      method get_imports = imports
+      method map_imports f = {<imports = f imports>}
     end
 end

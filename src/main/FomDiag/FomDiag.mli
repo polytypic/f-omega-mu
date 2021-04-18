@@ -7,6 +7,12 @@ module Error : sig
   val syntax : Loc.t -> string -> 'a
   val duplicated_label : Loc.t -> Label.t -> 'a
 
+  (* Source errors *)
+
+  val file_doesnt_exist : Loc.t -> string -> 'a
+  val cyclic_includes : Loc.t -> string -> Loc.t -> 'a
+  val cyclic_imports : Loc.t -> string -> Loc.t -> 'a
+
   (* Kind errors *)
 
   val kind_mismatch : Loc.t -> Kind.t -> Kind.t -> 'a

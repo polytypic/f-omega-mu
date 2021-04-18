@@ -26,7 +26,8 @@ module Typ = struct
   module Def = struct
     type 't f =
       [ `Typ of Loc.t * Id.t * Kind.t option * 't
-      | `TypRec of Loc.t * ((Id.t * Kind.t) * 't) list ]
+      | `TypRec of Loc.t * ((Id.t * Kind.t) * 't) list
+      | `Include of Loc.t * LitString.t ]
   end
 
   type 't f = ['t Typ.f | `LetDefIn of Loc.t * 't Def.f * 't]
@@ -34,6 +35,8 @@ module Typ = struct
 
   let at = function `LetDefIn (at, _, _) -> at | #Typ.f as ast -> Typ.at ast
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
+
+  module IncludeMap = Map.Make (String)
 end
 
 module Exp = struct
@@ -68,6 +71,7 @@ module Exp = struct
     | `AppL of Loc.t * 'e * 'e
     | `AppR of Loc.t * 'e * 'e
     | `LetDefIn of Loc.t * Typ.t Typ.Def.f * 'e
+    | `Import of Loc.t * LitString.t
     | `LetPat of Loc.t * Pat.t * Typ.t option * 'e * 'e
     | `LetPatRec of Loc.t * (Pat.t * 'e) list * 'e
     | `LamPat of Loc.t * Pat.t * 'e
@@ -79,6 +83,7 @@ module Exp = struct
     | `AppL (at, _, _)
     | `AppR (at, _, _)
     | `LetDefIn (at, _, _)
+    | `Import (at, _)
     | `LetPat (at, _, _, _, _)
     | `LetPatRec (at, _, _)
     | `LamPat (at, _, _)
@@ -90,6 +95,8 @@ module Exp = struct
 
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
+
+  module ImportMap = Map.Make (String)
 end
 
 let check_lab_list fs =

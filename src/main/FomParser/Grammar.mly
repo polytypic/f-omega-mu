@@ -10,7 +10,9 @@
 %token Case "case"
 %token Else "else"
 %token If "if"
+%token Import "import"
 %token In "in"
+%token Include "include"
 %token Int "int"
 %token Let "let"
 %token String "string"
@@ -109,6 +111,7 @@ typ_def:
   | "let""type"i=typ_bid"="t=typ                        {`Typ ($loc, i, None, t)}
   | "let""type"i=typ_bid":"k=kind"="t=typ               {`Typ ($loc, i, Some k, t)}
   | "let""type"bs=list_1(typ_mu_def, "and")             {`TypRec ($loc, bs)}
+  | "include"p=LitString                                {`Include ($loc, p)}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(b, t)}
@@ -202,6 +205,7 @@ exp_atom:
   | "["l=label"="e=exp"]"                               {`Inject ($loc, l, e)}
   | e=exp_atom"."l=label                                {`Select ($loc, e, l)}
   | "target""["t=typ"]"c=LitString                      {`Target ($loc, t, c)}
+  | "import"p=LitString                                 {`Import ($loc, p)}
 
 exp_app:
   | e=exp_atom                                          {e}

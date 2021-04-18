@@ -1,3 +1,3 @@
 (executable
  (name FomCommand)
- (libraries FomChecker FomEnv FomElab FomParser FomToJs))
+ (libraries FomChecker FomModules FomEnv FomElab FomParser FomToJs))

@@ -66,6 +66,19 @@ let rec elaborate_def =
     let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
     let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
     fun r -> Typ.Env.union (fun _ v _ -> Some v) env r#get_typ_aliases
+  | `Include (at', p) -> (
+    fun r ->
+      let filename = FomModules.resolve at' p ~ext:FomModules.inc_ext in
+      match FomCST.Typ.IncludeMap.find_opt filename r#get_includes with
+      | None -> failwithf "include %s not found" filename
+      | Some env ->
+        FomAST.Typ.Env.merge
+          (fun _ l r ->
+            match (l, r) with
+            | Some l, _ -> Some l
+            | _, Some r -> Some r
+            | _, _ -> None)
+          env r#get_typ_aliases)
 
 and elaborate_typ =
   let open Reader in
@@ -124,6 +137,14 @@ and elaborate_typ =
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     fun r -> elaborate_typ e @@ r#map_typ_aliases @@ Fun.const typ_aliases
+
+let rec elaborate_defs =
+  let open Reader in
+  function
+  | [] -> fun r -> r#get_typ_aliases
+  | def :: defs ->
+    let* typ_aliases = elaborate_def def in
+    fun r -> elaborate_defs defs @@ r#map_typ_aliases @@ Fun.const typ_aliases
 
 let maybe_annot e tO =
   let open Reader in
@@ -235,3 +256,9 @@ let rec elaborate =
     let* x = elaborate x in
     let* f = elaborate f in
     return @@ `App (at, f, x)
+  | `Import (at', p) -> (
+    let filename = FomModules.resolve at' p ~ext:FomModules.mod_ext in
+    fun r ->
+      match FomCST.Exp.ImportMap.find_opt filename r#get_imports with
+      | None -> failwithf "import %s not found" filename
+      | Some i -> `Var (at', i))

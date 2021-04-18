@@ -14,6 +14,35 @@ module Error = struct
       (at, concat [utf8string "Duplicated label "; Label.pp l])
       [(Label.at l, utf8string "Initial"); (at, utf8string "Duplicate")]
 
+  (* Source errors *)
+
+  let file_doesnt_exist at filename =
+    Diagnostic.error
+      ( at,
+        [
+          utf8string "File";
+          [break_1; utf8format "\"%s\"" filename] |> concat |> nest 2;
+          break_1;
+          utf8string "doesn't exist";
+        ]
+        |> concat |> group )
+      [(at, utf8format "File doesn't exist")]
+
+  let cyclic kind new_at filename old_at =
+    Diagnostic.error
+      ( new_at,
+        [
+          utf8string "The file";
+          [break_1; utf8format "\"%s\"" filename] |> concat |> nest 2;
+          break_1;
+          utf8format "is part of an %s cycle" kind;
+        ]
+        |> concat |> group )
+      [(old_at, utf8format "Start of cyclic %s chain" kind)]
+
+  let cyclic_includes at = cyclic "include" at
+  let cyclic_imports at = cyclic "import" at
+
   (* Kind errors *)
 
   let kind_mismatch at expected_kind actual_kind =

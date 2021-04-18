@@ -86,7 +86,9 @@ let rec token_or_comment buffer =
   | "false" -> return lit_false
   | "forall" | for_all -> return ForAll
   | "if" -> return If
+  | "import" -> return Import
   | "in" -> return In
+  | "include" -> return Include
   | "int" -> return Int
   | "let" -> return Let
   | "string" -> return String
@@ -181,7 +183,9 @@ let token_info_utf_8 input =
       | GreaterEqual -> operator
       | Id _ -> variable
       | If -> keyword
+      | Import -> keyword
       | In -> keyword
+      | Include -> keyword
       | Int -> builtin
       | LambdaLower -> tag
       | LambdaUpper -> tag
