@@ -2,7 +2,7 @@ open FomSource
 open FomAST
 
 module Error : sig
-  (* Syntax errprs *)
+  (* Syntax errors *)
 
   val syntax : Loc.t -> string -> 'a
   val duplicated_label : Loc.t -> Label.t -> 'a
