@@ -3,6 +3,16 @@ type 'a bop = 'a -> 'a -> 'a
 type 'a bpr = 'a -> 'a -> bool
 type 'a cmp = 'a -> 'a -> int
 
+module Compare : sig
+  val ( <>? ) : int -> (unit -> int) -> int
+  (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
+
+  val the : ('a -> 'b) -> 'b cmp -> 'a cmp
+
+  module Pair (Lhs : Set.OrderedType) (Rhs : Set.OrderedType) :
+    Set.OrderedType with type t = Lhs.t * Rhs.t
+end
+
 module Exn : sig
   val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
   (** Fail with formatted message. *)
@@ -12,14 +22,11 @@ module FilenameExt : sig
   val canonic : string -> string
 end
 
-module Compare : sig
-  val ( <>? ) : int -> (unit -> int) -> int
-  (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
-
-  val the : ('a -> 'b) -> 'b cmp -> 'a cmp
-
-  module Pair (Lhs : Set.OrderedType) (Rhs : Set.OrderedType) :
-    Set.OrderedType with type t = Lhs.t * Rhs.t
+module ListExt : sig
+  val for_alli : (int -> 'a -> bool) -> 'a list -> bool
+  val equal_with : 'a bpr -> 'a list bpr
+  val compare_with : 'a cmp -> 'a list cmp
+  val map_phys_eq : 'a uop -> 'a list uop
 end
 
 module Monad : sig
@@ -67,27 +74,12 @@ module Conser : sig
   val yield : 'r -> ('r, unit) t
 end
 
-module ListExt : sig
-  val for_alli : (int -> 'a -> bool) -> 'a list -> bool
-  val equal_with : 'a bpr -> 'a list bpr
-  val compare_with : 'a cmp -> 'a list cmp
-  val map_phys_eq : 'a uop -> 'a list uop
-end
-
 module Pair : sig
   val swap : 'a * 'b -> 'b * 'a
   (** Swap elements of a pair. *)
 
   val map : ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd
   val map_phys_eq : 'a uop -> 'b uop -> ('a * 'b) uop
-end
-
-module UTF8 : sig
-  val to_uchar_array : string -> Uchar.t array
-  (** Convert UTF-8 string to an array of Unicode characters. *)
-
-  val of_uchar_array : Uchar.t array -> string
-  (** Convert an array of Unicode characters to UTF-8 string. *)
 end
 
 module Reader : sig
@@ -103,6 +95,14 @@ module StringExt : sig
   val drop_last : int -> string uop
   val split : int -> string -> string * string
   val split_on_char : char -> string -> string list
+end
+
+module UTF8 : sig
+  val to_uchar_array : string -> Uchar.t array
+  (** Convert UTF-8 string to an array of Unicode characters. *)
+
+  val of_uchar_array : Uchar.t array -> string
+  (** Convert an array of Unicode characters to UTF-8 string. *)
 end
 
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a

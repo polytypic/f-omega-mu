@@ -3,16 +3,16 @@ type 'a bop = 'a -> 'a -> 'a
 type 'a bpr = 'a -> 'a -> bool
 type 'a cmp = 'a -> 'a -> int
 
-module Exn = Exn
 module Compare = Compare
-module ListExt = ListExt
-module Pair = Pair
-module UTF8 = UTF8
-module Reader = Reader
 module Conser = Conser
+module Exn = Exn
 module FilenameExt = FilenameExt
-module StringExt = StringExt
+module ListExt = ListExt
 module Monad = Monad
+module Pair = Pair
+module Reader = Reader
+module StringExt = StringExt
+module UTF8 = UTF8
 
 let failwithf = Exn.failwithf
 
