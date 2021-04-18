@@ -44,18 +44,21 @@ let compile filename =
   with
   | Stop -> ()
   | exn ->
+    let open FomPP in
     let message =
       match exn with
       | FomSource.Diagnostic.Error ((loc, overview), []) ->
-        let open FomPP in
-        [FomSource.Loc.pp loc; colon; break_1; overview]
-        |> concat |> nest 2 |> group |> to_string ~max_width
-      | FomSource.Diagnostic.Error ((_, overview), details) ->
-        let open FomPP in
         [
-          [overview; colon; break_0] |> concat;
+          [FomSource.Loc.pp loc; colon] |> concat;
+          [break_1; break_0; overview] |> concat |> nest 2 |> group;
+        ]
+        |> concat |> to_string ~max_width
+      | FomSource.Diagnostic.Error ((loc, overview), details) ->
+        [
+          [FomSource.Loc.pp loc; colon] |> concat;
+          [break_1; break_0; overview; colon] |> concat |> nest 2 |> group;
           [
-            break_0;
+            [break_0; break_0] |> concat;
             details
             |> List.map (fun (loc, msg) ->
                    [FomSource.Loc.pp loc; colon; break_1; msg]
