@@ -9,6 +9,7 @@ module ListExt = ListExt
 module Pair = Pair
 module UTF8 = UTF8
 module Reader = Reader
+module Conser = Conser
 module Monad = Monad
 
 let failwithf = Exn.failwithf

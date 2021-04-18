@@ -53,6 +53,16 @@ module Monad : sig
   module Make (Core : Monad) : S with type ('t1, 'x) t = ('t1, 'x) Core.t
 end
 
+module Conser : sig
+  include Monad.S with type ('r, 'a) t = 'r list -> 'a * 'r list
+
+  val run : ('r, 'a) t -> 'a * 'r list
+
+  (* *)
+
+  val yield : 'r -> ('r, unit) t
+end
+
 module ListExt : sig
   val for_alli : (int -> 'a -> bool) -> 'a list -> bool
   val equal_with : 'a bpr -> 'a list bpr
