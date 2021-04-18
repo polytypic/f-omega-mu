@@ -161,6 +161,7 @@ module Exp : sig
   end
 
   module Id : Id.S
+  module IdSet : Set.S with type elt = Id.t
   module Env : Map.S with type key = Id.t
 
   type ('e, 't) f =

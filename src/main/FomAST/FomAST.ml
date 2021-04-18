@@ -666,6 +666,7 @@ module Exp = struct
   end
 
   module Id = Id.Make ()
+  module IdSet = Set.Make (Id)
   module Env = Map.Make (Id)
 
   type ('e, 't) f =
