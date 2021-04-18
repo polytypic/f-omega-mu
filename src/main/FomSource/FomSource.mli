@@ -3,6 +3,12 @@ open FomPP
 module Pos : sig
   type t = Lexing.position
 
+  (* Constructors *)
+
+  val of_filename : string -> t
+
+  (* Accessors *)
+
   val column_of : t -> int
 
   (* Comparison *)
@@ -15,6 +21,7 @@ module Loc : sig
 
   (* Constructors *)
 
+  val of_filename : string -> t
   val dummy : t
   val union : t -> t -> t
 

@@ -1,5 +1,9 @@
 type t = Pos.t * Pos.t
 
+let of_filename filename =
+  let pos = Pos.of_filename filename in
+  (pos, pos)
+
 let dummy = (Lexing.dummy_pos, Lexing.dummy_pos)
 let union l r = (fst l, snd r)
 let filename ((l : Pos.t), _) = l.pos_fname
