@@ -42,7 +42,7 @@ let rec elaborate_def =
   function
   | `Typ (_, i, kO, t) ->
     let* t = elaborate_typ t in
-    Annot.Typ.alias i t
+    env_as (Annot.Typ.alias i t)
     >>
     let t =
       match kO with
@@ -52,7 +52,8 @@ let rec elaborate_def =
         let i = Typ.Id.fresh at in
         `App (at, `Lam (at, i, k, `Var (at, i)), t)
     in
-    fun r -> Typ.Env.add i (Typ.set_at (Typ.Id.at i) t) r#get_typ_aliases
+    env_as @@ fun r ->
+    Typ.Env.add i (Typ.set_at (Typ.Id.at i) t) r#get_typ_aliases
   | `TypRec (_, bs) ->
     let* assoc =
       bs
@@ -60,25 +61,29 @@ let rec elaborate_def =
              let at = Typ.Id.at i in
              let t = `Mu (at, `Lam (at, i, k, t)) in
              let* t = elaborate_typ t in
-             Annot.Typ.alias i t >> return (i, t))
+             env_as (Annot.Typ.alias i t) >> return (i, t))
     in
     let env = assoc |> List.to_seq |> Typ.Env.of_seq in
-    let* replaced r i t = Annot.Typ.use i (Typ.at t) r in
+    let* r = env_as Fun.id in
+    let replaced i t = Annot.Typ.use i (Typ.at t) r in
     let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
-    fun r -> Typ.Env.union (fun _ v _ -> Some v) env r#get_typ_aliases
+    env_as @@ fun r -> Typ.Env.union (fun _ v _ -> Some v) env r#get_typ_aliases
   | `Include (at', p) -> (
-    fun r ->
-      let filename = FomModules.resolve at' p ~ext:FomModules.inc_ext in
-      match FomCST.Typ.IncludeMap.find_opt filename r#get_includes with
-      | None -> failwithf "include %s not found" filename
-      | Some env ->
-        FomAST.Typ.Env.merge
-          (fun _ l r ->
-            match (l, r) with
-            | Some l, _ -> Some l
-            | _, Some r -> Some r
-            | _, _ -> None)
-          env r#get_typ_aliases)
+    let filename = FomModules.resolve at' p ~ext:FomModules.inc_ext in
+    let* env_opt =
+      env_as @@ fun r -> FomCST.Typ.IncludeMap.find_opt filename r#get_includes
+    in
+    match env_opt with
+    | None -> failwithf "include %s not found" filename
+    | Some env ->
+      env_as @@ fun r ->
+      FomAST.Typ.Env.merge
+        (fun _ l r ->
+          match (l, r) with
+          | Some l, _ -> Some l
+          | _, Some r -> Some r
+          | _, _ -> None)
+        env r#get_typ_aliases)
 
 and elaborate_typ =
   let open Reader in
@@ -88,22 +93,27 @@ and elaborate_typ =
     return @@ `Mu (at', t)
   | `Const (at', c) -> return @@ `Const (at', c)
   | `Var (at', i) -> (
-    fun r ->
-      match Typ.Env.find_opt i r#get_typ_aliases with
-      | None -> `Var (at', i)
-      | Some t ->
-        Annot.Typ.use i (Typ.at t) r;
-        t)
+    let* t_opt = env_as @@ fun r -> Typ.Env.find_opt i r#get_typ_aliases in
+    match t_opt with
+    | None -> return @@ `Var (at', i)
+    | Some t -> env_as (Annot.Typ.use i (Typ.at t)) >> return t)
   | `Lam (at', i, k, t) ->
-    fun r ->
-      let r = Typ.Env.remove i |> r#map_typ_aliases in
-      if Typ.Env.exists (fun _ t' -> Typ.is_free i t') r#get_typ_aliases then
-        let i' = Typ.Id.freshen i in
-        let v' = `Var (at', i') in
-        let t = elaborate_typ t (Typ.Env.add i' v' |> r#map_typ_aliases) in
-        `Lam (at', i', k, t)
-      else
-        `Lam (at', i, k, elaborate_typ t r)
+    with_env (fun r -> Typ.Env.remove i |> r#map_typ_aliases)
+    @@ let* exists =
+         env_as @@ fun r ->
+         Typ.Env.exists (fun _ t' -> Typ.is_free i t') r#get_typ_aliases
+       in
+       if exists then
+         let i' = Typ.Id.freshen i in
+         let v' = `Var (at', i') in
+         let* t =
+           elaborate_typ t
+           |> with_env @@ fun r -> Typ.Env.add i' v' |> r#map_typ_aliases
+         in
+         return @@ `Lam (at', i', k, t)
+       else
+         let* t = elaborate_typ t in
+         return @@ `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let* f = elaborate_typ f in
     let* x = elaborate_typ x in
@@ -136,15 +146,17 @@ and elaborate_typ =
     return @@ `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    fun r -> elaborate_typ e @@ r#map_typ_aliases @@ Fun.const typ_aliases
+    elaborate_typ e
+    |> with_env @@ fun r -> r#map_typ_aliases @@ Fun.const typ_aliases
 
 let rec elaborate_defs =
   let open Reader in
   function
-  | [] -> fun r -> r#get_typ_aliases
+  | [] -> env_as @@ fun r -> r#get_typ_aliases
   | def :: defs ->
     let* typ_aliases = elaborate_def def in
-    fun r -> elaborate_defs defs @@ r#map_typ_aliases @@ Fun.const typ_aliases
+    elaborate_defs defs
+    |> with_env @@ fun r -> r#map_typ_aliases @@ Fun.const typ_aliases
 
 let maybe_annot e tO =
   let open Reader in
@@ -160,7 +172,8 @@ let rec elaborate =
   let open Reader in
   function
   | `Const (at, c) ->
-    fun r -> `Const (at, Exp.Const.map_typ (fun t -> elaborate_typ t r) c)
+    let* c = c |> Exp.Const.traverse_typ elaborate_typ in
+    return @@ `Const (at, c)
   | `Var _ as ast -> return ast
   | `Target (at, t, s) ->
     let* t = elaborate_typ t in
@@ -191,7 +204,8 @@ let rec elaborate =
     return @@ `LetIn (at, i, v, e)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    fun r -> elaborate e @@ r#map_typ_aliases @@ Fun.const typ_aliases
+    elaborate e
+    |> with_env @@ fun r -> r#map_typ_aliases @@ Fun.const typ_aliases
   | `Mu (at, e) ->
     let* e = elaborate e in
     return @@ `Mu (at, e)
@@ -258,7 +272,9 @@ let rec elaborate =
     return @@ `App (at, f, x)
   | `Import (at', p) -> (
     let filename = FomModules.resolve at' p ~ext:FomModules.mod_ext in
-    fun r ->
-      match FomCST.Exp.ImportMap.find_opt filename r#get_imports with
-      | None -> failwithf "import %s not found" filename
-      | Some i -> `Var (at', i))
+    let* i_opt =
+      env_as @@ fun r -> FomCST.Exp.ImportMap.find_opt filename r#get_imports
+    in
+    match i_opt with
+    | None -> failwithf "import %s not found" filename
+    | Some i -> return @@ `Var (at', i))

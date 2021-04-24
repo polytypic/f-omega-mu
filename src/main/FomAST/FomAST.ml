@@ -629,6 +629,21 @@ module Exp = struct
       | `OpEq t -> `OpEq (tu t)
       | `OpEqNot t -> `OpEqNot (tu t)
 
+    let traverse_typ tuM =
+      let open Reader in
+      function
+      | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
+        | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+        | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
+        | `OpLogicalNot | `OpLogicalOr ) as c ->
+        return c
+      | `OpEq t ->
+        let* t = tuM t in
+        return @@ `OpEq t
+      | `OpEqNot t ->
+        let* t = tuM t in
+        return @@ `OpEqNot t
+
     let collect_typ = function
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
       | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub

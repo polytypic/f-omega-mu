@@ -76,7 +76,7 @@ let find_opt_non_contractive_mu at f arity =
     | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
   | _ -> None
 
-let rec infer typ : _ -> Kind.t =
+let rec infer typ : (_, _, Kind.t) Reader.t =
   let open Reader in
   let quantifier symbol f =
     let* f_kind = infer f in
@@ -100,13 +100,16 @@ let rec infer typ : _ -> Kind.t =
       return c_kind)
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
-    let* i_kind_opt e = Env.find_opt i e#get_typ_env in
+    let* i_kind_opt = env_as @@ fun e -> Env.find_opt i e#get_typ_env in
     match i_kind_opt with
     | None -> Error.typ_var_unbound at' i
-    | Some (def, i_kind) -> Annot.Typ.use i (Id.at def) >> return i_kind)
+    | Some (def, i_kind) ->
+      env_as (Annot.Typ.use i (Id.at def)) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
-    Annot.Typ.def d d_kind
-    >> let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> infer r in
+    env_as (Annot.Typ.def d d_kind)
+    >> let* r_kind =
+         infer r |> with_env @@ fun e -> Env.add d (d, d_kind) |> e#map_typ_env
+       in
        return @@ `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) -> (
     let* f_kind = infer f in
@@ -133,18 +136,20 @@ and check expected t =
 
 (* *)
 
-let rec kind_of checked_typ : _ -> Kind.t =
+let rec kind_of checked_typ : (_, _, Kind.t) Reader.t =
   let open Reader in
   match checked_typ with
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
-    let* i_kind_opt e = Env.find_opt i e#get_typ_env in
+    let* i_kind_opt = env_as @@ fun e -> Env.find_opt i e#get_typ_env in
     match i_kind_opt with
     | None -> failwith "Impossible"
     | Some (_, i_kind) -> return i_kind)
   | `Lam (at', d, d_kind, r) ->
-    let* r_kind e = Env.add d (d, d_kind) |> e#map_typ_env |> kind_of r in
+    let* r_kind =
+      kind_of r |> with_env @@ fun e -> Env.add d (d, d_kind) |> e#map_typ_env
+    in
     return @@ `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)
@@ -154,7 +159,7 @@ let rec kind_of checked_typ : _ -> Kind.t =
   | `Sum (at', _) ->
     return @@ `Star at'
 
-and kind_of_cod checked_typ : _ -> Kind.t =
+and kind_of_cod checked_typ : (_, _, Kind.t) Reader.t =
   let open Reader in
   let* f_kind = kind_of checked_typ in
   match f_kind with

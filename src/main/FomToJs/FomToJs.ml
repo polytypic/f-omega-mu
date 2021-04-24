@@ -263,12 +263,13 @@ module Exp = struct
     | `Const _ | `Var _ | `Lam _ -> return true
     | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
     | `Product fs -> fs |> for_all (fun (_, e) -> is_total e)
-    | `Mu (`Lam (i, e)) -> is_total e <<< Env.add i e
+    | `Mu (`Lam (i, e)) -> is_total e |> with_env @@ Env.add i e
     | `Select (e, _) | `Inject (_, e) -> is_total e
     | `App (`Var f, x) -> (
-      let* f_opt r = Env.find_opt f r in
+      let* f_opt = env_as @@ Env.find_opt f in
       match f_opt with None -> return false | Some f -> is_total (`App (f, x)))
-    | `App (`Lam (i, e), x) -> is_total x &&& (is_total e <<< Env.add i x)
+    | `App (`Lam (i, e), x) ->
+      is_total x &&& (is_total e |> with_env @@ Env.add i x)
     | `App (`Const _, x) -> is_total x
     | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
     | `App (`Case (`Product fs), s) ->
@@ -342,7 +343,7 @@ module Exp = struct
       let* f =
         match f with
         | `Lam (i, e) ->
-          let* e = simplify e <<< Env.add i x in
+          let* e = simplify e |> with_env @@ Env.add i x in
           return @@ `Lam (i, e)
         | _ -> return f
       in

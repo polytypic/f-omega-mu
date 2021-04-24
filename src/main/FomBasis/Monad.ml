@@ -1,32 +1,42 @@
 module type Monad = sig
-  type ('t1, 'x) t
+  type ('T1, 'T2, 'a) t
 
-  val return : 'x -> ('e, 'x) t
-  val ( let* ) : ('e, 'x) t -> ('x -> ('e, 'y) t) -> ('e, 'y) t
+  val return : 'a -> ('T1, 'T2, 'a) t
+
+  val ( let* ) :
+    ('T1, 'T2, 'a) t -> ('a -> ('T1, 'T2, 'b) t) -> ('T1, 'T2, 'b) t
 end
 
 module type S = sig
   include Monad
 
-  val ( >> ) : ('r, unit) t -> ('r, 'x) t -> ('r, 'x) t
+  val ( >> ) : ('T1, 'T2, unit) t -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'a) t
 
   (* *)
 
-  val lift1 : ('d1 -> 'c) -> ('e, 'd1) t -> ('e, 'c) t
-  val lift2 : ('d1 -> 'd2 -> 'c) -> ('e, 'd1) t -> ('e, 'd2) t -> ('e, 'c) t
+  val lift1 : ('d1 -> 'c) -> ('T1, 'T2, 'd1) t -> ('T1, 'T2, 'c) t
+
+  val lift2 :
+    ('d1 -> 'd2 -> 'c) ->
+    ('T1, 'T2, 'd1) t ->
+    ('T1, 'T2, 'd2) t ->
+    ('T1, 'T2, 'c) t
 
   (* *)
 
-  val ( &&& ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
-  val ( ||| ) : ('e, bool) t -> ('e, bool) t -> ('e, bool) t
+  val ( &&& ) : ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t
+  val ( ||| ) : ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t
 
   (* *)
 
-  val traverse : ('x -> ('e, 'y) t) -> 'x list -> ('e, 'y list) t
-  val fold_left : ('y -> 'x -> ('e, 'y) t) -> 'y -> 'x list -> ('e, 'y) t
-  val iter : ('x -> ('e, unit) t) -> 'x list -> ('e, unit) t
-  val for_all : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
-  val exists : ('x -> ('e, bool) t) -> 'x list -> ('e, bool) t
+  val traverse : ('a -> ('T1, 'T2, 'b) t) -> 'a list -> ('T1, 'T2, 'b list) t
+
+  val fold_left :
+    ('b -> 'a -> ('T1, 'T2, 'b) t) -> 'b -> 'a list -> ('T1, 'T2, 'b) t
+
+  val iter : ('a -> ('T1, 'T2, unit) t) -> 'a list -> ('T1, 'T2, unit) t
+  val for_all : ('a -> ('T1, 'T2, bool) t) -> 'a list -> ('T1, 'T2, bool) t
+  val exists : ('a -> ('T1, 'T2, bool) t) -> 'a list -> ('T1, 'T2, bool) t
 end
 
 module Make (Core : Monad) = struct

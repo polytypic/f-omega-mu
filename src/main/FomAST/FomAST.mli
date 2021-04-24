@@ -148,6 +148,12 @@ module Exp : sig
     (* Substitution *)
 
     val map_typ : ('t -> 'u) -> ('nat, 't) t -> ('nat, 'u) t
+
+    val traverse_typ :
+      ('t -> ('r, 'e, 'u) Reader.t) ->
+      ('nat, 't) t ->
+      ('r, 'e, ('nat, 'u) t) Reader.t
+
     val collect_typ : ('nat, 't) t -> 't list
 
     (* Constants *)
