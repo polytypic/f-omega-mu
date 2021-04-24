@@ -418,9 +418,9 @@ module Exp = struct
     | `Product fs ->
       let* fs =
         fs
-        |> traverse (fun (l, e) ->
-               let* e = simplify e in
-               return (l, e))
+        |> traverse @@ fun (l, e) ->
+           let* e = simplify e in
+           return (l, e)
       in
       return @@ `Product fs
     | `Select (e, l) -> (
@@ -482,11 +482,10 @@ module Exp = struct
       let* x = to_js_expr x in
       let* fs =
         fs
-        |> traverse (fun (l, e) ->
-               let* e = simplify @@ `App (e, v1) in
-               let* e = to_js_stmts is_top Ids.empty e in
-               return @@ str "case " ^ Label.to_js_atom l ^ str ": {" ^ e
-               ^ str "}")
+        |> traverse @@ fun (l, e) ->
+           let* e = simplify @@ `App (e, v1) in
+           let* e = to_js_stmts is_top Ids.empty e in
+           return @@ str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
       in
       return @@ str "const [" ^ Id.to_js i0 ^ str ", " ^ Id.to_js i1
       ^ str "] = " ^ x ^ str "; switch (" ^ Id.to_js i0 ^ str ") "
@@ -536,14 +535,14 @@ module Exp = struct
     | `Product fs ->
       let* fs =
         fs
-        |> traverse (function
-             | l, `Var i
-               when Label.to_string l = Id.to_string i
-                    && not (Js.is_illegal_id (Id.to_string i)) ->
-               return @@ Label.to_js_label l
-             | l, e ->
-               let* e = to_js_expr e in
-               return @@ Label.to_js_label l ^ str ": " ^ e)
+        |> traverse @@ function
+           | l, `Var i
+             when Label.to_string l = Id.to_string i
+                  && not (Js.is_illegal_id (Id.to_string i)) ->
+             return @@ Label.to_js_label l
+           | l, e ->
+             let* e = to_js_expr e in
+             return @@ Label.to_js_label l ^ str ": " ^ e
       in
       return @@ parens
       @@ (fs |> List.fold_left (fun es e -> es ^ e ^ str ", ") (str "{"))

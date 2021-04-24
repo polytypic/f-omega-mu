@@ -104,9 +104,9 @@ let rec infer it : (_, _, Typ.t) Reader.t =
   | `Product (at, fs) ->
     let* fs =
       fs
-      |> traverse (fun (l, e) ->
-             let* e_typ = infer e in
-             return (l, e_typ))
+      |> traverse @@ fun (l, e) ->
+         let* e_typ = infer e in
+         return (l, e_typ)
     in
     return @@ Typ.product at fs
   | `Select (_, p, l) -> (

@@ -57,11 +57,11 @@ let rec elaborate_def =
   | `TypRec (_, bs) ->
     let* assoc =
       bs
-      |> traverse (fun ((i, k), t) ->
-             let at = Typ.Id.at i in
-             let t = `Mu (at, `Lam (at, i, k, t)) in
-             let* t = elaborate_typ t in
-             env_as (Annot.Typ.alias i t) >> return (i, t))
+      |> traverse @@ fun ((i, k), t) ->
+         let at = Typ.Id.at i in
+         let t = `Mu (at, `Lam (at, i, k, t)) in
+         let* t = elaborate_typ t in
+         env_as (Annot.Typ.alias i t) >> return (i, t)
     in
     let env = assoc |> List.to_seq |> Typ.Env.of_seq in
     let* r = env_as Fun.id in
@@ -131,17 +131,17 @@ and elaborate_typ =
   | `Product (at', ls) ->
     let* ls =
       ls
-      |> traverse (fun (l, t) ->
-             let* t = elaborate_typ t in
-             return (l, t))
+      |> traverse @@ fun (l, t) ->
+         let* t = elaborate_typ t in
+         return (l, t)
     in
     return @@ `Product (at', ls)
   | `Sum (at', ls) ->
     let* ls =
       ls
-      |> traverse (fun (l, t) ->
-             let* t = elaborate_typ t in
-             return (l, t))
+      |> traverse @@ fun (l, t) ->
+         let* t = elaborate_typ t in
+         return (l, t)
     in
     return @@ `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
@@ -217,9 +217,9 @@ let rec elaborate =
   | `Product (at, fs) ->
     let* fs =
       fs
-      |> traverse (fun (l, e) ->
-             let* e = elaborate e in
-             return (l, e))
+      |> traverse @@ fun (l, e) ->
+         let* e = elaborate e in
+         return (l, e)
     in
     return @@ `Product (at, fs)
   | `Select (at, e, l) ->
