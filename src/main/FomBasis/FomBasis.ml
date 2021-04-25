@@ -6,6 +6,7 @@ type 'a cmp = 'a -> 'a -> int
 module Compare = Compare
 module Conser = Conser
 module Exn = Exn
+module Field = Field
 module FilenameExt = FilenameExt
 module ListExt = ListExt
 module Monad = Monad

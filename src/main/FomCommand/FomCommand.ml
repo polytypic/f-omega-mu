@@ -49,7 +49,7 @@ let rec process_includes include_chain at p =
     cst |> FomModules.find_deps_defs
     |> List.iter (fun (`Include (at, p)) -> process_includes include_chain at p);
     let env =
-      FomEnv.Env.empty () |> fun r -> r#map_includes (Fun.const !includeMap)
+      FomEnv.Env.empty () |> Field.set FomElab.Includes.field !includeMap
     in
     let env = cst |> FomElab.elaborate_defs |> Reader.run env in
     includeMap := FomCST.Typ.IncludeMap.add inc_filename env !includeMap)
@@ -118,9 +118,9 @@ let process filename =
       process_imports FomAST.Exp.IdSet.empty PathMap.empty at p cst
     in
     let env =
-      FomEnv.Env.empty () |> fun r ->
-      r#map_includes (Fun.const !includeMap) |> fun r ->
-      r#map_imports (Fun.const !importMap)
+      FomEnv.Env.empty ()
+      |> Field.set FomElab.Includes.field !includeMap
+      |> Field.set FomElab.Imports.field !importMap
     in
     let ast = cst |> FomElab.elaborate |> Reader.run env in
     let typ = ast |> FomChecker.Exp.infer |> Reader.run env in

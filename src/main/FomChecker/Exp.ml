@@ -8,6 +8,22 @@ include FomAST.Exp
 
 (* *)
 
+module Env = struct
+  include Env
+
+  type t = (Id.t * Typ.t) Env.t
+
+  let field r = r#exp_env
+
+  class con =
+    object
+      val exp_env : t = Env.empty
+      method exp_env = Field.make exp_env (fun v -> {<exp_env = v>})
+    end
+end
+
+(* *)
+
 let typ_infer_and_norm typ =
   let open Reader in
   let* kind = Typ.infer typ in
@@ -55,16 +71,14 @@ let rec infer it : (_, _, Typ.t) Reader.t =
   match it with
   | `Const (at, c) -> typ_infer_and_norm (Const.type_of at c)
   | `Var (at, x) -> (
-    let* x_typ_opt = env_as @@ fun e -> Env.find_opt x e#get_exp_env in
+    let* x_typ_opt = get_as Env.field (Env.find_opt x) in
     match x_typ_opt with
     | None -> Error.var_unbound at x
     | Some (def, x_typ) -> env_as (Annot.Exp.use x (Id.at def)) >> return x_typ)
   | `Lam (at, d, d_typ, r) ->
     let* d_typ = typ_infer_and_norm d_typ in
     env_as (Annot.Exp.def d d_typ)
-    >> let* r_typ =
-         infer r |> with_env @@ fun e -> Env.add d (d, d_typ) |> e#map_exp_env
-       in
+    >> let* r_typ = mapping Env.field (Env.add d (d, d_typ)) (infer r) in
        return @@ `Arrow (at, d_typ, r_typ)
   | `App (_, f, x) ->
     let* f_typ = infer f in
@@ -75,8 +89,7 @@ let rec infer it : (_, _, Typ.t) Reader.t =
   | `Gen (at, d, d_kind, r) ->
     env_as (Annot.Typ.def d d_kind)
     >> let* r_typ =
-         infer r
-         |> with_env @@ fun e -> Typ.Env.add d (d, d_kind) |> e#map_typ_env
+         mapping Typ.Env.field (Typ.Env.add d (d, d_kind)) (infer r)
        in
        return @@ `ForAll (at, Typ.norm (`Lam (at, d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
@@ -88,8 +101,7 @@ let rec infer it : (_, _, Typ.t) Reader.t =
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
     env_as (Annot.Exp.def d x_typ)
-    >> infer r
-    |> with_env @@ fun e -> Env.add d (d, x_typ) |> e#map_exp_env
+    >> mapping Env.field (Env.add d (d, x_typ)) (infer r)
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let d_typ, c_typ = check_arrow_typ (at f) f_typ in
@@ -153,10 +165,8 @@ let rec infer it : (_, _, Typ.t) Reader.t =
     >> env_as (Annot.Typ.def tid d_kind)
     >> let* e_typ =
          infer e
-         |> with_env @@ fun r ->
-            let r = r#map_typ_env (Typ.Env.add tid (tid, d_kind)) in
-            let r = r#map_exp_env (Env.add id (id, id_typ)) in
-            r
+         |> mapping Env.field (Env.add id (id, id_typ))
+         |> mapping Typ.Env.field (Typ.Env.add tid (tid, d_kind))
        in
        if Typ.is_free tid e_typ then
          Error.typ_var_escapes at tid e_typ;

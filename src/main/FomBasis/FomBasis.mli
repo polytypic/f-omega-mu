@@ -18,6 +18,15 @@ module Exn : sig
   (** Fail with formatted message. *)
 end
 
+module Field : sig
+  type ('a, 'r) t
+
+  val make : 'a -> ('a -> 'r) -> ('a, 'r) t
+  val get : ('r -> ('a, 'r) t) -> 'r -> 'a
+  val map : ('r -> ('a, 'r) t) -> 'a uop -> 'r uop
+  val set : ('r -> ('a, 'r) t) -> 'a -> 'r uop
+end
+
 module FilenameExt : sig
   val canonic : string -> string
 end
@@ -97,8 +106,18 @@ module Reader : sig
   include Monad.S
 
   val run : 'r -> ('T1, 'r, 'a) t -> 'a
+
+  (* *)
+
   val env_as : ('r -> 'a) -> ('T1, 'r, 'a) t
   val with_env : ('r -> 's) -> ('T1, 's, 'a) t -> ('T1, 'r, 'a) t
+
+  (* *)
+
+  val get : ('r -> ('f, 'r) Field.t) -> ('T1, 'r, 'f) t
+  val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('T1, 'r, 'g) t
+  val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('T1, 'r, 'a) t uop
+  val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('T1, 'r, 'a) t uop
 end
 
 module StringExt : sig

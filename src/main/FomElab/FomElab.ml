@@ -2,6 +2,42 @@ open FomBasis
 open FomAST
 open FomAnnot
 
+module TypAliases = struct
+  type t = FomAST.Typ.t FomAST.Typ.Env.t
+
+  let field r = r#typ_aliases
+
+  class con =
+    object
+      val typ_aliases : t = Typ.Env.empty
+      method typ_aliases = Field.make typ_aliases (fun v -> {<typ_aliases = v>})
+    end
+end
+
+module Includes = struct
+  type t = FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t
+
+  let field r = r#includes
+
+  class con =
+    object
+      val includes : t = FomCST.Typ.IncludeMap.empty
+      method includes = Field.make includes (fun v -> {<includes = v>})
+    end
+end
+
+module Imports = struct
+  type t = FomAST.Exp.Id.t FomCST.Exp.ImportMap.t
+
+  let field r = r#imports
+
+  class con =
+    object
+      val imports : t = FomCST.Exp.ImportMap.empty
+      method imports = Field.make imports (fun v -> {<imports = v>})
+    end
+end
+
 let rec type_of_pat_lam = function
   | `Id (_, _, t) -> t
   | `Product (at, fs) ->
@@ -52,8 +88,7 @@ let rec elaborate_def =
         let i = Typ.Id.fresh at in
         `App (at, `Lam (at, i, k, `Var (at, i)), t)
     in
-    env_as @@ fun r ->
-    Typ.Env.add i (Typ.set_at (Typ.Id.at i) t) r#get_typ_aliases
+    get_as TypAliases.field (Typ.Env.add i (Typ.set_at (Typ.Id.at i) t))
   | `TypRec (_, bs) ->
     let* assoc =
       bs
@@ -67,23 +102,23 @@ let rec elaborate_def =
     let* r = env_as Fun.id in
     let replaced i t = Annot.Typ.use i (Typ.at t) r in
     let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
-    env_as @@ fun r -> Typ.Env.union (fun _ v _ -> Some v) env r#get_typ_aliases
+    get_as TypAliases.field (Typ.Env.union (fun _ v _ -> Some v) env)
   | `Include (at', p) -> (
     let filename = FomModules.resolve at' p ~ext:FomModules.inc_ext in
     let* env_opt =
-      env_as @@ fun r -> FomCST.Typ.IncludeMap.find_opt filename r#get_includes
+      get_as Includes.field (FomCST.Typ.IncludeMap.find_opt filename)
     in
     match env_opt with
     | None -> failwithf "include %s not found" filename
     | Some env ->
-      env_as @@ fun r ->
-      FomAST.Typ.Env.merge
-        (fun _ l r ->
-          match (l, r) with
-          | Some l, _ -> Some l
-          | _, Some r -> Some r
-          | _, _ -> None)
-        env r#get_typ_aliases)
+      get_as TypAliases.field
+      @@ FomAST.Typ.Env.merge
+           (fun _ l r ->
+             match (l, r) with
+             | Some l, _ -> Some l
+             | _, Some r -> Some r
+             | _, _ -> None)
+           env)
 
 and elaborate_typ =
   let open Reader in
@@ -93,22 +128,20 @@ and elaborate_typ =
     return @@ `Mu (at', t)
   | `Const (at', c) -> return @@ `Const (at', c)
   | `Var (at', i) -> (
-    let* t_opt = env_as @@ fun r -> Typ.Env.find_opt i r#get_typ_aliases in
+    let* t_opt = get_as TypAliases.field (Typ.Env.find_opt i) in
     match t_opt with
     | None -> return @@ `Var (at', i)
     | Some t -> env_as (Annot.Typ.use i (Typ.at t)) >> return t)
   | `Lam (at', i, k, t) ->
-    with_env (fun r -> Typ.Env.remove i |> r#map_typ_aliases)
+    mapping TypAliases.field (Typ.Env.remove i)
     @@ let* exists =
-         env_as @@ fun r ->
-         Typ.Env.exists (fun _ t' -> Typ.is_free i t') r#get_typ_aliases
+         get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
        in
        if exists then
          let i' = Typ.Id.freshen i in
          let v' = `Var (at', i') in
          let* t =
-           elaborate_typ t
-           |> with_env @@ fun r -> Typ.Env.add i' v' |> r#map_typ_aliases
+           mapping TypAliases.field (Typ.Env.add i' v') (elaborate_typ t)
          in
          return @@ `Lam (at', i', k, t)
        else
@@ -146,17 +179,15 @@ and elaborate_typ =
     return @@ `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    elaborate_typ e
-    |> with_env @@ fun r -> r#map_typ_aliases @@ Fun.const typ_aliases
+    setting TypAliases.field typ_aliases (elaborate_typ e)
 
 let rec elaborate_defs =
   let open Reader in
   function
-  | [] -> env_as @@ fun r -> r#get_typ_aliases
+  | [] -> get TypAliases.field
   | def :: defs ->
     let* typ_aliases = elaborate_def def in
-    elaborate_defs defs
-    |> with_env @@ fun r -> r#map_typ_aliases @@ Fun.const typ_aliases
+    setting TypAliases.field typ_aliases (elaborate_defs defs)
 
 let maybe_annot e tO =
   let open Reader in
@@ -204,8 +235,7 @@ let rec elaborate =
     return @@ `LetIn (at, i, v, e)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    elaborate e
-    |> with_env @@ fun r -> r#map_typ_aliases @@ Fun.const typ_aliases
+    setting TypAliases.field typ_aliases (elaborate e)
   | `Mu (at, e) ->
     let* e = elaborate e in
     return @@ `Mu (at, e)
@@ -273,7 +303,7 @@ let rec elaborate =
   | `Import (at', p) -> (
     let filename = FomModules.resolve at' p ~ext:FomModules.mod_ext in
     let* i_opt =
-      env_as @@ fun r -> FomCST.Exp.ImportMap.find_opt filename r#get_imports
+      get_as Imports.field (FomCST.Exp.ImportMap.find_opt filename)
     in
     match i_opt with
     | None -> failwithf "import %s not found" filename
