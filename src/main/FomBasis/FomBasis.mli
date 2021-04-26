@@ -3,6 +3,10 @@ type 'a bop = 'a -> 'a -> 'a
 type 'a bpr = 'a -> 'a -> bool
 type 'a cmp = 'a -> 'a -> int
 
+module Zero : sig
+  type t = |
+end
+
 module Compare : sig
   val ( <>? ) : int -> (unit -> int) -> int
   (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)

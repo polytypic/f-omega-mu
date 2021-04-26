@@ -14,6 +14,7 @@ module Pair = Pair
 module Reader = Reader
 module StringExt = StringExt
 module UTF8 = UTF8
+module Zero = Zero
 
 let failwithf = Exn.failwithf
 
