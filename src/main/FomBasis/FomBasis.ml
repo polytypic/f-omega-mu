@@ -11,6 +11,7 @@ module FilenameExt = FilenameExt
 module ListExt = ListExt
 module Monad = Monad
 module Pair = Pair
+module Rea = Rea
 module Reader = Reader
 module StringExt = StringExt
 module UTF8 = UTF8

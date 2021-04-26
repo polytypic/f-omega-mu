@@ -107,6 +107,32 @@ module Pair : sig
   val map_phys_eq : 'a uop -> 'b uop -> ('a * 'b) uop
 end
 
+module Rea : sig
+  include Monad.S
+
+  val start : 'r -> ('r, Zero.t, unit) t -> unit
+
+  (* *)
+
+  val try_in :
+    ('r, 'e, 'a) t ->
+    ('a -> ('r, 'f, 'b) t) ->
+    ('e -> ('r, 'f, 'b) t) ->
+    ('r, 'f, 'b) t
+
+  (* *)
+
+  val env_as : ('r -> 'a) -> ('r, 'e, 'a) t
+  val with_env : ('r -> 's) -> ('s, 'e, 'a) t -> ('r, 'e, 'a) t
+
+  (* *)
+
+  val get : ('r -> ('f, 'r) Field.t) -> ('r, 'e, 'f) t
+  val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('r, 'e, 'g) t
+  val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('r, 'e, 'a) t uop
+  val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('r, 'e, 'a) t uop
+end
+
 module Reader : sig
   include Monad.S
 
