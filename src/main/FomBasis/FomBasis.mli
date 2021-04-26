@@ -105,19 +105,19 @@ end
 module Reader : sig
   include Monad.S
 
-  val run : 'r -> ('T1, 'r, 'a) t -> 'a
+  val run : 'r -> ('r, 'T2, 'a) t -> 'a
 
   (* *)
 
-  val env_as : ('r -> 'a) -> ('T1, 'r, 'a) t
-  val with_env : ('r -> 's) -> ('T1, 's, 'a) t -> ('T1, 'r, 'a) t
+  val env_as : ('r -> 'a) -> ('r, 'T2, 'a) t
+  val with_env : ('r -> 's) -> ('s, 'T2, 'a) t -> ('r, 'T2, 'a) t
 
   (* *)
 
-  val get : ('r -> ('f, 'r) Field.t) -> ('T1, 'r, 'f) t
-  val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('T1, 'r, 'g) t
-  val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('T1, 'r, 'a) t uop
-  val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('T1, 'r, 'a) t uop
+  val get : ('r -> ('f, 'r) Field.t) -> ('r, 'T2, 'f) t
+  val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('r, 'T2, 'g) t
+  val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('r, 'T2, 'a) t uop
+  val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('r, 'T2, 'a) t uop
 end
 
 module StringExt : sig

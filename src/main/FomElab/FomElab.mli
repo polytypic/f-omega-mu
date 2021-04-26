@@ -36,37 +36,37 @@ end
 
 val elaborate_defs :
   FomCST.Typ.t FomCST.Typ.Def.f list ->
-  ( 'x,
-    (< annotations : Annot.t
+  ( (< annotations : Annot.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; includes : (Includes.t, 'r) Field.t
      ; .. >
      as
      'r),
+    'x,
     FomAST.Typ.t FomAST.Typ.Env.t )
   Reader.t
 
 val elaborate_typ :
   FomCST.Typ.t ->
-  ( 'x,
-    (< annotations : Annot.t
+  ( (< annotations : Annot.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; includes : (Includes.t, 'r) Field.t
      ; .. >
      as
      'r),
+    'x,
     FomAST.Typ.t )
   Reader.t
 
 val elaborate :
   FomCST.Exp.t ->
-  ( 'x,
-    (< annotations : Annot.t
+  ( (< annotations : Annot.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; includes : (Includes.t, 'r) Field.t
      ; imports : (Imports.t, 'r) Field.t
      ; .. >
      as
      'r),
+    'x,
     FomAST.Exp.t )
   Reader.t

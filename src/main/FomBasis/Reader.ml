@@ -1,5 +1,5 @@
 include Monad.Make (struct
-  type ('T1, 'r, 'a) t = 'r -> 'a
+  type ('r, 'T2, 'a) t = 'r -> 'a
 
   let return x _ = x
   let ( let* ) xM xyM r = xyM (xM r) r
