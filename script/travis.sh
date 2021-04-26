@@ -22,9 +22,9 @@ if [ "$TRAVIS" = true ]; then
   folded "Installing packages" \
     opam install -y \
       bignum \
+      cohttp-lwt-unix \
+      cohttp-lwt-jsoo \
       dune \
-      js_of_ocaml \
-      js_of_ocaml-ppx \
       menhir \
       pprint \
       sedlex \
