@@ -10,6 +10,7 @@ end
 module type S = sig
   include Monad
 
+  val map : ('a -> 'b) -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'b) t
   val ( >> ) : ('T1, 'T2, unit) t -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'a) t
 
   (* *)
@@ -41,6 +42,10 @@ end
 
 module Make (Core : Monad) = struct
   include Core
+
+  let map ab aM =
+    let* a = aM in
+    return @@ ab a
 
   let ( >> ) xW yW =
     let* () = xW in
