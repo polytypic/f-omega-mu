@@ -6,6 +6,10 @@ include Monad.Make (struct
   let ( let* ) xW xyW rs =
     let x, rs = xW rs in
     xyW x rs
+
+  let ( let+ ) xW xy rs =
+    let x, rs = xW rs in
+    (xy x, rs)
 end)
 
 let yield r rs = ((), r :: rs)

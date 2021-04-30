@@ -19,6 +19,15 @@ include Monad.Make (struct
             | `Error e -> k @@ Error e
             | `Async on -> on k)
           | Error e -> k @@ Error e)
+
+  let ( let+ ) xM xy r =
+    match xM r with
+    | `Ok x -> `Ok (xy x)
+    | `Error e -> `Error e
+    | `Async on ->
+      `Async
+        (fun k ->
+          on @@ function Ok x -> k @@ Ok (xy x) | Error e -> k @@ Error e)
 end)
 
 let start r (xM : ('r, Zero.t, unit) t) =

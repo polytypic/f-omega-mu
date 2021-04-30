@@ -3,6 +3,7 @@ include Monad.Make (struct
 
   let return x _ = x
   let ( let* ) xM xyM r = xyM (xM r) r
+  let ( let+ ) xM xy r = xy (xM r)
 end)
 
 let run r x = x r

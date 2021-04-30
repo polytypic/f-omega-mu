@@ -50,12 +50,12 @@ module Monad : sig
 
     val ( let* ) :
       ('T1, 'T2, 'a) t -> ('a -> ('T1, 'T2, 'b) t) -> ('T1, 'T2, 'b) t
+
+    val ( let+ ) : ('T1, 'T2, 'a) t -> ('a -> 'b) -> ('T1, 'T2, 'b) t
   end
 
   module type S = sig
     include Monad
-
-    val ( let+ ) : ('T1, 'T2, 'a) t -> ('a -> 'b) -> ('T1, 'T2, 'b) t
 
     (* *)
 
