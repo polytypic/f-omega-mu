@@ -55,7 +55,10 @@ module Monad : sig
   module type S = sig
     include Monad
 
-    val map : ('a -> 'b) -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'b) t
+    val ( let+ ) : ('T1, 'T2, 'a) t -> ('a -> 'b) -> ('T1, 'T2, 'b) t
+
+    (* *)
+
     val ( >> ) : ('T1, 'T2, unit) t -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'a) t
 
     (* *)

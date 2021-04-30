@@ -95,14 +95,14 @@ let find_opt_non_contractive_mu at f arity =
 let rec infer typ : (_, _, Kind.t) Reader.t =
   let open Reader in
   let quantifier symbol f =
-    let* f_kind = infer f in
+    let+ f_kind = infer f in
     match f_kind with
-    | `Arrow (_, _, (`Star _ as c_kind)) -> return c_kind
+    | `Arrow (_, _, (`Star _ as c_kind)) -> c_kind
     | _ -> Error.quantifier_kind (at typ) symbol f f_kind
   in
   match typ with
   | `Mu (at', f) -> (
-    let* f_kind = infer f in
+    let+ f_kind = infer f in
     match f_kind with
     | `Star _ -> Error.mu_kind at' f f_kind
     | `Arrow (_, d_kind, c_kind) ->
@@ -113,7 +113,7 @@ let rec infer typ : (_, _, Kind.t) Reader.t =
       |> Option.iter (Error.mu_nested at' typ);
       find_opt_non_contractive_mu at' f c_arity
       |> Option.iter (Error.mu_non_contractive at' typ);
-      return c_kind)
+      c_kind)
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
     let* i_kind_opt = get_as Env.field (Env.find_opt i) in
@@ -123,16 +123,16 @@ let rec infer typ : (_, _, Kind.t) Reader.t =
       env_as (Annot.Typ.use i (Id.at def)) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
     env_as (Annot.Typ.def d d_kind)
-    >> let* r_kind = mapping Env.field (Env.add d (d, d_kind)) (infer r) in
-       return @@ `Arrow (at', d_kind, r_kind)
+    >> let+ r_kind = mapping Env.field (Env.add d (d, d_kind)) (infer r) in
+       `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) -> (
     let* f_kind = infer f in
     match f_kind with
     | `Star _ -> Error.app_of_kind_star at' f x
     | `Arrow (_, d_kind, c_kind) ->
-      let* x_kind = infer x in
+      let+ x_kind = infer x in
       Kind.check_equal at' x_kind d_kind;
-      return c_kind)
+      c_kind)
   | `ForAll (_, f) -> quantifier FomPP.for_all f
   | `Exists (_, f) -> quantifier FomPP.exists f
   | `Arrow (at', d, c) ->
@@ -144,9 +144,8 @@ let rec infer typ : (_, _, Kind.t) Reader.t =
 
 and check expected t =
   let open Reader in
-  let* actual = infer t in
-  Kind.check_equal (at t) expected actual;
-  return ()
+  let+ actual = infer t in
+  Kind.check_equal (at t) expected actual
 
 (* *)
 
@@ -156,13 +155,13 @@ let rec kind_of checked_typ : (_, _, Kind.t) Reader.t =
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
-    let* i_kind_opt = get_as Env.field (Env.find_opt i) in
+    let+ i_kind_opt = get_as Env.field (Env.find_opt i) in
     match i_kind_opt with
     | None -> failwith "Impossible"
-    | Some (_, i_kind) -> return i_kind)
+    | Some (_, i_kind) -> i_kind)
   | `Lam (at', d, d_kind, r) ->
-    let* r_kind = mapping Env.field (Env.add d (d, d_kind)) (kind_of r) in
-    return @@ `Arrow (at', d_kind, r_kind)
+    let+ r_kind = mapping Env.field (Env.add d (d, d_kind)) (kind_of r) in
+    `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)
   | `Exists (at', _)
@@ -173,10 +172,10 @@ let rec kind_of checked_typ : (_, _, Kind.t) Reader.t =
 
 and kind_of_cod checked_typ : (_, _, Kind.t) Reader.t =
   let open Reader in
-  let* f_kind = kind_of checked_typ in
+  let+ f_kind = kind_of checked_typ in
   match f_kind with
   | `Star _ -> failwith "Impossible"
-  | `Arrow (_, _, c_kind) -> return c_kind
+  | `Arrow (_, _, c_kind) -> c_kind
 
 (* *)
 

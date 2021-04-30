@@ -10,7 +10,12 @@ end
 module type S = sig
   include Monad
 
-  val map : ('a -> 'b) -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'b) t
+  (* *)
+
+  val ( let+ ) : ('T1, 'T2, 'a) t -> ('a -> 'b) -> ('T1, 'T2, 'b) t
+
+  (* *)
+
   val ( >> ) : ('T1, 'T2, unit) t -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'a) t
 
   (* *)
@@ -43,7 +48,7 @@ end
 module Make (Core : Monad) = struct
   include Core
 
-  let map ab aM =
+  let ( let+ ) aM ab =
     let* a = aM in
     return @@ ab a
 
@@ -54,8 +59,8 @@ module Make (Core : Monad) = struct
   (* *)
 
   let lift1 xy x =
-    let* x = x in
-    return @@ xy x
+    let+ x = x in
+    xy x
 
   let lift2 xyz x y =
     let* x = x in
@@ -90,8 +95,8 @@ module Make (Core : Monad) = struct
       xs
       |> fold_left
            (fun ys x ->
-             let* y = f x in
-             return (y :: ys))
+             let+ y = f x in
+             y :: ys)
            []
     in
     return @@ List.rev ys

@@ -343,8 +343,8 @@ module Exp = struct
       let* f =
         match f with
         | `Lam (i, e) ->
-          let* e = simplify e |> with_env @@ Env.add i x in
-          return @@ `Lam (i, e)
+          let+ e = simplify e |> with_env @@ Env.add i x in
+          `Lam (i, e)
         | _ -> return f
       in
       let default () = return @@ `App (f, x) in
@@ -360,12 +360,11 @@ module Exp = struct
               simplify
                 (inline_continuation s (lam @@ fun s -> `App (`Case cs, s)))
             in
-            let* defaulted = default () in
-            return
-              (if size inlined * 3 < size defaulted * 4 then
-                 inlined
-              else
-                defaulted)
+            let+ defaulted = default () in
+            if size inlined * 3 < size defaulted * 4 then
+              inlined
+            else
+              defaulted
           | _ -> default ()
         else
           default ()
@@ -393,36 +392,33 @@ module Exp = struct
         let* x_is_total = is_total x in
         if x_is_total then
           let* applied = apply () in
-          let* defaulted = default () in
-          return
-            (if size applied * 3 < size defaulted * 4 then
-               applied
-            else
-              defaulted)
+          let+ defaulted = default () in
+          if size applied * 3 < size defaulted * 4 then
+            applied
+          else
+            defaulted
         else
           default ()
       | _ -> default ())
     | `Mu e -> (
-      let* e = simplify e in
-      match e with
-      | `Lam (i, e) when not (is_free i e) -> return e
-      | e -> return @@ `Mu e)
+      let+ e = simplify e in
+      match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
     | `IfElse (c, t, e) -> (
       let* c = simplify c in
       match c with
       | `Const (`LitBool c) -> simplify (if c then t else e)
       | _ ->
         let* t = simplify t in
-        let* e = simplify e in
-        return @@ `IfElse (c, t, e))
+        let+ e = simplify e in
+        `IfElse (c, t, e))
     | `Product fs ->
-      let* fs =
+      let+ fs =
         fs
         |> traverse @@ fun (l, e) ->
-           let* e = simplify e in
-           return (l, e)
+           let+ e = simplify e in
+           (l, e)
       in
-      return @@ `Product fs
+      `Product fs
     | `Select (e, l) -> (
       let* e = simplify e in
       let default () = return @@ `Select (e, l) in
@@ -439,17 +435,17 @@ module Exp = struct
           default ()
       | _ -> default ())
     | `Case cs ->
-      let* cs = simplify cs in
-      return @@ `Case cs
+      let+ cs = simplify cs in
+      `Case cs
     | `Inject (l, e) ->
-      let* e = simplify e in
-      return @@ `Inject (l, e)
+      let+ e = simplify e in
+      `Inject (l, e)
 
   let rec to_js_stmts is_top ids exp =
     let open Reader in
     let default () =
-      let* e = to_js_expr exp in
-      return @@ (if is_top then str "" else str "return ") ^ e ^ str ";"
+      let+ e = to_js_expr exp in
+      (if is_top then str "" else str "return ") ^ e ^ str ";"
     in
     match exp with
     | `App (`Lam (i, e), v) ->
@@ -468,34 +464,34 @@ module Exp = struct
         let b =
           if is_free i e then str "const " ^ Id.to_js i ^ str " = " else str ""
         in
-        let* e = to_js_stmts is_top (Ids.add i ids) e in
-        return @@ b ^ v ^ str "; " ^ e
+        let+ e = to_js_stmts is_top (Ids.add i ids) e in
+        b ^ v ^ str "; " ^ e
     | `IfElse (c, t, e) ->
       let* c = to_js_expr c in
       let* t = to_js_stmts is_top Ids.empty t in
-      let* e = to_js_stmts is_top Ids.empty e in
-      return @@ str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
+      let+ e = to_js_stmts is_top Ids.empty e in
+      str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
     | `App (`Case (`Product fs), x) ->
       let i0 = Id.fresh Loc.dummy in
       let i1 = Id.fresh Loc.dummy in
       let v1 = `Var i1 in
       let* x = to_js_expr x in
-      let* fs =
+      let+ fs =
         fs
         |> traverse @@ fun (l, e) ->
            let* e = simplify @@ `App (e, v1) in
-           let* e = to_js_stmts is_top Ids.empty e in
-           return @@ str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
+           let+ e = to_js_stmts is_top Ids.empty e in
+           str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
       in
-      return @@ str "const [" ^ Id.to_js i0 ^ str ", " ^ Id.to_js i1
-      ^ str "] = " ^ x ^ str "; switch (" ^ Id.to_js i0 ^ str ") "
+      str "const [" ^ Id.to_js i0 ^ str ", " ^ Id.to_js i1 ^ str "] = " ^ x
+      ^ str "; switch (" ^ Id.to_js i0 ^ str ") "
       ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
       ^ str "}"
     | `App (`Case cs, x) ->
       let i = Id.fresh Loc.dummy in
       let* x = to_js_expr x in
-      let* cs = to_js_expr cs in
-      return @@ str "const " ^ Id.to_js i ^ str " = " ^ x ^ str "; "
+      let+ cs = to_js_expr cs in
+      str "const " ^ Id.to_js i ^ str " = " ^ x ^ str "; "
       ^ (if is_top then str "" else str "return ")
       ^ cs ^ str "[" ^ Id.to_js i ^ str "[0]](" ^ Id.to_js i ^ str "[1])"
     | _ -> default ()
@@ -517,23 +513,23 @@ module Exp = struct
     | `Var i -> return @@ Id.to_js i
     | `Lam (i, `Mu (`Var i')) when Id.equal i i' -> return @@ str "rec"
     | `Lam (i, e) ->
-      let* e = to_js_stmts false (Ids.singleton i) e in
-      return @@ parens @@ Id.to_js i ^ str " => {" ^ e ^ str "}"
+      let+ e = to_js_stmts false (Ids.singleton i) e in
+      parens @@ Id.to_js i ^ str " => {" ^ e ^ str "}"
     | `Mu (`Lam (f, `Lam (x, e))) ->
-      let* e = to_js_stmts false (Ids.singleton x) e in
-      return @@ parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x
-      ^ str ") {" ^ e ^ str "}"
+      let+ e = to_js_stmts false (Ids.singleton x) e in
+      parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {"
+      ^ e ^ str "}"
     | `Mu f ->
-      let* f = to_js_expr f in
-      return @@ str "rec(" ^ f ^ str ")"
+      let+ f = to_js_expr f in
+      str "rec(" ^ f ^ str ")"
     | `IfElse (c, t, e) ->
       let* c = to_js_expr c in
       let* t = to_js_expr t in
-      let* e = to_js_expr e in
-      return @@ parens @@ c ^ str " ? " ^ t ^ str " : " ^ e
+      let+ e = to_js_expr e in
+      parens @@ c ^ str " ? " ^ t ^ str " : " ^ e
     | `Product [] -> return @@ str "undefined"
     | `Product fs ->
-      let* fs =
+      let+ fs =
         fs
         |> traverse @@ function
            | l, `Var i
@@ -541,33 +537,33 @@ module Exp = struct
                   && not (Js.is_illegal_id (Id.to_string i)) ->
              return @@ Label.to_js_label l
            | l, e ->
-             let* e = to_js_expr e in
-             return @@ Label.to_js_label l ^ str ": " ^ e
+             let+ e = to_js_expr e in
+             Label.to_js_label l ^ str ": " ^ e
       in
-      return @@ parens
+      parens
       @@ (fs |> List.fold_left (fun es e -> es ^ e ^ str ", ") (str "{"))
       ^ str "}"
     | `Select (e, l) ->
-      let* e = to_js_expr e in
-      return (e ^ Label.to_js_select l)
+      let+ e = to_js_expr e in
+      e ^ Label.to_js_select l
     | `Inject (l, e) ->
-      let* e = to_js_expr e in
-      return @@ str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
+      let+ e = to_js_expr e in
+      str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
     | `App (`Lam (i, e), v) ->
       let* v = to_js_expr v in
-      let* e = to_js_stmts false (Ids.singleton i) e in
-      return @@ str "(" ^ Id.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
+      let+ e = to_js_stmts false (Ids.singleton i) e in
+      str "(" ^ Id.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
     | `App (`Case _, _) as e ->
-      let* e = to_js_stmts false Ids.empty e in
-      return @@ str "(() => {" ^ e ^ str "})()"
+      let+ e = to_js_stmts false Ids.empty e in
+      str "(() => {" ^ e ^ str "})()"
     | `Case cs ->
       let i = Id.fresh Loc.dummy in
       to_js_expr @@ `Lam (i, `App (`Case cs, `Var i))
     | `App (f, x) -> (
       let default () =
         let* f = to_js_expr f in
-        let* x = to_js_expr x in
-        return @@ f ^ str "(" ^ x ^ str ")"
+        let+ x = to_js_expr x in
+        f ^ str "(" ^ x ^ str ")"
       in
       match exp with
       | `App (`App (`Const c, lhs), rhs) ->
@@ -576,8 +572,8 @@ module Exp = struct
           default ()
         else
           let* lhs = to_js_expr lhs in
-          let* rhs = to_js_expr rhs in
-          return @@ parens
+          let+ rhs = to_js_expr rhs in
+          parens
           @@ coerce_to_int_if (Typ.is_int result)
           @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs
       | `App (`Const c, rhs) ->
@@ -585,9 +581,8 @@ module Exp = struct
         if n <> 1 then
           default ()
         else
-          let* rhs = to_js_expr rhs in
-          return @@ parens
-          @@ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ rhs)
+          let+ rhs = to_js_expr rhs in
+          parens @@ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ rhs)
       | _ -> default ())
     | `Target lit -> return @@ parens @@ str @@ LitString.to_utf8 lit
 end

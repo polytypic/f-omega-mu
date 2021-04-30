@@ -124,8 +124,8 @@ and elaborate_typ =
   let open Reader in
   function
   | `Mu (at', t) ->
-    let* t = elaborate_typ t in
-    return @@ `Mu (at', t)
+    let+ t = elaborate_typ t in
+    `Mu (at', t)
   | `Const (at', c) -> return @@ `Const (at', c)
   | `Var (at', i) -> (
     let* t_opt = get_as TypAliases.field (Typ.Env.find_opt i) in
@@ -140,43 +140,43 @@ and elaborate_typ =
        if exists then
          let i' = Typ.Id.freshen i in
          let v' = `Var (at', i') in
-         let* t =
+         let+ t =
            mapping TypAliases.field (Typ.Env.add i' v') (elaborate_typ t)
          in
-         return @@ `Lam (at', i', k, t)
+         `Lam (at', i', k, t)
        else
-         let* t = elaborate_typ t in
-         return @@ `Lam (at', i, k, t)
+         let+ t = elaborate_typ t in
+         `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let* f = elaborate_typ f in
-    let* x = elaborate_typ x in
-    return @@ `App (at', f, x)
+    let+ x = elaborate_typ x in
+    `App (at', f, x)
   | `ForAll (at', t) ->
-    let* t = elaborate_typ t in
-    return @@ `ForAll (at', t)
+    let+ t = elaborate_typ t in
+    `ForAll (at', t)
   | `Exists (at', t) ->
-    let* t = elaborate_typ t in
-    return @@ `Exists (at', t)
+    let+ t = elaborate_typ t in
+    `Exists (at', t)
   | `Arrow (at', d, c) ->
     let* d = elaborate_typ d in
-    let* c = elaborate_typ c in
-    return @@ `Arrow (at', d, c)
+    let+ c = elaborate_typ c in
+    `Arrow (at', d, c)
   | `Product (at', ls) ->
-    let* ls =
+    let+ ls =
       ls
       |> traverse @@ fun (l, t) ->
-         let* t = elaborate_typ t in
-         return (l, t)
+         let+ t = elaborate_typ t in
+         (l, t)
     in
-    return @@ `Product (at', ls)
+    `Product (at', ls)
   | `Sum (at', ls) ->
-    let* ls =
+    let+ ls =
       ls
       |> traverse @@ fun (l, t) ->
-         let* t = elaborate_typ t in
-         return (l, t)
+         let+ t = elaborate_typ t in
+         (l, t)
     in
-    return @@ `Sum (at', ls)
+    `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     setting TypAliases.field typ_aliases (elaborate_typ e)
@@ -194,87 +194,87 @@ let maybe_annot e tO =
   match tO with
   | None -> return e
   | Some t ->
-    let* t = elaborate_typ t in
+    let+ t = elaborate_typ t in
     let at = Typ.at t in
     let i = Exp.Id.fresh at in
-    return @@ `App (at, `Lam (at, i, t, `Var (at, i)), e)
+    `App (at, `Lam (at, i, t, `Var (at, i)), e)
 
 let rec elaborate =
   let open Reader in
   function
   | `Const (at, c) ->
-    let* c = c |> Exp.Const.traverse_typ elaborate_typ in
-    return @@ `Const (at, c)
+    let+ c = c |> Exp.Const.traverse_typ elaborate_typ in
+    `Const (at, c)
   | `Var _ as ast -> return ast
   | `Target (at, t, s) ->
-    let* t = elaborate_typ t in
-    return @@ `Target (at, t, s)
+    let+ t = elaborate_typ t in
+    `Target (at, t, s)
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
     let* t = elaborate_typ t in
-    let* e = elaborate e in
-    return @@ `Lam (at, i, t, e)
+    let+ e = elaborate e in
+    `Lam (at, i, t, e)
   | `App (at, f, x) ->
     let* f = elaborate f in
-    let* x = elaborate x in
-    return @@ `App (at, f, x)
+    let+ x = elaborate x in
+    `App (at, f, x)
   | `Gen (at, i, k, e) ->
-    let* e = elaborate e in
-    return @@ `Gen (at, i, k, e)
+    let+ e = elaborate e in
+    `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let* e = elaborate e in
-    let* t = elaborate_typ t in
-    return @@ `Inst (at, e, t)
+    let+ t = elaborate_typ t in
+    `Inst (at, e, t)
   | `LetIn (at, i, v, e) ->
     let* v = elaborate v in
-    let* e = elaborate e in
-    return @@ `LetIn (at, i, v, e)
+    let+ e = elaborate e in
+    `LetIn (at, i, v, e)
   | `LetPat (at, `Id (_, i, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    let* e = elaborate e in
-    return @@ `LetIn (at, i, v, e)
+    let+ e = elaborate e in
+    `LetIn (at, i, v, e)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     setting TypAliases.field typ_aliases (elaborate e)
   | `Mu (at, e) ->
-    let* e = elaborate e in
-    return @@ `Mu (at, e)
+    let+ e = elaborate e in
+    `Mu (at, e)
   | `IfElse (at, c, t, e) ->
     let* c = elaborate c in
     let* t = elaborate t in
-    let* e = elaborate e in
-    return @@ `IfElse (at, c, t, e)
+    let+ e = elaborate e in
+    `IfElse (at, c, t, e)
   | `Product (at, fs) ->
-    let* fs =
+    let+ fs =
       fs
       |> traverse @@ fun (l, e) ->
-         let* e = elaborate e in
-         return (l, e)
+         let+ e = elaborate e in
+         (l, e)
     in
-    return @@ `Product (at, fs)
+    `Product (at, fs)
   | `Select (at, e, l) ->
-    let* e = elaborate e in
-    return @@ `Select (at, e, l)
+    let+ e = elaborate e in
+    `Select (at, e, l)
   | `Inject (at, l, e) ->
-    let* e = elaborate e in
-    return @@ `Inject (at, l, e)
+    let+ e = elaborate e in
+    `Inject (at, l, e)
   | `Case (at, cs) ->
-    let* cs = elaborate cs in
-    return @@ `Case (at, cs)
+    let+ cs = elaborate cs in
+    `Case (at, cs)
   | `Pack (at, t, e, x) ->
     let* t = elaborate_typ t in
     let* e = elaborate e in
-    let* x = elaborate_typ x in
-    return @@ `Pack (at, t, e, x)
+    let+ x = elaborate_typ x in
+    `Pack (at, t, e, x)
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
-    let* e = elaborate e in
-    return @@ `UnpackIn (at, ti, ei, v, e)
+    let+ e = elaborate e in
+    `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    let* e = elaborate e in
-    return @@ `UnpackIn (at, ti, ei, v, e)
+    let+ e = elaborate e in
+    `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, pvs, e) ->
     let p = pvs |> List.map fst |> FomCST.Exp.Pat.tuple at in
     let v = pvs |> List.map snd |> FomCST.Exp.tuple at in
@@ -282,29 +282,29 @@ let rec elaborate =
   | `LamPat (at, p, e) ->
     let* e = elaborate e in
     let t = type_of_pat_lam p in
-    let* t = elaborate_typ t in
+    let+ t = elaborate_typ t in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
-    return @@ `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
+    `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
   | `LetPat (at, p, tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    let* e = elaborate e in
+    let+ e = elaborate e in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
-    return @@ `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)
+    `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)
   | `Annot (at, e, t) ->
     let* e = elaborate e in
-    let* t = elaborate_typ t in
+    let+ t = elaborate_typ t in
     let x = Exp.Id.fresh at in
-    return @@ `App (at, `Lam (at, x, t, `Var (at, x)), e)
+    `App (at, `Lam (at, x, t, `Var (at, x)), e)
   | `AppL (at, x, f) | `AppR (at, f, x) ->
     let* x = elaborate x in
-    let* f = elaborate f in
-    return @@ `App (at, f, x)
+    let+ f = elaborate f in
+    `App (at, f, x)
   | `Import (at', p) -> (
     let filename = FomModules.resolve at' p ~ext:FomModules.mod_ext in
-    let* i_opt =
+    let+ i_opt =
       get_as Imports.field (FomCST.Exp.ImportMap.find_opt filename)
     in
     match i_opt with
     | None -> failwithf "import %s not found" filename
-    | Some i -> return @@ `Var (at', i))
+    | Some i -> `Var (at', i))

@@ -638,11 +638,11 @@ module Exp = struct
         | `OpLogicalNot | `OpLogicalOr ) as c ->
         return c
       | `OpEq t ->
-        let* t = tuM t in
-        return @@ `OpEq t
+        let+ t = tuM t in
+        `OpEq t
       | `OpEqNot t ->
-        let* t = tuM t in
-        return @@ `OpEqNot t
+        let+ t = tuM t in
+        `OpEqNot t
 
     let collect_typ = function
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
