@@ -22,8 +22,8 @@ if [ "$TRAVIS" = true ]; then
   folded "Installing packages" \
     opam install -y \
       bignum \
-      cohttp-lwt-unix \
       cohttp-lwt-jsoo \
+      cohttp-lwt-unix \
       dune \
       menhir \
       pprint \
