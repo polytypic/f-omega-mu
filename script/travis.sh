@@ -25,6 +25,7 @@ if [ "$TRAVIS" = true ]; then
       cohttp-lwt-jsoo \
       cohttp-lwt-unix \
       dune \
+      lwt_ssl \
       menhir \
       pprint \
       sedlex \
