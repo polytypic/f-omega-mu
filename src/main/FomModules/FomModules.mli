@@ -7,6 +7,7 @@ val mod_ext : string
 
 (* *)
 
+val is_https : string -> bool
 val resolve : Loc.t -> LitString.t -> ext:string -> string
 
 (* *)

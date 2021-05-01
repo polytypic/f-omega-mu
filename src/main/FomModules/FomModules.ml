@@ -6,20 +6,50 @@ let inc_ext = ".fomi"
 let sig_ext = ".foms"
 let mod_ext = ".fom"
 
-let is_absolute filename =
-  StringExt.is_prefix "/" filename || StringExt.is_prefix "https://" filename
+(* *)
 
-let resolve loc lit ~ext =
-  let filename = LitString.to_utf8 lit in
-  let parent_dir = loc |> Loc.filename |> Filename.dirname in
-  let filename =
-    FilenameExt.canonic
-      (if is_absolute filename then filename else parent_dir ^ "/" ^ filename)
-  in
+let is_absolute filename = StringExt.is_prefix "/" filename
+
+let ensure_ext ext filename =
   if Filename.extension filename = ext then
     filename
   else
     filename ^ ext
+
+(* *)
+
+let split_to_origin_and_path uri =
+  match String.split_on_char '/' uri with
+  | "https:" :: "" :: host :: path ->
+    (Some (String.concat "/" ["https:"; ""; host]), String.concat "/" path)
+  | _ -> (None, uri)
+
+let join_origin_and_path (origin_opt, path) =
+  match origin_opt with
+  | None -> path
+  | Some origin ->
+    if is_absolute path then
+      origin ^ path
+    else
+      origin ^ "/" ^ path
+
+(* *)
+
+let is_https filename = StringExt.is_prefix "https://" filename
+
+let resolve loc lit ~ext =
+  let filename = LitString.to_utf8 lit in
+  (if is_https filename then
+     filename |> split_to_origin_and_path
+  else
+    loc |> Loc.filename |> Filename.dirname |> split_to_origin_and_path
+    |> Pair.map Fun.id @@ fun parent_dir ->
+       if is_absolute filename then
+         filename
+       else
+         parent_dir ^ "/" ^ filename)
+  |> Pair.map Fun.id FilenameExt.canonic
+  |> join_origin_and_path |> ensure_ext ext
 
 (* *)
 
