@@ -2,8 +2,8 @@ open FomBasis
 open FomSource
 open FomCST
 
-let inc_ext = ".fomi"
-let sig_ext = ".foms"
+let inc_ext = ".fomd"
+let sig_ext = ".fomt"
 let mod_ext = ".fom"
 
 (* *)
