@@ -144,6 +144,7 @@ typ_atom:
   | "μ""("t=typ")"                                      {`Mu ($loc, t)}
   | "∃""("t=typ")"                                      {`Exists ($loc, t)}
   | "∀""("t=typ")"                                      {`ForAll ($loc, t)}
+  | "import"p=LitString                                 {`Import ($loc, p)}
 
 typ_app:
   | t=typ_atom                                          {t}

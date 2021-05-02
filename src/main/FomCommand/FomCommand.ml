@@ -25,22 +25,25 @@ let run_process_with_input command input =
 
 module PathMap = Map.Make (String)
 
-let includeMap : FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t ref =
+let typ_includes : FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t ref =
   ref FomCST.Typ.IncludeMap.empty
 
-let importMap : FomAST.Exp.Id.t FomCST.Exp.ImportMap.t ref =
+let typ_imports : FomAST.Typ.t FomCST.Typ.ImportMap.t ref =
+  ref FomCST.Typ.ImportMap.empty
+
+let exp_imports : FomAST.Exp.Id.t FomCST.Exp.ImportMap.t ref =
   ref FomCST.Exp.ImportMap.empty
 
-let moduleMap : (FomCST.Exp.t * FomCST.Typ.t option) FomAST.Exp.Env.t ref =
+let modules : (FomCST.Exp.t * FomCST.Typ.t option) FomAST.Exp.Env.t ref =
   ref FomAST.Exp.Env.empty
 
-let rec process_includes include_chain at p =
+let rec process_typ_includes include_chain at p =
   let inc_filename =
     FomModules.resolve at p |> FomModules.ensure_ext FomModules.inc_ext
   in
   PathMap.find_opt inc_filename include_chain
   |> Option.iter (Error.cyclic_includes at inc_filename);
-  if not (FomCST.Typ.IncludeMap.mem inc_filename !includeMap) then (
+  if not (FomCST.Typ.IncludeMap.mem inc_filename !typ_includes) then (
     let include_chain = PathMap.add inc_filename at include_chain in
     let contents = read_file at inc_filename in
     let cst =
@@ -49,14 +52,44 @@ let rec process_includes include_chain at p =
            ~filename:inc_filename
     in
     cst |> FomModules.find_deps_defs
-    |> List.iter (fun (`Include (at, p)) -> process_includes include_chain at p);
+    |> List.iter (function
+         | `Typ (`Include (at, p)) -> process_typ_includes include_chain at p
+         | `Typ (`Import (at, p)) -> process_typ_imports include_chain at p);
     let env =
-      FomEnv.Env.empty () |> Field.set FomElab.Includes.field !includeMap
+      FomEnv.Env.empty ()
+      |> Field.set FomElab.TypIncludes.field !typ_includes
+      |> Field.set FomElab.TypImports.field !typ_imports
     in
     let env = cst |> FomElab.elaborate_defs |> Reader.run env in
-    includeMap := FomCST.Typ.IncludeMap.add inc_filename env !includeMap)
+    typ_includes := FomCST.Typ.IncludeMap.add inc_filename env !typ_includes)
 
-let rec process_imports imported import_chain at p program =
+and process_typ_imports include_chain at p =
+  let sig_filename =
+    FomModules.resolve at p |> FomModules.ensure_ext FomModules.sig_ext
+  in
+  PathMap.find_opt sig_filename include_chain
+  |> Option.iter (Error.cyclic_includes at sig_filename);
+  if not (FomCST.Typ.ImportMap.mem sig_filename !typ_imports) then (
+    let include_chain = PathMap.add sig_filename at include_chain in
+    let contents = read_file at sig_filename in
+    let cst =
+      contents
+      |> FomParser.parse_utf_8 FomParser.Grammar.typ_exp FomParser.Lexer.plain
+           ~filename:sig_filename
+    in
+    cst |> FomModules.find_deps_typ
+    |> List.iter (function
+         | `Typ (`Include (at, p)) -> process_typ_includes include_chain at p
+         | `Typ (`Import (at, p)) -> process_typ_imports include_chain at p);
+    let env =
+      FomEnv.Env.empty ()
+      |> Field.set FomElab.TypIncludes.field !typ_includes
+      |> Field.set FomElab.TypImports.field !typ_imports
+    in
+    let typ = cst |> FomElab.elaborate_typ |> Reader.run env in
+    typ_imports := FomCST.Typ.ImportMap.add sig_filename typ !typ_imports)
+
+let rec process_exp_imports imported import_chain at p program =
   let mod_filename =
     FomModules.resolve at p |> FomModules.ensure_ext FomModules.mod_ext
   in
@@ -64,7 +97,7 @@ let rec process_imports imported import_chain at p program =
   |> Option.iter (Error.cyclic_imports at mod_filename);
   let import_chain = PathMap.add mod_filename at import_chain in
   let id =
-    match FomCST.Exp.ImportMap.find_opt mod_filename !importMap with
+    match FomCST.Exp.ImportMap.find_opt mod_filename !exp_imports with
     | None ->
       let cst =
         read_file at mod_filename
@@ -82,15 +115,18 @@ let rec process_imports imported import_chain at p program =
                  FomParser.Lexer.plain ~filename:sig_filename
           in
           cst |> FomModules.find_deps_typ
-          |> List.iter (fun (`Include (at, p)) ->
-                 process_includes PathMap.empty at p);
+          |> List.iter (function
+               | `Typ (`Include (at, p)) ->
+                 process_typ_includes PathMap.empty at p
+               | `Typ (`Import (at, p)) ->
+                 process_typ_imports PathMap.empty at p);
           Some cst)
         else
           None
       in
       let id = FomAST.Exp.Id.fresh at in
-      importMap := FomCST.Exp.ImportMap.add mod_filename id !importMap;
-      moduleMap := FomAST.Exp.Env.add id (cst, typ) !moduleMap;
+      exp_imports := FomCST.Exp.ImportMap.add mod_filename id !exp_imports;
+      modules := FomAST.Exp.Env.add id (cst, typ) !modules;
       id
     | Some id -> id
   in
@@ -98,15 +134,18 @@ let rec process_imports imported import_chain at p program =
     (imported, program)
   else
     let imported = FomAST.Exp.IdSet.add id imported in
-    let cst, typ = FomAST.Exp.Env.find id !moduleMap in
+    let cst, typ = FomAST.Exp.Env.find id !modules in
     cst |> FomModules.find_deps
     |> List.fold_left
          (fun (imported, program) -> function
-           | `Include (at, p) ->
-             process_includes PathMap.empty at p;
+           | `Typ (`Include (at, p)) ->
+             process_typ_includes PathMap.empty at p;
              (imported, program)
-           | `Import (at, p) ->
-             process_imports imported import_chain at p program)
+           | `Typ (`Import (at, p)) ->
+             process_typ_imports PathMap.empty at p;
+             (imported, program)
+           | `Exp (`Import (at, p)) ->
+             process_exp_imports imported import_chain at p program)
          ( imported,
            `LetPat (at, `Id (at, id, FomCST.Typ.zero at), typ, cst, program) )
 
@@ -119,12 +158,13 @@ let process filename =
   let stop () = raise Stop in
   try
     let _, cst =
-      process_imports FomAST.Exp.IdSet.empty PathMap.empty at p cst
+      process_exp_imports FomAST.Exp.IdSet.empty PathMap.empty at p cst
     in
     let env =
       FomEnv.Env.empty ()
-      |> Field.set FomElab.Includes.field !includeMap
-      |> Field.set FomElab.Imports.field !importMap
+      |> Field.set FomElab.TypIncludes.field !typ_includes
+      |> Field.set FomElab.TypImports.field !typ_imports
+      |> Field.set FomElab.ExpImports.field !exp_imports
     in
     let ast = cst |> FomElab.elaborate |> Reader.run env in
     let typ = ast |> FomChecker.Exp.infer |> Reader.run env in

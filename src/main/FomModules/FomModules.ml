@@ -59,7 +59,7 @@ module FindDeps = struct
   let rec in_def = function
     | `Typ (_, _, _, t) -> in_typ t
     | `TypRec (_, bs) -> bs |> iter (snd >>> in_typ)
-    | `Include _ as inc -> yield inc
+    | `Include _ as inc -> yield @@ `Typ inc
 
   and in_typ = function
     | `Const (_, _) | `Var (_, _) -> return ()
@@ -69,6 +69,7 @@ module FindDeps = struct
     | `Arrow (_, d, c) -> in_typ d >> in_typ c
     | `Product (_, ls) | `Sum (_, ls) -> ls |> iter (snd >>> in_typ)
     | `LetDefIn (_, d, e) -> in_def d >> in_typ e
+    | `Import _ as imp -> yield @@ `Typ imp
 
   let in_defs = iter in_def
 
@@ -102,7 +103,7 @@ module FindDeps = struct
     | `LetPat (_, p, tO, v, e) ->
       in_pat p >> iter in_typ @@ Option.to_list tO >> in_exp v >> in_exp e
     | `LetDefIn (_, d, e) -> in_def d >> in_exp e
-    | `Import _ as imp -> yield imp
+    | `Import _ as imp -> yield @@ `Exp imp
 
   let run inn = inn >>> Conser.run >>> snd
 end

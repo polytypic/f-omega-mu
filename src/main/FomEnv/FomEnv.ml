@@ -7,7 +7,8 @@ module Env = struct
       inherit FomChecker.Exp.Env.con
       inherit FomChecker.Typ.Env.con
       inherit FomElab.TypAliases.con
-      inherit FomElab.Includes.con
-      inherit FomElab.Imports.con
+      inherit FomElab.TypIncludes.con
+      inherit FomElab.TypImports.con
+      inherit FomElab.ExpImports.con
     end
 end

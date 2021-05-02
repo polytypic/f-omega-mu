@@ -14,27 +14,41 @@ module TypAliases = struct
     end
 end
 
-module Includes = struct
+module TypIncludes = struct
   type t = FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t
 
-  let field r = r#includes
+  let field r = r#typ_includes
 
   class con =
     object
-      val includes : t = FomCST.Typ.IncludeMap.empty
-      method includes = Field.make includes (fun v -> {<includes = v>})
+      val typ_includes : t = FomCST.Typ.IncludeMap.empty
+
+      method typ_includes =
+        Field.make typ_includes (fun v -> {<typ_includes = v>})
     end
 end
 
-module Imports = struct
-  type t = FomAST.Exp.Id.t FomCST.Exp.ImportMap.t
+module TypImports = struct
+  type t = FomAST.Typ.t FomCST.Typ.ImportMap.t
 
-  let field r = r#imports
+  let field r = r#typ_imports
 
   class con =
     object
-      val imports : t = FomCST.Exp.ImportMap.empty
-      method imports = Field.make imports (fun v -> {<imports = v>})
+      val typ_imports : t = FomCST.Typ.ImportMap.empty
+      method typ_imports = Field.make typ_imports (fun v -> {<typ_imports = v>})
+    end
+end
+
+module ExpImports = struct
+  type t = FomAST.Exp.Id.t FomCST.Exp.ImportMap.t
+
+  let field r = r#exp_imports
+
+  class con =
+    object
+      val exp_imports : t = FomCST.Exp.ImportMap.empty
+      method exp_imports = Field.make exp_imports (fun v -> {<exp_imports = v>})
     end
 end
 
@@ -108,7 +122,7 @@ let rec elaborate_def =
       FomModules.resolve at' p |> FomModules.ensure_ext FomModules.inc_ext
     in
     let* env_opt =
-      get_as Includes.field (FomCST.Typ.IncludeMap.find_opt filename)
+      get_as TypIncludes.field (FomCST.Typ.IncludeMap.find_opt filename)
     in
     match env_opt with
     | None -> failwithf "include %s not found" filename
@@ -182,6 +196,16 @@ and elaborate_typ =
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     setting TypAliases.field typ_aliases (elaborate_typ e)
+  | `Import (at', p) -> (
+    let filename =
+      FomModules.resolve at' p |> FomModules.ensure_ext FomModules.sig_ext
+    in
+    let+ t_opt =
+      get_as TypImports.field (FomCST.Exp.ImportMap.find_opt filename)
+    in
+    match t_opt with
+    | None -> failwithf "import %s not found" filename
+    | Some t -> t)
 
 let rec elaborate_defs =
   let open Reader in
@@ -307,7 +331,7 @@ let rec elaborate =
       FomModules.resolve at' p |> FomModules.ensure_ext FomModules.mod_ext
     in
     let+ i_opt =
-      get_as Imports.field (FomCST.Exp.ImportMap.find_opt filename)
+      get_as ExpImports.field (FomCST.Exp.ImportMap.find_opt filename)
     in
     match i_opt with
     | None -> failwithf "import %s not found" filename

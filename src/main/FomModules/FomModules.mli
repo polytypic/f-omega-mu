@@ -17,10 +17,17 @@ val resolve : Loc.t -> LitString.t -> string
 (* *)
 
 val find_deps_defs :
-  FomCST.Typ.t FomCST.Typ.Def.f list -> [`Include of Loc.t * LitString.t] list
+  FomCST.Typ.t FomCST.Typ.Def.f list ->
+  [`Typ of [`Include of Loc.t * LitString.t | `Import of Loc.t * LitString.t]]
+  list
 
-val find_deps_typ : FomCST.Typ.t -> [`Include of Loc.t * LitString.t] list
+val find_deps_typ :
+  FomCST.Typ.t ->
+  [`Typ of [`Include of Loc.t * LitString.t | `Import of Loc.t * LitString.t]]
+  list
 
 val find_deps :
   FomCST.Exp.t ->
-  [`Include of Loc.t * LitString.t | `Import of Loc.t * LitString.t] list
+  [ `Typ of [`Include of Loc.t * LitString.t | `Import of Loc.t * LitString.t]
+  | `Exp of [`Import of Loc.t * LitString.t] ]
+  list

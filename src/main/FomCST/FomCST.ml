@@ -30,13 +30,21 @@ module Typ = struct
       | `Include of Loc.t * LitString.t ]
   end
 
-  type 't f = ['t Typ.f | `LetDefIn of Loc.t * 't Def.f * 't]
+  type 't f =
+    [ 't Typ.f
+    | `LetDefIn of Loc.t * 't Def.f * 't
+    | `Import of Loc.t * LitString.t ]
+
   type t = [ | t f]
 
-  let at = function `LetDefIn (at, _, _) -> at | #Typ.f as ast -> Typ.at ast
+  let at = function
+    | `LetDefIn (at, _, _) | `Import (at, _) -> at
+    | #Typ.f as ast -> Typ.at ast
+
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
 
   module IncludeMap = Map.Make (String)
+  module ImportMap = Map.Make (String)
 end
 
 module Exp = struct

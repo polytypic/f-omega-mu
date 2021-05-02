@@ -12,25 +12,36 @@ module TypAliases : sig
     end
 end
 
-module Includes : sig
+module TypIncludes : sig
   type t = FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t
 
-  val field : (< includes : (t, 'r) Field.t ; .. > as 'r) -> (t, 'r) Field.t
+  val field : (< typ_includes : (t, 'r) Field.t ; .. > as 'r) -> (t, 'r) Field.t
 
   class con :
     object ('r)
-      method includes : (t, 'r) Field.t
+      method typ_includes : (t, 'r) Field.t
     end
 end
 
-module Imports : sig
-  type t = FomAST.Exp.Id.t FomCST.Exp.ImportMap.t
+module TypImports : sig
+  type t = FomAST.Typ.t FomCST.Typ.ImportMap.t
 
-  val field : (< imports : (t, 'r) Field.t ; .. > as 'r) -> (t, 'r) Field.t
+  val field : (< typ_imports : (t, 'r) Field.t ; .. > as 'r) -> (t, 'r) Field.t
 
   class con :
     object ('r)
-      method imports : (t, 'r) Field.t
+      method typ_imports : (t, 'r) Field.t
+    end
+end
+
+module ExpImports : sig
+  type t = FomAST.Exp.Id.t FomCST.Exp.ImportMap.t
+
+  val field : (< exp_imports : (t, 'r) Field.t ; .. > as 'r) -> (t, 'r) Field.t
+
+  class con :
+    object ('r)
+      method exp_imports : (t, 'r) Field.t
     end
 end
 
@@ -38,7 +49,8 @@ val elaborate_defs :
   FomCST.Typ.t FomCST.Typ.Def.f list ->
   ( (< annotations : Annot.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
-     ; includes : (Includes.t, 'r) Field.t
+     ; typ_includes : (TypIncludes.t, 'r) Field.t
+     ; typ_imports : (TypImports.t, 'r) Field.t
      ; .. >
      as
      'r),
@@ -50,7 +62,8 @@ val elaborate_typ :
   FomCST.Typ.t ->
   ( (< annotations : Annot.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
-     ; includes : (Includes.t, 'r) Field.t
+     ; typ_includes : (TypIncludes.t, 'r) Field.t
+     ; typ_imports : (TypImports.t, 'r) Field.t
      ; .. >
      as
      'r),
@@ -62,8 +75,9 @@ val elaborate :
   FomCST.Exp.t ->
   ( (< annotations : Annot.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
-     ; includes : (Includes.t, 'r) Field.t
-     ; imports : (Imports.t, 'r) Field.t
+     ; typ_includes : (TypIncludes.t, 'r) Field.t
+     ; typ_imports : (TypImports.t, 'r) Field.t
+     ; exp_imports : (ExpImports.t, 'r) Field.t
      ; .. >
      as
      'r),
