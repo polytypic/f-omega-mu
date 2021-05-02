@@ -37,7 +37,7 @@ let join_origin_and_path (origin_opt, path) =
 
 let is_https filename = StringExt.is_prefix "https://" filename
 
-let resolve loc lit ~ext =
+let resolve loc lit =
   let filename = LitString.to_utf8 lit in
   (if is_https filename then
      filename |> split_to_origin_and_path
@@ -49,7 +49,7 @@ let resolve loc lit ~ext =
        else
          parent_dir ^ "/" ^ filename)
   |> Pair.map Fun.id FilenameExt.canonic
-  |> join_origin_and_path |> ensure_ext ext
+  |> join_origin_and_path
 
 (* *)
 

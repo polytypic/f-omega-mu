@@ -5,19 +5,17 @@ open FomTest
 let () =
   test "resolve" @@ fun () ->
   [
-    ("/foo/bar.fom", "baz", "/foo/baz.fom");
-    ("/foo/bar.fom", "/lol/bal", "/lol/bal.fom");
+    ("/foo/bar.fom", "baz", "/foo/baz");
+    ("/foo/bar.fom", "/lol/bal", "/lol/bal");
     ("/foo/bar.fom", "https://lol/foo/../../bal.fom", "https://lol/../bal.fom");
-    ("https://host/foo.fom", "https://lol/../bal", "https://lol/../bal.fom");
-    ("https://host:80/foo/bar.fom", "../baz", "https://host:80/baz.fom");
-    ("https://host:80/foo/bar.fom", "/baz", "https://host:80/baz.fom");
-    ("https://host:80/foo/bar.fom", "baz", "https://host:80/foo/baz.fom");
+    ("https://host/foo.fom", "https://lol/../bal", "https://lol/../bal");
+    ("https://host:80/foo/bar.fom", "../baz", "https://host:80/baz");
+    ("https://host:80/foo/bar.fom", "/baz", "https://host:80/baz");
+    ("https://host:80/foo/bar.fom", "baz", "https://host:80/foo/baz");
   ]
   |> List.iter @@ fun (loc, filename, expected) ->
      let actual =
-       FomModules.resolve (Loc.of_filename loc)
-         (LitString.of_utf8 filename)
-         ~ext:FomModules.mod_ext
+       FomModules.resolve (Loc.of_filename loc) (LitString.of_utf8 filename)
      in
      if actual <> expected then (
        Printf.printf "Expected: %s\nActual:   %s\n" expected actual;

@@ -104,7 +104,9 @@ let rec elaborate_def =
     let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
     get_as TypAliases.field (Typ.Env.union (fun _ v _ -> Some v) env)
   | `Include (at', p) -> (
-    let filename = FomModules.resolve at' p ~ext:FomModules.inc_ext in
+    let filename =
+      FomModules.resolve at' p |> FomModules.ensure_ext FomModules.inc_ext
+    in
     let* env_opt =
       get_as Includes.field (FomCST.Typ.IncludeMap.find_opt filename)
     in
@@ -301,7 +303,9 @@ let rec elaborate =
     let+ f = elaborate f in
     `App (at, f, x)
   | `Import (at', p) -> (
-    let filename = FomModules.resolve at' p ~ext:FomModules.mod_ext in
+    let filename =
+      FomModules.resolve at' p |> FomModules.ensure_ext FomModules.mod_ext
+    in
     let+ i_opt =
       get_as Imports.field (FomCST.Exp.ImportMap.find_opt filename)
     in

@@ -35,7 +35,9 @@ let moduleMap : (FomCST.Exp.t * FomCST.Typ.t option) FomAST.Exp.Env.t ref =
   ref FomAST.Exp.Env.empty
 
 let rec process_includes include_chain at p =
-  let inc_filename = FomModules.resolve at p ~ext:FomModules.inc_ext in
+  let inc_filename =
+    FomModules.resolve at p |> FomModules.ensure_ext FomModules.inc_ext
+  in
   PathMap.find_opt inc_filename include_chain
   |> Option.iter (Error.cyclic_includes at inc_filename);
   if not (FomCST.Typ.IncludeMap.mem inc_filename !includeMap) then (
@@ -55,7 +57,9 @@ let rec process_includes include_chain at p =
     includeMap := FomCST.Typ.IncludeMap.add inc_filename env !includeMap)
 
 let rec process_imports imported import_chain at p program =
-  let mod_filename = FomModules.resolve at p ~ext:FomModules.mod_ext in
+  let mod_filename =
+    FomModules.resolve at p |> FomModules.ensure_ext FomModules.mod_ext
+  in
   PathMap.find_opt mod_filename import_chain
   |> Option.iter (Error.cyclic_imports at mod_filename);
   let import_chain = PathMap.add mod_filename at import_chain in
