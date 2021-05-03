@@ -33,6 +33,25 @@ end)
 let start r (xM : ('r, Zero.t, unit) t) =
   match xM r with `Ok () -> () | `Error _ -> . | `Async on -> on ignore
 
+(* *)
+
+let fail e _ = `Error e
+
+(* *)
+
+let map_either ef ab xM r =
+  match xM r with
+  | `Ok a -> `Ok (ab a)
+  | `Error e -> `Error (ef e)
+  | `Async on ->
+    `Async
+      (fun k ->
+        on @@ function Ok a -> k @@ Ok (ab a) | Error e -> k @@ Error (ef e))
+
+let map_error ef = map_either ef Fun.id
+
+(* *)
+
 let try_in xM xyM eyM r =
   match xM r with
   | `Ok x -> xyM x r

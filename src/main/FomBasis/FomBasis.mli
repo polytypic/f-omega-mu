@@ -117,11 +117,19 @@ module Rea : sig
 
   (* *)
 
+  val fail : 'e -> ('r, 'e, 'a) t
+
+  (* *)
+
   val try_in :
     ('r, 'e, 'a) t ->
     ('a -> ('r, 'f, 'b) t) ->
     ('e -> ('r, 'f, 'b) t) ->
     ('r, 'f, 'b) t
+
+  (* *)
+
+  val map_error : ('e -> 'f) -> ('r, 'e, 'a) t -> ('r, 'f, 'a) t
 
   (* *)
 
