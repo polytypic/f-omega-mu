@@ -35,6 +35,11 @@ let start r (xM : ('r, Zero.t, unit) t) =
 
 (* *)
 
+let of_async op r =
+  `Async (fun k -> op r (fun e -> k @@ Error e) (fun a -> k @@ Ok a))
+
+(* *)
+
 let fail e _ = `Error e
 
 (* *)

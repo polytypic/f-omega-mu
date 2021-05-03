@@ -117,6 +117,10 @@ module Rea : sig
 
   (* *)
 
+  val of_async : ('r -> ('e -> unit) -> ('a -> unit) -> unit) -> ('r, 'e, 'a) t
+
+  (* *)
+
   val fail : 'e -> ('r, 'e, 'a) t
 
   (* *)
