@@ -216,4 +216,10 @@ let () =
     let type r:* → * = λt.x in
     let《x\_》= 《()\()》: ∃t.t in
     (λ_:r int.λ_:r string.(), 1).2
+    |eof};
+  testErrors "free variable in def and 《》 inside pattern"
+    {eof|
+    let type r:* → * = λt.x in
+    let (《x\_》, _)= (《()\()》: ∃t.t, 101) in
+    (λ_:r int.λ_:r string.(), 1).2
     |eof}

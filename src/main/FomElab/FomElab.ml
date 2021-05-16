@@ -311,17 +311,19 @@ let rec elaborate =
     let v = pvs |> List.map snd |> FomCST.Exp.tuple at in
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LamPat (at, p, e) ->
-    let* e = elaborate e in
     let t = type_of_pat_lam p in
-    let+ t = elaborate_typ t in
+    let* t = elaborate_typ t in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
-    `Lam (at, i, t, elaborate_pat (`Var (at, i)) e p)
+    let e = elaborate_pat (`Var (at, i)) e p in
+    let+ e = elaborate e in
+    `Lam (at, i, t, e)
   | `LetPat (at, p, tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    let+ e = elaborate e in
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
-    `LetIn (at, i, v, elaborate_pat (`Var (at, i)) e p)
+    let e = elaborate_pat (`Var (at, i)) e p in
+    let+ e = elaborate e in
+    `LetIn (at, i, v, e)
   | `Annot (at, e, t) ->
     let* e = elaborate e in
     let+ t = elaborate_typ t in
