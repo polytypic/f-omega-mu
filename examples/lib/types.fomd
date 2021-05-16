@@ -1,0 +1,3 @@
+let type opt = λα.[none: (), some: α] in
+
+let type μlist:* → * = λα.opt (α, list α)

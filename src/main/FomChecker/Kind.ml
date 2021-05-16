@@ -1,4 +1,4 @@
-open FomDiag
+open FomBasis
 
 (* *)
 include FomAST.Kind
@@ -11,5 +11,8 @@ let rec equal lhs rhs =
   | _ -> false
 
 let check_equal at lhs rhs =
+  let open Rea in
   if not (equal lhs rhs) then
-    Error.kind_mismatch at lhs rhs
+    fail @@ `Error_kind_mismatch (at, lhs, rhs)
+  else
+    unit

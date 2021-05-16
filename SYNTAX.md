@@ -23,6 +23,8 @@ typ
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
   | 'let' 'type' tid (':' kind)? '=' typ 'in' typ              // Type binding (*4)
   | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' typ // Recursive type bindings (*4)
+  | 'include' string 'in' typ                                  // Include type definitions
+  | 'import' string                                            // Import type
 
 pat
   : eid                                                        // Variable pattern
@@ -56,6 +58,8 @@ exp
   | 'Λ' tid (':' kind)? '.' exp                                // Generalization
   | exp '[' typ ']'                                            // Instantiation
   | 'target' '[' typ ']' string                                // Inline target (JavaScript) code
+  | 'include' string 'in' exp                                  // Include type definitions
+  | 'import' string                                            // Import value
 
 uop
   : '¬'                                                        // Logical negation

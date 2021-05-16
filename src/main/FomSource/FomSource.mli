@@ -82,9 +82,9 @@ module Id : sig
 end
 
 module Diagnostic : sig
-  type diagnostic = Loc.t * document
+  type t = Loc.t * document
 
-  exception Error of diagnostic * diagnostic list
+  exception Error of t * t list
 
-  val error : diagnostic -> diagnostic list -> 'a
+  val error : t -> t list -> 'a
 end

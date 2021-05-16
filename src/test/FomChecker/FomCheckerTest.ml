@@ -1,71 +1,95 @@
 open FomBasis
-open FomSource
 open FomTest
 open FomChecker
-open FomEnv
 open FomParser
 open FomElab
 
-let parse_typ =
-  parse_utf_8 Grammar.typ_exp Lexer.plain
-  >>> elaborate_typ
-  >>> Reader.run (FomEnv.Env.empty ())
+(* *)
 
-let parse_exp = parse_utf_8 Grammar.program Lexer.plain
+open Rea
 
-let () =
-  test "find_opt_non_contractive >> is_none" @@ fun () ->
-  verify
-    (Typ.find_opt_non_contractive Typ.IdSet.empty (parse_typ "μxs.x→xs")
-    |> Option.is_none)
+let parse_typ source and_then =
+  source
+  |> parse_utf_8 Grammar.typ_exp Lexer.plain
+  >>= elaborate_typ
+  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> try_in and_then @@ fun _ -> verify false
 
-let () =
-  test "find_opt_non_contractive >> is_some" @@ fun () ->
-  verify
-    (Typ.find_opt_non_contractive Typ.IdSet.empty (parse_typ "μxs.xs")
-    |> Option.is_some);
-  verify
-    (Typ.find_opt_non_contractive Typ.IdSet.empty
-       (parse_typ "(μf:*→*→*.λx.λy.f y x) a b")
-    |> Option.is_some)
+(* *)
+
+let test_typ_parses_as name source check =
+  test name @@ fun () -> parse_typ source check
 
 let () =
-  test "Typ.is_equal_of_norm" @@ fun () ->
-  let eq t1 t2 =
-    Typ.is_equal_of_norm (parse_typ t1 |> Typ.norm, parse_typ t2 |> Typ.norm)
-  in
-  verify (eq "λt.μl.[nil:t,cons:l]" "μl:*→*.λt.[nil:t,cons:l t]");
-  verify (eq "λx.μxs.x→xs" "λy.y→(μys.y→y→ys)");
-  verify (eq "λx.x" "λy.μys.y");
-  verify (eq "∀x.x→x" "∀y.y→y");
-  verify (eq "λf:*→*.f" "λf:*→*.λy.(λx.f x) y");
-  verify (eq "μx.x" "μx.μy.y");
-  verify (not (eq "∀x.∀y.x→y" "∀y.∀x.x→y"));
-  verify (not (eq "∀x.x→x" "∀y.y→y→y"));
-  verify (not (eq "λx.μxs.x→xs" "λy.y→y"))
+  test_typ_parses_as "find_opt_non_contractive >> is_none" "μxs.x→xs"
+  @@ fun typ ->
+  verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_none)
+
+let () =
+  test_typ_parses_as "find_opt_non_contractive >> is_some [A]" "μxs.xs"
+  @@ fun typ ->
+  verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_some)
+
+let () =
+  test_typ_parses_as "find_opt_non_contractive >> is_some [B]"
+    "(μf:*→*→*.λx.λy.f y x) a b"
+  @@ fun typ ->
+  verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_some)
+
+(* *)
+
+let test_typs_parse_as name source1 source2 check =
+  test name @@ fun () ->
+  parse_typ source1 @@ fun typ1 -> parse_typ source2 (check typ1)
+
+let test_equal_typs source1 source2 =
+  test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
+  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2) >>= verify
+
+let test_not_equal_typs source1 source2 =
+  test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
+  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2) >>- not >>= verify
+
+let () =
+  test_equal_typs "λt.μl.[nil:t,cons:l]" "μl:*→*.λt.[nil:t,cons:l t]";
+  test_equal_typs "λx.μxs.x→xs" "λy.y→(μys.y→y→ys)";
+  test_equal_typs "λx.x" "λy.μys.y";
+  test_equal_typs "∀x.x→x" "∀y.y→y";
+  test_equal_typs "λf:*→*.f" "λf:*→*.λy.(λx.f x) y";
+  test_equal_typs "μx.x" "μx.μy.y";
+  test_not_equal_typs "∀x.∀y.x→y" "∀y.∀x.x→y";
+  test_not_equal_typs "∀x.x→x" "∀y.y→y→y";
+  test_not_equal_typs "λx.μxs.x→xs" "λy.y→y"
+
+(* *)
+
+let parse_exp source and_then =
+  source
+  |> parse_utf_8 Grammar.program Lexer.plain
+  >>= elaborate >>= Exp.infer
+  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> try_in and_then @@ fun _ -> verify false
 
 let testInfersAs name typ exp =
   test name @@ fun () ->
-  try
-    let expected = parse_typ typ |> Typ.norm in
-    let env = Env.empty () in
-    let actual =
-      exp |> parse_exp |> elaborate |> Reader.run env |> Exp.infer
-      |> Reader.run env
-    in
-    if not (Typ.is_equal_of_norm (expected, actual)) then (
-      let open FomPP in
-      [
-        utf8string "Types not equal";
-        [break_1; Typ.pp expected] |> concat |> nest 2;
-        break_1;
-        utf8string "vs";
-        [break_1; Typ.pp actual] |> concat |> nest 2;
-      ]
-      |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
-      verify false)
-  with Diagnostic.Error ((_, msg), _) ->
-    failwith (msg |> FomPP.to_string ~max_width:80)
+  parse_typ typ @@ fun expected ->
+  let expected = Typ.norm expected in
+  parse_exp exp @@ fun actual ->
+  let actual = Typ.norm actual in
+  Typ.is_equal_of_norm (expected, actual) >>= fun are_equal ->
+  if not are_equal then (
+    let open FomPP in
+    [
+      utf8string "Types not equal";
+      [break_1; Typ.pp expected] |> concat |> nest 2;
+      break_1;
+      utf8string "vs";
+      [break_1; Typ.pp actual] |> concat |> nest 2;
+    ]
+    |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
+    verify false)
+  else
+    unit
 
 let () =
   testInfersAs "fact" "int"
@@ -185,23 +209,20 @@ let () =
 
 let testErrors name exp =
   test name @@ fun () ->
-  let env = Env.empty () in
-  match
-    try
-      Some
-        (exp |> parse_exp |> elaborate |> Reader.run env |> Exp.infer
-       |> Reader.run env)
-    with Diagnostic.Error _ -> None
-  with
-  | None -> ()
-  | Some unexpected ->
-    let open FomPP in
-    [
-      utf8string "Expected type checking to fail, but got type";
-      [break_1; Typ.pp unexpected] |> concat |> nest 2;
-    ]
-    |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
-    verify false
+  exp
+  |> parse_utf_8 Grammar.program Lexer.plain
+  >>= elaborate >>= Exp.infer
+  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> try_in
+       (fun unexpected ->
+         let open FomPP in
+         [
+           utf8string "Expected type checking to fail, but got type";
+           [break_1; Typ.pp unexpected] |> concat |> nest 2;
+         ]
+         |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
+         verify false)
+       (fun _ -> unit)
 
 let () =
   testErrors "non contractive case"

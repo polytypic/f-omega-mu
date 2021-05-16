@@ -1,6 +1,5 @@
 open FomBasis
 open FomAST
-open FomDiag
 open FomSource
 
 (* *)
@@ -42,9 +41,6 @@ module Typ = struct
     | #Typ.f as ast -> Typ.at ast
 
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
-
-  module IncludeMap = Map.Make (String)
-  module ImportMap = Map.Make (String)
 end
 
 module Exp = struct
@@ -103,15 +99,15 @@ module Exp = struct
 
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
-
-  module ImportMap = Map.Make (String)
 end
+
+exception Exn_duplicated_label of Loc.t * Label.t
 
 let check_lab_list fs =
   let rec check_dups = function
     | l1 :: (l2 :: _ as ls) ->
       if Label.equal l1 l2 then
-        Error.duplicated_label (Label.at l2) l1;
+        raise @@ Exn_duplicated_label (Label.at l2, l1);
       check_dups ls
     | _ -> fs
   in

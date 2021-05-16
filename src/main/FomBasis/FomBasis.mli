@@ -3,6 +3,10 @@ type 'a bop = 'a -> 'a -> 'a
 type 'a bpr = 'a -> 'a -> bool
 type 'a cmp = 'a -> 'a -> int
 
+module Res : sig
+  type ('e, 'a) t = [`Ok of 'a | `Error of 'e]
+end
+
 module Zero : sig
   type t = |
 end
@@ -44,14 +48,14 @@ end
 
 module Monad : sig
   module type Monad = sig
-    type ('T1, 'T2, 'a) t
+    type (-'I, 'T, +'O, +'a) m
 
-    val return : 'a -> ('T1, 'T2, 'a) t
+    val return : 'a -> ('I, 'T, 'O, 'a) m
 
     val ( let* ) :
-      ('T1, 'T2, 'a) t -> ('a -> ('T1, 'T2, 'b) t) -> ('T1, 'T2, 'b) t
+      ('I, 'T, 'O, 'a) m -> ('a -> ('I, 'T, 'O, 'b) m) -> ('I, 'T, 'O, 'b) m
 
-    val ( let+ ) : ('T1, 'T2, 'a) t -> ('a -> 'b) -> ('T1, 'T2, 'b) t
+    val ( let+ ) : ('I, 'T, 'O, 'a) m -> ('a -> 'b) -> ('I, 'T, 'O, 'b) m
   end
 
   module type S = sig
@@ -59,47 +63,80 @@ module Monad : sig
 
     (* *)
 
-    val ( >> ) : ('T1, 'T2, unit) t -> ('T1, 'T2, 'a) t -> ('T1, 'T2, 'a) t
+    val ( >> ) :
+      ('I, 'T, 'O, unit) m -> ('I, 'T, 'O, 'a) m -> ('I, 'T, 'O, 'a) m
+
+    val ( >>= ) :
+      ('I, 'T, 'O, 'a) m -> ('a -> ('I, 'T, 'O, 'b) m) -> ('I, 'T, 'O, 'b) m
+
+    val ( >>- ) : ('I, 'T, 'O, 'a) m -> ('a -> 'b) -> ('I, 'T, 'O, 'b) m
 
     (* *)
 
-    val lift1 : ('d1 -> 'c) -> ('T1, 'T2, 'd1) t -> ('T1, 'T2, 'c) t
+    val lift1 : ('d1 -> 'c) -> ('I, 'T, 'O, 'd1) m -> ('I, 'T, 'O, 'c) m
 
     val lift2 :
       ('d1 -> 'd2 -> 'c) ->
-      ('T1, 'T2, 'd1) t ->
-      ('T1, 'T2, 'd2) t ->
-      ('T1, 'T2, 'c) t
+      ('I, 'T, 'O, 'd1) m ->
+      ('I, 'T, 'O, 'd2) m ->
+      ('I, 'T, 'O, 'c) m
 
     (* *)
 
-    val ( &&& ) : ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t
-    val ( ||| ) : ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t -> ('T1, 'T2, bool) t
+    val ( &&& ) :
+      ('I, 'T, 'O, bool) m -> ('I, 'T, 'O, bool) m -> ('I, 'T, 'O, bool) m
+
+    val ( ||| ) :
+      ('I, 'T, 'O, bool) m -> ('I, 'T, 'O, bool) m -> ('I, 'T, 'O, bool) m
 
     (* *)
 
-    val traverse : ('a -> ('T1, 'T2, 'b) t) -> 'a list -> ('T1, 'T2, 'b list) t
+    module MList : sig
+      val fold_left :
+        ('a -> 'b -> ('I, 'T, 'O, 'a) m) -> 'a -> 'b list -> ('I, 'T, 'O, 'a) m
 
-    val fold_left :
-      ('b -> 'a -> ('T1, 'T2, 'b) t) -> 'b -> 'a list -> ('T1, 'T2, 'b) t
+      val fold_left2 :
+        ('a -> 'b -> 'c -> ('I, 'T, 'O, 'a) m) ->
+        'a ->
+        'b list ->
+        'c list ->
+        ('I, 'T, 'O, 'a) m
 
-    val iter : ('a -> ('T1, 'T2, unit) t) -> 'a list -> ('T1, 'T2, unit) t
-    val for_all : ('a -> ('T1, 'T2, bool) t) -> 'a list -> ('T1, 'T2, bool) t
-    val exists : ('a -> ('T1, 'T2, bool) t) -> 'a list -> ('T1, 'T2, bool) t
+      (* *)
+
+      val iter : ('a -> ('I, 'T, 'O, unit) m) -> 'a list -> ('I, 'T, 'O, unit) m
+
+      val iter2 :
+        ('a -> 'b -> ('I, 'T, 'O, unit) m) ->
+        'a list ->
+        'b list ->
+        ('I, 'T, 'O, unit) m
+
+      (* *)
+
+      val for_all :
+        ('a -> ('I, 'T, 'O, bool) m) -> 'a list -> ('I, 'T, 'O, bool) m
+
+      val exists :
+        ('a -> ('I, 'T, 'O, bool) m) -> 'a list -> ('I, 'T, 'O, bool) m
+
+      (* *)
+
+      val traverse :
+        ('a -> ('I, 'T, 'O, 'b) m) -> 'a list -> ('I, 'T, 'O, 'b list) m
+    end
+
+    module MOption : sig
+      val iter :
+        ('a -> ('I, 'T, 'O, unit) m) -> 'a option -> ('I, 'T, 'O, unit) m
+
+      val traverse :
+        ('a -> ('I, 'T, 'O, 'b) m) -> 'a option -> ('I, 'T, 'O, 'b option) m
+    end
   end
 
   module Make (Core : Monad) :
-    S with type ('T1, 'T2, 'a) t = ('T1, 'T2, 'a) Core.t
-end
-
-module Conser : sig
-  include Monad.S
-
-  val run : ('T1, 'r, 'a) t -> 'a * 'r list
-
-  (* *)
-
-  val yield : 'r -> ('T1, 'r, unit) t
+    S with type ('I, 'T, 'O, 'a) m = ('I, 'T, 'O, 'a) Core.m
 end
 
 module Pair : sig
@@ -111,13 +148,21 @@ module Pair : sig
 end
 
 module Rea : sig
-  include Monad.S
+  type (-'r, +'e, +'a) t
+
+  include Monad.S with type ('r, 'T, 'e, 'a) m = ('r, 'e, 'a) t
+
+  val unit : ('r, 'e, unit) t
+  val delay : (unit -> ('r, 'e, 'a) t) -> ('r, 'e, 'a) t
+
+  (* *)
 
   val start : 'r -> ('r, Zero.t, unit) t -> unit
 
   (* *)
 
   val of_async : ('r -> ('e -> unit) -> ('a -> unit) -> unit) -> ('r, 'e, 'a) t
+  val of_res : ('e, 'a) Res.t -> ('r, 'e, 'a) t
 
   (* *)
 
@@ -126,10 +171,12 @@ module Rea : sig
   (* *)
 
   val try_in :
-    ('r, 'e, 'a) t ->
     ('a -> ('r, 'f, 'b) t) ->
     ('e -> ('r, 'f, 'b) t) ->
+    ('r, 'e, 'a) t ->
     ('r, 'f, 'b) t
+
+  val catch : ('r, 'e, 'a) t -> ('r, 'f, ('e, 'a) Res.t) t
 
   (* *)
 
@@ -142,28 +189,22 @@ module Rea : sig
 
   (* *)
 
+  val invoke : ('r -> (unit, 'e, 'a) t) -> ('r, 'e, 'a) t
+
+  (* *)
+
   val get : ('r -> ('f, 'r) Field.t) -> ('r, 'e, 'f) t
   val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('r, 'e, 'g) t
   val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('r, 'e, 'a) t uop
   val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('r, 'e, 'a) t uop
 end
 
-module Reader : sig
-  include Monad.S
+module IVar : sig
+  type ('e, 'a) t
 
-  val run : 'r -> ('r, 'T2, 'a) t -> 'a
-
-  (* *)
-
-  val env_as : ('r -> 'a) -> ('r, 'T2, 'a) t
-  val with_env : ('r -> 's) -> ('s, 'T2, 'a) t -> ('r, 'T2, 'a) t
-
-  (* *)
-
-  val get : ('r -> ('f, 'r) Field.t) -> ('r, 'T2, 'f) t
-  val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('r, 'T2, 'g) t
-  val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('r, 'T2, 'a) t uop
-  val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('r, 'T2, 'a) t uop
+  val empty : unit -> ('e, 'a) t
+  val get : ('e, 'a) t -> ('r, 'e, 'a) Rea.t
+  val put : ('e, 'a) t -> [`Ok of 'a | `Error of 'e] -> ('r, 'f, unit) Rea.t
 end
 
 module StringExt : sig

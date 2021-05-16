@@ -1,4 +1,6 @@
+open FomBasis
 open FomCST
+open FomDiag
 
 module Buffer : sig
   type t
@@ -33,8 +35,17 @@ module Grammar : sig
   (** Grammar of Fωμ type definitions. *)
 end
 
-val parse : 't Grammar.t -> Lexer.t -> Buffer.t -> 't
+val parse :
+  'a Grammar.t ->
+  Lexer.t ->
+  Buffer.t ->
+  ('r, [> Error.lexeme | Error.grammar | Error.duplicated_label], 'a) Rea.t
 (** Parse from buffer using given grammar and lexical syntax. *)
 
-val parse_utf_8 : 't Grammar.t -> Lexer.t -> ?filename:string -> string -> 't
+val parse_utf_8 :
+  'a Grammar.t ->
+  Lexer.t ->
+  ?filename:string ->
+  string ->
+  ('r, [> Error.lexeme | Error.grammar | Error.duplicated_label], 'a) Rea.t
 (** Parse from UTF-8 string using given grammar and lexical syntax. *)

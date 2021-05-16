@@ -1,6 +1,10 @@
 open FomBasis
 open FomTest
 
+(* *)
+
+open Rea
+
 let () =
   test "FilenameExt.canonic" @@ fun () ->
   [
@@ -15,8 +19,10 @@ let () =
     ("/foo/bar/../../../baz", "/../baz");
     ("/foo/bar/../../../../baz", "/../../baz");
   ]
-  |> List.iter @@ fun (to_canonize, expected) ->
+  |> MList.iter @@ fun (to_canonize, expected) ->
      let actual = FilenameExt.canonic to_canonize in
      if actual <> expected then (
        Printf.printf "Expected: %s\nActual:   %s\n" expected actual;
        verify false)
+     else
+       unit

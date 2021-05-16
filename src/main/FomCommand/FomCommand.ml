@@ -6,16 +6,49 @@ module Options = struct
   let stop : [`Typ | `Js | `Run] ref = ref `Run
 end
 
-let read_file at filename =
-  if not (Sys.file_exists filename) then
-    Error.file_doesnt_exist at filename;
-  let in_ch = open_in_bin filename in
-  let size = in_channel_length in_ch in
-  let contents = really_input_string in_ch size in
-  close_in in_ch;
-  contents
+(* *)
+
+exception HttpError of (int * Cohttp.Code.meth * Uri.t)
+
+let of_lwt op =
+  Rea.of_async @@ fun r on_error on_ok ->
+  match try Ok (op r) with e -> Error e with
+  | Ok p -> Lwt.on_any p on_ok on_error
+  | Error e -> on_error e
+
+let fetch at filename =
+  let open Rea in
+  if FomElab.Path.is_http filename then
+    of_lwt (fun _ ->
+        let open Lwt.Syntax in
+        let open Cohttp in
+        let open Cohttp_lwt_unix in
+        let uri = Uri.of_string filename in
+        let* resp, body = Client.get uri in
+        let code = resp |> Response.status |> Code.code_of_status in
+        if 200 <= code && code < 300 then
+          Cohttp_lwt.Body.to_string body
+        else
+          Lwt.fail @@ HttpError (code, `GET, uri))
+    |> try_in return @@ function
+       | HttpError (404, _, _) -> fail @@ `Error_file_doesnt_exist (at, filename)
+       | exn -> fail @@ `Error_io (at, exn)
+  else
+    of_lwt (fun _ ->
+        let open Lwt.Syntax in
+        let* channel = Lwt_io.open_file ~mode:Lwt_io.input filename in
+        Lwt.finalize
+          (fun () -> Lwt_io.read channel)
+          (fun () -> Lwt_io.close channel))
+    |> try_in return @@ function
+       | Unix.Unix_error (Unix.ENOENT, _, _) ->
+         fail @@ `Error_file_doesnt_exist (at, filename)
+       | exn -> fail @@ `Error_io (at, exn)
+
+(* *)
 
 let run_process_with_input command input =
+  (* TODO: Use Lwt *)
   let out = Unix.open_process_out command in
   input |> List.iter (output_string out);
   flush out;
@@ -25,190 +58,66 @@ let run_process_with_input command input =
 
 module PathMap = Map.Make (String)
 
-let typ_includes : FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t ref =
-  ref FomCST.Typ.IncludeMap.empty
-
-let typ_imports : FomAST.Typ.t FomCST.Typ.ImportMap.t ref =
-  ref FomCST.Typ.ImportMap.empty
-
-let exp_imports : FomAST.Exp.Id.t FomCST.Exp.ImportMap.t ref =
-  ref FomCST.Exp.ImportMap.empty
-
-let modules : (FomCST.Exp.t * FomCST.Typ.t option) FomAST.Exp.Env.t ref =
-  ref FomAST.Exp.Env.empty
-
-let rec process_typ_includes include_chain at p =
-  let inc_filename =
-    FomModules.resolve at p |> FomModules.ensure_ext FomModules.inc_ext
-  in
-  PathMap.find_opt inc_filename include_chain
-  |> Option.iter (Error.cyclic_includes at inc_filename);
-  if not (FomCST.Typ.IncludeMap.mem inc_filename !typ_includes) then (
-    let include_chain = PathMap.add inc_filename at include_chain in
-    let contents = read_file at inc_filename in
-    let cst =
-      contents
-      |> FomParser.parse_utf_8 FomParser.Grammar.typ_defs FomParser.Lexer.plain
-           ~filename:inc_filename
-    in
-    cst |> FomModules.find_deps_defs
-    |> List.iter (function
-         | `Typ (`Include (at, p)) -> process_typ_includes include_chain at p
-         | `Typ (`Import (at, p)) -> process_typ_imports include_chain at p);
-    let env =
-      FomEnv.Env.empty ()
-      |> Field.set FomElab.TypIncludes.field !typ_includes
-      |> Field.set FomElab.TypImports.field !typ_imports
-    in
-    let env = cst |> FomElab.elaborate_defs |> Reader.run env in
-    typ_includes := FomCST.Typ.IncludeMap.add inc_filename env !typ_includes)
-
-and process_typ_imports include_chain at p =
-  let sig_filename =
-    FomModules.resolve at p |> FomModules.ensure_ext FomModules.sig_ext
-  in
-  PathMap.find_opt sig_filename include_chain
-  |> Option.iter (Error.cyclic_includes at sig_filename);
-  if not (FomCST.Typ.ImportMap.mem sig_filename !typ_imports) then (
-    let include_chain = PathMap.add sig_filename at include_chain in
-    let contents = read_file at sig_filename in
-    let cst =
-      contents
-      |> FomParser.parse_utf_8 FomParser.Grammar.typ_exp FomParser.Lexer.plain
-           ~filename:sig_filename
-    in
-    cst |> FomModules.find_deps_typ
-    |> List.iter (function
-         | `Typ (`Include (at, p)) -> process_typ_includes include_chain at p
-         | `Typ (`Import (at, p)) -> process_typ_imports include_chain at p);
-    let env =
-      FomEnv.Env.empty ()
-      |> Field.set FomElab.TypIncludes.field !typ_includes
-      |> Field.set FomElab.TypImports.field !typ_imports
-    in
-    let typ = cst |> FomElab.elaborate_typ |> Reader.run env in
-    typ_imports := FomCST.Typ.ImportMap.add sig_filename typ !typ_imports)
-
-let rec process_exp_imports imported import_chain at p program =
-  let mod_filename =
-    FomModules.resolve at p |> FomModules.ensure_ext FomModules.mod_ext
-  in
-  PathMap.find_opt mod_filename import_chain
-  |> Option.iter (Error.cyclic_imports at mod_filename);
-  let import_chain = PathMap.add mod_filename at import_chain in
-  let id =
-    match FomCST.Exp.ImportMap.find_opt mod_filename !exp_imports with
-    | None ->
-      let cst =
-        read_file at mod_filename
-        |> FomParser.parse_utf_8 FomParser.Grammar.program FomParser.Lexer.plain
-             ~filename:mod_filename
-      in
-      let typ =
-        let sig_filename =
-          Filename.remove_extension mod_filename ^ FomModules.sig_ext
-        in
-        if Sys.file_exists sig_filename then (
-          let cst =
-            read_file at sig_filename
-            |> FomParser.parse_utf_8 FomParser.Grammar.typ_exp
-                 FomParser.Lexer.plain ~filename:sig_filename
-          in
-          cst |> FomModules.find_deps_typ
-          |> List.iter (function
-               | `Typ (`Include (at, p)) ->
-                 process_typ_includes PathMap.empty at p
-               | `Typ (`Import (at, p)) ->
-                 process_typ_imports PathMap.empty at p);
-          Some cst)
-        else
-          None
-      in
-      let id = FomAST.Exp.Id.fresh at in
-      exp_imports := FomCST.Exp.ImportMap.add mod_filename id !exp_imports;
-      modules := FomAST.Exp.Env.add id (cst, typ) !modules;
-      id
-    | Some id -> id
-  in
-  if FomAST.Exp.IdSet.mem id imported then
-    (imported, program)
-  else
-    let imported = FomAST.Exp.IdSet.add id imported in
-    let cst, typ = FomAST.Exp.Env.find id !modules in
-    cst |> FomModules.find_deps
-    |> List.fold_left
-         (fun (imported, program) -> function
-           | `Typ (`Include (at, p)) ->
-             process_typ_includes PathMap.empty at p;
-             (imported, program)
-           | `Typ (`Import (at, p)) ->
-             process_typ_imports PathMap.empty at p;
-             (imported, program)
-           | `Exp (`Import (at, p)) ->
-             process_exp_imports imported import_chain at p program)
-         ( imported,
-           `LetPat (at, `Id (at, id, FomCST.Typ.zero at), typ, cst, program) )
-
 let process filename =
+  let open Rea in
   let at = FomSource.Loc.of_filename (Sys.getcwd () ^ "/.") in
   let p = FomCST.LitString.of_utf8 filename in
   let cst = `Import (at, p) in
   let max_width = !Options.max_width in
-  let exception Stop in
-  let stop () = raise Stop in
-  try
-    let _, cst =
-      process_exp_imports FomAST.Exp.IdSet.empty PathMap.empty at p cst
-    in
-    let env =
-      FomEnv.Env.empty ()
-      |> Field.set FomElab.TypIncludes.field !typ_includes
-      |> Field.set FomElab.TypImports.field !typ_imports
-      |> Field.set FomElab.ExpImports.field !exp_imports
-    in
-    let ast = cst |> FomElab.elaborate |> Reader.run env in
-    let typ = ast |> FomChecker.Exp.infer |> Reader.run env in
-    if !Options.stop = `Typ then
-      typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n"
-      |> stop;
-    let js = ast |> FomToJs.to_js in
-    if !Options.stop = `Js then
-      js |> Printf.printf "%s\n" |> stop;
-    run_process_with_input "node" [read_file at "docs/prelude.js"; ";\n"; js]
-  with
-  | Stop -> ()
-  | exn ->
-    let open FomPP in
-    let message =
-      match exn with
-      | FomSource.Diagnostic.Error ((loc, overview), []) ->
-        [
-          [FomSource.Loc.pp loc; colon] |> concat;
-          [break_1; break_0; overview] |> concat |> nest 2 |> group;
-        ]
-        |> concat |> to_string ~max_width
-      | FomSource.Diagnostic.Error ((loc, overview), details) ->
-        [
-          [FomSource.Loc.pp loc; colon] |> concat;
-          [break_1; break_0; overview; colon] |> concat |> nest 2 |> group;
-          [
-            [break_0; break_0] |> concat;
-            details
-            |> List.map (fun (loc, msg) ->
-                   [FomSource.Loc.pp loc; colon; break_1; msg]
-                   |> concat |> nest 2 |> group)
-            |> separate (concat [break_0; break_0]);
-          ]
-          |> concat |> nest 2;
-        ]
-        |> concat |> to_string ~max_width
-      | Failure message -> message
-      | exn -> Printexc.to_string exn
-    in
-    Printf.printf "%s\n" message;
-    exit 1
+  (let* ast =
+     cst |> FomElab.elaborate >>= FomElab.with_modules
+     |> with_env (ignore >>> FomEnv.Env.empty ~fetch)
+   in
+   let* typ =
+     ast |> FomChecker.Exp.infer |> with_env (ignore >>> FomEnv.Env.empty)
+   in
+   (if !Options.stop = `Typ then (
+      typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
+      fail `Stop)
+   else
+     unit)
+   >> let* js = ast |> FomToJs.to_js in
+      (if !Options.stop = `Js then (
+         js |> Printf.printf "%s\n";
+         fail `Stop)
+      else
+        unit)
+      >> let* prelude = fetch at "docs/prelude.js" in
+         run_process_with_input "node" [prelude; ";\n"; js];
+         unit)
+  |> try_in return @@ function
+     | `Stop -> unit
+     | #Error.t as error ->
+       let message =
+         let open FomPP in
+         match Error.to_diagnostics error with
+         | (loc, overview), [] ->
+           [
+             [FomSource.Loc.pp loc; colon] |> concat;
+             [break_1; break_0; overview] |> concat |> nest 2 |> group;
+           ]
+           |> concat |> to_string ~max_width
+         | (loc, overview), details ->
+           [
+             [FomSource.Loc.pp loc; colon] |> concat;
+             [break_1; break_0; overview; colon] |> concat |> nest 2 |> group;
+             [
+               [break_0; break_0] |> concat;
+               details
+               |> List.map (fun (loc, msg) ->
+                      [FomSource.Loc.pp loc; colon; break_1; msg]
+                      |> concat |> nest 2 |> group)
+               |> separate (concat [break_0; break_0]);
+             ]
+             |> concat |> nest 2;
+           ]
+           |> concat |> to_string ~max_width
+       in
+       Printf.printf "%s\n" message;
+       exit 1
 
 let () =
+  let files = ref [] in
   Arg.parse
     [
       ( "-max-width",
@@ -226,5 +135,11 @@ let () =
             | _ -> Options.stop := `Run ),
         "\tStop after specified IL/output has been computed and output it" );
     ]
-    process
-    (Filename.basename Sys.executable_name ^ " <file.fom>")
+    (fun file -> files := file :: !files)
+    (Filename.basename Sys.executable_name ^ " <file.fom>");
+  let p, r = Lwt.wait () in
+  let open Rea in
+  !files |> List.rev |> MList.iter process
+  >>- (fun () -> Lwt.wakeup r ())
+  |> start ();
+  Lwt_main.run p

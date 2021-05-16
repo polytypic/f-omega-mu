@@ -1,5 +1,5 @@
-type diagnostic = Loc.t * FomPP.document
+type t = Loc.t * FomPP.document
 
-exception Error of diagnostic * diagnostic list
+exception Error of t * t list
 
-let error overview details = raise (Error (overview, details))
+let error overview details = raise @@ Error (overview, details)

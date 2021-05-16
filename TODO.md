@@ -10,6 +10,10 @@
 - Sandbox
   - highlight Fωμ based on grammar
 - General
+  - separate compilation improvements
+    - check and optimize modules separately
+    - keep checked and optimized modules in memory (only check if file changed)
+  - parallel IO during elaboration
   - better parser and type checker error messages
   - more testing
   - pretty printer for expressions

@@ -1,6 +1,11 @@
+open FomBasis
 open FomAST
 open FomSource
 open FomTest
+
+(* *)
+
+open Rea
 
 let () =
   test "resolve" @@ fun () ->
@@ -13,10 +18,12 @@ let () =
     ("https://host:80/foo/bar.fom", "/baz", "https://host:80/baz");
     ("https://host:80/foo/bar.fom", "baz", "https://host:80/foo/baz");
   ]
-  |> List.iter @@ fun (loc, filename, expected) ->
+  |> MList.iter @@ fun (loc, filename, expected) ->
      let actual =
-       FomModules.resolve (Loc.of_filename loc) (LitString.of_utf8 filename)
+       FomElab.Path.resolve (Loc.of_filename loc) (LitString.of_utf8 filename)
      in
      if actual <> expected then (
        Printf.printf "Expected: %s\nActual:   %s\n" expected actual;
        verify false)
+     else
+       unit

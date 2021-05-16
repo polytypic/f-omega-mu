@@ -258,11 +258,11 @@ module Exp = struct
     `Lam (i, fn @@ `Var i)
 
   let rec is_total =
-    let open Reader in
+    let open Rea in
     function
     | `Const _ | `Var _ | `Lam _ -> return true
     | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
-    | `Product fs -> fs |> for_all (fun (_, e) -> is_total e)
+    | `Product fs -> fs |> MList.for_all (fun (_, e) -> is_total e)
     | `Mu (`Lam (i, e)) -> is_total e |> with_env @@ Env.add i e
     | `Select (e, _) | `Inject (_, e) -> is_total e
     | `App (`Var f, x) -> (
@@ -274,7 +274,7 @@ module Exp = struct
     | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
     | `App (`Case (`Product fs), s) ->
       is_total s
-      &&& (fs |> for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
+      &&& (fs |> MList.for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
     | `Case e -> is_total e
     | `Mu _ | `Target _ | `App (_, _) -> return false
 
@@ -323,7 +323,7 @@ module Exp = struct
       `App (k, e)
 
   let rec simplify =
-    let open Reader in
+    let open Rea in
     function
     | (`Const _ | `Target _ | `Var _) as e -> return e
     | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
@@ -414,7 +414,7 @@ module Exp = struct
     | `Product fs ->
       let+ fs =
         fs
-        |> traverse @@ fun (l, e) ->
+        |> MList.traverse @@ fun (l, e) ->
            let+ e = simplify e in
            (l, e)
       in
@@ -427,7 +427,7 @@ module Exp = struct
         let* fs_are_total =
           fs
           |> List.filter (fst >>> Label.equal l >>> not)
-          |> for_all (fun (_, e) -> is_total e)
+          |> MList.for_all (fun (_, e) -> is_total e)
         in
         if fs_are_total then
           return @@ (fs |> List.find (fst >>> Label.equal l) |> snd)
@@ -442,7 +442,7 @@ module Exp = struct
       `Inject (l, e)
 
   let rec to_js_stmts is_top ids exp =
-    let open Reader in
+    let open Rea in
     let default () =
       let+ e = to_js_expr exp in
       (if is_top then str "" else str "return ") ^ e ^ str ";"
@@ -478,7 +478,7 @@ module Exp = struct
       let* x = to_js_expr x in
       let+ fs =
         fs
-        |> traverse @@ fun (l, e) ->
+        |> MList.traverse @@ fun (l, e) ->
            let* e = simplify @@ `App (e, v1) in
            let+ e = to_js_stmts is_top Ids.empty e in
            str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
@@ -497,7 +497,7 @@ module Exp = struct
     | _ -> default ()
 
   and to_js_expr exp =
-    let open Reader in
+    let open Rea in
     match exp with
     | `Const c -> (
       match Const.type_of Loc.dummy c |> Typ.arity_and_result with
@@ -531,7 +531,7 @@ module Exp = struct
     | `Product fs ->
       let+ fs =
         fs
-        |> traverse @@ function
+        |> MList.traverse @@ function
            | l, `Var i
              when Label.to_string l = Id.to_string i
                   && not (Js.is_illegal_id (Id.to_string i)) ->
@@ -588,6 +588,9 @@ module Exp = struct
 end
 
 let to_js exp =
-  exp |> Exp.erase |> Exp.simplify |> Reader.run Exp.Env.empty
-  |> Exp.to_js_stmts true Exp.Ids.empty
-  |> Reader.run Exp.Env.empty |> to_string
+  let open Rea in
+  exp |> Exp.erase |> Exp.simplify
+  |> with_env (Fun.const Exp.Env.empty)
+  >>- Exp.to_js_stmts true Exp.Ids.empty
+  >>= with_env (Fun.const Exp.Env.empty)
+  >>- to_string

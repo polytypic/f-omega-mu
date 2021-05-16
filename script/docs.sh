@@ -23,6 +23,7 @@ build-examples() {
     cp "$example" docs/examples/
     echo "  '$example'," >> $OUTPUT
   done
+  cp -r examples/lib docs/examples/lib
   echo "]" >> $OUTPUT
 }
 

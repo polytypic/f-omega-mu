@@ -4,6 +4,10 @@ FomSandbox(window)
 
 //
 
+const url = location.origin + location.pathname + 'examples/*'
+
+//
+
 const throttled = function (ms, fn) {
   let timeout = null
   return function () {
@@ -21,9 +25,13 @@ const onWorker = function (init, before, onWorker, after) {
     '\n' +
     '  const onWorker = ' +
     onWorker.toString() +
+    '\n' +
     '  \n' +
     '  onmessage = function (message) {\n' +
-    '    postMessage(onWorker(message.data))\n' +
+    '    const self = this\n' +
+    '    onWorker(message.data, function (result) {\n' +
+    '      self.postMessage(result)\n' +
+    '    })\n' +
     '  }\n' +
     '})()'
 
@@ -148,9 +156,13 @@ const prepareDefUses = function () {
   duMap.length = 0
   result.defUses.forEach(function (du) {
     du.uses.forEach(function (use) {
-      insertDU(use, du)
+      if (use.file === url) {
+        insertDU(use, du)
+      }
     })
-    insertDU(du.def, du)
+    if (du.def.file === url) {
+      insertDU(du.def, du)
+    }
   })
 }
 
@@ -175,17 +187,21 @@ const updateDefUses = throttled(100, function () {
   clearMarkers(duMarkers)
   const du = duAt(fomCM.getCursor())
   if (du) {
-    duMarkers.push(
-      fomCM.markText(du.def.begins, du.def.ends, {
-        css: 'background: darkgreen',
-      })
-    )
-    du.uses.forEach(function (use) {
+    if (du.def.file === url) {
       duMarkers.push(
-        fomCM.markText(use.begins, use.ends, {
-          css: 'background: blue',
+        fomCM.markText(du.def.begins, du.def.ends, {
+          css: 'background: darkgreen',
         })
       )
+    }
+    du.uses.forEach(function (use) {
+      if (use.file === url) {
+        duMarkers.push(
+          fomCM.markText(use.begins, use.ends, {
+            css: 'background: blue',
+          })
+        )
+      }
     })
     typCM.setValue(du.annot)
   } else {
@@ -206,12 +222,12 @@ const run = onWorker(
   function () {
     return {js: jsCM.getValue(), width: getWidth(fomCM)}
   },
-  function (params) {
+  function (params, onResult) {
     try {
       const result = timed('eval', () => eval(params.js))
-      return timed('format', () => fom.format(result, params.width))
+      onResult(timed('format', () => fom.format(result, params.width)))
     } catch (error) {
-      return error.toString()
+      onResult(error.toString())
     }
   },
   function (result) {
@@ -226,30 +242,32 @@ const compile = onWorker(
   function () {
     importScripts('FomSandbox.js')
     FomSandbox(self)
-    importScripts('https://unpkg.com/prettier@2.2.1/standalone.js')
-    importScripts('https://unpkg.com/prettier@2.2.1/parser-babel.js')
+    importScripts('https://unpkg.com/prettier@2.3.0/standalone.js')
+    importScripts('https://unpkg.com/prettier@2.3.0/parser-babel.js')
   },
   function () {
-    return {exp: fomCM.getValue(), width: getWidth(fomCM)}
+    return {url, exp: fomCM.getValue(), width: getWidth(fomCM)}
   },
-  function (params) {
-    const js = timed('compile', () => fom.compile(params.exp))
-    try {
-      return prettier
-        .format(js, {
-          arrowParens: 'avoid',
-          bracketSpacing: false,
-          printWidth: params.width,
-          parser: 'babel',
-          plugins: [prettierPlugins.babel],
-          singleQuote: true,
-          trailingComma: 'none',
-        })
-        .trim()
-    } catch (error) {
-      console.error('Prettier failed with error:', error)
-    }
-    return js
+  function (params, onResult) {
+    fom.compile(params.url, params.exp, function (js) {
+      try {
+        onResult(
+          prettier
+            .format(js, {
+              arrowParens: 'avoid',
+              bracketSpacing: false,
+              printWidth: params.width,
+              parser: 'babel',
+              plugins: [prettierPlugins.babel],
+              singleQuote: true,
+              trailingComma: 'none',
+            })
+            .trim()
+        )
+      } catch (error) {
+        console.error('Prettier failed with error:', error)
+      }
+    })
   },
   function (js) {
     jsCM.setValue(js)
@@ -271,10 +289,10 @@ const check = throttled(
     function () {
       clearMarkers(diagnosticMarkers)
       const width = Math.min(80, (getWidth(fomCM) * 0.85) | 0)
-      return {exp: fomCM.getValue(), width: width}
+      return {url, exp: fomCM.getValue(), width: width}
     },
-    function (params) {
-      return timed('check', () => fom.check(params.exp, params.width))
+    function (params, onResult) {
+      fom.check(params.url, params.exp, params.width, onResult)
     },
     function (data) {
       result = data
@@ -333,8 +351,8 @@ fomCM.on(
       function () {
         return fomCM.getValue()
       },
-      function (exp) {
-        return LZString.compressToEncodedURIComponent(exp)
+      function (exp, onResult) {
+        onResult(LZString.compressToEncodedURIComponent(exp))
       },
       function (data) {
         history.replaceState(null, '', location.pathname + '#' + data)
@@ -387,14 +405,16 @@ fomCM.on('keyup', function (_, event) {
       const selections = []
       let primary = 0
       function at(loc) {
-        if (
-          cursor.line === loc.begins.line &&
-          loc.begins.ch <= cursor.ch &&
-          cursor.ch <= loc.ends.ch
-        ) {
-          primary = selections.length
+        if (loc.file === url) {
+          if (
+            cursor.line === loc.begins.line &&
+            loc.begins.ch <= cursor.ch &&
+            cursor.ch <= loc.ends.ch
+          ) {
+            primary = selections.length
+          }
+          selections.push({anchor: loc.begins, head: loc.ends})
         }
-        selections.push({anchor: loc.begins, head: loc.ends})
       }
       at(du.def)
       du.uses.forEach(at)

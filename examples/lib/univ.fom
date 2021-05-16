@@ -1,0 +1,16 @@
+include "univ" in
+
+let type any = ∃α.α in
+let unsafe_cast = Λα.target[any → α] "x => x" in
+let new_id = target[() → int] "(i => () => ++i)(-1)" in
+let type univ = {id: int, value: any} in
+let new = Λα.λ().
+  let id = new_id () in
+  let to = λx:α.{id, value =《α\x》: any} in
+  let of = λx:univ.
+    if x.id =[int] id then
+      [some = unsafe_cast[α] x.value]
+    else
+      [none = ()] in
+  {to, of} in
+《univ\{new}》: ∃(Univ)

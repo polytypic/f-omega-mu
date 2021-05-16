@@ -1,5 +1,7 @@
-open FomDiag
+open FomSource
 open Grammar
+
+exception Exn_lexeme of Loc.t * string
 
 let return_from buffer tok =
   let lhs, rhs = Buffer.loc buffer in
@@ -126,8 +128,8 @@ let rec token_or_comment buffer =
   | eof -> return EOF
   (* *)
   | nat_10, id | any ->
-    Error.syntax (Buffer.loc buffer) (Buffer.lexeme_utf_8 buffer)
-  | _ -> Error.syntax (Buffer.loc buffer) (Buffer.lexeme_utf_8 buffer)
+    raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+  | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
 
 let rec token buffer =
   match token_or_comment buffer with

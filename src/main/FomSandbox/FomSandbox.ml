@@ -3,11 +3,41 @@ open FomBasis
 open FomPP
 open FomSource
 open FomAST
+open FomDiag
 open FomParser
 open FomElab
 open FomChecker
 open FomEnv
 open FomToJs
+
+(* *)
+
+exception HttpError of (int * Cohttp.Code.meth * Uri.t)
+
+let of_lwt op =
+  Rea.of_async @@ fun r on_error on_ok ->
+  match try Ok (op r) with e -> Error e with
+  | Ok p -> Lwt.on_any p on_ok on_error
+  | Error e -> on_error e
+
+let fetch at filename =
+  let open Rea in
+  of_lwt (fun _ ->
+      let open Lwt.Syntax in
+      let open Cohttp in
+      let open Cohttp_lwt_jsoo in
+      let uri = Uri.of_string filename in
+      let* resp, body = Client.get uri in
+      let code = resp |> Response.status |> Code.code_of_status in
+      if 200 <= code && code < 300 then
+        Cohttp_lwt.Body.to_string body
+      else
+        Lwt.fail @@ HttpError (code, `GET, uri))
+  |> try_in return @@ function
+     | HttpError (404, _, _) -> fail @@ `Error_file_doesnt_exist (at, filename)
+     | exn -> fail @@ `Error_io (at, exn)
+
+(* *)
 
 let to_js_string ?(max_width = 80) doc = to_string ~max_width doc |> Js.string
 
@@ -26,6 +56,7 @@ let js_token begins ends name =
 
 let js_loc (begins, ends) =
   object%js
+    val file = Js.string begins.Lexing.pos_fname
     val begins = js_pos begins
     val ends = js_pos ends
   end
@@ -76,6 +107,19 @@ module JsType = struct
 end
 
 let stringify = Js.Unsafe.pure_js_expr "JSON.stringify"
+
+module Cb : sig
+  type 'a t
+
+  val invoke : 'a t -> 'a Js.t -> ('r, 'e, unit) Rea.t
+end = struct
+  type 'a t = unit
+
+  let invoke fn x =
+    Rea.delay @@ fun () ->
+    Js.Unsafe.fun_call fn [|Js.Unsafe.inject x|] |> ignore;
+    Rea.unit
+end
 
 let js_codemirror_mode =
   object%js
@@ -160,73 +204,76 @@ let js_codemirror_mode =
       in
       format value |> to_js_string ~max_width
 
-    method check input max_width =
-      let env = Env.empty () in
+    method check filename input max_width (on_result : _ Cb.t) =
+      let open Rea in
+      let filename = Js.to_string filename in
+      let env = Env.empty ~fetch () in
       let def_uses () =
         env#annotations |> Hashtbl.to_seq
         |> Seq.map (js_use_def ~max_width)
         |> Array.of_seq |> Js.array
       in
-      try
-        let typ =
-          Js.to_string input
-          |> parse_utf_8 Grammar.program Lexer.plain
-          |> elaborate |> Reader.run env |> Exp.infer |> Reader.run env
-          |> Typ.pp |> to_js_string ~max_width
-        in
-        object%js
-          val typ = typ
-          val defUses = def_uses ()
-          val diagnostics = Js.array [||]
-        end
-      with exn ->
-        object%js
-          val typ =
-            match exn with
-            | Diagnostic.Error ((loc, overview), []) ->
-              [Loc.pp loc; colon; break_1; overview]
-              |> concat |> nest 2 |> group |> to_js_string ~max_width
-            | Diagnostic.Error ((_, overview), details) ->
-              [
-                [overview; colon; break_0] |> concat;
-                [
-                  break_0;
-                  details
-                  |> List.map (fun (loc, msg) ->
-                         [Loc.pp loc; colon; break_1; msg]
-                         |> concat |> nest 2 |> group)
-                  |> separate (concat [break_0; break_0]);
-                ]
-                |> concat |> nest 2;
-              ]
-              |> concat |> to_js_string ~max_width
-            | Failure message -> Js.string message
-            | exn -> Printexc.to_string exn |> Js.string
+      Js.to_string input
+      |> parse_utf_8 Grammar.program Lexer.plain ~filename
+      >>= elaborate >>= with_modules >>= Exp.infer >>- Typ.pp
+      >>- to_js_string ~max_width
+      |> try_in
+           (fun typ ->
+             Cb.invoke on_result
+             @@ object%js
+                  val typ = typ
+                  val defUses = def_uses ()
+                  val diagnostics = Js.array [||]
+                end)
+           (fun error ->
+             let diagnostics = Error.to_diagnostics error in
+             Cb.invoke on_result
+             @@ object%js
+                  val typ =
+                    match diagnostics with
+                    | (loc, overview), [] ->
+                      [Loc.pp loc; colon; break_1; overview]
+                      |> concat |> nest 2 |> group |> to_js_string ~max_width
+                    | (_, overview), details ->
+                      [
+                        [overview; colon; break_0] |> concat;
+                        [
+                          break_0;
+                          details
+                          |> List.map (fun (loc, msg) ->
+                                 [Loc.pp loc; colon; break_1; msg]
+                                 |> concat |> nest 2 |> group)
+                          |> separate (concat [break_0; break_0]);
+                        ]
+                        |> concat |> nest 2;
+                      ]
+                      |> concat |> to_js_string ~max_width
 
-          val defUses = def_uses ()
+                  val defUses = def_uses ()
 
-          val diagnostics =
-            match exn with
-            | Diagnostic.Error (first, rest) ->
-              first :: rest |> Array.of_list
-              |> Array.map (fun ((begins, ends), msg) ->
-                     object%js
-                       val begins = js_pos begins
-                       val ends = js_pos ends
-                       val message = msg |> to_js_string ~max_width
-                     end)
-              |> Js.array
-            | _ -> Js.array [||]
-        end
+                  val diagnostics =
+                    match diagnostics with
+                    | first, rest ->
+                      first :: rest |> Array.of_list
+                      |> Array.map (fun ((begins, ends), msg) ->
+                             object%js
+                               val begins = js_pos begins
+                               val ends = js_pos ends
+                               val message = msg |> to_js_string ~max_width
+                             end)
+                      |> Js.array
+                end)
+      |> start env
 
-    method compile input =
-      try
-        Js.to_string input
-        |> parse_utf_8 Grammar.program Lexer.plain
-        |> elaborate
-        |> Reader.run (Env.empty ())
-        |> to_js |> Js.string
-      with _ -> Js.string ""
+    method compile filename input (on_result : _ Cb.t) =
+      let open Rea in
+      input |> Js.to_string
+      |> parse_utf_8 Grammar.program Lexer.plain
+           ~filename:(Js.to_string filename)
+      >>= elaborate >>= with_modules >>= to_js >>- Js.string
+      |> try_in (Cb.invoke on_result) (fun _ ->
+             Cb.invoke on_result @@ Js.string "")
+      |> start (Env.empty ~fetch ())
 
     method token input =
       try

@@ -1,5 +1,4 @@
 open FomSource
-open FomDiag
 open FomAnnot
 open FomBasis
 
@@ -92,33 +91,35 @@ let find_opt_non_contractive_mu at f arity =
     | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
   | _ -> None
 
-let rec infer typ : (_, _, Kind.t) Reader.t =
-  let open Reader in
+let rec infer typ : (_, _, Kind.t) Rea.t =
+  let open Rea in
   let quantifier symbol f =
-    let+ f_kind = infer f in
+    let* f_kind = infer f in
     match f_kind with
-    | `Arrow (_, _, (`Star _ as c_kind)) -> c_kind
-    | _ -> Error.quantifier_kind (at typ) symbol f f_kind
+    | `Arrow (_, _, (`Star _ as c_kind)) -> return c_kind
+    | _ -> fail @@ `Error_quantifier_kind (at typ, symbol, f, f_kind)
   in
   match typ with
   | `Mu (at', f) -> (
-    let+ f_kind = infer f in
+    let* f_kind = infer f in
     match f_kind with
-    | `Star _ -> Error.mu_kind at' f f_kind
+    | `Star _ -> fail @@ `Error_mu_kind (at', f, f_kind)
     | `Arrow (_, d_kind, c_kind) ->
       if not (Kind.equal d_kind c_kind) then
-        Error.mu_kind at' f f_kind;
-      let c_arity = Kind.arity c_kind in
-      find_opt_nested_arg_mu at' f c_arity
-      |> Option.iter (Error.mu_nested at' typ);
-      find_opt_non_contractive_mu at' f c_arity
-      |> Option.iter (Error.mu_non_contractive at' typ);
-      c_kind)
+        fail @@ `Error_mu_kind (at', f, f_kind)
+      else
+        let c_arity = Kind.arity c_kind in
+        find_opt_nested_arg_mu at' f c_arity
+        |> MOption.iter (fun typ' -> fail @@ `Error_mu_nested (at', typ, typ'))
+        >> (find_opt_non_contractive_mu at' f c_arity
+           |> MOption.iter (fun typ' ->
+                  fail @@ `Error_mu_non_contractive (at', typ, typ')))
+        >> return c_kind)
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
     let* i_kind_opt = get_as Env.field (Env.find_opt i) in
     match i_kind_opt with
-    | None -> Error.typ_var_unbound at' i
+    | None -> fail @@ `Error_typ_var_unbound (at', i)
     | Some (def, i_kind) ->
       env_as (Annot.Typ.use i (Id.at def)) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
@@ -128,11 +129,10 @@ let rec infer typ : (_, _, Kind.t) Reader.t =
   | `App (at', f, x) -> (
     let* f_kind = infer f in
     match f_kind with
-    | `Star _ -> Error.app_of_kind_star at' f x
+    | `Star _ -> fail @@ `Error_app_of_kind_star (at', f, x)
     | `Arrow (_, d_kind, c_kind) ->
-      let+ x_kind = infer x in
-      Kind.check_equal at' x_kind d_kind;
-      c_kind)
+      let* x_kind = infer x in
+      Kind.check_equal at' x_kind d_kind >> return c_kind)
   | `ForAll (_, f) -> quantifier FomPP.for_all f
   | `Exists (_, f) -> quantifier FomPP.exists f
   | `Arrow (at', d, c) ->
@@ -140,24 +140,24 @@ let rec infer typ : (_, _, Kind.t) Reader.t =
     check star d >> check star c >> return star
   | `Product (at', ls) | `Sum (at', ls) ->
     let star = `Star at' in
-    ls |> iter (snd >>> check star) >> return star
+    ls |> MList.iter (snd >>> check star) >> return star
 
 and check expected t =
-  let open Reader in
-  let+ actual = infer t in
+  let open Rea in
+  let* actual = infer t in
   Kind.check_equal (at t) expected actual
 
 (* *)
 
-let rec kind_of checked_typ : (_, _, Kind.t) Reader.t =
-  let open Reader in
+let rec kind_of checked_typ : (_, _, Kind.t) Rea.t =
+  let open Rea in
   match checked_typ with
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
     let+ i_kind_opt = get_as Env.field (Env.find_opt i) in
     match i_kind_opt with
-    | None -> failwith "Impossible"
+    | None -> failwith "impossible"
     | Some (_, i_kind) -> i_kind)
   | `Lam (at', d, d_kind, r) ->
     let+ r_kind = mapping Env.field (Env.add d (d, d_kind)) (kind_of r) in
@@ -170,11 +170,11 @@ let rec kind_of checked_typ : (_, _, Kind.t) Reader.t =
   | `Sum (at', _) ->
     return @@ `Star at'
 
-and kind_of_cod checked_typ : (_, _, Kind.t) Reader.t =
-  let open Reader in
+and kind_of_cod checked_typ : (_, _, Kind.t) Rea.t =
+  let open Rea in
   let+ f_kind = kind_of checked_typ in
   match f_kind with
-  | `Star _ -> failwith "Impossible"
+  | `Star _ -> failwith "impossible"
   | `Arrow (_, _, c_kind) -> c_kind
 
 (* *)
@@ -217,6 +217,7 @@ end
 (* *)
 
 let check_sub_of_norm, check_equal_of_norm =
+  let open Rea in
   let make_sub_and_eq at =
     let module GoalSet = Set.Make (Goal) in
     let goals = ref GoalSet.empty in
@@ -225,29 +226,27 @@ let check_sub_of_norm, check_equal_of_norm =
         goals := GoalSet.add g !goals;
         let rec subset op ls ms =
           match (ls, ms) with
-          | [], _ -> ()
-          | (ll, _) :: _, [] -> Error.label_missing at ll l r
+          | [], _ -> unit
+          | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
           | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
             let c = Label.compare ll ml in
-            if c = 0 then (
-              op (mt, lt);
-              subset op ls ms)
+            if c = 0 then
+              op (mt, lt) >> subset op ls ms
             else if 0 < c then
               subset op lls ms
             else
-              Error.label_missing at ll l r
+              fail @@ `Error_label_missing (at, ll, l, r)
         in
         match g with
-        | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-          sub (rd, ld);
-          sub (lc, rc)
+        | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub (rd, ld) >> sub (lc, rc)
         | `Product (_, lls), `Product (_, rls) -> subset sub rls lls
         | `Sum (_, lls), `Sum (_, rls) -> subset (Pair.swap >>> sub) lls rls
         | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
           sub (l, r)
         | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-          Kind.check_equal at lk rk;
-          sub (Goal.unify_vars li lt ri rt |> snd |> Goal.regularize_free_vars)
+          Kind.check_equal at lk rk
+          >> sub
+               (Goal.unify_vars li lt ri rt |> snd |> Goal.regularize_free_vars)
         | _ -> (
           match (unapp l, unapp r) with
           | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
@@ -256,15 +255,15 @@ let check_sub_of_norm, check_equal_of_norm =
           | _, ((`Mu (ra, rf) as rmu), rxs) -> sub (l, unfold ra rf rmu rxs)
           | (lf, lx :: lxs), (rf, rx :: rxs) ->
             if List.length lxs <> List.length rxs then
-              Error.typ_mismatch at r l;
-            eq (lf, rf);
-            eq (lx, rx);
-            List.iter2 (fun l r -> eq (l, r)) lxs rxs
-          | _ -> Error.typ_mismatch at r l))
-    and eq g =
-      sub g;
-      sub (Pair.swap g)
-    in
+              fail @@ `Error_typ_mismatch (at, r, l)
+            else
+              eq (lf, rf)
+              >> eq (lx, rx)
+              >> MList.iter2 (fun l r -> eq (l, r)) lxs rxs
+          | _ -> fail @@ `Error_typ_mismatch (at, r, l)))
+      else
+        unit
+    and eq g = sub g >> sub (Pair.swap g) in
     (sub, eq)
   in
   let sub at g = g |> Goal.regularize_free_vars |> fst (make_sub_and_eq at) in
@@ -272,30 +271,62 @@ let check_sub_of_norm, check_equal_of_norm =
   (sub, eq)
 
 let is_sub_of_norm, is_equal_of_norm =
+  let open Rea in
   let as_predicate check g =
-    try
-      check Loc.dummy g;
-      true
-    with Diagnostic.Error _ -> false
+    check Loc.dummy g
+    |> try_in (Fun.const @@ return true) (Fun.const @@ return false)
   in
-  (as_predicate check_sub_of_norm, as_predicate check_equal_of_norm)
+  let sub g = as_predicate check_sub_of_norm g in
+  let eq g = as_predicate check_equal_of_norm g in
+  (sub, eq)
 
 (* *)
 
-let rec to_strict (t : ['a FomAST.Typ.f | `Lazy of 'a Lazy.t] as 'a) =
+let rec to_strict
+    (t : ['a FomAST.Typ.f | `Lazy of ('r, 'e, 'a) Rea.t Lazy.t] as 'a) =
+  let open Rea in
   match t with
-  | `Mu (at, t) -> `Mu (at, to_strict t)
-  | `Const _ as inn -> inn
-  | `Var _ as inn -> inn
-  | `Lam (at, i, k, t) -> `Lam (at, i, k, to_strict t)
-  | `App (at, f, x) -> `App (at, to_strict f, to_strict x)
-  | `ForAll (at, t) -> `ForAll (at, to_strict t)
-  | `Exists (at, t) -> `Exists (at, to_strict t)
-  | `Arrow (at, d, c) -> `Arrow (at, to_strict d, to_strict c)
+  | `Mu (at, t) ->
+    let+ t = to_strict t in
+    `Mu (at, t)
+  | `Const _ as inn -> return inn
+  | `Var _ as inn -> return inn
+  | `Lam (at, i, k, t) ->
+    let+ t = to_strict t in
+    `Lam (at, i, k, t)
+  | `App (at, f, x) ->
+    let* f = to_strict f in
+    let+ x = to_strict x in
+    `App (at, f, x)
+  | `ForAll (at, t) ->
+    let+ t = to_strict t in
+    `ForAll (at, t)
+  | `Exists (at, t) ->
+    let+ t = to_strict t in
+    `Exists (at, t)
+  | `Arrow (at, d, c) ->
+    let* d = to_strict d in
+    let+ c = to_strict c in
+    `Arrow (at, d, c)
   | `Product (at, ls) ->
-    `Product (at, ls |> List.map (Pair.map Fun.id to_strict))
-  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map Fun.id to_strict))
-  | `Lazy (lazy t) -> to_strict t
+    let+ ls =
+      ls
+      |> MList.traverse @@ fun (l, t) ->
+         let+ t = to_strict t in
+         (l, t)
+    in
+    `Product (at, ls)
+  | `Sum (at, ls) ->
+    let+ ls =
+      ls
+      |> MList.traverse @@ fun (l, t) ->
+         let+ t = to_strict t in
+         (l, t)
+    in
+    `Sum (at, ls)
+  | `Lazy (lazy t) ->
+    let* t = t in
+    to_strict t
 
 let rec to_lazy = function
   | `Mu (at, t) -> `Mu (at, to_lazy t)
@@ -310,6 +341,7 @@ let rec to_lazy = function
   | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map Fun.id to_lazy))
 
 let join_of_norm at g =
+  let open Rea in
   let module GoalMap = Map.Make (Goal) in
   let joins = ref GoalMap.empty in
   let meets = ref GoalMap.empty in
@@ -321,8 +353,9 @@ let join_of_norm at g =
       else if 0 < c then
         intersection op os (llls, rls)
       else
-        intersection op ((ll, op (lt, rt)) :: os) (lls, rls)
-    | [], _ | _, [] -> List.rev os
+        let* t = op (lt, rt) in
+        intersection op ((ll, t) :: os) (lls, rls)
+    | [], _ | _, [] -> return @@ List.rev os
   in
   let rec union op os = function
     | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
@@ -332,58 +365,72 @@ let join_of_norm at g =
       else if 0 < c then
         union op ((rl, to_lazy rt) :: os) (llls, rls)
       else
-        union op ((ll, op (lt, rt)) :: os) (lls, rls)
+        let* t = op (lt, rt) in
+        union op ((ll, t) :: os) (lls, rls)
     | (ll, lt) :: lls, [] -> union op ((ll, to_lazy lt) :: os) (lls, [])
     | [], (rl, rt) :: rls -> union op ((rl, to_lazy rt) :: os) ([], rls)
-    | [], [] -> List.rev os
+    | [], [] -> return @@ List.rev os
   in
   let synth map fst snd upper lower intersection union ((l, r) as g) =
     match GoalMap.find_opt g !map with
     | Some result -> result
     | None ->
       let result =
-        if is_sub_of_norm g then
-          to_lazy (snd g)
-        else if is_sub_of_norm (Pair.swap g) then
-          to_lazy (fst g)
+        let* g_is_sub = is_sub_of_norm g in
+        if g_is_sub then
+          return @@ to_lazy (snd g)
         else
-          `Lazy
-            (lazy
-              (match g with
-              | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-                `Arrow (at, lower (ld, rd), upper (lc, rc))
-              | `Product (_, lls), `Product (_, rls) ->
-                `Product (at, intersection upper [] (lls, rls))
-              | `Sum (_, lls), `Sum (_, rls) ->
-                `Sum (at, union upper [] (lls, rls))
-              | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-                Kind.check_equal at lk rk;
-                let i, goal = Goal.unify_vars li lt ri rt in
-                let assoc = Goal.free_vars_to_regular_assoc goal in
-                let t =
-                  goal
-                  |> Goal.map (Goal.to_subst assoc)
-                  |> upper
-                  |> (to_strict
-                     >>> Goal.to_subst (List.map Pair.swap assoc)
-                     >>> to_lazy)
-                in
-                `Lam (at, i, lk, t)
-              | `ForAll (_, lt), `ForAll (_, rt) -> `ForAll (at, upper (lt, rt))
-              | `Exists (_, lt), `Exists (_, rt) -> `Exists (at, upper (lt, rt))
-              | _ -> (
-                match (unapp l, unapp r) with
-                | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
-                  upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
-                | ((`Mu (la, lf) as lmu), lxs), _ ->
-                  upper (unfold la lf lmu lxs, r)
-                | _, ((`Mu (ra, rf) as rmu), rxs) ->
-                  upper (l, unfold ra rf rmu rxs)
-                | _ -> Error.typ_mismatch at l r)))
+          let* swap_g_is_sub = is_sub_of_norm (Pair.swap g) in
+          if swap_g_is_sub then
+            return @@ to_lazy (fst g)
+          else
+            return
+            @@ `Lazy
+                 (lazy
+                   (match g with
+                   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+                     let* d = lower (ld, rd) in
+                     let+ c = upper (lc, rc) in
+                     `Arrow (at, d, c)
+                   | `Product (_, lls), `Product (_, rls) ->
+                     let+ ls = intersection upper [] (lls, rls) in
+                     `Product (at, ls)
+                   | `Sum (_, lls), `Sum (_, rls) ->
+                     let+ ls = union upper [] (lls, rls) in
+                     `Sum (at, ls)
+                   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+                     Kind.check_equal at lk rk
+                     >>
+                     let i, goal = Goal.unify_vars li lt ri rt in
+                     let assoc = Goal.free_vars_to_regular_assoc goal in
+                     let+ t =
+                       goal
+                       |> Goal.map (Goal.to_subst assoc)
+                       |> upper >>= to_strict
+                       >>- Goal.to_subst (List.map Pair.swap assoc)
+                       >>- to_lazy
+                     in
+                     `Lam (at, i, lk, t)
+                   | `ForAll (_, lt), `ForAll (_, rt) ->
+                     let+ t = upper (lt, rt) in
+                     `ForAll (at, t)
+                   | `Exists (_, lt), `Exists (_, rt) ->
+                     let+ t = upper (lt, rt) in
+                     `Exists (at, t)
+                   | _ -> (
+                     match (unapp l, unapp r) with
+                     | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs)
+                       ->
+                       upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
+                     | ((`Mu (la, lf) as lmu), lxs), _ ->
+                       upper (unfold la lf lmu lxs, r)
+                     | _, ((`Mu (ra, rf) as rmu), rxs) ->
+                       upper (l, unfold ra rf rmu rxs)
+                     | _ -> fail @@ `Error_typ_mismatch (at, l, r))))
       in
       map := GoalMap.add g result !map;
       result
   in
   let rec join g = synth joins fst snd join meet intersection union g
   and meet g = synth meets snd fst meet join union intersection g in
-  join g |> to_strict
+  join g >>= to_strict

@@ -173,8 +173,8 @@ end
 module Tuple = struct
   let is_tuple labels =
     labels
-    |> ListExt.for_alli (fun i (l, _) ->
-           Label.to_string l = Int.to_string (i + 1))
+    |> ListExt.for_alli @@ fun i (l, _) ->
+       Label.to_string l = Int.to_string (i + 1)
 end
 
 module Typ = struct
@@ -260,7 +260,7 @@ module Typ = struct
 
   (* Type applications *)
 
-  let app at = List.fold_left (fun f x -> `App (at, f, x))
+  let app at = List.fold_left @@ fun f x -> `App (at, f, x)
 
   let unapp t =
     let rec loop xs = function
@@ -350,7 +350,7 @@ module Typ = struct
     | `Mu (_, typ) | `ForAll (_, typ) | `Exists (_, typ) -> is_free id typ
     | `Arrow (_, d, c) -> is_free id d || is_free id c
     | `Product (_, ls) | `Sum (_, ls) ->
-      ls |> List.exists (fun (_, t) -> is_free id t)
+      ls |> List.exists @@ fun (_, t) -> is_free id t
 
   let rec subst_par replaced env = function
     | `Mu (at, t) as inn ->
@@ -630,7 +630,7 @@ module Exp = struct
       | `OpEqNot t -> `OpEqNot (tu t)
 
     let traverse_typ tuM =
-      let open Reader in
+      let open Rea in
       function
       | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
         | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub

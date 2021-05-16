@@ -1,6 +1,81 @@
 open FomBasis
+open FomSource
+open FomParser
 open FomAST
 open FomAnnot
+open FomDiag
+
+(* *)
+
+open Rea
+
+module Path = struct
+  let inc_ext = ".fomd"
+  let sig_ext = ".fomt"
+  let mod_ext = ".fom"
+
+  (* *)
+
+  let is_absolute filename = StringExt.is_prefix "/" filename
+
+  let ensure_ext ext filename =
+    if Filename.extension filename = ext then
+      filename
+    else
+      filename ^ ext
+
+  (* *)
+
+  let split_to_origin_and_path uri =
+    match String.split_on_char '/' uri with
+    | (("https:" | "http:") as proto) :: "" :: host :: path ->
+      (Some (String.concat "/" [proto; ""; host]), String.concat "/" path)
+    | _ -> (None, uri)
+
+  let join_origin_and_path (origin_opt, path) =
+    match origin_opt with
+    | None -> path
+    | Some origin ->
+      if is_absolute path then
+        origin ^ path
+      else
+        origin ^ "/" ^ path
+
+  (* *)
+
+  let is_http filename =
+    StringExt.is_prefix "https://" filename
+    || StringExt.is_prefix "http://" filename
+
+  let resolve loc lit =
+    let filename = LitString.to_utf8 lit in
+    (if is_http filename then
+       filename |> split_to_origin_and_path
+    else
+      loc |> Loc.filename |> Filename.dirname |> split_to_origin_and_path
+      |> Pair.map Fun.id @@ fun parent_dir ->
+         if is_absolute filename then
+           filename
+         else
+           parent_dir ^ "/" ^ filename)
+    |> Pair.map Fun.id FilenameExt.canonic
+    |> join_origin_and_path
+end
+
+module Fetch = struct
+  type e = [Error.file_doesnt_exist | Error.io_error]
+  type t = Loc.t -> string -> (unit, e, string) Rea.t
+
+  let field r = r#fetch
+
+  class con (fetch : t) =
+    object
+      method fetch = fetch
+    end
+
+  let fetch at filename =
+    invoke (fun r -> field r at filename) |> map_error (fun (#e as x) -> x)
+end
 
 module TypAliases = struct
   type t = FomAST.Typ.t FomAST.Typ.Env.t
@@ -14,46 +89,90 @@ module TypAliases = struct
     end
 end
 
+module VarTbl = struct
+  let get_or_put field key compute =
+    let* hashtbl = env_as field in
+    match Hashtbl.find_opt hashtbl key with
+    | None ->
+      let var = IVar.empty () in
+      Hashtbl.add hashtbl key var;
+      catch compute >>= IVar.put var >> IVar.get var
+    | Some var -> IVar.get var
+end
+
 module TypIncludes = struct
-  type t = FomAST.Typ.t FomAST.Typ.Env.t FomCST.Typ.IncludeMap.t
+  type e = [Error.io_error | Error.syntax_errors | Error.source_errors]
+  type t = (string, (e, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
 
   let field r = r#typ_includes
 
-  class con =
-    object
-      val typ_includes : t = FomCST.Typ.IncludeMap.empty
+  let get_or_put filename compute =
+    VarTbl.get_or_put field filename compute |> map_error (fun (#e as x) -> x)
 
-      method typ_includes =
-        Field.make typ_includes (fun v -> {<typ_includes = v>})
+  class con (typ_includes : t) =
+    object
+      method typ_includes = typ_includes
     end
 end
 
 module TypImports = struct
-  type t = FomAST.Typ.t FomCST.Typ.ImportMap.t
+  type e = [Error.io_error | Error.syntax_errors | Error.source_errors]
+  type t = (string, (e, FomAST.Typ.t) IVar.t) Hashtbl.t
 
   let field r = r#typ_imports
 
-  class con =
+  let get_or_put filename compute =
+    VarTbl.get_or_put field filename compute |> map_error (fun (#e as x) -> x)
+
+  class con (typ_imports : t) =
     object
-      val typ_imports : t = FomCST.Typ.ImportMap.empty
-      method typ_imports = Field.make typ_imports (fun v -> {<typ_imports = v>})
+      method typ_imports = typ_imports
     end
 end
 
 module ExpImports = struct
-  type t = FomAST.Exp.Id.t FomCST.Exp.ImportMap.t
+  type e = [Error.io_error | Error.syntax_errors | Error.source_errors]
+
+  type t =
+    ( string,
+      (e, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t )
+    Hashtbl.t
 
   let field r = r#exp_imports
 
+  let get_or_put filename compute =
+    VarTbl.get_or_put field filename compute |> map_error (fun (#e as x) -> x)
+
+  class con (exp_imports : t) =
+    object
+      method exp_imports = exp_imports
+    end
+end
+
+module PathMap = Map.Make (String)
+
+module ImportChain = struct
+  type t = Loc.t PathMap.t
+
+  let field r = r#import_chain
+
+  let with_path at filename compute =
+    let* include_chain = get field in
+    PathMap.find_opt filename include_chain
+    |> MOption.iter (fun previously_at ->
+           fail @@ `Error_cyclic_includes (at, filename, previously_at))
+    >> compute
+
   class con =
     object
-      val exp_imports : t = FomCST.Exp.ImportMap.empty
-      method exp_imports = Field.make exp_imports (fun v -> {<exp_imports = v>})
+      val import_chain : t = PathMap.empty
+
+      method import_chain =
+        Field.make import_chain (fun v -> {<import_chain = v>})
     end
 end
 
 let avoid at i inn =
-  let open Reader in
   mapping TypAliases.field (Typ.Env.remove i)
   @@ let* exists =
        get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
@@ -70,10 +189,8 @@ let rec type_of_pat_lam = function
   | `Product (at, fs) ->
     Typ.product at
       (fs
-      |> List.map
-           (Pair.map Fun.id @@ function
-            | `Pat p -> type_of_pat_lam p
-            | `Ann t -> t))
+      |> List.map @@ Pair.map Fun.id
+         @@ function `Pat p -> type_of_pat_lam p | `Ann t -> t)
   | `Pack (_, _, _, t) -> t
 
 let rec elaborate_pat p' e' = function
@@ -100,9 +217,7 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
-let rec elaborate_def =
-  let open Reader in
-  function
+let rec elaborate_def = function
   | `Typ (_, i, kO, t) ->
     let* t = elaborate_typ t in
     env_as (Annot.Typ.alias i t)
@@ -119,7 +234,7 @@ let rec elaborate_def =
   | `TypRec (_, bs) ->
     let* assoc =
       bs
-      |> traverse @@ fun ((i, k), t) ->
+      |> MList.traverse @@ fun ((i, k), t) ->
          let at = Typ.Id.at i in
          let t = `Mu (at, `Lam (at, i, k, t)) in
          let* t = elaborate_typ t in
@@ -130,28 +245,26 @@ let rec elaborate_def =
     let replaced i t = Annot.Typ.use i (Typ.at t) r in
     let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
     get_as TypAliases.field (Typ.Env.union (fun _ v _ -> Some v) env)
-  | `Include (at', p) -> (
-    let filename =
-      FomModules.resolve at' p |> FomModules.ensure_ext FomModules.inc_ext
+  | `Include (at', p) ->
+    let filename = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
+    let* env =
+      ImportChain.with_path at' filename
+        (TypIncludes.get_or_put filename
+           (setting TypAliases.field FomCST.Typ.Env.empty
+              (Fetch.fetch at' filename
+              >>= parse_utf_8 Grammar.typ_defs Lexer.plain ~filename
+              >>= elaborate_defs)))
     in
-    let* env_opt =
-      get_as TypIncludes.field (FomCST.Typ.IncludeMap.find_opt filename)
-    in
-    match env_opt with
-    | None -> failwithf "include %s not found" filename
-    | Some env ->
-      get_as TypAliases.field
-      @@ FomAST.Typ.Env.merge
-           (fun _ l r ->
-             match (l, r) with
-             | Some l, _ -> Some l
-             | _, Some r -> Some r
-             | _, _ -> None)
-           env)
+    get_as TypAliases.field
+    @@ FomAST.Typ.Env.merge
+         (fun _ l r ->
+           match (l, r) with
+           | Some l, _ -> Some l
+           | _, Some r -> Some r
+           | _, _ -> None)
+         env
 
-and elaborate_typ =
-  let open Reader in
-  function
+and elaborate_typ = function
   | `Mu (at', t) ->
     let+ t = elaborate_typ t in
     `Mu (at', t)
@@ -182,7 +295,7 @@ and elaborate_typ =
   | `Product (at', ls) ->
     let+ ls =
       ls
-      |> traverse @@ fun (l, t) ->
+      |> MList.traverse @@ fun (l, t) ->
          let+ t = elaborate_typ t in
          (l, t)
     in
@@ -190,7 +303,7 @@ and elaborate_typ =
   | `Sum (at', ls) ->
     let+ ls =
       ls
-      |> traverse @@ fun (l, t) ->
+      |> MList.traverse @@ fun (l, t) ->
          let+ t = elaborate_typ t in
          (l, t)
     in
@@ -198,27 +311,22 @@ and elaborate_typ =
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     setting TypAliases.field typ_aliases (elaborate_typ e)
-  | `Import (at', p) -> (
-    let filename =
-      FomModules.resolve at' p |> FomModules.ensure_ext FomModules.sig_ext
-    in
-    let+ t_opt =
-      get_as TypImports.field (FomCST.Exp.ImportMap.find_opt filename)
-    in
-    match t_opt with
-    | None -> failwithf "import %s not found" filename
-    | Some t -> t)
+  | `Import (at', p) ->
+    let filename = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
+    ImportChain.with_path at' filename
+      (TypImports.get_or_put filename
+         (setting TypAliases.field FomCST.Typ.Env.empty
+            (Fetch.fetch at' filename
+            >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename
+            >>= elaborate_typ)))
 
-let rec elaborate_defs =
-  let open Reader in
-  function
+and elaborate_defs = function
   | [] -> get TypAliases.field
   | def :: defs ->
     let* typ_aliases = elaborate_def def in
     setting TypAliases.field typ_aliases (elaborate_defs defs)
 
 let maybe_annot e tO =
-  let open Reader in
   match tO with
   | None -> return e
   | Some t ->
@@ -227,9 +335,7 @@ let maybe_annot e tO =
     let i = Exp.Id.fresh at in
     `App (at, `Lam (at, i, t, `Var (at, i)), e)
 
-let rec elaborate =
-  let open Reader in
-  function
+let rec elaborate = function
   | `Const (at, c) ->
     let+ c = c |> Exp.Const.traverse_typ elaborate_typ in
     `Const (at, c)
@@ -276,7 +382,7 @@ let rec elaborate =
   | `Product (at, fs) ->
     let+ fs =
       fs
-      |> traverse @@ fun (l, e) ->
+      |> MList.traverse @@ fun (l, e) ->
          let+ e = elaborate e in
          (l, e)
     in
@@ -333,13 +439,61 @@ let rec elaborate =
     let* x = elaborate x in
     let+ f = elaborate f in
     `App (at, f, x)
-  | `Import (at', p) -> (
-    let filename =
-      FomModules.resolve at' p |> FomModules.ensure_ext FomModules.mod_ext
+  | `Import (at', p) ->
+    let mod_filename = Path.resolve at' p |> Path.ensure_ext Path.mod_ext in
+    let sig_filename = Filename.remove_extension mod_filename ^ Path.sig_ext in
+    let* typ_opt =
+      ImportChain.with_path at' sig_filename
+        (TypImports.get_or_put sig_filename
+           (setting TypAliases.field FomCST.Typ.Env.empty
+              (Fetch.fetch at' sig_filename
+              >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename:sig_filename
+              >>= elaborate_typ))
+        |> try_in (fun contents -> return @@ Some contents) @@ function
+           | #Error.file_doesnt_exist -> return None
+           | e -> fail e)
     in
-    let+ i_opt =
-      get_as ExpImports.field (FomCST.Exp.ImportMap.find_opt filename)
+    let+ id, _, _ =
+      ImportChain.with_path at' mod_filename
+        (ExpImports.get_or_put mod_filename
+           (setting TypAliases.field FomCST.Typ.Env.empty
+              (let+ ast =
+                 Fetch.fetch at' mod_filename
+                 >>= parse_utf_8 Grammar.program Lexer.plain
+                       ~filename:mod_filename
+                 >>= elaborate
+               in
+               let id = FomAST.Exp.Id.fresh at' in
+               (id, ast, typ_opt))))
     in
-    match i_opt with
-    | None -> failwithf "import %s not found" filename
-    | Some i -> `Var (at', i))
+    `Var (at', id)
+
+(* *)
+
+let elaborate_defs x =
+  elaborate_defs x |> map_error (fun (#TypImports.e as x) -> x)
+
+let elaborate_typ x =
+  elaborate_typ x |> map_error (fun (#TypImports.e as x) -> x)
+
+let elaborate x = elaborate x |> map_error (fun (#TypImports.e as x) -> x)
+
+(* *)
+
+let with_modules ast =
+  let at = Exp.at ast in
+  let* exp_imports = env_as ExpImports.field in
+  let+ imports =
+    Hashtbl.to_seq exp_imports |> Seq.map snd |> List.of_seq
+    |> MList.traverse @@ fun var ->
+       IVar.get var |> map_error @@ fun (#ExpImports.e as x) -> x
+  in
+  imports
+  |> List.sort (Compare.the (fun (id, _, _) -> id) Exp.Id.compare)
+  |> List.rev
+  |> List.fold_left
+       (fun prg (id, ast, typ_opt) ->
+         match typ_opt with
+         | None -> `LetIn (at, id, ast, prg)
+         | Some typ -> `App (at, `Lam (at, id, typ, prg), ast))
+       ast

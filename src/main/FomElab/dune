@@ -1,3 +1,3 @@
 (library
  (name FomElab)
- (libraries FomCST FomModules FomAnnot))
+ (libraries FomCST FomParser FomAnnot))
