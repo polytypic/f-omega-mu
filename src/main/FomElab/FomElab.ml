@@ -244,8 +244,17 @@ let rec elaborate =
     let+ x = elaborate x in
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
-    let+ e = elaborate e in
-    `Gen (at, i, k, e)
+    let* exists =
+      get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
+    in
+    if exists then
+      let i' = Typ.Id.freshen i in
+      let v' = `Var (at, i') in
+      let+ e = mapping TypAliases.field (Typ.Env.add i' v') (elaborate e) in
+      `Gen (at, i', k, e)
+    else
+      let+ e = elaborate e in
+      `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let* e = elaborate e in
     let+ t = elaborate_typ t in
