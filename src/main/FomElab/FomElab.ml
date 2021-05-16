@@ -52,6 +52,19 @@ module ExpImports = struct
     end
 end
 
+let avoid at i inn =
+  let open Reader in
+  mapping TypAliases.field (Typ.Env.remove i)
+  @@ let* exists =
+       get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
+     in
+     if exists then
+       let i' = Typ.Id.freshen i in
+       let v' = `Var (at, i') in
+       mapping TypAliases.field (Typ.Env.add i' v') (inn i')
+     else
+       inn i
+
 let rec type_of_pat_lam = function
   | `Id (_, _, t) -> t
   | `Product (at, fs) ->
@@ -149,20 +162,9 @@ and elaborate_typ =
     | None -> return @@ `Var (at', i)
     | Some t -> env_as (Annot.Typ.use i (Typ.at t)) >> return t)
   | `Lam (at', i, k, t) ->
-    mapping TypAliases.field (Typ.Env.remove i)
-    @@ let* exists =
-         get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
-       in
-       if exists then
-         let i' = Typ.Id.freshen i in
-         let v' = `Var (at', i') in
-         let+ t =
-           mapping TypAliases.field (Typ.Env.add i' v') (elaborate_typ t)
-         in
-         `Lam (at', i', k, t)
-       else
-         let+ t = elaborate_typ t in
-         `Lam (at', i, k, t)
+    avoid at' i @@ fun i ->
+    let+ t = elaborate_typ t in
+    `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let* f = elaborate_typ f in
     let+ x = elaborate_typ x in
@@ -244,17 +246,9 @@ let rec elaborate =
     let+ x = elaborate x in
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
-    let* exists =
-      get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
-    in
-    if exists then
-      let i' = Typ.Id.freshen i in
-      let v' = `Var (at, i') in
-      let+ e = mapping TypAliases.field (Typ.Env.add i' v') (elaborate e) in
-      `Gen (at, i', k, e)
-    else
-      let+ e = elaborate e in
-      `Gen (at, i, k, e)
+    avoid at i @@ fun i ->
+    let+ e = elaborate e in
+    `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let* e = elaborate e in
     let+ t = elaborate_typ t in
@@ -303,11 +297,13 @@ let rec elaborate =
     `Pack (at, t, e, x)
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
+    avoid at ti @@ fun ti ->
     let+ e = elaborate e in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
+    avoid at ti @@ fun ti ->
     let+ e = elaborate e in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, pvs, e) ->

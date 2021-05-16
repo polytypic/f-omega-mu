@@ -209,7 +209,11 @@ let () =
     let type μnon_contractive:* → * = λt.non_contractive t in
     λx:non_contractive int.x ▷ case {}
     |eof};
-  testErrors "free variable in def"
+  testErrors "free variable in def and Λ"
     "let type def:* → * = λt.x in Λx.λ_:def int.λ_:def string.()";
-  testErrors "free variable in μdef"
-    "let type μdef:* → * = λt.x in Λx.λ_:def int.λ_:def string.()"
+  testErrors "free variable in def and 《》"
+    {eof|
+    let type r:* → * = λt.x in
+    let《x\_》= 《()\()》: ∃t.t in
+    (λ_:r int.λ_:r string.(), 1).2
+    |eof}
