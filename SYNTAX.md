@@ -85,6 +85,11 @@ bop
 
 - `#` begins comment to end-of-line.
 
+- `#line LINE "FILE"` is recognized as a line directive where `LINE` is a
+  decimal line number and `"FILE"` is a JSON encoded file name that must be
+  immediately followed by a newline. The following line will then be considered
+  to come from the specified file and line.
+
 1. Type variables are distinct from expression variables. `_` is allowed in
    place of a variable in bindings.
 
