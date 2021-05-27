@@ -121,10 +121,17 @@ end = struct
     Rea.unit
 end
 
+module JsHashtbl = Hashtbl.Make (struct
+  type t = unit Js.t
+
+  let equal = ( == )
+  let hash = Hashtbl.hash
+end)
+
 let js_codemirror_mode =
   object%js
     method format (value : unit Js.t) max_width =
-      let known = Hashtbl.create 100 in
+      let known = JsHashtbl.create 100 in
       let rec format_object obj =
         let keys = Js.object_keys obj |> Js.to_array |> Array.to_list in
         if
@@ -154,11 +161,11 @@ let js_codemirror_mode =
         ]
         |> concat |> egyptian brackets 2
       and format value =
-        match Hashtbl.find_opt known value with
+        match JsHashtbl.find_opt known value with
         | None ->
-          let n = Hashtbl.length known + 1 in
+          let n = JsHashtbl.length known + 1 in
           let used = ref false in
-          Hashtbl.add known value (n, used);
+          JsHashtbl.add known value (n, used);
           let result =
             match Js.typeof value |> Js.to_string with
             | "object" | "undefined" ->
@@ -193,7 +200,7 @@ let js_codemirror_mode =
                 format_object value
             | _ -> utf8string "unknown"
           in
-          Hashtbl.remove known value;
+          JsHashtbl.remove known value;
           if !used then
             [mu_lower; utf8format "α_%d" n; dot; result] |> concat |> group
           else
