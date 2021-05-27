@@ -52,12 +52,29 @@ let string = [%sedlex.regexp? "\"", Star char, "\""]
 
 (* *)
 
+let line_ending = [%sedlex.regexp? '\r' | '\n' | "\r\n" | "\n\r"]
+
+let line_directive =
+  [%sedlex.regexp? "#line", Plus ' ', nat_10, Plus ' ', string, line_ending]
+
+(* *)
+
 let lit_true = LitBool true
 let lit_false = LitBool false
 
 let rec token_or_comment buffer =
   let return = return_from buffer in
   match%sedlex buffer with
+  | line_directive ->
+    Scanf.sscanf (Buffer.lexeme_utf_8 buffer) "#line %d %[^\n\r]"
+    @@ fun line filename_literal ->
+    let open FomAST.LitString in
+    let filename = filename_literal |> of_utf8_json |> to_utf8 in
+    let _, pos = Sedlexing.lexing_positions buffer in
+    Sedlexing.set_filename buffer filename;
+    Sedlexing.set_position buffer {pos with pos_lnum = line};
+    token_or_comment buffer
+  (* *)
   | "%" -> return Percent
   | "(" -> return ParenLhs
   | ")" -> return ParenRhs
