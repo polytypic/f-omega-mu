@@ -4,41 +4,29 @@ FomSandbox(window)
 
 //
 
-const url = location.origin + location.pathname + 'examples/*'
+const url = `${location.origin}${location.pathname}examples/*`
 
 //
 
-const throttled = function (ms, fn) {
+const throttled = (ms, fn) => {
   let timeout = null
-  return function () {
+  return () => {
     clearTimeout(timeout)
     timeout = setTimeout(fn, ms)
   }
 }
 
-const onWorker = function (init, before, onWorker, after) {
-  const code =
-    '(function () {\n' +
-    '  (' +
-    init.toString() +
-    ')();\n' +
-    '\n' +
-    '  const onWorker = ' +
-    onWorker.toString() +
-    '\n' +
-    '  \n' +
-    '  onmessage = function (message) {\n' +
-    '    const self = this\n' +
-    '    onWorker(message.data, function (result) {\n' +
-    '      self.postMessage(result)\n' +
-    '    })\n' +
-    '  }\n' +
-    '})()'
+const onWorker = (init, before, onWorker, after) => {
+  const code = `(() => {
+  (${init})()
+  const onWorker = ${onWorker}
+  onmessage = ({data}) => onWorker(data, postMessage)
+})()`
 
   let working = false
   let worker
 
-  return function () {
+  return () => {
     if (working) {
       worker.terminate()
       worker = undefined
@@ -47,7 +35,7 @@ const onWorker = function (init, before, onWorker, after) {
     if (worker === undefined) {
       worker = new Worker('evalWorker.js')
       worker.postMessage(code)
-      worker.onmessage = function (message) {
+      worker.onmessage = message => {
         working = false
         after(message.data)
       }
@@ -57,14 +45,12 @@ const onWorker = function (init, before, onWorker, after) {
   }
 }
 
-const clearMarkers = function (markers) {
-  markers.forEach(function (mark) {
-    mark.clear()
-  })
+const clearMarkers = markers => {
+  markers.forEach(mark => mark.clear())
   markers.length = 0
 }
 
-const getWidth = function (editor) {
+const getWidth = editor => {
   const charWidth = editor.defaultCharWidth()
   const scrollArea = editor.getScrollInfo()
   const scrollLeft = editor.doc.scrollLeft
@@ -88,20 +74,18 @@ const jsCM = CodeMirror(jsDiv, {
   theme: theme,
 })
 
-CodeMirror.defineMode('fom', function () {
-  return {
-    token: function (stream) {
-      const token = fom.token(stream.string.slice(stream.start))
-      if (token.name === 'error') {
-        stream.skipToEnd()
-      } else {
-        stream.start += token.begins
-        stream.pos += token.ends
-      }
-      return token.name
-    },
-  }
-})
+CodeMirror.defineMode('fom', () => ({
+  token: stream => {
+    const token = fom.token(stream.string.slice(stream.start))
+    if (token.name === 'error') {
+      stream.skipToEnd()
+    } else {
+      stream.start += token.begins
+      stream.pos += token.ends
+    }
+    return token.name
+  },
+}))
 
 const resultCM = CodeMirror(resultDiv, {
   cursorBlinkRate: 0,
@@ -132,7 +116,7 @@ const fomCM = CodeMirror(fomDiv, {
 })
 
 fomCM.setOption('extraKeys', {
-  Tab: function () {
+  Tab: () => {
     const spaces = Array(fomCM.getOption('indentUnit') + 1).join(' ')
     fomCM.replaceSelection(spaces)
   },
@@ -146,16 +130,16 @@ let result = {defUses: [], diagnostics: []}
 
 const duMap = []
 
-const insertDU = function (loc, du) {
+const insertDU = (loc, du) => {
   const begins = loc.begins
   const line = duMap[begins.line] || (duMap[begins.line] = [])
   line[begins.ch] = du
 }
 
-const prepareDefUses = function () {
+const prepareDefUses = () => {
   duMap.length = 0
-  result.defUses.forEach(function (du) {
-    du.uses.forEach(function (use) {
+  result.defUses.forEach(du => {
+    du.uses.forEach(use => {
       if (use.file === url) {
         insertDU(use, du)
       }
@@ -168,7 +152,7 @@ const prepareDefUses = function () {
 
 const duMarkers = []
 
-const duAt = function (cursor, offset) {
+const duAt = (cursor, offset) => {
   if (undefined === offset) {
     return duAt(cursor, 0) || duAt(cursor, 1)
   } else {
@@ -183,7 +167,7 @@ const duAt = function (cursor, offset) {
   }
 }
 
-const updateDefUses = throttled(100, function () {
+const updateDefUses = throttled(100, () => {
   clearMarkers(duMarkers)
   const du = duAt(fomCM.getCursor())
   if (du) {
@@ -194,7 +178,7 @@ const updateDefUses = throttled(100, function () {
         })
       )
     }
-    du.uses.forEach(function (use) {
+    du.uses.forEach(use => {
       if (use.file === url) {
         duMarkers.push(
           fomCM.markText(use.begins, use.ends, {
@@ -214,15 +198,13 @@ fomCM.on('cursorActivity', updateDefUses)
 //
 
 const run = onWorker(
-  function () {
+  () => {
     importScripts('FomSandbox.js')
     FomSandbox(self)
     importScripts('prelude.js')
   },
-  function () {
-    return {js: jsCM.getValue(), width: getWidth(fomCM)}
-  },
-  function (params, onResult) {
+  () => ({js: jsCM.getValue(), width: getWidth(fomCM)}),
+  (params, onResult) => {
     try {
       const result = timed('eval', () => eval(params.js))
       onResult(timed('format', () => fom.format(result, params.width)))
@@ -230,7 +212,7 @@ const run = onWorker(
       onResult(error.toString())
     }
   },
-  function (result) {
+  result => {
     if (typeof result !== 'string') result = ''
     resultCM.setValue(result)
   }
@@ -239,17 +221,15 @@ const run = onWorker(
 //
 
 const compile = onWorker(
-  function () {
+  () => {
     importScripts('FomSandbox.js')
     FomSandbox(self)
     importScripts('https://unpkg.com/prettier@2.3.0/standalone.js')
     importScripts('https://unpkg.com/prettier@2.3.0/parser-babel.js')
   },
-  function () {
-    return {url, exp: fomCM.getValue(), width: getWidth(fomCM)}
-  },
-  function (params, onResult) {
-    fom.compile(params.url, params.exp, function (js) {
+  () => ({url, exp: fomCM.getValue(), width: getWidth(fomCM)}),
+  (params, onResult) =>
+    fom.compile(params.url, params.exp, js => {
       try {
         onResult(
           prettier
@@ -267,9 +247,8 @@ const compile = onWorker(
       } catch (error) {
         console.error('Prettier failed with error:', error)
       }
-    })
-  },
-  function (js) {
+    }),
+  js => {
     jsCM.setValue(js)
     run(js)
   }
@@ -282,26 +261,25 @@ const diagnosticMarkers = []
 const check = throttled(
   200,
   onWorker(
-    function () {
+    () => {
       importScripts('FomSandbox.js')
       FomSandbox(self)
     },
-    function () {
+    () => {
       clearMarkers(diagnosticMarkers)
       const width = Math.min(80, (getWidth(fomCM) * 0.85) | 0)
       return {url, exp: fomCM.getValue(), width: width}
     },
-    function (params, onResult) {
-      fom.check(params.url, params.exp, params.width, onResult)
-    },
-    function (data) {
+    (params, onResult) =>
+      fom.check(params.url, params.exp, params.width, onResult),
+    data => {
       result = data
 
       if (result.diagnostics.length) {
         resultCM.setValue('')
         jsCM.setValue('')
 
-        result.diagnostics.forEach(function (diagnostic) {
+        result.diagnostics.forEach(diagnostic => {
           const css = fomCM.getAllMarks().length
             ? 'text-shadow: 0px 0px 10px orange'
             : 'text-shadow: 0px 0px 10px red'
@@ -328,7 +306,7 @@ check()
 fomCM.on('change', check)
 
 let lastWidth = getWidth(fomCM)
-window.onresize = function () {
+window.onresize = () => {
   const width = getWidth(fomCM)
   if (lastWidth !== width) {
     lastWidth = width
@@ -343,20 +321,13 @@ fomCM.on(
   throttled(
     100,
     onWorker(
-      function () {
+      () =>
         importScripts(
           'https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js'
-        )
-      },
-      function () {
-        return fomCM.getValue()
-      },
-      function (exp, onResult) {
-        onResult(LZString.compressToEncodedURIComponent(exp))
-      },
-      function (data) {
-        history.replaceState(null, '', location.pathname + '#' + data)
-      }
+        ),
+      () => fomCM.getValue(),
+      (exp, onResult) => onResult(LZString.compressToEncodedURIComponent(exp)),
+      data => history.replaceState(null, '', location.pathname + '#' + data)
     )
   )
 )
@@ -383,7 +354,7 @@ const replacements = {
   rec: 'μ',
 }
 
-fomCM.on('keyup', function (_, event) {
+fomCM.on('keyup', (_, event) => {
   if (event.key === ' ' && replaceSymbolsInput.checked) {
     const cursor = fomCM.getCursor()
     const line = cursor.line
@@ -404,7 +375,7 @@ fomCM.on('keyup', function (_, event) {
     if (du) {
       const selections = []
       let primary = 0
-      function at(loc) {
+      const at = loc => {
         if (loc.file === url) {
           if (
             cursor.line === loc.begins.line &&
@@ -425,20 +396,18 @@ fomCM.on('keyup', function (_, event) {
 
 //
 
-examples.forEach(function (example) {
+examples.forEach(example => {
   const option = document.createElement('option')
   option.value = example
   option.innerText = example.replace(/^.*[/](.*)[.].*$/, '$1').toUpperCase()
   exampleSelect.appendChild(option)
 })
 
-exampleSelect.onchange = function () {
+exampleSelect.onchange = () => {
   const value = exampleSelect.value
   if (value) {
     const xhr = new XMLHttpRequest()
-    xhr.onload = function () {
-      fomCM.setValue(xhr.responseText.trim())
-    }
+    xhr.onload = () => fomCM.setValue(xhr.responseText.trim())
     xhr.open('GET', value)
     xhr.send()
   }

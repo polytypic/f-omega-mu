@@ -7,7 +7,7 @@ const timed = (message, thunk) => {
   return result
 }
 
-onmessage = function (message) {
+onmessage = message => {
   onmessage = null
   eval(message.data)
 }

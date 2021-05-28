@@ -1,6 +1,6 @@
 'use strict'
 
-const rec = (function () {
+const rec = (() => {
   const iterator = function* () {
     for (let i = 0, n = this.length; i < n; ++i) {
       yield this[i]
@@ -16,11 +16,9 @@ const rec = (function () {
     name: writable,
   })
 
-  return function rec(fn) {
+  return fn => {
     let knot
-    function proxy(x) {
-      return knot(x)
-    }
+    const proxy = x => knot(x)
     knot = fn(proxy)
     if (typeof knot === 'object') {
       if (Array.isArray(knot)) {
