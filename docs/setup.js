@@ -228,8 +228,10 @@ const compile = onWorker(
     importScripts('https://unpkg.com/prettier@2.3.0/parser-babel.js')
   },
   () => ({url, exp: fomCM.getValue(), width: getWidth(fomCM)}),
-  (params, onResult) =>
+  (params, onResult) => {
+    const start = timingStart()
     fom.compile(params.url, params.exp, js => {
+      timingEnd('compile', start)
       try {
         onResult(
           prettier
@@ -247,7 +249,8 @@ const compile = onWorker(
       } catch (error) {
         console.error('Prettier failed with error:', error)
       }
-    }),
+    })
+  },
   js => {
     jsCM.setValue(js)
     run(js)
@@ -270,8 +273,13 @@ const check = throttled(
       const width = Math.min(80, (getWidth(fomCM) * 0.85) | 0)
       return {url, exp: fomCM.getValue(), width: width}
     },
-    (params, onResult) =>
-      fom.check(params.url, params.exp, params.width, onResult),
+    (params, onResult) => {
+      const start = timingStart()
+      fom.check(params.url, params.exp, params.width, result => {
+        timingEnd('check', start)
+        onResult(result)
+      })
+    },
     data => {
       result = data
 
