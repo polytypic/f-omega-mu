@@ -83,8 +83,4 @@ end
 
 module Diagnostic : sig
   type t = Loc.t * document
-
-  exception Error of t * t list
-
-  val error : t -> t list -> 'a
 end
