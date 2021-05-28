@@ -105,8 +105,8 @@ module Make (Core : Monad) = struct
 
   let lift2 xyz x y =
     let* x = x in
-    let* y = y in
-    return @@ xyz x y
+    let+ y = y in
+    xyz x y
 
   (* *)
 
