@@ -80,7 +80,3 @@ module Id : sig
 
   module Make () : S
 end
-
-module Diagnostic : sig
-  type t = Loc.t * document
-end

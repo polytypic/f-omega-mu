@@ -2,6 +2,10 @@ open FomPP
 open FomSource
 open FomAST
 
+module Diagnostic = struct
+  type t = Loc.t * document
+end
+
 module Error = struct
   (* IO errors *)
 

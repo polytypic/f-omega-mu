@@ -1,5 +1,10 @@
+open FomPP
 open FomSource
 open FomAST
+
+module Diagnostic : sig
+  type t = Loc.t * document
+end
 
 module Error : sig
   (* IO errors *)
