@@ -325,19 +325,14 @@ module Typ = struct
       let c' = subst_rec replaced env c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
-      let ls' =
-        ls
-        |> ListExt.map_phys_eq
-             (Pair.map_phys_eq Fun.id (subst_rec replaced env))
-      in
+      let ls' = subst_rec_labeled replaced env ls in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
-      let ls' =
-        ls
-        |> ListExt.map_phys_eq
-             (Pair.map_phys_eq Fun.id (subst_rec replaced env))
-      in
+      let ls' = subst_rec_labeled replaced env ls in
       if ls == ls' then inn else `Sum (at, ls')
+
+  and subst_rec_labeled replaced env ls =
+    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec replaced env))
 
   let subst_rec ?(replaced = ignore2) env t =
     if Env.is_empty env then t else subst_rec replaced env t
@@ -390,19 +385,14 @@ module Typ = struct
       let c' = subst_par replaced env c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
-      let ls' =
-        ls
-        |> ListExt.map_phys_eq
-             (Pair.map_phys_eq Fun.id (subst_par replaced env))
-      in
+      let ls' = subst_par_labeled replaced env ls in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
-      let ls' =
-        ls
-        |> ListExt.map_phys_eq
-             (Pair.map_phys_eq Fun.id (subst_par replaced env))
-      in
+      let ls' = subst_par_labeled replaced env ls in
       if ls == ls' then inn else `Sum (at, ls')
+
+  and subst_par_labeled replaced env ls =
+    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par replaced env))
 
   let subst ?(replaced = ignore2) i' t' t =
     subst_par replaced (Env.add i' t' Env.empty) t

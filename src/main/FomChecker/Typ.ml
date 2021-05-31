@@ -304,24 +304,20 @@ let rec to_strict
     let+ c = to_strict c in
     `Arrow (at, d, c)
   | `Product (at, ls) ->
-    let+ ls =
-      ls
-      |> MList.traverse @@ fun (l, t) ->
-         let+ t = to_strict t in
-         (l, t)
-    in
+    let+ ls = to_strict_labeled ls in
     `Product (at, ls)
   | `Sum (at, ls) ->
-    let+ ls =
-      ls
-      |> MList.traverse @@ fun (l, t) ->
-         let+ t = to_strict t in
-         (l, t)
-    in
+    let+ ls = to_strict_labeled ls in
     `Sum (at, ls)
   | `Lazy (lazy t) ->
     let* t = t in
     to_strict t
+
+and to_strict_labeled ls =
+  ls
+  |> MList.traverse @@ fun (l, t) ->
+     let+ t = to_strict t in
+     (l, t)
 
 let rec to_lazy = function
   | `Mu (at, t) -> `Mu (at, to_lazy t)
