@@ -4,6 +4,10 @@ open FomBasis
 
 (* *)
 
+open Rea
+
+(* *)
+
 include FomAST.Typ
 
 (* *)
@@ -91,16 +95,8 @@ let find_opt_non_contractive_mu at f arity =
     | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
   | _ -> None
 
-let rec infer typ : (_, _, Kind.t) Rea.t =
-  let open Rea in
-  let quantifier symbol f =
-    let* f_kind = infer f in
-    match f_kind with
-    | `Arrow (_, _, (`Star _ as c_kind)) -> return c_kind
-    | _ -> fail @@ `Error_quantifier_kind (at typ, symbol, f, f_kind)
-  in
-  match typ with
-  | `Mu (at', f) -> (
+let rec infer = function
+  | `Mu (at', f) as typ -> (
     let* f_kind = infer f in
     match f_kind with
     | `Star _ -> fail @@ `Error_mu_kind (at', f, f_kind)
@@ -133,8 +129,8 @@ let rec infer typ : (_, _, Kind.t) Rea.t =
     | `Arrow (_, d_kind, c_kind) ->
       let* x_kind = infer x in
       Kind.check_equal at' x_kind d_kind >> return c_kind)
-  | `ForAll (_, f) -> quantifier FomPP.for_all f
-  | `Exists (_, f) -> quantifier FomPP.exists f
+  | `ForAll (_, f) as typ -> infer_quantifier typ FomPP.for_all f
+  | `Exists (_, f) as typ -> infer_quantifier typ FomPP.exists f
   | `Arrow (at', d, c) ->
     let star = `Star at' in
     check star d >> check star c >> return star
@@ -142,16 +138,19 @@ let rec infer typ : (_, _, Kind.t) Rea.t =
     let star = `Star at' in
     ls |> MList.iter (snd >>> check star) >> return star
 
+and infer_quantifier typ symbol f =
+  let* f_kind = infer f in
+  match f_kind with
+  | `Arrow (_, _, (`Star _ as c_kind)) -> return c_kind
+  | _ -> fail @@ `Error_quantifier_kind (at typ, symbol, f, f_kind)
+
 and check expected t =
-  let open Rea in
   let* actual = infer t in
   Kind.check_equal (at t) expected actual
 
 (* *)
 
-let rec kind_of checked_typ : (_, _, Kind.t) Rea.t =
-  let open Rea in
-  match checked_typ with
+let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
@@ -170,8 +169,7 @@ let rec kind_of checked_typ : (_, _, Kind.t) Rea.t =
   | `Sum (at', _) ->
     return @@ `Star at'
 
-and kind_of_cod checked_typ : (_, _, Kind.t) Rea.t =
-  let open Rea in
+and kind_of_cod checked_typ =
   let+ f_kind = kind_of checked_typ in
   match f_kind with
   | `Star _ -> failwith "impossible"
@@ -194,8 +192,8 @@ module Goal = struct
   let free_vars_to_regular_assoc (lhs, rhs) =
     IdSet.union (free lhs) (free rhs)
     |> IdSet.elements
-    |> List.mapi (fun i v ->
-           (v, Id.of_string (Id.at v) ("#" ^ string_of_int i)))
+    |> List.mapi @@ fun i v ->
+       (v, Id.of_string (Id.at v) ("#" ^ string_of_int i))
 
   let to_subst =
     List.to_seq
@@ -217,7 +215,6 @@ end
 (* *)
 
 let check_sub_of_norm, check_equal_of_norm =
-  let open Rea in
   let make_sub_and_eq at =
     let module GoalSet = Set.Make (Goal) in
     let goals = ref GoalSet.empty in
@@ -271,7 +268,6 @@ let check_sub_of_norm, check_equal_of_norm =
   (sub, eq)
 
 let is_sub_of_norm, is_equal_of_norm =
-  let open Rea in
   let as_predicate check g =
     check Loc.dummy g
     |> try_in (Fun.const @@ return true) (Fun.const @@ return false)
@@ -284,7 +280,6 @@ let is_sub_of_norm, is_equal_of_norm =
 
 let rec to_strict
     (t : ['a FomAST.Typ.f | `Lazy of ('r, 'e, 'a) Rea.t Lazy.t] as 'a) =
-  let open Rea in
   match t with
   | `Mu (at, t) ->
     let+ t = to_strict t in
@@ -341,7 +336,6 @@ let rec to_lazy = function
   | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map Fun.id to_lazy))
 
 let join_of_norm at g =
-  let open Rea in
   let module GoalMap = Map.Make (Goal) in
   let joins = ref GoalMap.empty in
   let meets = ref GoalMap.empty in

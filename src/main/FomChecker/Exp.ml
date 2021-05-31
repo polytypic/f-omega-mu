@@ -3,6 +3,10 @@ open FomAnnot
 
 (* *)
 
+open Rea
+
+(* *)
+
 include FomAST.Exp
 
 (* *)
@@ -24,32 +28,27 @@ end
 (* *)
 
 let typ_infer_and_norm typ =
-  let open Rea in
   let* kind = Typ.infer typ in
   match kind with
   | `Star _ -> return @@ Typ.norm typ
   | _ -> fail @@ `Error_typ_of_kind_arrow (Typ.at typ, typ, kind)
 
 let check_arrow_typ at typ =
-  let open Rea in
   match Typ.unfold_of_norm typ with
   | `Arrow (_, dom, cod) -> return (dom, cod)
   | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
 
 let check_product_typ at typ =
-  let open Rea in
   match Typ.unfold_of_norm typ with
   | `Product (_, ls) -> return ls
   | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
 let check_sum_typ at typ =
-  let open Rea in
   match Typ.unfold_of_norm typ with
   | `Sum (_, ls) -> return ls
   | _ -> fail @@ `Error_typ_unexpected (at, "[_]", typ)
 
 let check_for_all_typ at typ =
-  let open Rea in
   match Typ.unfold_of_norm typ with
   | `ForAll (_, f_con) -> (
     let* f_kind = Typ.kind_of f_con in
@@ -59,7 +58,6 @@ let check_for_all_typ at typ =
   | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
 let check_exists_typ at typ =
-  let open Rea in
   match Typ.unfold_of_norm typ with
   | `Exists (_, f_con) -> (
     let* f_kind = Typ.kind_of f_con in
@@ -68,9 +66,7 @@ let check_exists_typ at typ =
     | _ -> failwith "impossible")
   | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 
-let rec infer it : (_, _, Typ.t) Rea.t =
-  let open Rea in
-  match it with
+let rec infer = function
   | `Const (at, c) -> typ_infer_and_norm (Const.type_of at c)
   | `Var (at, x) -> (
     let* x_typ_opt = get_as Env.field (Env.find_opt x) in
