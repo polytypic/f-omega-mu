@@ -1,10 +1,8 @@
 # Stack ADT using an existential type
 
-let type opt = λα.[none: (), some: α] in
+include "lib/types" in
 
-let type μlist:* → * = λα.opt (α, list α) in
-
-let type Stack = λstack:* → *.{
+let type Stack = λstack.{
   empty: ∀α.stack α,
   push: ∀α.α → stack α → stack α,
   pop: ∀α.stack α → opt (α, stack α)

@@ -16,7 +16,7 @@ let parse_exp source and_then =
 
 let testCompiles name exp =
   test name @@ fun () ->
-  parse_exp exp @@ fun ast ->
+  parse_exp exp @@ fun (ast, _, _) ->
   let* _ = FomToJs.to_js ast in
   verify true
 

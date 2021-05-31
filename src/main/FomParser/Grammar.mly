@@ -109,8 +109,7 @@ lab_list(item):
 //
 
 typ_def:
-  | "let""type"i=typ_bid"="t=typ                        {`Typ ($loc, i, None, t)}
-  | "let""type"i=typ_bid":"k=kind"="t=typ               {`Typ ($loc, i, Some k, t)}
+  | "let""type"b=typ_bind"="t=typ                       {`Typ ($loc, fst b, snd b, t)}
   | "let""type"bs=list_1(typ_mu_def, "and")             {`TypRec ($loc, bs)}
   | "include"p=LitString                                {`Include ($loc, p)}
 
@@ -131,7 +130,7 @@ typ_bid:
   | i=typ_rid                                           {i}
 
 typ_bind:
-  | i=typ_bid                                           {(i, `Star $loc)}
+  | i=typ_bid                                           {(i, `Var ($loc, Kind.Id.fresh $loc))}
   | i=typ_bid":"k=kind                                  {(i, k)}
 
 typ_atom:

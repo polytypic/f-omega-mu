@@ -3,6 +3,7 @@ open FomSource
 open FomParser
 open FomAST
 open FomAnnot
+open FomChecker
 open FomDiag
 
 (* *)
@@ -62,6 +63,7 @@ module Fetch = struct
   type e = [Error.file_doesnt_exist | Error.io_error]
   type t = Loc.t -> string -> (unit, e, string) Rea.t
 
+  let dummy at path = Rea.fail @@ `Error_file_doesnt_exist (at, path)
   let field r = r#fetch
 
   class con (fetch : t) =
@@ -101,7 +103,12 @@ module VarTbl = struct
 end
 
 module Error = struct
-  type t = [Error.io_error | Error.syntax_errors | Error.source_errors]
+  type t =
+    [ Error.io_error
+    | Error.syntax_errors
+    | Error.source_errors
+    | Error.kind_errors
+    | Error.type_errors ]
 
   let generalize x = map_error (fun (#t as x) -> x) x
 end
@@ -109,6 +116,7 @@ end
 module TypIncludes = struct
   type t = (string, (Error.t, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
 
+  let create () = Hashtbl.create 100
   let field r = r#typ_includes
 
   let get_or_put path compute =
@@ -123,6 +131,7 @@ end
 module TypImports = struct
   type t = (string, (Error.t, FomAST.Typ.t) IVar.t) Hashtbl.t
 
+  let create () = Hashtbl.create 100
   let field r = r#typ_imports
 
   let get_or_put path compute =
@@ -137,10 +146,13 @@ end
 module ExpImports = struct
   type t =
     ( string,
-      (Error.t, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t )
+      ( Error.t,
+        FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t * string list )
+      IVar.t )
     Hashtbl.t
 
-  let field r = r#exp_imports
+  let create () = Hashtbl.create 100
+  let field r : t = r#exp_imports
 
   let get_or_put path compute =
     VarTbl.get_or_put field path compute |> Error.generalize
@@ -152,6 +164,7 @@ module ExpImports = struct
 end
 
 module PathMap = Map.Make (String)
+module PathSet = Set.Make (String)
 
 module ImportChain = struct
   type t = Loc.t PathMap.t
@@ -173,6 +186,54 @@ module ImportChain = struct
         Field.make import_chain (fun v -> {<import_chain = v>})
     end
 end
+
+module Parameters = struct
+  include PathSet
+
+  type nonrec t = t ref
+
+  let field r : (t, _) Field.t = r#parameters
+  let resetting op = setting field (ref empty) op
+
+  let add filename =
+    let+ ps = get field in
+    ps := add filename !ps
+
+  let get () = get field >>- (( ! ) >>> elements)
+
+  let taking_in ast =
+    let* imports = env_as ExpImports.field in
+    get ()
+    >>= MList.fold_left
+          (fun ast filename ->
+            let+ id, _, typ, _ = Hashtbl.find imports filename |> IVar.get in
+            `Lam (Exp.Id.at id, id, typ, ast))
+          ast
+
+  let result_without t =
+    let rec loop t ps =
+      match (t, ps) with
+      | `Arrow (_, _, t), _ :: ps -> loop t ps
+      | t, [] -> t
+      | _ -> failwith "impossible"
+    in
+    get () >>- loop t
+
+  class con =
+    object
+      val parameters : t = ref empty
+      method parameters = Field.make parameters (fun v -> {<parameters = v>})
+    end
+end
+
+module Elab = struct
+  let modularly op =
+    op
+    |> TypAliases.setting TypAliases.empty
+    |> Typ.Env.resetting |> Parameters.resetting
+end
+
+(* *)
 
 let avoid at i inn =
   mapping TypAliases.field (TypAliases.remove i)
@@ -221,42 +282,33 @@ let rec elaborate_pat p' e' = function
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
 let rec elaborate_def = function
-  | `Typ (_, i, kO, t) ->
-    let* t = elaborate_typ t in
-    Annot.Typ.alias i t
-    >>
-    let t =
-      match kO with
-      | None -> t
-      | Some k ->
-        let at = Kind.at k in
-        let i = Typ.Id.fresh at in
-        `App (at, `Lam (at, i, k, `Var (at, i)), t)
-    in
-    get_as TypAliases.field (TypAliases.add i (Typ.set_at (Typ.Id.at i) t))
+  | `Typ (_, i, k, t) ->
+    let at = Typ.Id.at i in
+    let* t = elaborate_typ @@ `App (at, `Lam (at, i, k, `Var (at, i)), t) in
+    let* _ = Typ.infer t in
+    get_as TypAliases.field (TypAliases.add i t)
   | `TypRec (_, bs) ->
     let* assoc =
       bs
       |> MList.traverse @@ fun (i, k, t) ->
          let at = Typ.Id.at i in
          let t = `Mu (at, `Lam (at, i, k, t)) in
-         let* t = elaborate_typ t in
-         Annot.Typ.alias i t >> return (i, t)
+         let+ t = elaborate_typ t in
+         (i, t)
     in
     let env = assoc |> List.to_seq |> TypAliases.of_seq in
-    let* annot = env_as Annot.field in
-    let replaced i t = Annot.Typ.use' i (Typ.at t) annot in
-    let env = env |> TypAliases.map (Typ.subst_rec ~replaced env) in
+    let env = env |> TypAliases.map (Typ.subst_rec env) in
+    let* _ = env |> TypAliases.bindings |> MList.iter_ (snd >>> Typ.infer) in
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
     let inc_path = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
     let* env =
-      ImportChain.with_path at' inc_path
-        (TypIncludes.get_or_put inc_path
-           (TypAliases.setting TypAliases.empty
-              (Fetch.fetch at' inc_path
-              >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
-              >>= elaborate_defs)))
+      (ImportChain.with_path at' inc_path
+      <<< TypIncludes.get_or_put inc_path
+      <<< Elab.modularly)
+        (Fetch.fetch at' inc_path
+        >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
+        >>= elaborate_defs)
     in
     get_as TypAliases.field
     @@ TypAliases.merge
@@ -276,10 +328,12 @@ and elaborate_typ = function
     let* t_opt = TypAliases.find_opt i in
     match t_opt with
     | None -> return @@ `Var (at', i)
-    | Some t -> Annot.Typ.use i (Typ.at t) >> return t)
+    | Some t ->
+      let t = Typ.freshen t in
+      Annot.Typ.use i (Typ.at t) >> return t)
   | `Lam (at', i, k, t) ->
     avoid at' i @@ fun i ->
-    let+ t = elaborate_typ t in
+    let+ t = elaborate_typ t |> Typ.Env.adding i k in
     `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let+ f = elaborate_typ f and+ x = elaborate_typ x in
@@ -304,12 +358,16 @@ and elaborate_typ = function
     TypAliases.setting typ_aliases (elaborate_typ e)
   | `Import (at', p) ->
     let sig_path = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
-    ImportChain.with_path at' sig_path
-      (TypImports.get_or_put sig_path
-         (TypAliases.setting TypAliases.empty
-            (Fetch.fetch at' sig_path
-            >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
-            >>= elaborate_typ)))
+    (ImportChain.with_path at' sig_path
+    <<< TypImports.get_or_put sig_path
+    <<< Elab.modularly)
+      (let* cst =
+         Fetch.fetch at' sig_path
+         >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
+       in
+       let* t = elaborate_typ cst in
+       let+ _ = Typ.infer t in
+       t)
 
 and elaborate_defs = function
   | [] -> get TypAliases.field
@@ -342,7 +400,7 @@ let rec elaborate = function
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid at i @@ fun i ->
-    let+ e = elaborate e in
+    let+ e = elaborate e |> Typ.Env.adding i k in
     `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
@@ -382,13 +440,13 @@ let rec elaborate = function
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
     avoid at ti @@ fun ti ->
-    let+ e = elaborate e in
+    let+ e = elaborate e |> Typ.Env.adding ti @@ `Var (at, Kind.Id.fresh at) in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
     avoid at ti @@ fun ti ->
-    let+ e = elaborate e in
+    let+ e = elaborate e |> Typ.Env.adding ti @@ `Var (at, Kind.Id.fresh at) in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, pvs, e) ->
     let p = pvs |> List.map fst |> FomCST.Exp.Pat.tuple at in
@@ -420,52 +478,73 @@ let rec elaborate = function
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
     let* typ_opt =
       ImportChain.with_path at' sig_path
-        (TypImports.get_or_put sig_path
-           (TypAliases.setting TypAliases.empty
-              (Fetch.fetch at' sig_path
+        ((TypImports.get_or_put sig_path <<< Elab.modularly)
+           (let* cst =
+              Fetch.fetch at' sig_path
               >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
-              >>= elaborate_typ))
+            in
+            let* t = elaborate_typ cst in
+            let+ _ = Typ.infer t in
+            t)
         |> try_in (fun contents -> return @@ Some contents) @@ function
            | `Error_file_doesnt_exist (_, path) when path = sig_path ->
              return None
            | e -> fail e)
     in
-    let+ id, _, _ =
-      ImportChain.with_path at' mod_path
-        (ExpImports.get_or_put mod_path
-           (TypAliases.setting TypAliases.empty
-              (let+ ast =
-                 Fetch.fetch at' mod_path
-                 >>= Parser.parse_utf_8 Grammar.program Lexer.plain
-                       ~path:mod_path
-                 >>= elaborate
-               in
-               let id = FomAST.Exp.Id.fresh at' in
-               (id, ast, typ_opt))))
+    let* id, _, _, _ =
+      (ImportChain.with_path at' mod_path
+      <<< ExpImports.get_or_put mod_path
+      <<< Elab.modularly)
+        (let* ast =
+           Fetch.fetch at' mod_path
+           >>= Parser.parse_utf_8 Grammar.program Lexer.plain ~path:mod_path
+           >>= elaborate
+         in
+         let id = FomAST.Exp.Id.fresh at' in
+         let ast =
+           match typ_opt with
+           | None -> ast
+           | Some typ -> `App (at', `Lam (at', id, typ, `Var (at', id)), ast)
+         in
+         let* typ =
+           Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
+         in
+         let+ parameters = Parameters.get () in
+         (id, ast, typ, parameters))
     in
-    `Var (at', id)
+    Parameters.add mod_path >> return @@ `Var (at', id)
 
 (* *)
 
 let elaborate_defs x = elaborate_defs x |> Error.generalize
 let elaborate_typ x = elaborate_typ x |> Error.generalize
-let elaborate x = elaborate x |> Error.generalize
 
 (* *)
 
-let with_modules ast =
-  let at = Exp.at ast in
-  let* exp_imports = env_as ExpImports.field in
-  let+ imports =
-    Hashtbl.to_seq exp_imports |> Seq.map snd |> List.of_seq
-    |> MList.traverse @@ fun var -> IVar.get var |> Error.generalize
+let elaborate cst =
+  Elab.modularly
+    (let* ast = elaborate cst in
+     let* typ =
+       Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
+     in
+     let+ parameters = Parameters.get () in
+     (ast, typ, parameters))
+  |> Error.generalize
+
+(* *)
+
+let with_modules (prg, typ, ps) =
+  let* imports = env_as ExpImports.field in
+  let added = Hashtbl.create 100 in
+  let rec loop prg param =
+    if Hashtbl.mem added param then
+      return prg
+    else
+      let* id, ast, typ, ps = Hashtbl.find imports param |> IVar.get in
+      Hashtbl.replace added param ();
+      let at = Loc.dummy in
+      let prg = `App (at, `Lam (at, id, typ, prg), ast) in
+      ps |> MList.fold_left loop prg
   in
-  imports
-  |> List.sort (Compare.the (fun (id, _, _) -> id) Exp.Id.compare)
-  |> List.rev
-  |> List.fold_left
-       (fun prg (id, ast, typ_opt) ->
-         match typ_opt with
-         | None -> `LetIn (at, id, ast, prg)
-         | Some typ -> `App (at, `Lam (at, id, typ, prg), ast))
-       ast
+  let+ prg = ps |> MList.fold_left loop prg |> Error.generalize in
+  (prg, typ)

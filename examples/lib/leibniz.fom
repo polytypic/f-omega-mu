@@ -1,10 +1,10 @@
 include "eq" in
 
-let type Leibniz = λα.λβ.∀φ:* → *.φ α → φ β in
+let type Leibniz = λα.λβ.∀φ.φ α → φ β in
 
-let refl = Λα.Λφ:* → *.λx:φ α.x in
-let symm = Λα.Λβ.λab:Leibniz α β.Λφ:* → *.ab[λβ.φ β → φ α] (λx:φ α.x) in
-let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ:* → *.λx:φ α.bc[φ] (ab[φ] x) in
+let refl = Λα.Λφ.λx:φ α.x in
+let symm = Λα.Λβ.λab:Leibniz α β.Λφ.ab[λβ.φ β → φ α] (λx:φ α.x) in
+let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ.λx:φ α.bc[φ] (ab[φ] x) in
 let to = Λα.Λβ.λab:Leibniz α β.ab[λx.x] in
 let from = Λα.Λβ.λab:Leibniz α β.to[β][α] (symm[α][β] ab) in
 

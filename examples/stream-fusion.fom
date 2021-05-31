@@ -6,27 +6,9 @@
 #   Duncan Coutts, Roman Leschinskiy, Don Stewart
 #   http://citeseer.ist.psu.edu/viewdoc/summary?doi=10.1.1.104.7401
 
-let type opt = λα.[none: (), some: α] in
+include "lib/types" in
 
-# Basic recursive list type
-let type μlist:* → * = λα.opt (α, list α) in
-
-let List =
-  let infinite_of = Λα.λx:α.μxs:μτ.[some: (α, τ)].[some = (x, xs)] in
-  let μtake_n:∀α.int → list α → list α = Λα.λn:int.λxs:list α.
-    if n ≤ 0 then
-      [none = ()]
-    else
-      xs ▷ case {
-        none = λ().[none = ()],
-        some = λ(x:α, xs:list α).[some = (x, take_n[α] (n-1) xs)]
-      } in
-  let iota = λn:int.
-    let μloop:int → list int = λi:int.
-      if i < n then [some = (i, loop (i + 1))] else [none = ()] in
-    loop 0
-  in
-  {infinite_of, take_n, iota} in
+let List = import "lib/list" in
 
 # Non recursive existential stream type
 let《stream\Stream》=
@@ -82,7 +64,7 @@ let《stream\Stream》=
         }
       }
     )》: stream α in
-  《stream\{of_list, to_list, map, filter, append}》: ∃stream:* → *.{
+  《stream\{of_list, to_list, map, filter, append}》: ∃stream.{
     of_list: ∀α.list α → stream α,
     to_list: ∀α.stream α → list α,
     map: ∀α.∀β.(α → β) → stream α → stream β,

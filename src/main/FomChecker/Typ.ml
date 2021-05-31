@@ -20,6 +20,7 @@ module Env = struct
   let field r = r#typ_env
   let adding i k = mapping field @@ Env.add i (i, k)
   let find_opt i = get_as field @@ Env.find_opt i
+  let resetting op = setting field empty op
 
   class con =
     object
@@ -97,22 +98,20 @@ let find_opt_non_contractive_mu at f arity =
     | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
   | _ -> None
 
-let rec infer = function
-  | `Mu (at', f) as typ -> (
+let rec infer t = infer_base t >>= Kind.resolve
+
+and infer_base = function
+  | `Mu (at', f) as typ ->
     let* f_kind = infer f in
-    match f_kind with
-    | `Star _ -> fail @@ `Error_mu_kind (at', f, f_kind)
-    | `Arrow (_, d_kind, c_kind) ->
-      if not (Kind.equal d_kind c_kind) then
-        fail @@ `Error_mu_kind (at', f, f_kind)
-      else
-        let c_arity = Kind.arity c_kind in
-        find_opt_nested_arg_mu at' f c_arity
-        |> MOption.iter (fun typ' -> fail @@ `Error_mu_nested (at', typ, typ'))
-        >> (find_opt_non_contractive_mu at' f c_arity
-           |> MOption.iter (fun typ' ->
-                  fail @@ `Error_mu_non_contractive (at', typ, typ')))
-        >> return c_kind)
+    let kind = `Var (at', Kind.Id.fresh at') in
+    Kind.unify at' (`Arrow (at', kind, kind)) f_kind
+    >> let* arity = Kind.resolve kind >>- Kind.min_arity in
+       find_opt_nested_arg_mu at' f arity
+       |> MOption.iter (fun typ' -> fail @@ `Error_mu_nested (at', typ, typ'))
+       >> (find_opt_non_contractive_mu at' f arity
+          |> MOption.iter (fun typ' ->
+                 fail @@ `Error_mu_non_contractive (at', typ, typ')))
+       >> return kind
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
     let* i_kind_opt = Env.find_opt i in
@@ -123,15 +122,12 @@ let rec infer = function
     Annot.Typ.def d d_kind
     >> let+ r_kind = Env.adding d d_kind (infer r) in
        `Arrow (at', d_kind, r_kind)
-  | `App (at', f, x) -> (
-    let* f_kind = infer f in
-    match f_kind with
-    | `Star _ -> fail @@ `Error_app_of_kind_star (at', f, x)
-    | `Arrow (_, d_kind, c_kind) ->
-      let* x_kind = infer x in
-      Kind.check_equal at' x_kind d_kind >> return c_kind)
-  | `ForAll (_, f) as typ -> infer_quantifier typ FomPP.for_all f
-  | `Exists (_, f) as typ -> infer_quantifier typ FomPP.exists f
+  | `App (at', f, x) ->
+    let* f_kind = infer f and* d_kind = infer x in
+    let c_kind = `Var (at', Kind.Id.fresh at') in
+    Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
+  | `ForAll (_, f) as typ -> infer_quantifier typ f
+  | `Exists (_, f) as typ -> infer_quantifier typ f
   | `Arrow (at', d, c) ->
     let star = `Star at' in
     check star d >> check star c >> return star
@@ -139,19 +135,56 @@ let rec infer = function
     let star = `Star at' in
     ls |> MList.iter (snd >>> check star) >> return star
 
-and infer_quantifier typ symbol f =
+and infer_quantifier t f =
   let* f_kind = infer f in
-  match f_kind with
-  | `Arrow (_, _, (`Star _ as c_kind)) -> return c_kind
-  | _ -> fail @@ `Error_quantifier_kind (at typ, symbol, f, f_kind)
+  let at' = at t in
+  let d_kind = `Var (at', Kind.Id.fresh at') in
+  let c_kind = `Star at' in
+  Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
 
 and check expected t =
   let* actual = infer t in
-  Kind.check_equal (at t) expected actual
+  Kind.unify (at t) expected actual
 
 (* *)
 
-let rec kind_of = function
+let rec resolve = function
+  | `Mu (at', f) as t ->
+    let+ f' = resolve f in
+    if f == f' then t else `Mu (at', f')
+  | `Const (_, _) as t -> return t
+  | `Var (_, _) as t -> return t
+  | `Lam (at', d, d_kind, r) as t ->
+    let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
+    if d_kind == d_kind' && r == r' then t else `Lam (at', d, d_kind', r')
+  | `App (at', f, x) as t ->
+    let+ f' = resolve f and+ x' = resolve x in
+    if f == f' && x = x' then t else `App (at', f', x')
+  | `ForAll (at', f) as t ->
+    let+ f' = resolve f in
+    if f == f' then t else `ForAll (at', f')
+  | `Exists (at', f) as t ->
+    let+ f' = resolve f in
+    if f == f' then t else `Exists (at', f')
+  | `Arrow (at', d, c) as t ->
+    let+ d' = resolve d and+ c' = resolve c in
+    if d == d' && c == c' then t else `Arrow (at', d', c')
+  | `Product (at', ls) as t ->
+    let+ ls' =
+      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+    in
+    if ls == ls' then t else `Product (at', ls')
+  | `Sum (at', ls) as t ->
+    let+ ls' =
+      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+    in
+    if ls == ls' then t else `Sum (at', ls')
+
+(* *)
+
+let rec kind_of t = kind_of_base t >>= Kind.resolve
+
+and kind_of_base = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
@@ -173,7 +206,7 @@ let rec kind_of = function
 and kind_of_cod checked_typ =
   let+ f_kind = kind_of checked_typ in
   match f_kind with
-  | `Star _ -> failwith "impossible"
+  | `Star _ | `Var (_, _) -> failwith "impossible"
   | `Arrow (_, _, c_kind) -> c_kind
 
 (* *)
@@ -244,7 +277,7 @@ let check_sub_of_norm, check_equal_of_norm =
         | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
           sub (l, r)
         | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-          Kind.check_equal at lk rk
+          Kind.unify at lk rk
           >> sub
                (Goal.unify_vars li lt ri rt |> snd |> Goal.regularize_free_vars)
         | _ -> (
@@ -516,7 +549,7 @@ let join_of_norm at g =
                      let+ ls = union upper [] (lls, rls) in
                      `Sum (at, ls)
                    | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-                     Kind.check_equal at lk rk
+                     Kind.unify at lk rk
                      >>
                      let i, goal = Goal.unify_vars li lt ri rt in
                      let assoc = Goal.free_vars_to_regular_assoc goal in

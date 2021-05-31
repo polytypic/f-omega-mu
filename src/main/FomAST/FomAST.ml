@@ -2,8 +2,6 @@ open FomBasis
 open FomPP
 open FomSource
 
-let ignore2 _ _ = ()
-
 module LitString = struct
   type t = string
 
@@ -117,13 +115,17 @@ module LitString = struct
 end
 
 module Kind = struct
-  type t = [`Star of Loc.t | `Arrow of Loc.t * t * t]
+  module Id = Id.Make ()
+  module Env = Map.Make (Id)
 
-  let at = function `Star at -> at | `Arrow (at, _, _) -> at
+  type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Var of Loc.t * Id.t]
+  type t = [ | t f]
+
+  let at = function `Star at -> at | `Arrow (at, _, _) | `Var (at, _) -> at
 
   (* Comparison *)
 
-  let index = function `Star _ -> 0 | `Arrow _ -> 1
+  let index = function `Star _ -> 0 | `Arrow _ -> 1 | `Var _ -> 2
 
   let rec compare lhs rhs =
     if lhs == rhs then
@@ -133,16 +135,17 @@ module Kind = struct
       | `Star _, `Star _ -> 0
       | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
         compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
+      | `Var (_, l), `Var (_, r) -> Id.compare l r
       | _ -> index lhs - index rhs
 
   (* *)
 
-  let arity =
-    let rec loop n = function
-      | `Star _ -> n
-      | `Arrow (_, _, c) -> loop (n + 1) c
-    in
-    loop 0
+  let rec min_arity n = function
+    | `Star _ -> n
+    | `Arrow (_, _, c) -> min_arity (n + 1) c
+    | `Var _ -> 1
+
+  let min_arity k = min_arity 0 k
 
   (* Formatting *)
 
@@ -153,6 +156,7 @@ module Kind = struct
     | `Arrow (_, dom, cod) ->
       pp true dom ^^ space_arrow_right_break_1 ^^ pp false cod
       |> if atomize then egyptian parens 2 else Fun.id
+    | `Var (_, _) -> underscore
 
   let pp kind = pp false kind |> FomPP.group
   let pp_annot = function `Star _ -> empty | kind -> colon ^^ align (pp kind)
@@ -297,48 +301,43 @@ module Typ = struct
 
   module Env = Map.Make (Id)
 
-  let rec subst_rec replaced env = function
+  let rec subst_rec env = function
     | `Mu (at, t) as inn ->
-      let t' = subst_rec replaced env t in
+      let t' = subst_rec env t in
       if t == t' then inn else `Mu (at, t')
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
-      match Env.find_opt i env with
-      | None -> inn
-      | Some t ->
-        replaced i t;
-        subst_rec replaced env t)
+      match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
     | `Lam (at, i, k, t) as inn ->
       let env = Env.remove i env in
       if Env.is_empty env then
         inn
       else
-        let t' = subst_rec replaced env t in
+        let t' = subst_rec env t in
         if t == t' then inn else `Lam (at, i, k, t')
     | `App (at, f, x) as inn ->
-      let f' = subst_rec replaced env f and x' = subst_rec replaced env x in
+      let f' = subst_rec env f and x' = subst_rec env x in
       if f == f' && x == x' then inn else `App (at, f', x')
     | `ForAll (at, t) as inn ->
-      let t' = subst_rec replaced env t in
+      let t' = subst_rec env t in
       if t == t' then inn else `ForAll (at, t')
     | `Exists (at, t) as inn ->
-      let t' = subst_rec replaced env t in
+      let t' = subst_rec env t in
       if t == t' then inn else `Exists (at, t')
     | `Arrow (at, d, c) as inn ->
-      let d' = subst_rec replaced env d and c' = subst_rec replaced env c in
+      let d' = subst_rec env d and c' = subst_rec env c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
-      let ls' = subst_rec_labeled replaced env ls in
+      let ls' = subst_rec_labeled env ls in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
-      let ls' = subst_rec_labeled replaced env ls in
+      let ls' = subst_rec_labeled env ls in
       if ls == ls' then inn else `Sum (at, ls')
 
-  and subst_rec_labeled replaced env ls =
-    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec replaced env))
+  and subst_rec_labeled env ls =
+    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
 
-  let subst_rec ?(replaced = ignore2) env t =
-    if Env.is_empty env then t else subst_rec replaced env t
+  let subst_rec env t = if Env.is_empty env then t else subst_rec env t
 
   let rec is_free id = function
     | `Const _ -> false
@@ -350,17 +349,13 @@ module Typ = struct
     | `Product (_, ls) | `Sum (_, ls) ->
       ls |> List.exists @@ fun (_, t) -> is_free id t
 
-  let rec subst_par replaced env = function
+  let rec subst_par env = function
     | `Mu (at, t) as inn ->
-      let t' = subst_par replaced env t in
+      let t' = subst_par env t in
       if t == t' then inn else `Mu (at, t')
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
-      match Env.find_opt i env with
-      | None -> inn
-      | Some t ->
-        replaced i t;
-        t)
+      match Env.find_opt i env with None -> inn | Some t -> t)
     | `Lam (at, i, k, t) as inn ->
       let env = Env.remove i env in
       if Env.is_empty env then
@@ -368,38 +363,35 @@ module Typ = struct
       else if Env.exists (fun i' t' -> is_free i t' && is_free i' t) env then
         let i' = Id.freshen i in
         let v' = `Var (at, i') in
-        let t' = subst_par replaced (Env.add i v' env) t in
+        let t' = subst_par (Env.add i v' env) t in
         if t == t' then inn else `Lam (at, i', k, t')
       else
-        let t' = subst_par replaced env t in
+        let t' = subst_par env t in
         if t == t' then inn else `Lam (at, i, k, t')
     | `App (at, f, x) as inn ->
-      let f' = subst_par replaced env f and x' = subst_par replaced env x in
+      let f' = subst_par env f and x' = subst_par env x in
       if f == f' && x == x' then inn else `App (at, f', x')
     | `ForAll (at, t) as inn ->
-      let t' = subst_par replaced env t in
+      let t' = subst_par env t in
       if t == t' then inn else `ForAll (at, t')
     | `Exists (at, t) as inn ->
-      let t' = subst_par replaced env t in
+      let t' = subst_par env t in
       if t == t' then inn else `Exists (at, t')
     | `Arrow (at, d, c) as inn ->
-      let d' = subst_par replaced env d and c' = subst_par replaced env c in
+      let d' = subst_par env d and c' = subst_par env c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
-      let ls' = subst_par_labeled replaced env ls in
+      let ls' = subst_par_labeled env ls in
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
-      let ls' = subst_par_labeled replaced env ls in
+      let ls' = subst_par_labeled env ls in
       if ls == ls' then inn else `Sum (at, ls')
 
-  and subst_par_labeled replaced env ls =
-    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par replaced env))
+  and subst_par_labeled env ls =
+    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env))
 
-  let subst ?(replaced = ignore2) i' t' t =
-    subst_par replaced (Env.add i' t' Env.empty) t
-
-  let subst_par ?(replaced = ignore2) env t =
-    if Env.is_empty env then t else subst_par replaced env t
+  let subst i' t' t = subst_par (Env.add i' t' Env.empty) t
+  let subst_par env t = if Env.is_empty env then t else subst_par env t
 
   let rec norm = function
     | `Mu (at, t) as inn -> (
@@ -431,6 +423,38 @@ module Typ = struct
       if ls == ls' then inn else `Product (at, ls')
     | `Sum (at, ls) as inn ->
       let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm) in
+      if ls == ls' then inn else `Sum (at, ls')
+
+  (* Freshening *)
+
+  let rec freshen = function
+    | `Mu (at, t) as inn ->
+      let t' = freshen t in
+      if t == t' then inn else `Mu (at, t')
+    | `Const _ as inn -> inn
+    | `Var _ as inn -> inn
+    | `Lam (at, i, k, t) as inn ->
+      let k' =
+        match k with `Var (at', i) -> `Var (at', Kind.Id.freshen i) | k -> k
+      and t' = freshen t in
+      if k == k' && t == t' then inn else `Lam (at, i, k', t')
+    | `App (at, f, x) as inn ->
+      let f' = freshen f and x' = freshen x in
+      if f == f' && x == x' then inn else `App (at, f', x')
+    | `ForAll (at, t) as inn ->
+      let t' = freshen t in
+      if t == t' then inn else `ForAll (at, t')
+    | `Exists (at, t) as inn ->
+      let t' = freshen t in
+      if t == t' then inn else `Exists (at, t')
+    | `Arrow (at, d, c) as inn ->
+      let d' = freshen d and c' = freshen c in
+      if d == d' && c == c' then inn else `Arrow (at, d', c')
+    | `Product (at, ls) as inn ->
+      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
+      if ls == ls' then inn else `Product (at, ls')
+    | `Sum (at, ls) as inn ->
+      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
       if ls == ls' then inn else `Sum (at, ls')
 
   (* Comparison *)

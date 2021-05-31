@@ -11,7 +11,7 @@ let parse_typ utf_8 =
 
 let () =
   test "Typ.to_string" @@ fun () ->
-  let original = "∀x:*.μxs.(x→(x→x))→xs" in
+  let original = "∀x:*.μxs:*.(x→(x→x))→xs" in
   parse_typ original >>= FomElab.elaborate_typ
   |> with_env (ignore >>> FomEnv.Env.empty)
   >>- FomAST.Typ.pp >>- FomPP.to_string

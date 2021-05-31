@@ -4,7 +4,7 @@ include "lib/types" in
 
 let《univ\Univ》= import "lib/univ" in
 
-let type HMap = λmap.λκ:* → *.{
+let type HMap = λmap.λκ.{
   empty: map,
   new_key: ∀ν.() → κ ν,
   get: ∀ν.κ ν → map → opt ν,

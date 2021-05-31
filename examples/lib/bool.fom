@@ -1,5 +1,5 @@
 let Target = import "target" in
 
-let to_string = Target.to_string[int] in
+let to_string = Target.to_string[bool] in
 
 {to_string}

@@ -1,0 +1,48 @@
+# Type level programming in Fωμ
+
+# Fωμ does not have kind polymorphism.  However, in this variant of Fωμ there is
+# kind inference and `let type` definitions are roughly treated as templates to
+# be instantiated at every use.  This combination gives a kind of ML-style or
+# Let-polymorphism at the kind level.
+
+# Pairs
+
+let type Pair = λl.λr.λf.f l r in
+
+let type Fst = λp.p (λl.λ_.l) in
+let type Snd = λp.p (λ_.λr.r) in
+
+let type Cross = λf.λg.λp.
+  let type l = f (Fst p) in
+  let type r = g (Snd p) in
+  Pair l r in
+
+# Booleans
+
+let type T = λt.λ_.t in
+let type F = λ_.λf.f in
+
+let type Not = λb.λt.λf.b f t in
+
+let type And = λl.λr.λt.λf.l (r t f) f in
+let type Or  = λl.λr.λt.λf.l t (r t f) in
+
+# Natural numbers
+
+let type Succ = λn.λs.λz.s (n s z) in
+
+let type N0 = λ_.λz.z in
+let type N1 = Succ N0 in
+let type N2 = Succ N1 in
+let type N3 = Succ N2 in
+
+# Lists
+
+let type Nil = λn.λc.n in
+let type Cons = λh.λt.λn.λc.c h (t n c) in
+
+let type Map = λf.λxs.λn.λc.xs n (λx.c (f x)) in
+
+#
+
+λ_:Map (λt.(t,t)) (Cons int (Cons string (Cons bool Nil))) () (λh.λt.(h, t)).()

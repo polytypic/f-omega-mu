@@ -62,7 +62,9 @@ let run_process_with_input command input =
   | Unix.WEXITED exit_code when exit_code = 0 -> ()
   | _ -> failwith "Sub process didn't exit successfully"
 
-module PathMap = Map.Make (String)
+let typ_includes = FomElab.TypIncludes.create ()
+let typ_imports = FomElab.TypImports.create ()
+let exp_imports = FomElab.ExpImports.create ()
 
 let process filename =
   let open Rea in
@@ -70,12 +72,11 @@ let process filename =
   let p = FomCST.LitString.of_utf8 filename in
   let cst = `Import (at, p) in
   let max_width = !Options.max_width in
-  (let* ast =
+  (let* ast, typ =
      cst |> FomElab.elaborate >>= FomElab.with_modules
-     |> with_env (ignore >>> FomEnv.Env.empty ~fetch)
-   in
-   let* typ =
-     ast |> FomChecker.Exp.infer |> with_env (ignore >>> FomEnv.Env.empty)
+     |> with_env
+          (ignore
+          >>> FomEnv.Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports)
    in
    (if !Options.stop = `Typ then (
       typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";

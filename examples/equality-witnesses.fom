@@ -1,9 +1,9 @@
 # First-class type equality witnesses
 
-let type Leibniz = λα.λβ.∀φ:* → *.φ α → φ β in
-let type Fold = λα.λβ.∀φ:* → * → *.(∀γ.φ γ γ) → φ α β in
+let type Leibniz = λα.λβ.∀φ.φ α → φ β in
+let type Fold = λα.λβ.∀φ.(∀γ.φ γ γ) → φ α β in
 
-let type Eq = λeq:* → * → *.{
+let type Eq = λeq.{
   ofFold: ∀α.∀β.Fold α β → eq α β,
   ofLeibniz: ∀α.∀β.Leibniz α β → eq α β,
   refl: ∀α.eq α α,
@@ -14,21 +14,21 @@ let type Eq = λeq:* → * → *.{
 } in
 
 let Leibniz =
-  let ofFold = Λα.Λβ.λab:Fold α β.Λφ:* → *.λh:φ α.ab[λα.λβ.φ α → φ β] (Λγ.λx:φ γ.x) h in
+  let ofFold = Λα.Λβ.λab:Fold α β.Λφ.λh:φ α.ab[λα.λβ.φ α → φ β] (Λγ.λx:φ γ.x) h in
   let ofLeibniz = Λα.Λb.λab:Leibniz α b.ab in
-  let refl = Λα.Λφ:* → *.λx:φ α.x in
-  let symm = Λα.Λβ.λab:Leibniz α β.Λφ:* → *.ab[λβ.φ β → φ α] (λx:φ α.x) in
-  let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ:* → *.λx:φ α.bc[φ] (ab[φ] x) in
+  let refl = Λα.Λφ.λx:φ α.x in
+  let symm = Λα.Λβ.λab:Leibniz α β.Λφ.ab[λβ.φ β → φ α] (λx:φ α.x) in
+  let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ.λx:φ α.bc[φ] (ab[φ] x) in
   let to = Λα.Λβ.λab:Leibniz α β.ab[λx.x] in
   let from = Λα.Λβ.λab:Leibniz α β.to[β][α] (symm[α][β] ab) in
   《Leibniz\{ofFold, ofLeibniz, refl, symm, trans, to, from}》: ∃(Eq) in
 
 let Fold =
   let ofFold = Λα.Λβ.λab:Fold α β.ab in
-  let ofLeibniz = Λα.Λβ.λab:Leibniz α β.Λφ:* → * → *.λh:∀γ.φ γ γ.ab[φ α] (h[α]) in
-  let refl = Λα.Λφ:* → * → *.λf:∀γ.φ γ γ.f[α] in
-  let symm = Λα.Λβ.λab:Fold α β.Λφ:* → * → *.λf:(∀γ.φ γ γ).ab[λα.λβ.φ β α] f in
-  let trans = Λα.Λβ.Λγ.λbc:Fold β γ.λab:Fold α β.Λϕ:* → * → *.
+  let ofLeibniz = Λα.Λβ.λab:Leibniz α β.Λφ.λh:∀γ.φ γ γ.ab[φ α] (h[α]) in
+  let refl = Λα.Λφ.λf:∀γ.φ γ γ.f[α] in
+  let symm = Λα.Λβ.λab:Fold α β.Λφ.λf:(∀γ.φ γ γ).ab[λα.λβ.φ β α] f in
+  let trans = Λα.Λβ.Λγ.λbc:Fold β γ.λab:Fold α β.Λϕ.
     λf:∀γ.ϕ γ γ.bc[λγ.λδ.ϕ α γ → ϕ α δ] (Λγ.λx:ϕ α γ.x) (ab[ϕ] f) in
   let to = Λα.Λβ.λab:Fold α β.ab[λα.λβ.α → β] (Λγ.λx:γ.x) in
   let from = Λα.Λβ.λab:Fold α β.to[β][α] (symm[α][β] ab) in

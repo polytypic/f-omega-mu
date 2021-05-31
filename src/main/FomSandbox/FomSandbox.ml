@@ -69,7 +69,7 @@ let js_loc (begins, ends) =
 let let_type_mu = utf8string "let type " ^^ mu_lower
 let and_mu = break_0_0 ^^ utf8string "and " ^^ mu_lower
 
-let pp_typ ?(is_alias = false) t =
+let pp_typ t =
   let open FomChecker.Typ in
   let pp_typ t =
     let typ_doc = Typ.pp ~pp_annot:(Fun.const empty) t in
@@ -85,7 +85,6 @@ let pp_typ ?(is_alias = false) t =
   in
   if
     n = 0
-    || (is_alias && n = 1 && TypSet.mem t m)
     || n
        <> (m |> TypSet.to_seq
           |> Seq.map (decon >>> fst)
@@ -122,8 +121,6 @@ let js_use_def ?(max_width = 60) (def, o) =
       (match o#annot with
       | `Label (id, typ) -> Label.pp id ^^ colon ^^ pp_typ typ
       | `ExpId (id, typ) -> Exp.Id.pp id ^^ colon ^^ pp_typ typ
-      | `TypAlias (id, typ) ->
-        Typ.Id.pp id ^^ space_equals ^^ pp_typ ~is_alias:true typ
       | `TypId (id, kind) ->
         group (Typ.Id.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
       |> to_js_string ~max_width
@@ -158,6 +155,10 @@ module JsHashtbl = Hashtbl.Make (struct
   let equal = ( == )
   let hash = Hashtbl.hash
 end)
+
+let typ_includes = FomElab.TypIncludes.create ()
+let typ_imports = FomElab.TypImports.create ()
+let exp_imports = FomElab.ExpImports.create ()
 
 let js_codemirror_mode =
   object%js
@@ -241,7 +242,7 @@ let js_codemirror_mode =
     method check path input max_width (on_result : _ Cb.t) =
       let open Rea in
       let path = Js.to_string path in
-      let env = Env.empty ~fetch () in
+      let env = Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports () in
       let def_uses () =
         env#annotations |> Hashtbl.to_seq
         |> Seq.map (js_use_def ~max_width)
@@ -249,9 +250,9 @@ let js_codemirror_mode =
       in
       Js.to_string input
       |> Parser.parse_utf_8 Grammar.program Lexer.plain ~path
-      >>= FomElab.elaborate >>= FomElab.with_modules >>= Exp.infer >>- pp_typ
-      >>- (fun t -> utf8string "type:" ^^ t)
-      >>- to_js_string ~max_width
+      >>= FomElab.elaborate
+      >>- (fun (_, t, _) ->
+            utf8string "type:" ^^ pp_typ t |> to_js_string ~max_width)
       |> try_in
            (fun typ ->
              Cb.invoke on_result
@@ -301,10 +302,11 @@ let js_codemirror_mode =
       input |> Js.to_string
       |> Parser.parse_utf_8 Grammar.program Lexer.plain
            ~path:(Js.to_string path)
-      >>= FomElab.elaborate >>= FomElab.with_modules >>= to_js >>- Js.string
+      >>= FomElab.elaborate >>= FomElab.with_modules >>- fst >>= to_js
+      >>- Js.string
       |> try_in (Cb.invoke on_result) (fun _ ->
              Cb.invoke on_result @@ Js.string "")
-      |> start (Env.empty ~fetch ())
+      |> start (Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports ())
 
     method token input =
       try

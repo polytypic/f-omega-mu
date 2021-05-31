@@ -15,7 +15,11 @@ module LitString : sig
 end
 
 module Kind : sig
-  type t = [`Star of Loc.t | `Arrow of Loc.t * t * t]
+  module Id : Id.S
+  module Env : Map.S with type key = Id.t
+
+  type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Var of Loc.t * Id.t]
+  type t = [ | t f]
 
   val at : t -> Loc.t
 
@@ -25,7 +29,7 @@ module Kind : sig
 
   (* *)
 
-  val arity : t -> int
+  val min_arity : t -> int
 
   (* Formatting *)
 
@@ -107,10 +111,14 @@ module Typ : sig
 
   val free : t -> IdSet.t
   val is_free : Id.t -> t -> bool
-  val subst : ?replaced:(Id.t -> t -> unit) -> Id.t -> t -> t uop
-  val subst_par : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t uop
-  val subst_rec : ?replaced:(Id.t -> t -> unit) -> t Env.t -> t uop
+  val subst : Id.t -> t -> t uop
+  val subst_par : t Env.t -> t uop
+  val subst_rec : t Env.t -> t uop
   val norm : t -> t
+
+  (* Freshening *)
+
+  val freshen : t -> t
 
   (* Formatting *)
 

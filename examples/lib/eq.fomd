@@ -1,4 +1,4 @@
-let type Eq = λeq:* → * → *.{
+let type Eq = λeq.{
   refl: ∀α.eq α α,
   symm: ∀α.∀β.eq α β → eq β α,
   trans: ∀α.∀β.∀γ.eq β γ → eq α β → eq α γ,

@@ -1,8 +1,8 @@
 # Encoding of a HOAS GADT
 
-let type μExpr:* → * = λα.∀ρ:* → *.Cases ρ → ρ α
+let type μExpr = λα.∀ρ.Cases ρ → ρ α
 
-and μCases:(* → *) → * = λρ:* → *.{
+and μCases = λρ.{
   Val: ∀α.                                  α → ρ α,
   Bin: ∀α.∀β.∀γ.(α → β → γ) → Expr α → Expr β → ρ γ,
    If: ∀α.        Expr bool → Expr α → Expr α → ρ α,
@@ -11,14 +11,14 @@ and μCases:(* → *) → * = λρ:* → *.{
   Fix: ∀α.∀β.          Expr ((α → β) → α → β) → ρ (α → β)
 } in
 
-let Val = Λα.      λx:α.                            Λρ:* → *.λcs:Cases ρ.cs.Val[α] x in
-let Bin = Λα.Λβ.Λγ.λf:α → β → γ.λx:Expr α.λy:Expr β.Λρ:* → *.λcs:Cases ρ.cs.Bin[α][β][γ] f x y in
-let  If = Λα.      λc:Expr bool.λt:Expr α.λe:Expr α.Λρ:* → *.λcs:Cases ρ.cs.If[α] c t e in
-let App = Λα.Λβ.   λf:Expr (α → β).λx:Expr α.       Λρ:* → *.λcs:Cases ρ.cs.App[α][β] f x in
-let Lam = Λα.Λβ.   λf:Expr α → Expr β.              Λρ:* → *.λcs:Cases ρ.cs.Lam[α][β] f in
-let Fix = Λα.Λβ.   λf:Expr ((α → β) → α → β).       Λρ:* → *.λcs:Cases ρ.cs.Fix[α][β] f in
+let Val = Λα.      λx:α.                            Λρ.λcs:Cases ρ.cs.Val[α] x in
+let Bin = Λα.Λβ.Λγ.λf:α → β → γ.λx:Expr α.λy:Expr β.Λρ.λcs:Cases ρ.cs.Bin[α][β][γ] f x y in
+let  If = Λα.      λc:Expr bool.λt:Expr α.λe:Expr α.Λρ.λcs:Cases ρ.cs.If[α] c t e in
+let App = Λα.Λβ.   λf:Expr (α → β).λx:Expr α.       Λρ.λcs:Cases ρ.cs.App[α][β] f x in
+let Lam = Λα.Λβ.   λf:Expr α → Expr β.              Λρ.λcs:Cases ρ.cs.Lam[α][β] f in
+let Fix = Λα.Λβ.   λf:Expr ((α → β) → α → β).       Λρ.λcs:Cases ρ.cs.Fix[α][β] f in
 
-let match = Λρ:* → *.λcs:Cases ρ.Λα.λe:Expr α.e[ρ] cs in
+let match = Λρ.λcs:Cases ρ.Λα.λe:Expr α.e[ρ] cs in
 
 let μeval:∀α.Expr α → α = match[λα.α] {
   Val = Λα.λx:α.x,

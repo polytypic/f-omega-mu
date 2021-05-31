@@ -2,6 +2,7 @@ open FomBasis
 open FomSource
 open FomAnnot
 open FomDiag
+open FomChecker
 
 module Path : sig
   val inc_ext : string
@@ -22,19 +23,17 @@ module Fetch : sig
   type e = [Error.file_doesnt_exist | Error.io_error]
   type t = Loc.t -> string -> (unit, e, string) Rea.t
 
+  val dummy : t
+
   class con :
     t
     -> object
          method fetch : t
        end
-
-  val fetch : Loc.t -> string -> (< fetch : t ; .. >, [> e], string) Rea.t
 end
 
 module TypAliases : sig
-  type t = FomAST.Typ.t FomAST.Typ.Env.t
-
-  val field : (< typ_aliases : (t, 'r) Field.t ; .. > as 'r) -> (t, 'r) Field.t
+  type t
 
   class con :
     object ('r)
@@ -43,13 +42,27 @@ module TypAliases : sig
 end
 
 module Error : sig
-  type t = [Error.io_error | Error.syntax_errors | Error.source_errors]
+  type t =
+    [ Error.io_error
+    | Error.syntax_errors
+    | Error.source_errors
+    | Error.kind_errors
+    | Error.type_errors ]
+end
+
+module Parameters : sig
+  type t
+
+  class con :
+    object ('r)
+      method parameters : (t, 'r) Field.t
+    end
 end
 
 module TypIncludes : sig
-  type t = (string, (Error.t, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
+  type t
 
-  val field : (< typ_includes : t ; .. > as 'r) -> t
+  val create : unit -> t
 
   class con :
     t
@@ -59,9 +72,9 @@ module TypIncludes : sig
 end
 
 module TypImports : sig
-  type t = (string, (Error.t, FomAST.Typ.t) IVar.t) Hashtbl.t
+  type t
 
-  val field : (< typ_imports : t ; .. > as 'r) -> t
+  val create : unit -> t
 
   class con :
     t
@@ -71,12 +84,9 @@ module TypImports : sig
 end
 
 module ExpImports : sig
-  type t =
-    ( string,
-      (Error.t, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t )
-    Hashtbl.t
+  type t
 
-  val field : (< exp_imports : t ; .. > as 'r) -> t
+  val create : unit -> t
 
   class con :
     t
@@ -94,29 +104,17 @@ module ImportChain : sig
     end
 end
 
-val elaborate_defs :
-  FomCST.Typ.t FomCST.Typ.Def.f list ->
-  ( (< annotations : Annot.t
-     ; fetch : Fetch.t
-     ; import_chain : (ImportChain.t, 'r) Field.t
-     ; typ_aliases : (TypAliases.t, 'r) Field.t
-     ; typ_includes : TypIncludes.t
-     ; typ_imports : TypImports.t
-     ; .. >
-     as
-     'r),
-    [> Error.t],
-    FomAST.Typ.t FomAST.Typ.Env.t )
-  Rea.t
-
 val elaborate_typ :
   FomCST.Typ.t ->
   ( (< annotations : Annot.t
      ; fetch : Fetch.t
      ; import_chain : (ImportChain.t, 'r) Field.t
+     ; kind_env : Kind.Env.t
+     ; typ_env : (Typ.Env.t, 'r) Field.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; typ_includes : TypIncludes.t
      ; typ_imports : TypImports.t
+     ; parameters : (Parameters.t, 'r) Field.t
      ; .. >
      as
      'r),
@@ -130,16 +128,23 @@ val elaborate :
      ; fetch : Fetch.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; import_chain : (ImportChain.t, 'r) Field.t
+     ; kind_env : Kind.Env.t
+     ; typ_env : (Typ.Env.t, 'r) Field.t
      ; typ_includes : TypIncludes.t
      ; typ_imports : TypImports.t
+     ; exp_env : (Exp.Env.t, 'r) Field.t
      ; exp_imports : ExpImports.t
+     ; parameters : (Parameters.t, 'r) Field.t
      ; .. >
      as
      'r),
     [> Error.t],
-    FomAST.Exp.t )
+    FomAST.Exp.t * FomAST.Typ.t * string list )
   Rea.t
 
 val with_modules :
-  FomAST.Exp.t ->
-  ((< exp_imports : ExpImports.t ; .. > as 'r), [> Error.t], FomAST.Exp.t) Rea.t
+  FomAST.Exp.t * FomAST.Typ.t * string list ->
+  ( (< exp_imports : ExpImports.t ; .. > as 'r),
+    [> Error.t],
+    FomAST.Exp.t * FomAST.Typ.t )
+  Rea.t

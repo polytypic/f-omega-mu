@@ -28,23 +28,17 @@ module Error = struct
   (* Kind errors *)
 
   type kind_mismatch = [`Error_kind_mismatch of Loc.t * Kind.t * Kind.t]
-  type mu_kind = [`Error_mu_kind of Loc.t * Typ.t * Kind.t]
+  type cyclic_kind = [`Error_cyclic_kind of Loc.t]
   type mu_nested = [`Error_mu_nested of Loc.t * Typ.t * Typ.t]
   type mu_non_contractive = [`Error_mu_non_contractive of Loc.t * Typ.t * Typ.t]
   type typ_var_unbound = [`Error_typ_var_unbound of Loc.t * Typ.Id.t]
-  type app_of_kind_star = [`Error_app_of_kind_star of Loc.t * Typ.t * Typ.t]
-
-  type quantifier_kind =
-    [`Error_quantifier_kind of Loc.t * FomPP.document * Typ.t * Kind.t]
 
   type kind_errors =
     [ kind_mismatch
-    | mu_kind
+    | cyclic_kind
     | mu_nested
     | mu_non_contractive
-    | typ_var_unbound
-    | app_of_kind_star
-    | quantifier_kind ]
+    | typ_var_unbound ]
 
   (* Type errors *)
 
@@ -119,20 +113,8 @@ module Error = struct
           (at, utf8string "Kind mismatch");
           (Kind.at expected_kind, utf8string "Expected type");
         ] )
-    | `Error_mu_kind (at, typ, kind) ->
-      ( ( at,
-          [
-            utf8string "μ(_) requires a type constructor of kind";
-            [break_1; utf8string "k → k"] |> concat |> nest 2;
-            break_1;
-            utf8string "but given type";
-            [break_1; Typ.pp typ] |> concat |> nest 2;
-            break_1;
-            utf8string "has kind";
-            [break_1; Kind.pp kind] |> concat |> nest 2;
-          ]
-          |> concat |> group ),
-        [(Kind.at kind, utf8string "Invalid kind for μ type constructor")] )
+    | `Error_cyclic_kind at ->
+      ((at, utf8string "cyclic kind"), [(at, utf8string "cyclic kind")])
     | `Error_mu_nested (at, typ, arg) ->
       ( ( at,
           [
@@ -161,44 +143,6 @@ module Error = struct
     | `Error_typ_var_unbound (at, id) ->
       ( (at, concat [utf8string "Unbound type variable "; Typ.Id.pp id]),
         [(Typ.Id.at id, utf8string "Unbound type variable")] )
-    | `Error_app_of_kind_star (at, fn, arg) ->
-      ( ( at,
-          [
-            utf8string "Type";
-            [break_1; Typ.pp fn] |> concat |> nest 2;
-            break_1;
-            utf8string
-              "does not take parameters but is given an argument of type";
-            [break_1; Typ.pp arg] |> concat |> nest 2;
-          ]
-          |> concat |> group ),
-        [
-          (Typ.at fn, utf8string "Type does not take parameters");
-          (Typ.at arg, utf8string "Actual argument");
-        ] )
-    | `Error_quantifier_kind (at, quantifier, typ, kind) ->
-      ( ( at,
-          [
-            quantifier;
-            utf8string "(_) requires a type constructor of kind";
-            [break_1; utf8string "(_ → *) → *"] |> concat |> nest 2;
-            break_1;
-            utf8string "but given type";
-            [break_1; Typ.pp typ] |> concat |> nest 2;
-            break_1;
-            utf8string "has kind";
-            [break_1; Kind.pp kind] |> concat |> nest 2;
-          ]
-          |> concat |> group ),
-        [
-          ( Typ.at typ,
-            [
-              utf8string "Invalid kind for ";
-              quantifier;
-              utf8string " type constructor";
-            ]
-            |> concat );
-        ] )
     (* Type errors *)
     | `Error_var_unbound (at, id) ->
       ( (at, concat [utf8string "Unbound variable "; Exp.Id.pp id]),

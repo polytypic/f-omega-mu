@@ -32,7 +32,7 @@ end
 module Typ = struct
   include Typ
 
-  let check_and_norm typ = check (`Star (at typ)) typ >> return @@ norm typ
+  let check_and_norm typ = check (`Star (at typ)) typ >> resolve typ >>- norm
 
   let check_arrow at typ =
     match unfold_of_norm typ with
@@ -68,7 +68,7 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 end
 
-let rec infer e = infer_base e >>= Typ.contract
+let rec infer e = infer_base e >>= Typ.resolve >>= Typ.contract
 
 and infer_base = function
   | `Const (at', c) -> Typ.check_and_norm (Const.type_of at' c)
@@ -89,13 +89,14 @@ and infer_base = function
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
     let* r_typ = Typ.Env.adding d d_kind (infer r) in
+    let* d_kind = Kind.resolve d_kind in
     Annot.Typ.def d d_kind
     >> return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
     let* f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
     let* x_kind = Typ.infer x_typ in
-    Kind.check_equal at' d_kind x_kind
+    Kind.unify at' d_kind x_kind
     >> return @@ Typ.norm @@ `App (at', f_con, x_typ)
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
@@ -144,7 +145,7 @@ and infer_base = function
     and* t_kind = Typ.infer t
     and* et = Typ.check_and_norm et in
     let* et_con, d_kind = Typ.check_exists at' et in
-    Kind.check_equal at' d_kind t_kind
+    Kind.unify at' d_kind t_kind
     >>
     let et_t = Typ.norm (`App (at', et_con, t)) in
     Typ.check_sub_of_norm (at e) (e_typ, et_t) >> return et
@@ -164,4 +165,4 @@ and infer_base = function
 
 let infer e =
   let* t = infer e in
-  Annot.Typ.resolve return (Typ.norm >>> return) >> return t
+  Annot.Typ.resolve Kind.resolve >> return t

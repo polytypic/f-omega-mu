@@ -12,8 +12,7 @@ module Annot = struct
       < annot :
           [ `Label of Label.t * Typ.t
           | `ExpId of Exp.Id.t * Typ.t
-          | `TypId of Typ.Id.t * Kind.t
-          | `TypAlias of Typ.Id.t * Typ.t ]
+          | `TypId of Typ.Id.t * Kind.t ]
       ; def : Loc.t
       ; uses : Loc.t list ref > )
     Hashtbl.t
@@ -93,7 +92,7 @@ module Annot = struct
         method uses = uses
       end
 
-    let resolve resolve_kind resolve_typ =
+    let resolve resolve_kind =
       let* annot = env_as field in
       annot |> Hashtbl.to_seq |> List.of_seq
       |> MList.iter @@ fun (at, v) ->
@@ -101,9 +100,6 @@ module Annot = struct
          | `TypId (id, kind) ->
            let+ kind = resolve_kind kind in
            Hashtbl.replace annot at @@ with_annot v @@ `TypId (id, kind)
-         | `TypAlias (id, typ) ->
-           let+ typ = resolve_typ typ in
-           Hashtbl.replace annot at @@ with_annot v @@ `TypAlias (id, typ)
          | _ -> unit
 
     let def id kind =
@@ -115,18 +111,6 @@ module Annot = struct
           (object
              method def = at
              method annot = `TypId (id, kind)
-             method uses = uses
-          end)
-
-    let alias id typ =
-      let+ annot = env_as field in
-      let at = at id in
-      if not (Hashtbl.mem annot at) then
-        let uses = ref [] in
-        Hashtbl.replace annot at
-          (object
-             method def = at
-             method annot = `TypAlias (id, typ)
              method uses = uses
           end)
 

@@ -3,7 +3,7 @@
 # Similarly to TAPL, section 32.4, an object has state `τ` and methods
 # operating on said state `M τ`:
 
-let type Object = λM:* → *.λτ.(τ, M τ) in
+let type Object = λM.λτ.(τ, M τ) in
 
 # The methods form the interface to the object.  For example, counter
 # objects can be incremented and the current value can be fetched as
@@ -52,22 +52,22 @@ let aResetCounter =《
 # coercions, `B`, to access the methods.  Here are helpers to invoke
 # the methods `inc`, `get`, `reset`, and `reset_count`:
 
-let inc = ΛM:* → *.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
+let inc = ΛM.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
   let《τ\(x, M)》= c in
   let C = B[τ] M in
   《τ\(C.inc x, M)》: ∃(Object M) in
 
-let get = ΛM:* → *.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
+let get = ΛM.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
   let《τ\(x, M)》= c in
   let C = B[τ] M in
   C.get x in
 
-let reset = ΛM:* → *.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
+let reset = ΛM.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
   let《τ\(x, M)》= c in
   let C = B[τ] M in
   《τ\(C.reset x, M)》: ∃(Object M) in
 
-let reset_count = ΛM:* → *.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
+let reset_count = ΛM.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
   let《τ\(x, M)》= c in
   let C = B[τ] M in
   C.reset_count x in

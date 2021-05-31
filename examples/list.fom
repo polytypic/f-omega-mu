@@ -2,7 +2,7 @@
 
 let type opt = λα.[none: (), some: α] in
 
-let type μlist:* → * = λα.opt (α, list α) in
+let type μlist = λα.opt (α, list α) in
 
 let infiniteOf = Λα.λx:α.μxs:μω.[some: (α, ω)].[some = (x, xs)] in
 

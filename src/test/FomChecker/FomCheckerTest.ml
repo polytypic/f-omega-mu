@@ -3,6 +3,7 @@ open FomTest
 open FomChecker
 open FomParser
 open FomElab
+open FomEnv
 
 (* *)
 
@@ -32,7 +33,7 @@ let () =
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [B]"
-    "(μf:*→*→*.λx.λy.f y x) a b"
+    "(μf.λx.λy.f y x) a b"
   @@ fun typ ->
   verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_some)
 
@@ -44,18 +45,22 @@ let test_typs_parse_as name source1 source2 check =
 
 let test_equal_typs source1 source2 =
   test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
-  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2) >>= verify
+  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2)
+  |> with_env (ignore >>> Env.empty)
+  >>= verify
 
 let test_not_equal_typs source1 source2 =
   test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
-  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2) >>- not >>= verify
+  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2)
+  |> with_env (ignore >>> Env.empty)
+  >>- not >>= verify
 
 let () =
-  test_equal_typs "λt.μl.[nil:t,cons:l]" "μl:*→*.λt.[nil:t,cons:l t]";
+  test_equal_typs "λt.μl.[nil:t,cons:l]" "μl.λt.[nil:t,cons:l t]";
   test_equal_typs "λx.μxs.x→xs" "λy.y→(μys.y→y→ys)";
   test_equal_typs "λx.x" "λy.μys.y";
   test_equal_typs "∀x.x→x" "∀y.y→y";
-  test_equal_typs "λf:*→*.f" "λf:*→*.λy.(λx.f x) y";
+  test_equal_typs "λf:*→*.f" "λf.λy.(λx.f x) y";
   test_equal_typs "μx.x" "μx.μy.y";
   test_not_equal_typs "∀x.∀y.x→y" "∀y.∀x.x→y";
   test_not_equal_typs "∀x.x→x" "∀y.y→y→y";
@@ -66,7 +71,7 @@ let () =
 let parse_exp source and_then =
   source
   |> Parser.parse_utf_8 Grammar.program Lexer.plain
-  >>= elaborate >>= Exp.infer
+  >>= elaborate
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then @@ fun _ -> verify false
 
@@ -74,9 +79,10 @@ let testInfersAs name typ exp =
   test name @@ fun () ->
   parse_typ typ @@ fun expected ->
   let expected = Typ.norm expected in
-  parse_exp exp @@ fun actual ->
+  parse_exp exp @@ fun (_, actual, _) ->
   let actual = Typ.norm actual in
-  Typ.is_equal_of_norm (expected, actual) >>= fun are_equal ->
+  Typ.is_equal_of_norm (expected, actual) |> with_env (ignore >>> Env.empty)
+  >>= fun are_equal ->
   if not are_equal then (
     let open FomPP in
     [
@@ -113,10 +119,10 @@ let () =
     fold[int][int] (λx:int.λs:int.x + s) 0 pi_digits
     |eof};
   testInfersAs "generic fold"
-    {eof|∀f:*→*.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|eof}
+    {eof|∀f.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|eof}
     {eof|
-    let type Functor = λf:*→*.∀a.∀b.(a → b) → (f a → f b) in
-    Λf:*→*.λfmap: Functor f.
+    let type Functor = λf.∀a.∀b.(a → b) → (f a → f b) in
+    Λf.λfmap: Functor f.
       Λa.λalgebra: f a → a.
         μdoFold: μ(f) → a.
           λv: μ(f).
@@ -135,7 +141,7 @@ let () =
     {eof|
     let type option = λv.[none: {}, some: v] in
     let type list = λv.μlist.[nil: {}, cons: {hd: v, tl: list}] in
-    let type Stack = ∃t:* → *.{
+    let type Stack = ∃t.{
       empty: ∀v.t v,
       push: ∀v.v → t v → t v,
       pop: ∀v.t v → option {value: v, stack: t v}
@@ -167,7 +173,7 @@ let () =
   testInfersAs "mutual rec" "()"
     {eof|
     let type opt = λt.[none: (), some: t] in
-    let type μstream:* → * = λt.() → opt (t, stream t) in
+    let type μstream = λt.() → opt (t, stream t) in
     let μeven: int → stream int =
       λx:int.λ().[some = (x, odd (x+1))]
     and μodd: int → stream int =
@@ -182,16 +188,16 @@ let () =
     {eof|
     let type opt = λα.[none: (), some: α] in
     let type alt = λα.λβ.[In1: α, In2: β] in
-    let type μTrie:* → * → * = λκ.λν.∀ρ:* → * → *.Cases ρ → ρ κ ν
-    and μCases:(* → * → *) → * = λρ:* → * → *.{
+    let type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
+    and μCases = λρ.{
       Unit: ∀ν.                        opt ν → ρ ()          ν,
       Alt : ∀ν.∀κ1.∀κ2.Trie κ1 ν → Trie κ2 ν → ρ (alt κ1 κ2) ν,
       Pair: ∀ν.∀κ1.∀κ2.  Trie κ1 (Trie κ2 ν) → ρ (κ1, κ2)    ν
     } in
-    let Unit = Λν.        λv:opt ν.                   Λr:* → * → *.λcs:Cases r.cs.Unit[ν] v in
-    let Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr:* → * → *.λcs:Cases r.cs.Alt[ν][κ1][κ2] t1 t2 in
-    let Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr:* → * → *.λcs:Cases r.cs.Pair[ν][κ1][κ2] t in
-    let match = Λρ:* → * → *.λcs:Cases ρ.Λκ.Λν.λt:Trie κ ν.t[ρ] cs in
+    let Unit = Λν.        λv:opt ν.                   Λr.λcs:Cases r.cs.Unit[ν] v in
+    let Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr.λcs:Cases r.cs.Alt[ν][κ1][κ2] t1 t2 in
+    let Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr.λcs:Cases r.cs.Pair[ν][κ1][κ2] t in
+    let match = Λρ.λcs:Cases ρ.Λκ.Λν.λt:Trie κ ν.t[ρ] cs in
     let μlookup:∀κ.∀ν.Trie κ ν → κ → opt ν = match[λκ.λν.κ → opt ν] {
       Unit = Λν.λv:opt ν.λ().v,
       Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.case {
@@ -199,7 +205,7 @@ let () =
           In2 = λk2:κ2.lookup[κ2][ν] t2 k2
         },
       Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).λ(k1:κ1, k2:κ2).
-        lookup[κ1][Trie κ2 ν] t k1 ▷  case {
+        lookup[κ1][Trie κ2 ν] t k1 ▷ case {
           none = λ().[none = ()],
           some = λt:Trie κ2 ν.lookup[κ2][ν] t k2
         }
@@ -218,10 +224,10 @@ let testErrors name exp =
   test name @@ fun () ->
   exp
   |> Parser.parse_utf_8 Grammar.program Lexer.plain
-  >>= elaborate >>= Exp.infer
+  >>= elaborate
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in
-       (fun unexpected ->
+       (fun (_, unexpected, _) ->
          let open FomPP in
          [
            utf8string "Expected type checking to fail, but got type";
@@ -234,20 +240,20 @@ let testErrors name exp =
 let () =
   testErrors "non contractive case"
     {eof|
-    let type μnon_contractive:* → * = λt.non_contractive t in
+    let type μnon_contractive = λt.non_contractive t in
     λx:non_contractive int.x ▷ case {}
     |eof};
   testErrors "free variable in def and Λ"
-    "let type def:* → * = λt.x in Λx.λ_:def int.λ_:def string.()";
+    "let type def = λt.x in Λx.λ_:def int.λ_:def string.()";
   testErrors "free variable in def and 《》"
     {eof|
-    let type r:* → * = λt.x in
+    let type r = λt.x in
     let《x\_》= 《()\()》: ∃t.t in
     (λ_:r int.λ_:r string.(), 1).2
     |eof};
   testErrors "free variable in def and 《》 inside pattern"
     {eof|
-    let type r:* → * = λt.x in
+    let type r = λt.x in
     let (《x\_》, _)= (《()\()》: ∃t.t, 101) in
     (λ_:r int.λ_:r string.(), 1).2
     |eof}

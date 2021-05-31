@@ -28,23 +28,17 @@ module Error : sig
   (* Kind errors *)
 
   type kind_mismatch = [`Error_kind_mismatch of Loc.t * Kind.t * Kind.t]
-  type mu_kind = [`Error_mu_kind of Loc.t * Typ.t * Kind.t]
+  type cyclic_kind = [`Error_cyclic_kind of Loc.t]
   type mu_nested = [`Error_mu_nested of Loc.t * Typ.t * Typ.t]
   type mu_non_contractive = [`Error_mu_non_contractive of Loc.t * Typ.t * Typ.t]
   type typ_var_unbound = [`Error_typ_var_unbound of Loc.t * Typ.Id.t]
-  type app_of_kind_star = [`Error_app_of_kind_star of Loc.t * Typ.t * Typ.t]
-
-  type quantifier_kind =
-    [`Error_quantifier_kind of Loc.t * FomPP.document * Typ.t * Kind.t]
 
   type kind_errors =
     [ kind_mismatch
-    | mu_kind
+    | cyclic_kind
     | mu_nested
     | mu_non_contractive
-    | typ_var_unbound
-    | app_of_kind_star
-    | quantifier_kind ]
+    | typ_var_unbound ]
 
   (* Type errors *)
 

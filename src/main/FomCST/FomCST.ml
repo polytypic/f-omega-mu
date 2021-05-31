@@ -24,7 +24,7 @@ module Typ = struct
 
   module Def = struct
     type 't f =
-      [ `Typ of Loc.t * Id.t * Kind.t option * 't
+      [ `Typ of Loc.t * Id.t * Kind.t * 't
       | `TypRec of Loc.t * (Id.t * Kind.t * 't) list
       | `Include of Loc.t * LitString.t ]
   end

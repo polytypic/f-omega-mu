@@ -1,16 +1,16 @@
 # Types of lists of various lengths
 
 # An ordinary recursive list type
-let type μlist_of_0_to_n : * → * = λα.[nil: (), cons: (α, list_of_0_to_n α)] in
+let type μlist_of_0_to_n = λα.[nil: (), cons: (α, list_of_0_to_n α)] in
 
 # A list of exactly one element
-let type  list_of_1      : * → * = λα.[cons: (α, [nil: ()])] in
+let type  list_of_1      = λα.[cons: (α, [nil: ()])] in
 
 # A list of one or more elements
-let type  list_of_1_to_n : * → * = λα.[cons: (α, list_of_0_to_n α)] in
+let type  list_of_1_to_n = λα.[cons: (α, list_of_0_to_n α)] in
 
 # An infinite list (due to strictness these are always cycles)
-let type μlist_of_inf    : * → * = λα.[cons: (α, list_of_inf α)] in
+let type μlist_of_inf    = λα.[cons: (α, list_of_inf α)] in
 
 # We now have the following subtype relationships:
 #

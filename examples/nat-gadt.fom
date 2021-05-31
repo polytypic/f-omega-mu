@@ -1,0 +1,25 @@
+# Natural number GADT
+
+let type Z = λ_.λz.z in
+let type S = λn.λs.λz.s (n s z) in
+
+let type μCases = λr.{
+  Zero:            r Z,
+  Succ: ∀n.Nat n → r (S n)
+}
+
+and μNat = λn.∀r.Cases r → r n in
+
+let Zero =             Λr.λcs:Cases r.cs.Zero in
+let Succ = Λn.λn:Nat n.Λr.λcs:Cases r.cs.Succ[n] n in
+
+let type N = ∃(Nat) in
+
+let μto_int:∀n.Nat n → int = Λn.λn:Nat n.
+  n[λ_.int] {
+    Zero = 0,
+    Succ = Λn.λn:Nat n.to_int[n] n + 1
+  } in
+
+let《n\n》=《S (S Z)\Succ[S Z] (Succ[Z] Zero)》: N in
+to_int[n] n
