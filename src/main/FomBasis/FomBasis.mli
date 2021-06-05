@@ -56,10 +56,16 @@ module Monad : sig
       ('I, 'T, 'O, 'a) m -> ('a -> ('I, 'T, 'O, 'b) m) -> ('I, 'T, 'O, 'b) m
 
     val ( let+ ) : ('I, 'T, 'O, 'a) m -> ('a -> 'b) -> ('I, 'T, 'O, 'b) m
+
+    val ( and* ) :
+      ('I, 'T, 'O, 'a) m -> ('I, 'T, 'O, 'b) m -> ('I, 'T, 'O, 'a * 'b) m
   end
 
   module type S = sig
     include Monad
+
+    val ( and+ ) :
+      ('I, 'T, 'O, 'a) m -> ('I, 'T, 'O, 'b) m -> ('I, 'T, 'O, 'a * 'b) m
 
     (* *)
 

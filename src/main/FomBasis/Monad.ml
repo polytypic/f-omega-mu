@@ -7,10 +7,16 @@ module type Monad = sig
     ('I, 'T, 'O, 'a) m -> ('a -> ('I, 'T, 'O, 'b) m) -> ('I, 'T, 'O, 'b) m
 
   val ( let+ ) : ('I, 'T, 'O, 'a) m -> ('a -> 'b) -> ('I, 'T, 'O, 'b) m
+
+  val ( and* ) :
+    ('I, 'T, 'O, 'a) m -> ('I, 'T, 'O, 'b) m -> ('I, 'T, 'O, 'a * 'b) m
 end
 
 module type S = sig
   include Monad
+
+  val ( and+ ) :
+    ('I, 'T, 'O, 'a) m -> ('I, 'T, 'O, 'b) m -> ('I, 'T, 'O, 'a * 'b) m
 
   (* *)
 
@@ -86,9 +92,9 @@ end
 module Make (Core : Monad) = struct
   include Core
 
-  let ( let+ ) aM ab =
-    let* a = aM in
-    return @@ ab a
+  let ( and+ ) = ( and* )
+
+  (* *)
 
   let ( >> ) xW yW =
     let* () = xW in
@@ -104,8 +110,7 @@ module Make (Core : Monad) = struct
     xy x
 
   let lift2 xyz x y =
-    let* x = x in
-    let+ y = y in
+    let+ x = x and+ y = y in
     xyz x y
 
   (* *)

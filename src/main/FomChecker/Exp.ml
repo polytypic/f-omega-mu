@@ -106,8 +106,7 @@ let rec infer = function
   | `IfElse (_, c, t, e) ->
     let* c_typ = infer c in
     Typ.check_sub_of_norm (at c) (c_typ, `Const (at c, `Bool))
-    >> let* t_typ = infer t in
-       let* e_typ = infer e in
+    >> let* t_typ = infer t and* e_typ = infer e in
        Typ.join_of_norm (at e) (t_typ, e_typ)
   | `Product (at, fs) ->
     let+ fs =
@@ -147,9 +146,9 @@ let rec infer = function
     let d_typ = `Sum (at cs, cs_arrows |> List.map (Pair.map Fun.id fst)) in
     `Arrow (at', d_typ, c_typ)
   | `Pack (at', t, e, et) ->
-    let* e_typ = infer e in
-    let* t_kind = Typ.infer t in
-    let* et = typ_infer_and_norm et in
+    let* e_typ = infer e
+    and* t_kind = Typ.infer t
+    and* et = typ_infer_and_norm et in
     let* et_con, d_kind = check_exists_typ at' et in
     Kind.check_equal at' d_kind t_kind
     >>

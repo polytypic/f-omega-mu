@@ -25,6 +25,27 @@ include Monad.Make (struct
       `Async
         (fun k ->
           on @@ function `Ok x -> k @@ `Ok (xy x) | `Error _ as e -> k e)
+
+  let pairing x k = function `Ok y -> k @@ `Ok (x, y) | `Error _ as e -> k e
+
+  let ( and* ) xM yM r =
+    match xM r with
+    | `Ok x -> (
+      match yM r with
+      | `Ok y -> `Ok (x, y)
+      | `Error _ as e -> e
+      | `Async on -> `Async (fun k -> on @@ pairing x k))
+    | `Error _ as e -> e
+    | `Async on ->
+      `Async
+        (fun k ->
+          on @@ function
+          | `Ok x -> (
+            match yM r with
+            | `Ok y -> k @@ `Ok (x, y)
+            | `Error _ as e -> k e
+            | `Async on -> on @@ pairing x k)
+          | `Error _ as e -> k e)
 end)
 
 (* *)

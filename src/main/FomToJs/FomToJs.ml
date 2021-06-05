@@ -338,8 +338,7 @@ module Exp = struct
         if f_is_total then return f else default ()
       | _ -> default ())
     | `App (f, x) -> (
-      let* f = simplify f in
-      let* x = simplify x in
+      let* f = simplify f and* x = simplify x in
       let* f =
         match f with
         | `Lam (i, e) ->
@@ -356,11 +355,10 @@ module Exp = struct
           | `Inject (l, e), `Product fs ->
             simplify @@ `App (List.find (fst >>> Label.equal l) fs |> snd, e)
           | _, `Product _ when may_inline_continuation s ->
-            let* inlined =
+            let+ inlined =
               simplify
                 (inline_continuation s (lam @@ fun s -> `App (`Case cs, s)))
-            in
-            let+ defaulted = default () in
+            and+ defaulted = default () in
             if size inlined * 3 < size defaulted * 4 then
               inlined
             else
@@ -391,8 +389,7 @@ module Exp = struct
         let apply () = simplify (subst i x e) in
         let* x_is_total = is_total x in
         if x_is_total then
-          let* applied = apply () in
-          let+ defaulted = default () in
+          let+ applied = apply () and+ defaulted = default () in
           if size applied * 3 < size defaulted * 4 then
             applied
           else
@@ -408,8 +405,7 @@ module Exp = struct
       match c with
       | `Const (`LitBool c) -> simplify (if c then t else e)
       | _ ->
-        let* t = simplify t in
-        let+ e = simplify e in
+        let+ t = simplify t and+ e = simplify e in
         `IfElse (c, t, e))
     | `Product fs ->
       let+ fs =
@@ -467,16 +463,16 @@ module Exp = struct
         let+ e = to_js_stmts is_top (Ids.add i ids) e in
         b ^ v ^ str "; " ^ e
     | `IfElse (c, t, e) ->
-      let* c = to_js_expr c in
-      let* t = to_js_stmts is_top Ids.empty t in
-      let+ e = to_js_stmts is_top Ids.empty e in
+      let+ c = to_js_expr c
+      and+ t = to_js_stmts is_top Ids.empty t
+      and+ e = to_js_stmts is_top Ids.empty e in
       str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
     | `App (`Case (`Product fs), x) ->
       let i0 = Id.fresh Loc.dummy in
       let i1 = Id.fresh Loc.dummy in
       let v1 = `Var i1 in
-      let* x = to_js_expr x in
-      let+ fs =
+      let+ x = to_js_expr x
+      and+ fs =
         fs
         |> MList.traverse @@ fun (l, e) ->
            let* e = simplify @@ `App (e, v1) in
@@ -489,8 +485,7 @@ module Exp = struct
       ^ str "}"
     | `App (`Case cs, x) ->
       let i = Id.fresh Loc.dummy in
-      let* x = to_js_expr x in
-      let+ cs = to_js_expr cs in
+      let+ x = to_js_expr x and+ cs = to_js_expr cs in
       str "const " ^ Id.to_js i ^ str " = " ^ x ^ str "; "
       ^ (if is_top then str "" else str "return ")
       ^ cs ^ str "[" ^ Id.to_js i ^ str "[0]](" ^ Id.to_js i ^ str "[1])"
@@ -523,9 +518,7 @@ module Exp = struct
       let+ f = to_js_expr f in
       str "rec(" ^ f ^ str ")"
     | `IfElse (c, t, e) ->
-      let* c = to_js_expr c in
-      let* t = to_js_expr t in
-      let+ e = to_js_expr e in
+      let+ c = to_js_expr c and+ t = to_js_expr t and+ e = to_js_expr e in
       parens @@ c ^ str " ? " ^ t ^ str " : " ^ e
     | `Product [] -> return @@ str "undefined"
     | `Product fs ->
@@ -550,8 +543,7 @@ module Exp = struct
       let+ e = to_js_expr e in
       str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
     | `App (`Lam (i, e), v) ->
-      let* v = to_js_expr v in
-      let+ e = to_js_stmts false (Ids.singleton i) e in
+      let+ v = to_js_expr v and+ e = to_js_stmts false (Ids.singleton i) e in
       str "(" ^ Id.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
     | `App (`Case _, _) as e ->
       let+ e = to_js_stmts false Ids.empty e in
@@ -561,8 +553,7 @@ module Exp = struct
       to_js_expr @@ `Lam (i, `App (`Case cs, `Var i))
     | `App (f, x) -> (
       let default () =
-        let* f = to_js_expr f in
-        let+ x = to_js_expr x in
+        let+ f = to_js_expr f and+ x = to_js_expr x in
         f ^ str "(" ^ x ^ str ")"
       in
       match exp with
@@ -571,8 +562,7 @@ module Exp = struct
         if n <> 2 then
           default ()
         else
-          let* lhs = to_js_expr lhs in
-          let+ rhs = to_js_expr rhs in
+          let+ lhs = to_js_expr lhs and+ rhs = to_js_expr rhs in
           parens
           @@ coerce_to_int_if (Typ.is_int result)
           @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs

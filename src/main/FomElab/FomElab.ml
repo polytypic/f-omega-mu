@@ -279,8 +279,7 @@ and elaborate_typ = function
     let+ t = elaborate_typ t in
     `Lam (at', i, k, t)
   | `App (at', f, x) ->
-    let* f = elaborate_typ f in
-    let+ x = elaborate_typ x in
+    let+ f = elaborate_typ f and+ x = elaborate_typ x in
     `App (at', f, x)
   | `ForAll (at', t) ->
     let+ t = elaborate_typ t in
@@ -289,8 +288,7 @@ and elaborate_typ = function
     let+ t = elaborate_typ t in
     `Exists (at', t)
   | `Arrow (at', d, c) ->
-    let* d = elaborate_typ d in
-    let+ c = elaborate_typ c in
+    let+ d = elaborate_typ d and+ c = elaborate_typ c in
     `Arrow (at', d, c)
   | `Product (at', ls) ->
     let+ ls =
@@ -344,24 +342,20 @@ let rec elaborate = function
     let+ t = elaborate_typ t in
     `Target (at, t, s)
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
-    let* t = elaborate_typ t in
-    let+ e = elaborate e in
+    let+ t = elaborate_typ t and+ e = elaborate e in
     `Lam (at, i, t, e)
   | `App (at, f, x) ->
-    let* f = elaborate f in
-    let+ x = elaborate x in
+    let+ f = elaborate f and+ x = elaborate x in
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid at i @@ fun i ->
     let+ e = elaborate e in
     `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
-    let* e = elaborate e in
-    let+ t = elaborate_typ t in
+    let+ e = elaborate e and+ t = elaborate_typ t in
     `Inst (at, e, t)
   | `LetIn (at, i, v, e) ->
-    let* v = elaborate v in
-    let+ e = elaborate e in
+    let+ v = elaborate v and+ e = elaborate e in
     `LetIn (at, i, v, e)
   | `LetPat (at, `Id (_, i, _), tO, v, e) ->
     let* v = elaborate v in
@@ -375,9 +369,7 @@ let rec elaborate = function
     let+ e = elaborate e in
     `Mu (at, e)
   | `IfElse (at, c, t, e) ->
-    let* c = elaborate c in
-    let* t = elaborate t in
-    let+ e = elaborate e in
+    let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
     `IfElse (at, c, t, e)
   | `Product (at, fs) ->
     let+ fs =
@@ -397,9 +389,7 @@ let rec elaborate = function
     let+ cs = elaborate cs in
     `Case (at, cs)
   | `Pack (at, t, e, x) ->
-    let* t = elaborate_typ t in
-    let* e = elaborate e in
-    let+ x = elaborate_typ x in
+    let+ t = elaborate_typ t and+ e = elaborate e and+ x = elaborate_typ x in
     `Pack (at, t, e, x)
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
@@ -431,13 +421,11 @@ let rec elaborate = function
     let+ e = elaborate e in
     `LetIn (at, i, v, e)
   | `Annot (at, e, t) ->
-    let* e = elaborate e in
-    let+ t = elaborate_typ t in
+    let+ e = elaborate e and+ t = elaborate_typ t in
     let x = Exp.Id.fresh at in
     `App (at, `Lam (at, x, t, `Var (at, x)), e)
   | `AppL (at, x, f) | `AppR (at, f, x) ->
-    let* x = elaborate x in
-    let+ f = elaborate f in
+    let+ x = elaborate x and+ f = elaborate f in
     `App (at, f, x)
   | `Import (at', p) ->
     let mod_filename = Path.resolve at' p |> Path.ensure_ext Path.mod_ext in

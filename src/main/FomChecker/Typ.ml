@@ -290,8 +290,7 @@ let rec to_strict
     let+ t = to_strict t in
     `Lam (at, i, k, t)
   | `App (at, f, x) ->
-    let* f = to_strict f in
-    let+ x = to_strict x in
+    let+ f = to_strict f and+ x = to_strict x in
     `App (at, f, x)
   | `ForAll (at, t) ->
     let+ t = to_strict t in
@@ -300,8 +299,7 @@ let rec to_strict
     let+ t = to_strict t in
     `Exists (at, t)
   | `Arrow (at, d, c) ->
-    let* d = to_strict d in
-    let+ c = to_strict c in
+    let+ d = to_strict d and+ c = to_strict c in
     `Arrow (at, d, c)
   | `Product (at, ls) ->
     let+ ls = to_strict_labeled ls in
@@ -379,8 +377,7 @@ let join_of_norm at g =
                  (lazy
                    (match g with
                    | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-                     let* d = lower (ld, rd) in
-                     let+ c = upper (lc, rc) in
+                     let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
                      `Arrow (at, d, c)
                    | `Product (_, lls), `Product (_, rls) ->
                      let+ ls = intersection upper [] (lls, rls) in
