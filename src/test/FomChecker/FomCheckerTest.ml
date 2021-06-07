@@ -205,6 +205,13 @@ let () =
         }
     } in
     ()
+    |eof};
+  testInfersAs "fix via μ type" "int"
+    {eof|
+    let type t = λa.λb.μt.t → a → b in
+    let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) (λx:t a b.λn:a.f (x x) n) in
+    let fact = λfact:int → int.λn:int.if n =[int] 0 then 1 else n*fact (n-1) in
+    fix[int][int] fact 5
     |eof}
 
 let testErrors name exp =
