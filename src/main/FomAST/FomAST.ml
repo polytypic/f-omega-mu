@@ -646,6 +646,52 @@ module Exp = struct
     let lit_false = `LitBool false
     let lit_true = `LitBool true
 
+    (* Comparison *)
+
+    let index = function
+      | `LitBool _ -> 0
+      | `LitNat _ -> 1
+      | `LitString _ -> 2
+      | `OpArithAdd -> 3
+      | `OpArithDiv -> 4
+      | `OpArithMinus -> 5
+      | `OpArithMul -> 6
+      | `OpArithPlus -> 7
+      | `OpArithRem -> 8
+      | `OpArithSub -> 9
+      | `OpCmpGt -> 10
+      | `OpCmpGtEq -> 11
+      | `OpCmpLt -> 12
+      | `OpCmpLtEq -> 13
+      | `OpEq _ -> 14
+      | `OpEqNot _ -> 15
+      | `OpLogicalAnd -> 16
+      | `OpLogicalNot -> 17
+      | `OpLogicalOr -> 18
+
+    let compare' nat typ l r =
+      match (l, r) with
+      | `LitBool l, `LitBool r -> Bool.compare l r
+      | `LitNat l, `LitNat r -> nat l r
+      | `LitString l, `LitString r -> LitString.compare l r
+      | `OpEq l, `OpEq r | `OpEqNot l, `OpEqNot r -> typ l r
+      | `OpArithAdd, `OpArithAdd
+      | `OpArithDiv, `OpArithDiv
+      | `OpArithMinus, `OpArithMinus
+      | `OpArithMul, `OpArithMul
+      | `OpArithPlus, `OpArithPlus
+      | `OpArithRem, `OpArithRem
+      | `OpArithSub, `OpArithSub
+      | `OpCmpGt, `OpCmpGt
+      | `OpCmpGtEq, `OpCmpGtEq
+      | `OpCmpLt, `OpCmpLt
+      | `OpCmpLtEq, `OpCmpLtEq
+      | `OpLogicalAnd, `OpLogicalAnd
+      | `OpLogicalNot, `OpLogicalNot
+      | `OpLogicalOr, `OpLogicalOr ->
+        0
+      | _ -> index l - index r
+
     (* Formatting *)
 
     let pp' nat typ = function

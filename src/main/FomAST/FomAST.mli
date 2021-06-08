@@ -154,6 +154,10 @@ module Exp : sig
 
     val collect_typ : ('nat, 't) t -> 't list
 
+    (* Comparison *)
+
+    val compare' : 'nat cmp -> 't cmp -> ('nat, 't) t cmp
+
     (* Constants *)
 
     val lit_false : ('nat, 't) t
