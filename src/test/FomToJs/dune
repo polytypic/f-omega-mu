@@ -1,0 +1,3 @@
+(test
+ (name FomToJsTest)
+ (libraries FomToJs FomEnv FomElab FomParser FomTest))

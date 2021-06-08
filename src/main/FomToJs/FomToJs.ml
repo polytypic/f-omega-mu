@@ -1,6 +1,11 @@
-open FomSource
+open FomPP
 open FomBasis
+open FomSource
 open FomAST
+
+(* *)
+
+open Rea
 
 type cstr = Str of string | Join of cstr * cstr
 
@@ -176,11 +181,129 @@ module Exp = struct
         str id
   end
 
+  module Erased = struct
+    type t =
+      [ `App of t * t
+      | `Case of t
+      | `Const of (int32, Typ.t) Exp.Const.t
+      | `IfElse of t * t * t
+      | `Inject of Label.t * t
+      | `Lam of Id.t * t
+      | `Mu of t
+      | `Product of (Label.t * t) list
+      | `Select of t * Label.t
+      | `Target of LitString.t
+      | `Var of Id.t ]
+
+    let index = function
+      | `App _ -> 0
+      | `Case _ -> 1
+      | `Const _ -> 2
+      | `IfElse _ -> 3
+      | `Inject _ -> 4
+      | `Lam _ -> 5
+      | `Mu _ -> 6
+      | `Product _ -> 7
+      | `Select _ -> 8
+      | `Target _ -> 9
+      | `Var _ -> 10
+
+    let rec compare l r =
+      match (l, r) with
+      | `App (fl, xl), `App (fr, xr) ->
+        compare fl fr <>? fun () -> compare xl xr
+      | `Case l, `Case r | `Mu l, `Mu r -> compare l r
+      | `Const l, `Const r ->
+        FomAST.Exp.Const.compare' Int32.compare Typ.compare l r
+      | `IfElse (cl, tl, el), `IfElse (cr, tr, er) ->
+        compare cl cr <>? fun () ->
+        compare tl tr <>? fun () -> compare el er
+      | `Select (el, ll), `Select (er, lr) | `Inject (ll, el), `Inject (lr, er)
+        ->
+        Label.compare ll lr <>? fun () -> compare el er
+      | `Lam (vl, el), `Lam (vr, er) ->
+        Id.compare vl vr <>? fun () -> compare el er
+      | `Product lls, `Product rls ->
+        ListExt.compare_with
+          (fun (ll, el) (lr, er) ->
+            Label.compare ll lr <>? fun () -> compare el er)
+          lls rls
+      | `Target l, `Target r -> LitString.compare l r
+      | `Var l, `Var r -> Id.compare l r
+      | _ -> index l - index r
+
+    let[@warning "-32"] rec pp = function
+      | `App (f, x) -> [pp f; space; pp x] |> concat |> egyptian parens 2
+      | `Case t -> [utf8string "case"; space; pp t] |> concat
+      | `Const c ->
+        FomAST.Exp.Const.pp' (Int32.to_string >>> utf8string) FomAST.Typ.pp c
+      | `IfElse (c, t, e) ->
+        [
+          [utf8string "if"; space; pp c; space] |> concat;
+          [utf8string "then"; space; pp t; space] |> concat;
+          [utf8string "else"; space; pp e; space] |> concat;
+        ]
+        |> concat |> egyptian parens 2
+      | `Inject (l, t) ->
+        [Label.pp l; equals; pp t] |> concat |> egyptian brackets 2
+      | `Lam (v, t) ->
+        [lambda_lower; Id.pp v; dot; pp t] |> concat |> egyptian parens 2
+      | `Mu t -> [mu_lower; pp t |> egyptian parens 2] |> concat
+      | `Product ls ->
+        ls
+        |> List.map (fun (l, t) -> [Label.pp l; equals; pp t] |> concat)
+        |> separate comma_break_1 |> egyptian braces 2
+      | `Select (t, l) -> [pp t; dot; Label.pp l] |> concat
+      | `Target s ->
+        [utf8string "target"; space; LitString.to_utf8_json s |> utf8string]
+        |> concat |> egyptian parens 2
+      | `Var v -> Id.pp v
+  end
+
   let coerce_to_int exp = str "(" ^ exp ^ str ") | 0"
   let coerce_to_int_if bool exp = if bool then coerce_to_int exp else exp
   let parens exp = str "(" ^ exp ^ str ")"
 
-  module Env = Map.Make (Id)
+  module Env = struct
+    include Map.Make (Id)
+
+    type nonrec t = Erased.t t
+
+    let field r = r#env
+    let find_opt i = get_as field (find_opt i)
+    let adding i e = Rea.mapping field (add i e)
+
+    class con =
+      object
+        val env : t = empty
+        method env = Field.make env (fun v -> {<env = v>})
+      end
+  end
+
+  module Limit = struct
+    type t = int option
+
+    let field r = r#limit
+
+    class con =
+      object
+        val limit : t = None
+        method limit = Field.make limit (fun v -> {<limit = v>})
+      end
+  end
+
+  module Seen = struct
+    include Set.Make (Erased)
+
+    let field r = r#seen
+
+    class con =
+      object
+        val seen : t = empty
+        method seen = Field.make seen (fun v -> {<seen = v>})
+      end
+  end
+
   module Ids = Set.Make (Id)
 
   let rec erase = function
@@ -257,26 +380,32 @@ module Exp = struct
     let i = Id.fresh Loc.dummy in
     `Lam (i, fn @@ `Var i)
 
-  let rec is_total =
-    let open Rea in
-    function
-    | `Const _ | `Var _ | `Lam _ -> return true
-    | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
-    | `Product fs -> fs |> MList.for_all (fun (_, e) -> is_total e)
-    | `Mu (`Lam (i, e)) -> is_total e |> with_env @@ Env.add i e
-    | `Select (e, _) | `Inject (_, e) -> is_total e
-    | `App (`Var f, x) -> (
-      let* f_opt = env_as @@ Env.find_opt f in
-      match f_opt with None -> return false | Some f -> is_total (`App (f, x)))
-    | `App (`Lam (i, e), x) ->
-      is_total x &&& (is_total e |> with_env @@ Env.add i x)
-    | `App (`Const _, x) -> is_total x
-    | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
-    | `App (`Case (`Product fs), s) ->
-      is_total s
-      &&& (fs |> MList.for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
-    | `Case e -> is_total e
-    | `Mu _ | `Target _ | `App (_, _) -> return false
+  let rec is_total e =
+    let* seen = get Seen.field in
+    if Seen.mem e seen then
+      return false
+    else
+      mapping Seen.field (Seen.add e)
+        (match e with
+        | `Const _ | `Var _ | `Lam _ -> return true
+        | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
+        | `Product fs -> fs |> MList.for_all (fun (_, e) -> is_total e)
+        | `Mu (`Lam (i, e)) -> is_total e |> Env.adding i e
+        | `Select (e, _) | `Inject (_, e) -> is_total e
+        | `App (`Var f, x) -> (
+          let* f_opt = Env.find_opt f in
+          match f_opt with
+          | None -> return false
+          | Some f -> is_total (`App (f, x)))
+        | `App (`Lam (i, e), x) -> is_total x &&& (is_total e |> Env.adding i x)
+        | `App (`Const _, x) -> is_total x
+        | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
+        | `App (`Case (`Product fs), s) ->
+          is_total s
+          &&& (fs
+              |> MList.for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
+        | `Case e -> is_total e
+        | `Mu _ | `Target _ | `App (_, _) -> return false)
 
   let rec is_lam_or_case = function
     | `Lam _ -> true
@@ -322,9 +451,17 @@ module Exp = struct
       | `App _ | `Case _ | `Target _ ) as e ->
       `App (k, e)
 
-  let rec simplify =
-    let open Rea in
-    function
+  let rec simplify e =
+    let* seen = get Seen.field in
+    if Seen.mem e seen then
+      fail `Seen
+    else
+      get Limit.field
+      >>= MOption.iter (fun limit ->
+              if limit < size e then fail `Limit else unit)
+      >> mapping Seen.field (Seen.add e) (simplify_base e)
+
+  and simplify_base = function
     | (`Const _ | `Target _ | `Var _) as e -> return e
     | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
       when Id.equal i x && Id.equal j y && Const.is_commutative c ->
@@ -342,7 +479,7 @@ module Exp = struct
       let* f =
         match f with
         | `Lam (i, e) ->
-          let+ e = simplify e |> with_env @@ Env.add i x in
+          let+ e = simplify e |> Env.adding i x in
           `Lam (i, e)
         | _ -> return f
       in
@@ -386,16 +523,29 @@ module Exp = struct
         simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
       | `Lam (i, `Var i'), x when Id.equal i i' -> return x
       | `Lam (i, e), x ->
-        let apply () = simplify (subst i x e) in
+        let* defaulted = default () in
+        let apply () =
+          let* limit = get Limit.field in
+          let e = subst i x e in
+          match limit with
+          | None ->
+            let new_limit = max (size e * 2) (size defaulted * 2) in
+            setting Limit.field (Some new_limit) (simplify e)
+          | Some _ -> simplify e
+        in
         let* x_is_total = is_total x in
         if x_is_total then
-          let+ applied = apply () and+ defaulted = default () in
-          if size applied * 3 < size defaulted * 4 then
-            applied
-          else
-            defaulted
+          apply ()
+          |> try_in
+               (fun applied ->
+                 return
+                   (if size applied * 3 < size defaulted * 4 then
+                      applied
+                   else
+                     defaulted))
+               (fun (`Limit | `Seen) -> return defaulted)
         else
-          default ()
+          return defaulted
       | _ -> default ())
     | `Mu e -> (
       let+ e = simplify e in
@@ -437,8 +587,10 @@ module Exp = struct
       let+ e = simplify e in
       `Inject (l, e)
 
+  let simplify e =
+    simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
+
   let rec to_js_stmts is_top ids exp =
-    let open Rea in
     let default () =
       let+ e = to_js_expr exp in
       (if is_top then str "" else str "return ") ^ e ^ str ";"
@@ -492,7 +644,6 @@ module Exp = struct
     | _ -> default ()
 
   and to_js_expr exp =
-    let open Rea in
     match exp with
     | `Const c -> (
       match Const.type_of Loc.dummy c |> Typ.arity_and_result with
@@ -577,10 +728,16 @@ module Exp = struct
     | `Target lit -> return @@ parens @@ str @@ LitString.to_utf8 lit
 end
 
+let in_env () =
+  with_env @@ fun _ ->
+  object
+    inherit Exp.Env.con
+    inherit Exp.Limit.con
+    inherit Exp.Seen.con
+  end
+
 let to_js exp =
-  let open Rea in
-  exp |> Exp.erase |> Exp.simplify
-  |> with_env (Fun.const Exp.Env.empty)
-  >>- Exp.to_js_stmts true Exp.Ids.empty
-  >>= with_env (Fun.const Exp.Env.empty)
-  >>- to_string
+  let exp = exp |> Exp.erase in
+  let* exp = exp |> Exp.simplify |> in_env () in
+  let+ js = Exp.to_js_stmts true Exp.Ids.empty exp |> in_env () in
+  to_string js
