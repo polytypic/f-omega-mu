@@ -1,0 +1,10 @@
+# Equirecursive applicative fixpoint combinator
+
+let Z = Λα.Λβ.λf:(α → β) → α → β.
+  let z = λx:μτ.τ → α → β.f (λv:α.x x v) in
+  z z in
+
+let fact = Z[int][int] (λfact:int → int.
+  λn:int.if n ≤ 0 then 1 else n * fact (n-1)) in
+
+fact 5
