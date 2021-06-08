@@ -161,6 +161,7 @@ module Exp : sig
 
     (* Formatting *)
 
+    val pp' : ('nat -> document) -> ('t -> document) -> ('nat, 't) t -> document
     val pp : (Bigint.t, Typ.t) t -> document
   end
 

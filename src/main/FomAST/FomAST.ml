@@ -648,9 +648,9 @@ module Exp = struct
 
     (* Formatting *)
 
-    let pp = function
+    let pp' nat typ = function
       | `LitBool bool -> if bool then true' else false'
-      | `LitNat i -> Bigint.to_string i |> utf8string
+      | `LitNat i -> nat i
       | `LitString s -> utf8string s
       | `OpArithAdd -> plus
       | `OpArithDiv -> slash
@@ -663,11 +663,13 @@ module Exp = struct
       | `OpCmpGtEq -> greater_equal
       | `OpCmpLt -> rangle
       | `OpCmpLtEq -> less_equal
-      | `OpEq t -> [equals; Typ.pp t |> egyptian brackets 2] |> concat
-      | `OpEqNot t -> [not_equal; Typ.pp t |> egyptian brackets 2] |> concat
+      | `OpEq t -> [equals; typ t |> egyptian brackets 2] |> concat
+      | `OpEqNot t -> [not_equal; typ t |> egyptian brackets 2] |> concat
       | `OpLogicalAnd -> logical_and
       | `OpLogicalNot -> logical_not
       | `OpLogicalOr -> logical_or
+
+    let pp = pp' (Bigint.to_string >>> utf8string) Typ.pp
   end
 
   module Id = Id.Make ()
