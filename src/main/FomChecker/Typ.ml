@@ -279,7 +279,7 @@ let is_sub_of_norm, is_equal_of_norm =
 (* *)
 
 let rec to_strict
-    (t : ['a FomAST.Typ.f | `Lazy of ('r, 'e, 'a) Rea.t Lazy.t] as 'a) =
+    (t : [('a, 'k) FomAST.Typ.f | `Lazy of ('r, 'e, 'a) Rea.t Lazy.t] as 'a) =
   match t with
   | `Mu (at, t) ->
     let+ t = to_strict t in

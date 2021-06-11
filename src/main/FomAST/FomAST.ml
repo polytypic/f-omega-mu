@@ -208,11 +208,11 @@ module Typ = struct
 
   module Id = Id.Make ()
 
-  type 't f =
+  type ('t, 'k) f =
     [ `Mu of Loc.t * 't
     | `Const of Loc.t * Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Kind.t * 't
+    | `Lam of Loc.t * Id.t * 'k * 't
     | `App of Loc.t * 't * 't
     | `ForAll of Loc.t * 't
     | `Exists of Loc.t * 't
@@ -220,7 +220,7 @@ module Typ = struct
     | `Product of Loc.t * (Label.t * 't) list
     | `Sum of Loc.t * (Label.t * 't) list ]
 
-  type t = [ | t f]
+  type t = [ | (t, Kind.t) f]
 
   let at = function
     | `Mu (at, _)
@@ -722,12 +722,12 @@ module Exp = struct
   module IdSet = Set.Make (Id)
   module Env = Map.Make (Id)
 
-  type ('e, 't) f =
+  type ('e, 't, 'k) f =
     [ `Const of Loc.t * (Bigint.t, 't) Const.t
     | `Var of Loc.t * Id.t
     | `Lam of Loc.t * Id.t * 't * 'e
     | `App of Loc.t * 'e * 'e
-    | `Gen of Loc.t * Typ.Id.t * Kind.t * 'e
+    | `Gen of Loc.t * Typ.Id.t * 'k * 'e
     | `Inst of Loc.t * 'e * 't
     | `LetIn of Loc.t * Id.t * 'e * 'e
     | `Mu of Loc.t * 'e
@@ -738,9 +738,9 @@ module Exp = struct
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
     | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
-    | `Target of Loc.t * 't * string ]
+    | `Target of Loc.t * 't * LitString.t ]
 
-  type t = [ | (t, Typ.t) f]
+  type t = [ | (t, Typ.t, Kind.t) f]
 
   let at = function
     | `Const (at, _)

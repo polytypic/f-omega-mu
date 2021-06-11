@@ -59,11 +59,11 @@ module Typ : sig
 
   module Id : Id.S
 
-  type 't f =
+  type ('t, 'k) f =
     [ `Mu of Loc.t * 't
     | `Const of Loc.t * Const.t
     | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * Kind.t * 't
+    | `Lam of Loc.t * Id.t * 'k * 't
     | `App of Loc.t * 't * 't
     | `ForAll of Loc.t * 't
     | `Exists of Loc.t * 't
@@ -71,10 +71,10 @@ module Typ : sig
     | `Product of Loc.t * (Label.t * 't) list
     | `Sum of Loc.t * (Label.t * 't) list ]
 
-  type t = [ | t f]
+  type t = [ | (t, Kind.t) f]
 
-  val at : 't f -> Loc.t
-  val set_at : Loc.t -> 't f uop
+  val at : ('t, 'k) f -> Loc.t
+  val set_at : Loc.t -> ('t, 'k) f uop
 
   (* Macros *)
 
@@ -173,12 +173,12 @@ module Exp : sig
   module IdSet : Set.S with type elt = Id.t
   module Env : Map.S with type key = Id.t
 
-  type ('e, 't) f =
+  type ('e, 't, 'k) f =
     [ `Const of Loc.t * (Bigint.t, 't) Const.t
     | `Var of Loc.t * Id.t
     | `Lam of Loc.t * Id.t * 't * 'e
     | `App of Loc.t * 'e * 'e
-    | `Gen of Loc.t * Typ.Id.t * Kind.t * 'e
+    | `Gen of Loc.t * Typ.Id.t * 'k * 'e
     | `Inst of Loc.t * 'e * 't
     | `LetIn of Loc.t * Id.t * 'e * 'e
     | `Mu of Loc.t * 'e
@@ -191,7 +191,7 @@ module Exp : sig
     | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
     | `Target of Loc.t * 't * LitString.t ]
 
-  type t = [ | (t, Typ.t) f]
+  type t = [ | (t, Typ.t, Kind.t) f]
 
-  val at : ('e, 't) f -> Loc.t
+  val at : ('e, 't, 'k) f -> Loc.t
 end

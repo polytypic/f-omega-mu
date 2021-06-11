@@ -30,7 +30,7 @@ module Typ = struct
   end
 
   type 't f =
-    [ 't Typ.f
+    [ ('t, Kind.t) Typ.f
     | `LetDefIn of Loc.t * 't Def.f * 't
     | `Import of Loc.t * LitString.t ]
 
@@ -71,7 +71,7 @@ module Exp = struct
   end
 
   type 'e f =
-    [ ('e, Typ.t) Exp.f
+    [ ('e, Typ.t, Kind.t) Exp.f
     | `AppL of Loc.t * 'e * 'e
     | `AppR of Loc.t * 'e * 'e
     | `LetDefIn of Loc.t * Typ.t Typ.Def.f * 'e
