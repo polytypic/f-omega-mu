@@ -165,7 +165,7 @@ let js_codemirror_mode =
         | None ->
           let n = JsHashtbl.length known + 1 in
           let used = ref false in
-          JsHashtbl.add known value (n, used);
+          JsHashtbl.replace known value (n, used);
           let result =
             match Js.typeof value |> Js.to_string with
             | "object" | "undefined" ->

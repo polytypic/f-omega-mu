@@ -95,7 +95,7 @@ module VarTbl = struct
     match Hashtbl.find_opt hashtbl key with
     | None ->
       let var = IVar.empty () in
-      Hashtbl.add hashtbl key var;
+      Hashtbl.replace hashtbl key var;
       catch compute >>= IVar.put var >> IVar.get var
     | Some var -> IVar.get var
 end

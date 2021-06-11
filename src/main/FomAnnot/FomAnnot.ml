@@ -39,7 +39,7 @@ module Annot = struct
         && not (Hashtbl.mem annot at)
       then
         let uses = ref [] in
-        Hashtbl.add annot at
+        Hashtbl.replace annot at
           (object
              method def = at
              method annot = `Label (id, typ)
@@ -66,7 +66,7 @@ module Annot = struct
         && not (Hashtbl.mem annot at)
       then
         let uses = ref [] in
-        Hashtbl.add annot at
+        Hashtbl.replace annot at
           (object
              method def = at
              method annot = `ExpId (id, typ)
@@ -89,7 +89,7 @@ module Annot = struct
       let at = at id in
       if not (Hashtbl.mem annot at) then
         let uses = ref [] in
-        Hashtbl.add annot at
+        Hashtbl.replace annot at
           (object
              method def = at
              method annot = `TypId (id, kind)
@@ -101,7 +101,7 @@ module Annot = struct
       let at = at id in
       if not (Hashtbl.mem annot at) then
         let uses = ref [] in
-        Hashtbl.add annot at
+        Hashtbl.replace annot at
           (object
              method def = at
              method annot = `TypAlias (id, typ)

@@ -15,8 +15,8 @@ end = struct
     match Hashtbl.find_opt id_to_int id with
     | None ->
       let n = Hashtbl.length id_to_int in
-      Hashtbl.add id_to_int id n;
-      Hashtbl.add int_to_id n id;
+      Hashtbl.replace id_to_int id n;
+      Hashtbl.replace int_to_id n id;
       n
     | Some n -> n
 
