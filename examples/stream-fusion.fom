@@ -12,7 +12,7 @@ let type opt = λα.[none: (), some: α] in
 let type μlist:* → * = λα.opt (α, list α) in
 
 let List =
-  let infinite_of = Λα.λx:α.μxs:list α.[some = (x, xs)] in
+  let infinite_of = Λα.λx:α.μxs:μτ.[some: (α, τ)].[some = (x, xs)] in
   let μtake_n:∀α.int → list α → list α = Λα.λn:int.λxs:list α.
     if n ≤ 0 then
       [none = ()]
