@@ -79,6 +79,9 @@ module type S = sig
 
     val traverse :
       ('a -> ('I, 'T, 'O, 'b) m) -> 'a list -> ('I, 'T, 'O, 'b list) m
+
+    val traverse_phys_eq :
+      ('a -> ('I, 'T, 'O, 'a) m) -> 'a list -> ('I, 'T, 'O, 'a list) m
   end
 
   module MOption : sig
@@ -86,6 +89,20 @@ module type S = sig
 
     val traverse :
       ('a -> ('I, 'T, 'O, 'b) m) -> 'a option -> ('I, 'T, 'O, 'b option) m
+  end
+
+  module MPair : sig
+    val traverse :
+      ('a -> ('I, 'T, 'O, 'b) m) ->
+      ('c -> ('I, 'T, 'O, 'd) m) ->
+      'a * 'c ->
+      ('I, 'T, 'O, 'b * 'd) m
+
+    val traverse_phys_eq :
+      ('a -> ('I, 'T, 'O, 'a) m) ->
+      ('b -> ('I, 'T, 'O, 'b) m) ->
+      'a * 'b ->
+      ('I, 'T, 'O, 'a * 'b) m
   end
 end
 
@@ -167,6 +184,13 @@ module Make (Core : Monad) = struct
              []
       in
       return @@ List.rev ys
+
+    let rec traverse_phys_eq fn inn =
+      match inn with
+      | [] -> return inn
+      | x :: xs as inn ->
+        let+ x' = fn x and+ xs' = traverse_phys_eq fn xs in
+        if x == x' && xs == xs' then inn else x' :: xs'
   end
 
   module MOption = struct
@@ -177,5 +201,15 @@ module Make (Core : Monad) = struct
       | Some x ->
         let+ y = xyM x in
         Some y
+  end
+
+  module MPair = struct
+    let traverse abM cdM (a, c) =
+      let+ b = abM a and+ d = cdM c in
+      (b, d)
+
+    let traverse_phys_eq aaM bbM ((a, b) as ab) =
+      let+ a' = aaM a and+ b' = bbM b in
+      if a == a' && b == b' then ab else (a', b')
   end
 end

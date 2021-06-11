@@ -558,12 +558,7 @@ module Exp = struct
         let+ t = simplify t and+ e = simplify e in
         `IfElse (c, t, e))
     | `Product fs ->
-      let+ fs =
-        fs
-        |> MList.traverse @@ fun (l, e) ->
-           let+ e = simplify e in
-           (l, e)
-      in
+      let+ fs = fs |> MList.traverse @@ MPair.traverse return simplify in
       `Product fs
     | `Select (e, l) -> (
       let* e = simplify e in

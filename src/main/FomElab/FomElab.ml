@@ -291,20 +291,10 @@ and elaborate_typ = function
     let+ d = elaborate_typ d and+ c = elaborate_typ c in
     `Arrow (at', d, c)
   | `Product (at', ls) ->
-    let+ ls =
-      ls
-      |> MList.traverse @@ fun (l, t) ->
-         let+ t = elaborate_typ t in
-         (l, t)
-    in
+    let+ ls = ls |> MList.traverse @@ MPair.traverse return elaborate_typ in
     `Product (at', ls)
   | `Sum (at', ls) ->
-    let+ ls =
-      ls
-      |> MList.traverse @@ fun (l, t) ->
-         let+ t = elaborate_typ t in
-         (l, t)
-    in
+    let+ ls = ls |> MList.traverse @@ MPair.traverse return elaborate_typ in
     `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
@@ -372,12 +362,7 @@ let rec elaborate = function
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
     `IfElse (at, c, t, e)
   | `Product (at, fs) ->
-    let+ fs =
-      fs
-      |> MList.traverse @@ fun (l, e) ->
-         let+ e = elaborate e in
-         (l, e)
-    in
+    let+ fs = fs |> MList.traverse @@ MPair.traverse return elaborate in
     `Product (at, fs)
   | `Select (at, e, l) ->
     let+ e = elaborate e in

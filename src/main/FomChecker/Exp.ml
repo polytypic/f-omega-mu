@@ -109,12 +109,7 @@ let rec infer = function
     >> let* t_typ = infer t and* e_typ = infer e in
        Typ.join_of_norm (at e) (t_typ, e_typ)
   | `Product (at', fs) ->
-    let+ fs =
-      fs
-      |> MList.traverse @@ fun (l, e) ->
-         let+ e_typ = infer e in
-         (l, e_typ)
-    in
+    let+ fs = fs |> MList.traverse @@ MPair.traverse return infer in
     Typ.product at' fs
   | `Select (_, p, l) -> (
     let* p_typ = infer p in
@@ -133,9 +128,7 @@ let rec infer = function
     let* cs_fs = check_product_typ (at cs) cs_typ in
     let* cs_arrows =
       cs_fs
-      |> MList.traverse @@ fun (l, t) ->
-         let+ dc = check_arrow_typ (at cs) t in
-         (l, dc)
+      |> MList.traverse @@ MPair.traverse return @@ check_arrow_typ (at cs)
     in
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with

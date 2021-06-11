@@ -130,6 +130,9 @@ module Monad : sig
 
       val traverse :
         ('a -> ('I, 'T, 'O, 'b) m) -> 'a list -> ('I, 'T, 'O, 'b list) m
+
+      val traverse_phys_eq :
+        ('a -> ('I, 'T, 'O, 'a) m) -> 'a list -> ('I, 'T, 'O, 'a list) m
     end
 
     module MOption : sig
@@ -138,6 +141,20 @@ module Monad : sig
 
       val traverse :
         ('a -> ('I, 'T, 'O, 'b) m) -> 'a option -> ('I, 'T, 'O, 'b option) m
+    end
+
+    module MPair : sig
+      val traverse :
+        ('a -> ('I, 'T, 'O, 'b) m) ->
+        ('c -> ('I, 'T, 'O, 'd) m) ->
+        'a * 'c ->
+        ('I, 'T, 'O, 'b * 'd) m
+
+      val traverse_phys_eq :
+        ('a -> ('I, 'T, 'O, 'a) m) ->
+        ('b -> ('I, 'T, 'O, 'b) m) ->
+        'a * 'b ->
+        ('I, 'T, 'O, 'a * 'b) m
     end
   end
 

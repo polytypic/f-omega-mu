@@ -302,20 +302,14 @@ let rec to_strict
     let+ d = to_strict d and+ c = to_strict c in
     `Arrow (at, d, c)
   | `Product (at, ls) ->
-    let+ ls = to_strict_labeled ls in
+    let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
     `Product (at, ls)
   | `Sum (at, ls) ->
-    let+ ls = to_strict_labeled ls in
+    let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
     `Sum (at, ls)
   | `Lazy (lazy t) ->
     let* t = t in
     to_strict t
-
-and to_strict_labeled ls =
-  ls
-  |> MList.traverse @@ fun (l, t) ->
-     let+ t = to_strict t in
-     (l, t)
 
 let rec to_lazy = function
   | `Mu (at, t) -> `Mu (at, to_lazy t)
@@ -326,8 +320,8 @@ let rec to_lazy = function
   | `ForAll (at, t) -> `ForAll (at, to_lazy t)
   | `Exists (at, t) -> `Exists (at, to_lazy t)
   | `Arrow (at, d, c) -> `Arrow (at, to_lazy d, to_lazy c)
-  | `Product (at, ls) -> `Product (at, ls |> List.map (Pair.map Fun.id to_lazy))
-  | `Sum (at, ls) -> `Sum (at, ls |> List.map (Pair.map Fun.id to_lazy))
+  | `Product (at, ls) -> `Product (at, ls |> List.map @@ Pair.map Fun.id to_lazy)
+  | `Sum (at, ls) -> `Sum (at, ls |> List.map @@ Pair.map Fun.id to_lazy)
 
 let join_of_norm at g =
   let module GoalMap = Map.Make (Goal) in
