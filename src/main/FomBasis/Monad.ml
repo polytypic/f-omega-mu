@@ -77,6 +77,11 @@ module type S = sig
 
     (* *)
 
+    val find_opt :
+      ('a -> ('I, 'T, 'O, bool) m) -> 'a list -> ('I, 'T, 'O, 'a option) m
+
+    (* *)
+
     val traverse :
       ('a -> ('I, 'T, 'O, 'b) m) -> 'a list -> ('I, 'T, 'O, 'b list) m
 
@@ -171,6 +176,14 @@ module Make (Core : Monad) = struct
     let rec exists p = function
       | [] -> return false
       | x :: xs -> p x ||| exists p xs
+
+    (* *)
+
+    let rec find_opt p = function
+      | [] -> return None
+      | x :: xs ->
+        let* b = p x in
+        if b then return @@ Some x else find_opt p xs
 
     (* *)
 

@@ -24,3 +24,11 @@ let rec map_phys_eq fn inn =
     let x' = fn x in
     let xs' = map_phys_eq fn xs in
     if x == x' && xs == xs' then inn else x' :: xs'
+
+let rec share_phys_eq original changed =
+  match (original, changed) with
+  | [], [] -> original
+  | o :: os, c :: cs ->
+    let cs = share_phys_eq os cs in
+    if os == cs && o == c then original else c :: cs
+  | _ -> raise @@ Invalid_argument "ListExt.share_phys_eq"

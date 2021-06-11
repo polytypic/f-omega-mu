@@ -183,6 +183,8 @@ let rec unfold_of_norm typ =
   | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
   | _ -> typ
 
+(* *)
+
 module Goal = struct
   include Compare.Pair (FomAST.Typ) (FomAST.Typ)
 
@@ -274,6 +276,61 @@ let is_sub_of_norm, is_equal_of_norm =
   let sub g = as_predicate check_sub_of_norm g in
   let eq g = as_predicate check_equal_of_norm g in
   (sub, eq)
+
+(* *)
+
+module TypSet = Set.Make (FomAST.Typ)
+
+let rec contract t =
+  let* s, t = contract_base t in
+  let+ t_opt =
+    s |> TypSet.elements |> MList.find_opt (fun mu -> is_equal_of_norm (t, mu))
+  in
+  match t_opt with
+  | Some t -> (s, t)
+  | None -> (
+    match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
+
+and contract_base = function
+  | `Mu (at', e) as t ->
+    let+ s, e' = contract e in
+    (s, if e == e' then t else `Mu (at', e'))
+  | (`Const (_, _) | `Var (_, _)) as t -> return (TypSet.empty, t)
+  | `Lam (at', x, k, e) as t ->
+    let+ _, e' = contract e in
+    (TypSet.empty, if e == e' then t else `Lam (at', x, k, e'))
+  | `App (at', f, x) as t ->
+    let+ fs, f' = contract f and+ xs, x' = contract x in
+    let s = TypSet.union fs xs in
+    (s, if f == f' && x == x' then t else `App (at', f', x'))
+  | `ForAll (at', e) as t ->
+    let+ s, e' = contract e in
+    (s, if e == e' then t else `ForAll (at', e'))
+  | `Exists (at', e) as t ->
+    let+ s, e' = contract e in
+    (s, if e == e' then t else `Exists (at', e'))
+  | `Arrow (at', d, c) as t ->
+    let+ ds, d' = contract d and+ cs, c' = contract c in
+    (TypSet.union ds cs, if d == d' && c == c' then t else `Arrow (at', d', c'))
+  | `Product (at', ls) as t ->
+    let+ s, ls' = contract_labels ls in
+    (s, if ls == ls' then t else `Product (at', ls'))
+  | `Sum (at', ls) as t ->
+    let+ s, ls' = contract_labels ls in
+    (s, if ls == ls' then t else `Sum (at', ls'))
+
+and contract_labels ls =
+  let+ sls' = ls |> MList.traverse @@ MPair.traverse return contract in
+  let ls' =
+    sls' |> List.map (fun (l, (_, t)) -> (l, t)) |> ListExt.share_phys_eq ls
+  in
+  let s =
+    sls'
+    |> List.fold_left (fun s (_, (s', _)) -> TypSet.union s s') TypSet.empty
+  in
+  (s, ls')
+
+let contract t = contract t >>- snd
 
 (* *)
 

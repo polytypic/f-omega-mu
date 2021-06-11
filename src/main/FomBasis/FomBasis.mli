@@ -44,6 +44,7 @@ module ListExt : sig
   val equal_with : 'a bpr -> 'a list bpr
   val compare_with : 'a cmp -> 'a list cmp
   val map_phys_eq : 'a uop -> 'a list uop
+  val share_phys_eq : 'a list bop
 end
 
 module Monad : sig
@@ -125,6 +126,11 @@ module Monad : sig
 
       val exists :
         ('a -> ('I, 'T, 'O, bool) m) -> 'a list -> ('I, 'T, 'O, bool) m
+
+      (* *)
+
+      val find_opt :
+        ('a -> ('I, 'T, 'O, bool) m) -> 'a list -> ('I, 'T, 'O, 'a option) m
 
       (* *)
 
