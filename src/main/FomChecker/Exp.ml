@@ -161,3 +161,7 @@ and infer_base = function
        else
          return e_typ
   | `Target (_, t, _) -> Typ.check_and_norm t
+
+let infer e =
+  let* t = infer e in
+  Annot.Typ.resolve return (Typ.norm >>> return) >> return t

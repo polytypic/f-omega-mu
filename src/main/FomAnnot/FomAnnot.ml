@@ -84,6 +84,28 @@ module Annot = struct
   module Typ = struct
     open Typ.Id
 
+    let with_annot o annot =
+      let def = o#def in
+      let uses = o#uses in
+      object
+        method def = def
+        method annot = annot
+        method uses = uses
+      end
+
+    let resolve resolve_kind resolve_typ =
+      let* annot = env_as field in
+      annot |> Hashtbl.to_seq |> List.of_seq
+      |> MList.iter @@ fun (at, v) ->
+         match v#annot with
+         | `TypId (id, kind) ->
+           let+ kind = resolve_kind kind in
+           Hashtbl.replace annot at @@ with_annot v @@ `TypId (id, kind)
+         | `TypAlias (id, typ) ->
+           let+ typ = resolve_typ typ in
+           Hashtbl.replace annot at @@ with_annot v @@ `TypAlias (id, typ)
+         | _ -> unit
+
     let def id kind =
       let+ annot = env_as field in
       let at = at id in
