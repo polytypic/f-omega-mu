@@ -234,7 +234,7 @@ let rec elaborate_def = function
   | `TypRec (_, bs) ->
     let* assoc =
       bs
-      |> MList.traverse @@ fun ((i, k), t) ->
+      |> MList.traverse @@ fun (i, k, t) ->
          let at = Typ.Id.at i in
          let t = `Mu (at, `Lam (at, i, k, t)) in
          let* t = elaborate_typ t in

@@ -114,7 +114,7 @@ typ_def:
   | "include"p=LitString                                {`Include ($loc, p)}
 
 typ_mu_def:
-  | "μ"b=typ_bind"="t=typ                               {(b, t)}
+  | "μ"b=typ_bind"="t=typ                               {(fst b, snd b, t)}
 
 //
 
