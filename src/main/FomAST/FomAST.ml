@@ -126,11 +126,14 @@ module Kind = struct
   let index = function `Star _ -> 0 | `Arrow _ -> 1
 
   let rec compare lhs rhs =
-    match (lhs, rhs) with
-    | `Star _, `Star _ -> 0
-    | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
-      compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
-    | _ -> index lhs - index rhs
+    if lhs == rhs then
+      0
+    else
+      match (lhs, rhs) with
+      | `Star _, `Star _ -> 0
+      | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
+        compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
+      | _ -> index lhs - index rhs
 
   (* *)
 
@@ -164,10 +167,13 @@ module Label = struct
 
   (** If both labels are numeric, comparison is done by numeric value. *)
   let compare lhs rhs =
-    let lhs = to_string lhs in
-    let rhs = to_string rhs in
-    try int_of_string lhs - int_of_string rhs
-    with Failure _ -> String.compare lhs rhs
+    if lhs == rhs then
+      0
+    else
+      let lhs = to_string lhs in
+      let rhs = to_string rhs in
+      try int_of_string lhs - int_of_string rhs
+      with Failure _ -> String.compare lhs rhs
 end
 
 module Tuple = struct
@@ -191,9 +197,12 @@ module Typ = struct
     let index = function `Bool -> 0 | `Int -> 1 | `String -> 2
 
     let compare lhs rhs =
-      match (lhs, rhs) with
-      | `Bool, `Bool | `Int, `Int | `String, `String -> 0
-      | _ -> index lhs - index rhs
+      if lhs == rhs then
+        0
+      else
+        match (lhs, rhs) with
+        | `Bool, `Bool | `Int, `Int | `String, `String -> 0
+        | _ -> index lhs - index rhs
 
     (* Kinding *)
 

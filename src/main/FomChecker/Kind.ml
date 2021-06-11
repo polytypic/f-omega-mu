@@ -4,6 +4,8 @@ open FomBasis
 include FomAST.Kind
 
 let rec equal lhs rhs =
+  lhs == rhs
+  ||
   match (lhs, rhs) with
   | `Star _, `Star _ -> true
   | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
