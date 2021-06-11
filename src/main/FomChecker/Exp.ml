@@ -84,11 +84,9 @@ let rec infer = function
     let* x_typ = infer x in
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
+    let* r_typ = mapping Typ.Env.field (Typ.Env.add d (d, d_kind)) (infer r) in
     Annot.Typ.def d d_kind
-    >> let+ r_typ =
-         mapping Typ.Env.field (Typ.Env.add d (d, d_kind)) (infer r)
-       in
-       `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
+    >> return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
     let* f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
