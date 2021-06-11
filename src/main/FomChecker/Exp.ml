@@ -27,60 +27,64 @@ end
 
 (* *)
 
-let typ_infer_and_norm typ =
-  let* kind = Typ.infer typ in
-  match kind with
-  | `Star _ -> return @@ Typ.norm typ
-  | _ -> fail @@ `Error_typ_of_kind_arrow (Typ.at typ, typ, kind)
+module Typ = struct
+  include Typ
 
-let check_arrow_typ at typ =
-  match Typ.unfold_of_norm typ with
-  | `Arrow (_, dom, cod) -> return (dom, cod)
-  | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
+  let infer_and_norm typ =
+    let* kind = infer typ in
+    match kind with
+    | `Star _ -> return @@ norm typ
+    | _ -> fail @@ `Error_typ_of_kind_arrow (at typ, typ, kind)
 
-let check_product_typ at typ =
-  match Typ.unfold_of_norm typ with
-  | `Product (_, ls) -> return ls
-  | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
+  let check_arrow at typ =
+    match unfold_of_norm typ with
+    | `Arrow (_, dom, cod) -> return (dom, cod)
+    | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
 
-let check_sum_typ at typ =
-  match Typ.unfold_of_norm typ with
-  | `Sum (_, ls) -> return ls
-  | _ -> fail @@ `Error_typ_unexpected (at, "[_]", typ)
+  let check_product at typ =
+    match unfold_of_norm typ with
+    | `Product (_, ls) -> return ls
+    | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
-let check_for_all_typ at typ =
-  match Typ.unfold_of_norm typ with
-  | `ForAll (_, f_con) -> (
-    let* f_kind = Typ.kind_of f_con in
-    match f_kind with
-    | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
-    | _ -> failwith "impossible")
-  | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
+  let check_sum at typ =
+    match unfold_of_norm typ with
+    | `Sum (_, ls) -> return ls
+    | _ -> fail @@ `Error_typ_unexpected (at, "[_]", typ)
 
-let check_exists_typ at typ =
-  match Typ.unfold_of_norm typ with
-  | `Exists (_, f_con) -> (
-    let* f_kind = Typ.kind_of f_con in
-    match f_kind with
-    | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
-    | _ -> failwith "impossible")
-  | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
+  let check_for_all at typ =
+    match unfold_of_norm typ with
+    | `ForAll (_, f_con) -> (
+      let* f_kind = kind_of f_con in
+      match f_kind with
+      | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
+      | _ -> failwith "impossible")
+    | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
+
+  let check_exists at typ =
+    match unfold_of_norm typ with
+    | `Exists (_, f_con) -> (
+      let* f_kind = kind_of f_con in
+      match f_kind with
+      | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
+      | _ -> failwith "impossible")
+    | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
+end
 
 let rec infer = function
-  | `Const (at', c) -> typ_infer_and_norm (Const.type_of at' c)
+  | `Const (at', c) -> Typ.infer_and_norm (Const.type_of at' c)
   | `Var (at', x) -> (
     let* x_typ_opt = get_as Env.field (Env.find_opt x) in
     match x_typ_opt with
     | None -> fail @@ `Error_var_unbound (at', x)
     | Some (def, x_typ) -> Annot.Exp.use x (Id.at def) >> return x_typ)
   | `Lam (at', d, d_typ, r) ->
-    let* d_typ = typ_infer_and_norm d_typ in
+    let* d_typ = Typ.infer_and_norm d_typ in
     Annot.Exp.def d d_typ
     >> let+ r_typ = mapping Env.field (Env.add d (d, d_typ)) (infer r) in
        `Arrow (at', d_typ, r_typ)
   | `App (_, f, x) ->
     let* f_typ = infer f in
-    let* d_typ, c_typ = check_arrow_typ (at f) f_typ in
+    let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
     let* x_typ = infer x in
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
@@ -91,7 +95,7 @@ let rec infer = function
        `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
     let* f_typ = infer f in
-    let* f_con, d_kind = check_for_all_typ at' f_typ in
+    let* f_con, d_kind = Typ.check_for_all at' f_typ in
     let* x_kind = Typ.infer x_typ in
     Kind.check_equal at' d_kind x_kind
     >> return @@ Typ.norm @@ `App (at', f_con, x_typ)
@@ -100,7 +104,7 @@ let rec infer = function
     Annot.Exp.def d x_typ >> mapping Env.field (Env.add d (d, x_typ)) (infer r)
   | `Mu (at', f) ->
     let* f_typ = infer f in
-    let* d_typ, c_typ = check_arrow_typ (at f) f_typ in
+    let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
     Typ.check_sub_of_norm at' (c_typ, d_typ) >> return c_typ
   | `IfElse (_, c, t, e) ->
     let* c_typ = infer c in
@@ -112,7 +116,7 @@ let rec infer = function
     Typ.product at' fs
   | `Select (_, p, l) -> (
     let* p_typ = infer p in
-    let* ls = check_product_typ (at p) p_typ in
+    let* ls = Typ.check_product (at p) p_typ in
     match ls |> List.find_opt (fst >>> Label.equal l) with
     | Some (l', l_typ) ->
       Annot.Label.def l' l_typ
@@ -124,10 +128,10 @@ let rec infer = function
     Typ.sum at' [(l, e_typ)]
   | `Case (at', cs) ->
     let* cs_typ = infer cs in
-    let* cs_fs = check_product_typ (at cs) cs_typ in
+    let* cs_fs = Typ.check_product (at cs) cs_typ in
     let* cs_arrows =
       cs_fs
-      |> MList.traverse @@ MPair.traverse return @@ check_arrow_typ (at cs)
+      |> MList.traverse @@ MPair.traverse return @@ Typ.check_arrow (at cs)
     in
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
@@ -140,15 +144,15 @@ let rec infer = function
   | `Pack (at', t, e, et) ->
     let* e_typ = infer e
     and* t_kind = Typ.infer t
-    and* et = typ_infer_and_norm et in
-    let* et_con, d_kind = check_exists_typ at' et in
+    and* et = Typ.infer_and_norm et in
+    let* et_con, d_kind = Typ.check_exists at' et in
     Kind.check_equal at' d_kind t_kind
     >>
     let et_t = Typ.norm (`App (at', et_con, t)) in
     Typ.check_sub_of_norm (at e) (e_typ, et_t) >> return et
   | `UnpackIn (at', tid, id, v, e) ->
     let* v_typ = infer v in
-    let* v_con, d_kind = check_exists_typ at' v_typ in
+    let* v_con, d_kind = Typ.check_exists at' v_typ in
     let id_typ = Typ.norm (`App (at', v_con, `Var (at', tid))) in
     Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
     >> let* e_typ =
@@ -160,4 +164,4 @@ let rec infer = function
          fail @@ `Error_typ_var_escapes (at', tid, e_typ)
        else
          return e_typ
-  | `Target (_, t, _) -> typ_infer_and_norm t
+  | `Target (_, t, _) -> Typ.infer_and_norm t
