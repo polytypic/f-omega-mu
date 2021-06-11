@@ -30,11 +30,7 @@ end
 module Typ = struct
   include Typ
 
-  let infer_and_norm typ =
-    let* kind = infer typ in
-    match kind with
-    | `Star _ -> return @@ norm typ
-    | _ -> fail @@ `Error_typ_of_kind_arrow (at typ, typ, kind)
+  let check_and_norm typ = check (`Star (at typ)) typ >> return @@ norm typ
 
   let check_arrow at typ =
     match unfold_of_norm typ with
@@ -71,14 +67,14 @@ module Typ = struct
 end
 
 let rec infer = function
-  | `Const (at', c) -> Typ.infer_and_norm (Const.type_of at' c)
+  | `Const (at', c) -> Typ.check_and_norm (Const.type_of at' c)
   | `Var (at', x) -> (
     let* x_typ_opt = get_as Env.field (Env.find_opt x) in
     match x_typ_opt with
     | None -> fail @@ `Error_var_unbound (at', x)
     | Some (def, x_typ) -> Annot.Exp.use x (Id.at def) >> return x_typ)
   | `Lam (at', d, d_typ, r) ->
-    let* d_typ = Typ.infer_and_norm d_typ in
+    let* d_typ = Typ.check_and_norm d_typ in
     Annot.Exp.def d d_typ
     >> let+ r_typ = mapping Env.field (Env.add d (d, d_typ)) (infer r) in
        `Arrow (at', d_typ, r_typ)
@@ -144,7 +140,7 @@ let rec infer = function
   | `Pack (at', t, e, et) ->
     let* e_typ = infer e
     and* t_kind = Typ.infer t
-    and* et = Typ.infer_and_norm et in
+    and* et = Typ.check_and_norm et in
     let* et_con, d_kind = Typ.check_exists at' et in
     Kind.check_equal at' d_kind t_kind
     >>
@@ -164,4 +160,4 @@ let rec infer = function
          fail @@ `Error_typ_var_escapes (at', tid, e_typ)
        else
          return e_typ
-  | `Target (_, t, _) -> Typ.infer_and_norm t
+  | `Target (_, t, _) -> Typ.check_and_norm t

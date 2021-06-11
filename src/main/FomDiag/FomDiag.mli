@@ -49,7 +49,6 @@ module Error : sig
   (* Type errors *)
 
   type var_unbound = [`Error_var_unbound of Loc.t * Exp.Id.t]
-  type typ_of_kind_arrow = [`Error_typ_of_kind_arrow of Loc.t * Typ.t * Kind.t]
   type typ_mismatch = [`Error_typ_mismatch of Loc.t * Typ.t * Typ.t]
   type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.t]
   type product_lacks = [`Error_product_lacks of Loc.t * Typ.t * Label.t]
@@ -58,7 +57,6 @@ module Error : sig
 
   type type_errors =
     [ var_unbound
-    | typ_of_kind_arrow
     | typ_mismatch
     | typ_unexpected
     | product_lacks
