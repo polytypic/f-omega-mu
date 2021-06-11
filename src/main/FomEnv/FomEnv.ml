@@ -11,7 +11,7 @@ module Env = struct
       ?(exp_imports : FomElab.ExpImports.t = Hashtbl.create 100)
       ?(annot : Annot.t = Annot.empty ()) () =
     object
-      method annotations = annot
+      inherit FomAnnot.Annot.con annot
       inherit FomChecker.Exp.Env.con
       inherit FomChecker.Typ.Env.con
       inherit FomElab.TypAliases.con

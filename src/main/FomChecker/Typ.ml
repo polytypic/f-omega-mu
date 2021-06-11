@@ -116,10 +116,9 @@ let rec infer = function
     let* i_kind_opt = get_as Env.field (Env.find_opt i) in
     match i_kind_opt with
     | None -> fail @@ `Error_typ_var_unbound (at', i)
-    | Some (def, i_kind) ->
-      env_as (Annot.Typ.use i (Id.at def)) >> return i_kind)
+    | Some (def, i_kind) -> Annot.Typ.use i (Id.at def) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
-    env_as (Annot.Typ.def d d_kind)
+    Annot.Typ.def d d_kind
     >> let+ r_kind = mapping Env.field (Env.add d (d, d_kind)) (infer r) in
        `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) -> (

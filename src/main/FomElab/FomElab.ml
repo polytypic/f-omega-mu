@@ -220,7 +220,7 @@ let rec elaborate_pat p' e' = function
 let rec elaborate_def = function
   | `Typ (_, i, kO, t) ->
     let* t = elaborate_typ t in
-    env_as (Annot.Typ.alias i t)
+    Annot.Typ.alias i t
     >>
     let t =
       match kO with
@@ -238,11 +238,11 @@ let rec elaborate_def = function
          let at = Typ.Id.at i in
          let t = `Mu (at, `Lam (at, i, k, t)) in
          let* t = elaborate_typ t in
-         env_as (Annot.Typ.alias i t) >> return (i, t)
+         Annot.Typ.alias i t >> return (i, t)
     in
     let env = assoc |> List.to_seq |> Typ.Env.of_seq in
-    let* r = env_as Fun.id in
-    let replaced i t = Annot.Typ.use i (Typ.at t) r in
+    let* annot = env_as Annot.field in
+    let replaced i t = Annot.Typ.use' i (Typ.at t) annot in
     let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
     get_as TypAliases.field (Typ.Env.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
@@ -273,7 +273,7 @@ and elaborate_typ = function
     let* t_opt = get_as TypAliases.field (Typ.Env.find_opt i) in
     match t_opt with
     | None -> return @@ `Var (at', i)
-    | Some t -> env_as (Annot.Typ.use i (Typ.at t)) >> return t)
+    | Some t -> Annot.Typ.use i (Typ.at t) >> return t)
   | `Lam (at', i, k, t) ->
     avoid at' i @@ fun i ->
     let+ t = elaborate_typ t in

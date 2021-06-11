@@ -72,10 +72,10 @@ let rec infer = function
     let* x_typ_opt = get_as Env.field (Env.find_opt x) in
     match x_typ_opt with
     | None -> fail @@ `Error_var_unbound (at', x)
-    | Some (def, x_typ) -> env_as (Annot.Exp.use x (Id.at def)) >> return x_typ)
+    | Some (def, x_typ) -> Annot.Exp.use x (Id.at def) >> return x_typ)
   | `Lam (at', d, d_typ, r) ->
     let* d_typ = typ_infer_and_norm d_typ in
-    env_as (Annot.Exp.def d d_typ)
+    Annot.Exp.def d d_typ
     >> let+ r_typ = mapping Env.field (Env.add d (d, d_typ)) (infer r) in
        `Arrow (at', d_typ, r_typ)
   | `App (_, f, x) ->
@@ -84,7 +84,7 @@ let rec infer = function
     let* x_typ = infer x in
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
-    env_as (Annot.Typ.def d d_kind)
+    Annot.Typ.def d d_kind
     >> let+ r_typ =
          mapping Typ.Env.field (Typ.Env.add d (d, d_kind)) (infer r)
        in
@@ -97,8 +97,7 @@ let rec infer = function
     >> return @@ Typ.norm @@ `App (at', f_con, x_typ)
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
-    env_as (Annot.Exp.def d x_typ)
-    >> mapping Env.field (Env.add d (d, x_typ)) (infer r)
+    Annot.Exp.def d x_typ >> mapping Env.field (Env.add d (d, x_typ)) (infer r)
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let* d_typ, c_typ = check_arrow_typ (at f) f_typ in
@@ -116,8 +115,8 @@ let rec infer = function
     let* ls = check_product_typ (at p) p_typ in
     match ls |> List.find_opt (fst >>> Label.equal l) with
     | Some (l', l_typ) ->
-      env_as (Annot.Label.def l' l_typ)
-      >> env_as (Annot.Label.use l (Label.at l'))
+      Annot.Label.def l' l_typ
+      >> Annot.Label.use l (Label.at l')
       >> return l_typ
     | None -> fail @@ `Error_product_lacks (at p, p_typ, l))
   | `Inject (at', l, e) ->
@@ -151,8 +150,7 @@ let rec infer = function
     let* v_typ = infer v in
     let* v_con, d_kind = check_exists_typ at' v_typ in
     let id_typ = Typ.norm (`App (at', v_con, `Var (at', tid))) in
-    env_as (Annot.Exp.def id id_typ)
-    >> env_as (Annot.Typ.def tid d_kind)
+    Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
     >> let* e_typ =
          infer e
          |> mapping Env.field (Env.add id (id, id_typ))
