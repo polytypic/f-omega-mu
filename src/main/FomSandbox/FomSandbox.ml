@@ -61,6 +61,55 @@ let js_loc (begins, ends) =
     val ends = js_pos ends
   end
 
+(* *)
+
+let let_type_mu = utf8string "let type " ^^ mu_lower
+let and_mu = break_0_0 ^^ utf8string "and " ^^ mu_lower
+
+let pp_typ ?(is_alias = false) t =
+  let open FomChecker.Typ in
+  let pp_typ t =
+    let typ_doc = Typ.pp t in
+    match Typ.hanging t with
+    | Some (sep, _) -> sep ^^ typ_doc
+    | None -> break_1 ^^ typ_doc |> nest 2 |> group
+  in
+  let m, _ = collect_mus_closed IdSet.empty t TypSet.empty in
+  let n = TypSet.cardinal m in
+  let decon = function
+    | `Mu (_, `Lam (_, i, _, t)) -> (i, t)
+    | _ -> failwith "impossible"
+  in
+  if
+    n = 0
+    || (is_alias && n = 1 && TypSet.mem t m)
+    || n
+       <> (m |> TypSet.to_seq
+          |> Seq.map (decon >>> fst)
+          |> IdSet.of_seq |> IdSet.cardinal)
+  then
+    pp_typ t
+  else
+    let ds = TypSet.elements m in
+    let t = replace_closed_mus m t in
+    let ds =
+      ds
+      |> List.map @@ fun mu ->
+         let i, t = decon mu in
+         let t = replace_closed_mus m t in
+         Id.pp i ^^ space_equals ^^ pp_typ t
+    in
+    nest 2 (pp_typ t)
+    ^^ break_0
+    ^^ nest 2
+         (break_0
+         ^^
+         match ds with
+         | d :: ds -> let_type_mu ^^ d ^^ concat (ds |> List.map (( ^^ ) and_mu))
+         | _ -> failwith "impossible")
+
+(* *)
+
 let js_use_def ?(max_width = 60) (def, o) =
   object%js
     val def = js_loc def
@@ -68,33 +117,12 @@ let js_use_def ?(max_width = 60) (def, o) =
 
     val annot =
       (match o#annot with
-      | `Label (id, typ) ->
-        [
-          [Label.pp id; colon] |> concat;
-          (match Typ.hanging typ with
-          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
-          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
-        ]
-        |> concat
-      | `ExpId (id, typ) ->
-        [
-          [Exp.Id.pp id; colon] |> concat;
-          (match Typ.hanging typ with
-          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
-          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
-        ]
-        |> concat
-      | `TypId (id, kind) ->
-        [Typ.Id.pp id; colon; [break_1; Kind.pp kind] |> concat |> nest 2]
-        |> concat |> group
+      | `Label (id, typ) -> Label.pp id ^^ colon ^^ pp_typ typ
+      | `ExpId (id, typ) -> Exp.Id.pp id ^^ colon ^^ pp_typ typ
       | `TypAlias (id, typ) ->
-        [
-          [Typ.Id.pp id; space_equals] |> concat;
-          (match Typ.hanging typ with
-          | Some (sep, _) -> [sep; Typ.pp typ] |> concat
-          | None -> [break_1; Typ.pp typ] |> concat |> nest 2 |> group);
-        ]
-        |> concat)
+        Typ.Id.pp id ^^ space_equals ^^ pp_typ ~is_alias:true typ
+      | `TypId (id, kind) ->
+        group (Typ.Id.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
       |> to_js_string ~max_width
   end
 
@@ -218,7 +246,8 @@ let js_codemirror_mode =
       in
       Js.to_string input
       |> parse_utf_8 Grammar.program Lexer.plain ~filename
-      >>= elaborate >>= with_modules >>= Exp.infer >>- Typ.pp
+      >>= elaborate >>= with_modules >>= Exp.infer >>- pp_typ
+      >>- (fun t -> utf8string "type:" ^^ t)
       >>- to_js_string ~max_width
       |> try_in
            (fun typ ->

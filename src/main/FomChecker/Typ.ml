@@ -334,6 +334,75 @@ let contract t = contract t >>- snd
 
 (* *)
 
+let rec collect_mus_closed bvs t mus =
+  match t with
+  | `Mu (_, `Lam (_, i, _, e)) as t ->
+    let mus, e_vs = collect_mus_closed (IdSet.add i bvs) e mus in
+    let e_vs = IdSet.remove i e_vs in
+    let mus = if IdSet.disjoint bvs e_vs then TypSet.add t mus else mus in
+    (mus, e_vs)
+  | `Mu (_, e) -> collect_mus_closed bvs e mus
+  | `Const _ -> (mus, IdSet.empty)
+  | `Var (_, i) -> (mus, IdSet.singleton i)
+  | `App (_, f, x) ->
+    let mus, f_vs = collect_mus_closed bvs f mus in
+    let mus, x_vs = collect_mus_closed bvs x mus in
+    (mus, IdSet.union f_vs x_vs)
+  | `Lam (_, i, _, e) ->
+    let mus, vs = collect_mus_closed (IdSet.add i bvs) e mus in
+    (mus, IdSet.remove i vs)
+  | `ForAll (_, e) | `Exists (_, e) -> collect_mus_closed bvs e mus
+  | `Arrow (_, d, c) ->
+    let mus, d_vs = collect_mus_closed bvs d mus in
+    let mus, c_vs = collect_mus_closed bvs c mus in
+    (mus, IdSet.union d_vs c_vs)
+  | `Product (_, ls) | `Sum (_, ls) ->
+    ls
+    |> List.fold_left
+         (fun (mus, vs) (_, t) ->
+           let mus, t_vs = collect_mus_closed bvs t mus in
+           (mus, IdSet.union vs t_vs))
+         (mus, IdSet.empty)
+
+let rec replace_closed_mus m = function
+  | `Mu (at'', `Lam (at', i, k, e)) as t ->
+    if TypSet.mem t m then
+      `Var (at', i)
+    else
+      let e' = replace_closed_mus m e in
+      if e == e' then t else `Mu (at'', `Lam (at', i, k, e'))
+  | `Mu (at', e) as t ->
+    let e' = replace_closed_mus m e in
+    if e == e' then t else `Mu (at', e')
+  | (`Const (_, _) | `Var (_, _)) as t -> t
+  | `App (at', f, x) as t ->
+    let f' = replace_closed_mus m f and x' = replace_closed_mus m x in
+    if f == f' && x == x' then t else `App (at', f', x')
+  | `Lam (at', i, k, e) as t ->
+    let e' = replace_closed_mus m e in
+    if e == e' then t else `Lam (at', i, k, e')
+  | `ForAll (at', e) as t ->
+    let e' = replace_closed_mus m e in
+    if e == e' then t else `ForAll (at', e')
+  | `Exists (at', e) as t ->
+    let e' = replace_closed_mus m e in
+    if e == e' then t else `Exists (at', e')
+  | `Arrow (at', d, c) as t ->
+    let d' = replace_closed_mus m d and c' = replace_closed_mus m c in
+    if d == d' && c == c' then t else `Arrow (at', d', c')
+  | `Product (at', ls) as t ->
+    let ls' =
+      ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m))
+    in
+    if ls == ls' then t else `Product (at', ls')
+  | `Sum (at', ls) as t ->
+    let ls' =
+      ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m))
+    in
+    if ls == ls' then t else `Sum (at', ls')
+
+(* *)
+
 let rec to_strict
     (t : [('a, 'k) FomAST.Typ.f | `Lazy of ('r, 'e, 'a) Rea.t Lazy.t] as 'a) =
   match t with

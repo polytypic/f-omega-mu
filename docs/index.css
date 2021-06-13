@@ -46,7 +46,7 @@ select {
   z-index: 10;
 }
 
-#typDiv .CodeMirror .cm-keyword {
+#typDiv.no-keywords .CodeMirror .cm-keyword {
   color: #50fa7b;
 }
 

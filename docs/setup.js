@@ -187,8 +187,10 @@ const updateDefUses = throttled(100, () => {
         )
       }
     })
+    typDiv.className = ''
     typCM.setValue(du.annot)
   } else {
+    typDiv.className = result.diagnostics.length ? 'no-keywords' : ''
     typCM.setValue(result.typ || '...')
   }
 })
