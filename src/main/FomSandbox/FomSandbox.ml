@@ -146,20 +146,16 @@ let js_codemirror_mode =
         else
           keys
           |> List.map (fun key ->
-                 [
-                   utf8string (Js.to_string key);
-                   space_equals_space;
-                   format (Js.Unsafe.get obj key);
-                 ]
-                 |> concat |> group)
+                 utf8string (Js.to_string key)
+                 ^^ space_equals_space
+                 ^^ format (Js.Unsafe.get obj key)
+                 |> group)
           |> separate comma_break_1 |> egyptian braces 2
       and format_array array =
-        [
-          utf8string (Js.to_string (Js.Unsafe.get array 0));
-          space_equals_space;
-          format (Js.Unsafe.get array 1);
-        ]
-        |> concat |> egyptian brackets 2
+        utf8string (Js.to_string (Js.Unsafe.get array 0))
+        ^^ space_equals_space
+        ^^ format (Js.Unsafe.get array 1)
+        |> egyptian brackets 2
       and format value =
         match JsHashtbl.find_opt known value with
         | None ->
@@ -195,14 +191,14 @@ let js_codemirror_mode =
                   | "" -> underscore
                   | name -> utf8string name
                 in
-                [lambda_lower; name] |> concat
+                lambda_lower ^^ name
               else
                 format_object value
             | _ -> utf8string "unknown"
           in
           JsHashtbl.remove known value;
           if !used then
-            [mu_lower; utf8format "α_%d" n; dot; result] |> concat |> group
+            group (mu_lower ^^ utf8format "α_%d" n ^^ dot ^^ result)
           else
             result
         | Some (n, used) ->
@@ -239,22 +235,18 @@ let js_codemirror_mode =
                   val typ =
                     match diagnostics with
                     | (loc, overview), [] ->
-                      [Loc.pp loc; colon; break_1; overview]
-                      |> concat |> nest 2 |> group |> to_js_string ~max_width
+                      Loc.pp loc ^^ colon ^^ break_1 ^^ overview
+                      |> nest 2 |> group |> to_js_string ~max_width
                     | (_, overview), details ->
-                      [
-                        [overview; colon; break_0] |> concat;
-                        [
-                          break_0;
-                          details
-                          |> List.map (fun (loc, msg) ->
-                                 [Loc.pp loc; colon; break_1; msg]
-                                 |> concat |> nest 2 |> group)
-                          |> separate (concat [break_0; break_0]);
-                        ]
-                        |> concat |> nest 2;
-                      ]
-                      |> concat |> to_js_string ~max_width
+                      overview ^^ colon ^^ break_0
+                      ^^ nest 2
+                           (break_0
+                           ^^ separate break_0_0
+                                (details
+                                |> List.map @@ fun (loc, msg) ->
+                                   Loc.pp loc ^^ colon ^^ break_1 ^^ msg
+                                   |> nest 2 |> group))
+                      |> to_js_string ~max_width
 
                   val defUses = def_uses ()
 

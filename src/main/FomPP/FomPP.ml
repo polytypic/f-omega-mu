@@ -56,17 +56,17 @@ let type' = utf8string "type"
 (* Optimizations *)
 
 let break_0 = break 0
+let break_0_0 = break_0 ^^ break_0
 let break_1 = break 1
-let comma_break_1 = [comma; break_1] |> concat
-let let_space = [let'; space] |> concat
-let space_arrow_right = [space; arrow_right] |> concat
-let space_arrow_right_break_1 = [space_arrow_right; break_1] |> concat
-let space_equals = [space; equals] |> concat
-let space_equals_space = [space; equals; space] |> concat
-let space_in = [space; in'] |> concat
+let comma_break_1 = comma ^^ break_1
+let let_space = let' ^^ space
+let space_arrow_right = space ^^ arrow_right
+let space_arrow_right_break_1 = space_arrow_right ^^ break_1
+let space_equals = space ^^ equals
+let space_equals_space = space ^^ equals ^^ space
+let space_in = space ^^ in'
 
 (* *)
 
 let egyptian (lhs, rhs) indent doc =
-  [lhs; [break_0; doc] |> concat |> nest indent; break_0; rhs]
-  |> concat |> group
+  group (lhs ^^ nest indent (break_0 ^^ doc) ^^ break_0 ^^ rhs)

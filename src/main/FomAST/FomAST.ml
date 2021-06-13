@@ -151,15 +151,11 @@ module Kind = struct
     match kind with
     | `Star _ -> star
     | `Arrow (_, dom, cod) ->
-      [pp true dom; space_arrow_right_break_1; pp false cod]
-      |> concat
+      pp true dom ^^ space_arrow_right_break_1 ^^ pp false cod
       |> if atomize then egyptian parens 2 else Fun.id
 
   let pp kind = pp false kind |> FomPP.group
-
-  let pp_annot = function
-    | `Star _ -> empty
-    | kind -> [colon; pp kind |> align] |> concat
+  let pp_annot = function `Star _ -> empty | kind -> colon ^^ align (pp kind)
 end
 
 module Label = struct
@@ -506,33 +502,29 @@ module Typ = struct
     | _ -> None
 
   let rec binding prec_outer head i k t =
-    [
-      [head; Id.pp i; Kind.pp_annot k; dot] |> concat |> nest 2 |> group;
-      (match hanging t with
-      | Some _ -> pp prec_min t
-      | None -> [break_0; pp prec_min t |> group] |> concat |> nest 2 |> group);
-    ]
-    |> concat
+    (group (head ^^ Id.pp i ^^ Kind.pp_annot k ^^ dot |> nest 2)
+    ^^
+    match hanging t with
+    | Some _ -> pp prec_min t
+    | None -> break_0 ^^ group (pp prec_min t) |> nest 2 |> group)
     |> if prec_min < prec_outer then egyptian parens 2 else Fun.id
 
   and quantifier prec_outer symbol (typ : t) =
     match typ with
     | `Lam (_, id, kind, body) -> binding prec_outer symbol id kind body
-    | _ -> [symbol; pp prec_min typ |> egyptian parens 2] |> concat
+    | _ -> symbol ^^ egyptian parens 2 (pp prec_min typ)
 
   and labeled labels =
     labels
     |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
     |> List.map (function
          | l, `Var (_, i) when Id.name i = Label.name l -> Label.pp l
-         | label, typ ->
-           [
-             [Label.pp label; colon] |> concat;
-             (match hanging typ with
-             | Some (lhs, _) -> [lhs; pp prec_min typ] |> concat
-             | None -> [break_1; pp prec_min typ] |> concat |> nest 2 |> group);
-           ]
-           |> concat)
+         | label, typ -> (
+           Label.pp label ^^ colon
+           ^^
+           match hanging typ with
+           | Some (lhs, _) -> lhs ^^ pp prec_min typ
+           | None -> break_1 ^^ pp prec_min typ |> nest 2 |> group))
     |> separate comma_break_1
 
   and tuple labels =
@@ -547,17 +539,11 @@ module Typ = struct
     | `ForAll (_, typ) -> quantifier prec_outer FomPP.for_all typ
     | `Exists (_, typ) -> quantifier prec_outer FomPP.exists typ
     | `Arrow (_, dom, cod) ->
-      [
-        pp (prec_arrow + 1) dom;
-        [
-          (match hanging cod with
-          | Some (lhs, _) -> [space_arrow_right; lhs] |> concat
-          | None -> space_arrow_right_break_1);
-          pp (prec_arrow - 1) cod;
-        ]
-        |> concat;
-      ]
-      |> concat
+      pp (prec_arrow + 1) dom
+      ^^ (match hanging cod with
+         | Some (lhs, _) -> space_arrow_right ^^ lhs
+         | None -> space_arrow_right_break_1)
+      ^^ pp (prec_arrow - 1) cod
       |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
     | `Product (_, labels) ->
       if Tuple.is_tuple labels then
@@ -718,8 +704,8 @@ module Exp = struct
       | `OpCmpGtEq -> greater_equal
       | `OpCmpLt -> rangle
       | `OpCmpLtEq -> less_equal
-      | `OpEq t -> [equals; typ t |> egyptian brackets 2] |> concat
-      | `OpEqNot t -> [not_equal; typ t |> egyptian brackets 2] |> concat
+      | `OpEq t -> equals ^^ egyptian brackets 2 (typ t)
+      | `OpEqNot t -> not_equal ^^ egyptian brackets 2 (typ t)
       | `OpLogicalAnd -> logical_and
       | `OpLogicalNot -> logical_not
       | `OpLogicalOr -> logical_or
