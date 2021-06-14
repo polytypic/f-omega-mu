@@ -115,7 +115,7 @@ module Typ : sig
   (* Formatting *)
 
   val hanging : t -> (document * document) option
-  val pp : t -> document
+  val pp : ?pp_annot:(Kind.t -> document) -> t -> document
 end
 
 module Exp : sig
