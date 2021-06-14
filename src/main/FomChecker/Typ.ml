@@ -286,10 +286,15 @@ let rec contract t =
   let+ t_opt =
     s |> TypSet.elements |> MList.find_opt (fun mu -> is_equal_of_norm (t, mu))
   in
-  match t_opt with
-  | Some t -> (s, t)
-  | None -> (
-    match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
+  let s, u =
+    match t_opt with
+    | Some t -> (s, t)
+    | None -> (
+      match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
+  in
+  match t with
+  | `Lam (_, i, _, _) -> (s |> TypSet.filter (fun t -> not (is_free i t)), u)
+  | _ -> (s, u)
 
 and contract_base = function
   | `Mu (at', e) as t ->
@@ -297,8 +302,8 @@ and contract_base = function
     (s, if e == e' then t else `Mu (at', e'))
   | (`Const (_, _) | `Var (_, _)) as t -> return (TypSet.empty, t)
   | `Lam (at', x, k, e) as t ->
-    let+ _, e' = contract e in
-    (TypSet.empty, if e == e' then t else `Lam (at', x, k, e'))
+    let+ s, e' = contract e in
+    (s, if e == e' then t else `Lam (at', x, k, e'))
   | `App (at', f, x) as t ->
     let+ fs, f' = contract f and+ xs, x' = contract x in
     let s = TypSet.union fs xs in
