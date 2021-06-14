@@ -44,7 +44,7 @@ module ListExt : sig
   val equal_with : 'a bpr -> 'a list bpr
   val compare_with : 'a cmp -> 'a list cmp
   val map_phys_eq : 'a uop -> 'a list uop
-  val share_phys_eq : 'a list bop
+  val share_phys_eq : 'a bop -> 'a list bop
 end
 
 module Monad : sig
@@ -174,6 +174,7 @@ module Pair : sig
 
   val map : ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd
   val map_phys_eq : 'a uop -> 'b uop -> ('a * 'b) uop
+  val share_phys_eq : 'a bop -> 'b bop -> ('a * 'b) bop
 end
 
 module Rea : sig

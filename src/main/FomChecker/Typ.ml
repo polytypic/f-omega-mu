@@ -322,7 +322,11 @@ and contract_base = function
 and contract_labels ls =
   let+ sls' = ls |> MList.traverse @@ MPair.traverse return contract in
   let ls' =
-    sls' |> List.map (fun (l, (_, t)) -> (l, t)) |> ListExt.share_phys_eq ls
+    sls'
+    |> List.map (fun (l, (_, t)) -> (l, t))
+    |> ListExt.share_phys_eq
+         (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x))
+         ls
   in
   let s =
     sls'
