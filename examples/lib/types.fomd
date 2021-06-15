@@ -1,3 +1,9 @@
+let type none = [none: ()] in
+let type some = λα.[some: α] in
+
 let type opt = λα.[none: (), some: α] in
 
-let type μlist:* → * = λα.opt (α, list α)
+let type μlist:* → * = λα.opt (α, list α) in
+let type μlist_of_1:* → * = λα.some (α, none) in
+let type μlist_of_1_to_n:* → * = λα.some (α, list α) in
+let type μlist_of_inf:* → * = λα.some (α, list_of_inf α)

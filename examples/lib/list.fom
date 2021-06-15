@@ -26,7 +26,7 @@ let filter = Λα.λp:α → bool.λxs:list α.
 
 let concat = Λα.λxs:list α.λys:list α.rev[α] xs ▷ rev_to[α] ys in
 
-let infinite_of = Λα.λx:α.μxs:list α.[some = (x, xs)] in
+let infinite_of = Λα.λx:α.μxs:list_of_inf α.[some = (x, xs)] in
 
 let μtake_n:∀α.int → list α → list α = Λα.λn:int.λxs:list α.
   if n ≤ 0 then
