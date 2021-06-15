@@ -69,7 +69,7 @@ let and_mu = break_0_0 ^^ utf8string "and " ^^ mu_lower
 let pp_typ ?(is_alias = false) t =
   let open FomChecker.Typ in
   let pp_typ t =
-    let typ_doc = Typ.pp t in
+    let typ_doc = Typ.pp ~pp_annot:(Fun.const empty) t in
     match Typ.hanging t with
     | Some (sep, _) -> sep ^^ typ_doc
     | None -> break_1 ^^ typ_doc |> nest 2 |> group
