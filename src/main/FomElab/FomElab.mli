@@ -42,9 +42,13 @@ module TypAliases : sig
     end
 end
 
+module Elab : sig
+  type error = [Error.io_error | Error.syntax_errors | Error.source_errors]
+end
+
 module TypIncludes : sig
-  type e = [Error.io_error | Error.syntax_errors | Error.source_errors]
-  type t = (string, (e, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
+  type t =
+    (string, (Elab.error, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
 
   val field : (< typ_includes : t ; .. > as 'r) -> t
 
@@ -56,8 +60,7 @@ module TypIncludes : sig
 end
 
 module TypImports : sig
-  type e = [Error.io_error | Error.syntax_errors | Error.source_errors]
-  type t = (string, (e, FomAST.Typ.t) IVar.t) Hashtbl.t
+  type t = (string, (Elab.error, FomAST.Typ.t) IVar.t) Hashtbl.t
 
   val field : (< typ_imports : t ; .. > as 'r) -> t
 
@@ -69,11 +72,10 @@ module TypImports : sig
 end
 
 module ExpImports : sig
-  type e = [Error.io_error | Error.syntax_errors | Error.source_errors]
-
   type t =
     ( string,
-      (e, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t )
+      (Elab.error, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t
+    )
     Hashtbl.t
 
   val field : (< exp_imports : t ; .. > as 'r) -> t
@@ -105,7 +107,7 @@ val elaborate_defs :
      ; .. >
      as
      'r),
-    [> TypImports.e],
+    [> Elab.error],
     FomAST.Typ.t FomAST.Typ.Env.t )
   Rea.t
 
@@ -120,7 +122,7 @@ val elaborate_typ :
      ; .. >
      as
      'r),
-    [> Error.io_error | Error.syntax_errors | Error.source_errors],
+    [> Elab.error],
     FomAST.Typ.t )
   Rea.t
 
@@ -136,13 +138,13 @@ val elaborate :
      ; .. >
      as
      'r),
-    [> ExpImports.e],
+    [> Elab.error],
     FomAST.Exp.t )
   Rea.t
 
 val with_modules :
   FomAST.Exp.t ->
   ( (< exp_imports : ExpImports.t ; .. > as 'r),
-    [> ExpImports.e],
+    [> Elab.error],
     FomAST.Exp.t )
   Rea.t
