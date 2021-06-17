@@ -29,12 +29,17 @@ let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star '0' .. '9']
 
 (* *)
 
+let sub_digit = [%sedlex.regexp? 0x2080 .. 0x2089]
+
+(* *)
+
 let id_first =
   [%sedlex.regexp?
     Sub (tr8876_ident_char, (lambda_lower | lambda_upper | mu_lower))]
 
 let id_rest = [%sedlex.regexp? tr8876_ident_char | '_' | '0' .. '9']
 let id = [%sedlex.regexp? id_first, Star id_rest | '_', Plus id_rest]
+let id_sub = [%sedlex.regexp? id, Plus sub_digit]
 
 (* *)
 
@@ -121,6 +126,7 @@ let rec token_or_comment buffer =
       (LitString (Buffer.lexeme_utf_8 buffer |> FomCST.LitString.of_utf8_json))
   (* *)
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
+  | id_sub -> return (IdSub (Buffer.lexeme_utf_8 buffer))
   (* *)
   | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
   | whitespace -> token_or_comment buffer
@@ -184,6 +190,7 @@ let token_info_utf_8 input =
       | Greater -> operator
       | GreaterEqual -> operator
       | Id _ -> variable
+      | IdSub _ -> variable
       | If -> keyword
       | Import -> keyword
       | In -> keyword

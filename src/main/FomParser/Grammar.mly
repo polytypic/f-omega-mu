@@ -3,6 +3,7 @@
 %token <FomCST.LitString.t> LitString
 
 %token <string> Id
+%token <string> IdSub
 %token <string> Comment
 
 %token And "and"

@@ -6,4 +6,6 @@
 
 (menhir
  (modules Grammar)
- (flags --no-dollars --unused-token Comment))
+ (flags --no-dollars
+   --unused-token Comment
+   --unused-token IdSub))
