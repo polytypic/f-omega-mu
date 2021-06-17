@@ -71,7 +71,7 @@ let type TermBase = λρ.λσ.λτ.[
 ] in
 let type TermF = λτ.TermBase string τ τ in
 let type Term = μ(TermF) in
-let type EvalCtx = TermBase String Term in
+let type EvalCtx = TermBase string Term in
 let type VarTerm = λτ.TermBase τ Term Term in
 
 let TermF = {
