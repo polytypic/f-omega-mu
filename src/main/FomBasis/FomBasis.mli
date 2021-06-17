@@ -123,6 +123,7 @@ module Monad : sig
       (* *)
 
       val iter : ('a -> ('I, 'T, 'O, unit) m) -> 'a list -> ('I, 'T, 'O, unit) m
+      val iter_ : ('a -> ('I, 'T, 'O, 'b) m) -> 'a list -> ('I, 'T, 'O, unit) m
 
       val iter2 :
         ('a -> 'b -> ('I, 'T, 'O, unit) m) ->

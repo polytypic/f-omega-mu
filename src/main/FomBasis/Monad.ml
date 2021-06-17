@@ -72,6 +72,7 @@ module type S = sig
     (* *)
 
     val iter : ('a -> ('I, 'T, 'O, unit) m) -> 'a list -> ('I, 'T, 'O, unit) m
+    val iter_ : ('a -> ('I, 'T, 'O, 'b) m) -> 'a list -> ('I, 'T, 'O, unit) m
 
     val iter2 :
       ('a -> 'b -> ('I, 'T, 'O, unit) m) ->
@@ -178,7 +179,13 @@ module Make (Core : Monad) = struct
 
     (* *)
 
-    let iter yu = fold_left (Fun.const yu) ()
+    let rec iter xy = function
+      | [] -> return ()
+      | x :: xs ->
+        let* _ = xy x in
+        iter xy xs
+
+    let iter_ = iter
     let iter2 yzu = fold_left2 (Fun.const yzu) ()
 
     (* *)
