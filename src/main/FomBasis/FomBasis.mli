@@ -80,6 +80,17 @@ module Monad : sig
 
     (* *)
 
+    val ( >=> ) :
+      ('a -> ('I, 'T, 'O, 'b) m) ->
+      ('b -> ('I, 'T, 'O, 'c) m) ->
+      'a ->
+      ('I, 'T, 'O, 'c) m
+
+    val ( >-> ) :
+      ('a -> ('I, 'T, 'O, 'b) m) -> ('b -> 'c) -> 'a -> ('I, 'T, 'O, 'c) m
+
+    (* *)
+
     val lift1 : ('d1 -> 'c) -> ('I, 'T, 'O, 'd1) m -> ('I, 'T, 'O, 'c) m
 
     val lift2 :

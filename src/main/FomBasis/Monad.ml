@@ -29,6 +29,17 @@ module type S = sig
 
   (* *)
 
+  val ( >=> ) :
+    ('a -> ('I, 'T, 'O, 'b) m) ->
+    ('b -> ('I, 'T, 'O, 'c) m) ->
+    'a ->
+    ('I, 'T, 'O, 'c) m
+
+  val ( >-> ) :
+    ('a -> ('I, 'T, 'O, 'b) m) -> ('b -> 'c) -> 'a -> ('I, 'T, 'O, 'c) m
+
+  (* *)
+
   val lift1 : ('d1 -> 'c) -> ('I, 'T, 'O, 'd1) m -> ('I, 'T, 'O, 'c) m
 
   val lift2 :
@@ -126,6 +137,9 @@ module Make (Core : Monad) = struct
   let ( >>- ) = ( let+ )
 
   (* *)
+
+  let ( >=> ) abM bcM a = abM a >>= bcM
+  let ( >-> ) abM bc a = abM a >>- bc
 
   let lift1 xy x =
     let+ x = x in
