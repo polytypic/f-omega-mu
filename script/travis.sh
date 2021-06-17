@@ -40,10 +40,10 @@ else
 fi
 
 folded "Build" \
-  dune build
+  dune build --profile release
 
 folded "Test" \
-  dune test
+  dune test --profile release
 
 folded "Run examples" \
   _build/default/src/main/FomCommand/FomCommand.exe examples/*.fom
