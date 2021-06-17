@@ -18,6 +18,8 @@ module Env = struct
   type t = (Id.t * Kind.t) Env.t
 
   let field r = r#typ_env
+  let adding i k = mapping field @@ Env.add i (i, k)
+  let find_opt i = get_as field @@ Env.find_opt i
 
   class con =
     object
@@ -113,13 +115,13 @@ let rec infer = function
         >> return c_kind)
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
-    let* i_kind_opt = get_as Env.field (Env.find_opt i) in
+    let* i_kind_opt = Env.find_opt i in
     match i_kind_opt with
     | None -> fail @@ `Error_typ_var_unbound (at', i)
     | Some (def, i_kind) -> Annot.Typ.use i (Id.at def) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
     Annot.Typ.def d d_kind
-    >> let+ r_kind = mapping Env.field (Env.add d (d, d_kind)) (infer r) in
+    >> let+ r_kind = Env.adding d d_kind (infer r) in
        `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) -> (
     let* f_kind = infer f in
@@ -153,12 +155,12 @@ let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
-    let+ i_kind_opt = get_as Env.field (Env.find_opt i) in
+    let+ i_kind_opt = Env.find_opt i in
     match i_kind_opt with
     | None -> failwith "impossible"
     | Some (_, i_kind) -> i_kind)
   | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = mapping Env.field (Env.add d (d, d_kind)) (kind_of r) in
+    let+ r_kind = Env.adding d d_kind (kind_of r) in
     `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)

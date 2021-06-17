@@ -78,13 +78,17 @@ module Fetch = struct
 end
 
 module TypAliases = struct
-  type t = FomAST.Typ.t FomAST.Typ.Env.t
+  include FomAST.Typ.Env
+
+  type nonrec t = FomAST.Typ.t t
 
   let field r = r#typ_aliases
+  let setting e = setting field e
+  let find_opt i = get_as field @@ find_opt i
 
   class con =
     object
-      val typ_aliases : t = Typ.Env.empty
+      val typ_aliases : t = empty
       method typ_aliases = Field.make typ_aliases (fun v -> {<typ_aliases = v>})
     end
 end
@@ -177,14 +181,15 @@ module ImportChain = struct
 end
 
 let avoid at i inn =
-  mapping TypAliases.field (Typ.Env.remove i)
+  mapping TypAliases.field (TypAliases.remove i)
   @@ let* exists =
-       get_as TypAliases.field (Typ.Env.exists (fun _ t' -> Typ.is_free i t'))
+       get_as TypAliases.field
+         (TypAliases.exists (fun _ t' -> Typ.is_free i t'))
      in
      if exists then
        let i' = Typ.Id.freshen i in
        let v' = `Var (at, i') in
-       mapping TypAliases.field (Typ.Env.add i' v') (inn i')
+       mapping TypAliases.field (TypAliases.add i' v') (inn i')
      else
        inn i
 
@@ -234,7 +239,7 @@ let rec elaborate_def = function
         let i = Typ.Id.fresh at in
         `App (at, `Lam (at, i, k, `Var (at, i)), t)
     in
-    get_as TypAliases.field (Typ.Env.add i (Typ.set_at (Typ.Id.at i) t))
+    get_as TypAliases.field (TypAliases.add i (Typ.set_at (Typ.Id.at i) t))
   | `TypRec (_, bs) ->
     let* assoc =
       bs
@@ -244,23 +249,23 @@ let rec elaborate_def = function
          let* t = elaborate_typ t in
          Annot.Typ.alias i t >> return (i, t)
     in
-    let env = assoc |> List.to_seq |> Typ.Env.of_seq in
+    let env = assoc |> List.to_seq |> TypAliases.of_seq in
     let* annot = env_as Annot.field in
     let replaced i t = Annot.Typ.use' i (Typ.at t) annot in
-    let env = env |> Typ.Env.map (Typ.subst_rec ~replaced env) in
-    get_as TypAliases.field (Typ.Env.union (fun _ v _ -> Some v) env)
+    let env = env |> TypAliases.map (Typ.subst_rec ~replaced env) in
+    get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
     let filename = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
     let* env =
       ImportChain.with_path at' filename
         (TypIncludes.get_or_put filename
-           (setting TypAliases.field FomCST.Typ.Env.empty
+           (TypAliases.setting TypAliases.empty
               (Fetch.fetch at' filename
               >>= parse_utf_8 Grammar.typ_defs Lexer.plain ~filename
               >>= elaborate_defs)))
     in
     get_as TypAliases.field
-    @@ FomAST.Typ.Env.merge
+    @@ TypAliases.merge
          (fun _ l r ->
            match (l, r) with
            | Some l, _ -> Some l
@@ -274,7 +279,7 @@ and elaborate_typ = function
     `Mu (at', t)
   | `Const (at', c) -> return @@ `Const (at', c)
   | `Var (at', i) -> (
-    let* t_opt = get_as TypAliases.field (Typ.Env.find_opt i) in
+    let* t_opt = TypAliases.find_opt i in
     match t_opt with
     | None -> return @@ `Var (at', i)
     | Some t -> Annot.Typ.use i (Typ.at t) >> return t)
@@ -302,12 +307,12 @@ and elaborate_typ = function
     `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    setting TypAliases.field typ_aliases (elaborate_typ e)
+    TypAliases.setting typ_aliases (elaborate_typ e)
   | `Import (at', p) ->
     let filename = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
     ImportChain.with_path at' filename
       (TypImports.get_or_put filename
-         (setting TypAliases.field FomCST.Typ.Env.empty
+         (TypAliases.setting TypAliases.empty
             (Fetch.fetch at' filename
             >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename
             >>= elaborate_typ)))
@@ -316,7 +321,7 @@ and elaborate_defs = function
   | [] -> get TypAliases.field
   | def :: defs ->
     let* typ_aliases = elaborate_def def in
-    setting TypAliases.field typ_aliases (elaborate_defs defs)
+    TypAliases.setting typ_aliases (elaborate_defs defs)
 
 let maybe_annot e tO =
   match tO with
@@ -358,7 +363,7 @@ let rec elaborate = function
     `LetIn (at, i, v, e)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    setting TypAliases.field typ_aliases (elaborate e)
+    TypAliases.setting typ_aliases (elaborate e)
   | `Mu (at, e) ->
     let+ e = elaborate e in
     `Mu (at, e)
@@ -422,7 +427,7 @@ let rec elaborate = function
     let* typ_opt =
       ImportChain.with_path at' sig_filename
         (TypImports.get_or_put sig_filename
-           (setting TypAliases.field FomCST.Typ.Env.empty
+           (TypAliases.setting TypAliases.empty
               (Fetch.fetch at' sig_filename
               >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename:sig_filename
               >>= elaborate_typ))
@@ -433,7 +438,7 @@ let rec elaborate = function
     let+ id, _, _ =
       ImportChain.with_path at' mod_filename
         (ExpImports.get_or_put mod_filename
-           (setting TypAliases.field FomCST.Typ.Env.empty
+           (TypAliases.setting TypAliases.empty
               (let+ ast =
                  Fetch.fetch at' mod_filename
                  >>= parse_utf_8 Grammar.program Lexer.plain

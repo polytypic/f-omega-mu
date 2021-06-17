@@ -17,6 +17,8 @@ module Env = struct
   type t = (Id.t * Typ.t) Env.t
 
   let field r = r#exp_env
+  let adding v t = mapping field @@ Env.add v (v, t)
+  let find_opt i = get_as field @@ Env.find_opt i
 
   class con =
     object
@@ -71,14 +73,14 @@ let rec infer e = infer_base e >>= Typ.contract
 and infer_base = function
   | `Const (at', c) -> Typ.check_and_norm (Const.type_of at' c)
   | `Var (at', x) -> (
-    let* x_typ_opt = get_as Env.field (Env.find_opt x) in
+    let* x_typ_opt = Env.find_opt x in
     match x_typ_opt with
     | None -> fail @@ `Error_var_unbound (at', x)
     | Some (def, x_typ) -> Annot.Exp.use x (Id.at def) >> return x_typ)
   | `Lam (at', d, d_typ, r) ->
     let* d_typ = Typ.check_and_norm d_typ in
     Annot.Exp.def d d_typ
-    >> let+ r_typ = mapping Env.field (Env.add d (d, d_typ)) (infer r) in
+    >> let+ r_typ = Env.adding d d_typ (infer r) in
        `Arrow (at', d_typ, r_typ)
   | `App (_, f, x) ->
     let* f_typ = infer f in
@@ -86,7 +88,7 @@ and infer_base = function
     let* x_typ = infer x in
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
-    let* r_typ = mapping Typ.Env.field (Typ.Env.add d (d, d_kind)) (infer r) in
+    let* r_typ = Typ.Env.adding d d_kind (infer r) in
     Annot.Typ.def d d_kind
     >> return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
@@ -97,7 +99,7 @@ and infer_base = function
     >> return @@ Typ.norm @@ `App (at', f_con, x_typ)
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
-    Annot.Exp.def d x_typ >> mapping Env.field (Env.add d (d, x_typ)) (infer r)
+    Annot.Exp.def d x_typ >> Env.adding d x_typ (infer r)
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
@@ -152,9 +154,7 @@ and infer_base = function
     let id_typ = Typ.norm (`App (at', v_con, `Var (at', tid))) in
     Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
     >> let* e_typ =
-         infer e
-         |> mapping Env.field (Env.add id (id, id_typ))
-         |> mapping Typ.Env.field (Typ.Env.add tid (tid, d_kind))
+         infer e |> Env.adding id id_typ |> Typ.Env.adding tid d_kind
        in
        if Typ.is_free tid e_typ then
          fail @@ `Error_typ_var_escapes (at', tid, e_typ)
