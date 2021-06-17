@@ -1,22 +1,6 @@
 # GADT type encoding using type equality witnesses
 
-let type Leibniz = λα.λβ.∀φ:* → *.φ α → φ β in
-
-let type Eq = λeq:* → * → *.{
-  refl: ∀α.eq α α,
-  symm: ∀α.∀β.eq α β → eq β α,
-  trans: ∀α.∀β.∀γ.eq β γ → eq α β → eq α γ,
-  to: ∀α.∀β.eq α β → α → β,
-  from: ∀α.∀β.eq α β → β → α
-} in
-
-let《eq\Eq》=
-  let refl = Λα.Λφ:* → *.λx:φ α.x in
-  let symm = Λα.Λβ.λab:Leibniz α β.Λφ:* → *.ab[λβ.φ β → φ α] (λx:φ α.x) in
-  let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ:* → *.λx:φ α.bc[φ] (ab[φ] x) in
-  let to = Λα.Λβ.λab:Leibniz α β.ab[λx.x] in
-  let from = Λα.Λβ.λab:Leibniz α β.to[β][α] (symm[α][β] ab) in
-  《Leibniz\{refl, symm, trans, to, from}》: ∃(Eq) in
+let《eq\Eq》= import "lib/leibniz" in
 
 let type alt = λα.λβ.[In1: α, In2: β] in
 let type iso = λα.λβ.(α → β, β → α) in
@@ -47,35 +31,28 @@ let Pair = Λa.Λb.λa:Type a.λb:Type b.
 let Iso = Λa.Λb.λaIb:iso a b.λb:Type b.
   [Iso =《a\《b\(Eq.refl[a], aIb, b)》: ∃(Iso a a)》: ∃α.∃β.Iso a α β] in
 
-let string_to_json = target[string → string] "JSON.stringify" in
-let int_to_string = target[int → string] "x => \"\"+x" in
-let string_join = target[string → string → string] "x => y => x + y" in
+let S = import "lib/string" in
+let I = import "lib/int" in
 
 let μto_string:∀τ.Type τ → τ → string = Λτ.case {
   Bool = λeq:Bool τ.λx:τ.
     if Eq.from[bool][τ] eq x then "true" else "false",
   Int = λeq:Int τ.λx:τ.
-    int_to_string (Eq.from[int][τ] eq x),
+    I.to_string (Eq.from[int][τ] eq x),
   String = λeq:String τ.λx:τ.
-    string_to_json (Eq.from[string][τ] eq x),
+    S.to_literal (Eq.from[string][τ] eq x),
   Alt = λ《a\《b\(eq, ta, tb)》》: ∃α.∃β.Alt τ α β.
     let to_string_a = to_string[a] ta in
     let to_string_b = to_string[b] tb in
     λt:τ.Eq.from[alt a b][τ] eq t ▷ case {
-      In1 = λa:a.string_join (string_join "[In1 = " (to_string_a a)) "]",
-      In2 = λb:b.string_join (string_join "[In2 = " (to_string_b b)) "]"
+      In1 = λa:a."[In1 = " ▷ S.add (to_string_a a) ▷ S.add "]",
+      In2 = λb:b."[In2 = " ▷ S.add (to_string_b b) ▷ S.add "]"
     },
   Pair = λ《a\《b\(eq, ta, tb)》》: ∃α.∃β.Pair τ α β.
     let to_string_a = to_string[a] ta in
     let to_string_b = to_string[b] tb in
     λt:τ.let (a, b) = Eq.from[(a, b)][τ] eq t in
-      string_join (
-        string_join (
-          string_join (
-            string_join "(" (to_string_a a))
-            ", ")
-          (to_string_b b))
-        ")",
+      "(" ▷ S.add (to_string_a a) ▷ S.add ", " ▷ S.add (to_string_b b) ▷ S.add ")",
   Iso = λ《a\《b\(eq, (a2b, _), tb)》》: ∃α.∃β.Iso τ α β.
     let to_string_b = to_string[b] tb in
     λt:τ.to_string_b (a2b (Eq.from[a][τ] eq t))
