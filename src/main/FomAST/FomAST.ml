@@ -316,8 +316,7 @@ module Typ = struct
         let t' = subst_rec replaced env t in
         if t == t' then inn else `Lam (at, i, k, t')
     | `App (at, f, x) as inn ->
-      let f' = subst_rec replaced env f in
-      let x' = subst_rec replaced env x in
+      let f' = subst_rec replaced env f and x' = subst_rec replaced env x in
       if f == f' && x == x' then inn else `App (at, f', x')
     | `ForAll (at, t) as inn ->
       let t' = subst_rec replaced env t in
@@ -326,8 +325,7 @@ module Typ = struct
       let t' = subst_rec replaced env t in
       if t == t' then inn else `Exists (at, t')
     | `Arrow (at, d, c) as inn ->
-      let d' = subst_rec replaced env d in
-      let c' = subst_rec replaced env c in
+      let d' = subst_rec replaced env d and c' = subst_rec replaced env c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
       let ls' = subst_rec_labeled replaced env ls in
@@ -376,8 +374,7 @@ module Typ = struct
         let t' = subst_par replaced env t in
         if t == t' then inn else `Lam (at, i, k, t')
     | `App (at, f, x) as inn ->
-      let f' = subst_par replaced env f in
-      let x' = subst_par replaced env x in
+      let f' = subst_par replaced env f and x' = subst_par replaced env x in
       if f == f' && x == x' then inn else `App (at, f', x')
     | `ForAll (at, t) as inn ->
       let t' = subst_par replaced env t in
@@ -386,8 +383,7 @@ module Typ = struct
       let t' = subst_par replaced env t in
       if t == t' then inn else `Exists (at, t')
     | `Arrow (at, d, c) as inn ->
-      let d' = subst_par replaced env d in
-      let c' = subst_par replaced env c in
+      let d' = subst_par replaced env d and c' = subst_par replaced env c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
       let ls' = subst_par_labeled replaced env ls in
@@ -428,8 +424,7 @@ module Typ = struct
       let t' = norm t in
       if t == t' then inn else `Exists (at, t')
     | `Arrow (at, d, c) as inn ->
-      let d' = norm d in
-      let c' = norm c in
+      let d' = norm d and c' = norm c in
       if d == d' && c == c' then inn else `Arrow (at, d', c')
     | `Product (at, ls) as inn ->
       let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm) in
