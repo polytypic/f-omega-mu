@@ -413,11 +413,20 @@ examples.forEach(example => {
   exampleSelect.appendChild(option)
 })
 
+const exampleReset = () => {
+  fomCM.off('change', exampleReset)
+  exampleSelect.value = ''
+}
+
 exampleSelect.onchange = () => {
   const value = exampleSelect.value
   if (value) {
     const xhr = new XMLHttpRequest()
-    xhr.onload = () => fomCM.setValue(xhr.responseText.trim())
+    xhr.onload = () => {
+      fomCM.off('change', exampleReset)
+      fomCM.setValue(xhr.responseText.trim())
+      fomCM.on('change', exampleReset)
+    }
     xhr.open('GET', value)
     xhr.send()
   }
