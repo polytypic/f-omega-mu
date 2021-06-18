@@ -255,13 +255,14 @@ let rec elaborate_def = function
     let env = env |> TypAliases.map (Typ.subst_rec ~replaced env) in
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
-    let filename = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
+    let inc_filename = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
     let* env =
-      ImportChain.with_path at' filename
-        (TypIncludes.get_or_put filename
+      ImportChain.with_path at' inc_filename
+        (TypIncludes.get_or_put inc_filename
            (TypAliases.setting TypAliases.empty
-              (Fetch.fetch at' filename
-              >>= parse_utf_8 Grammar.typ_defs Lexer.plain ~filename
+              (Fetch.fetch at' inc_filename
+              >>= parse_utf_8 Grammar.typ_defs Lexer.plain
+                    ~filename:inc_filename
               >>= elaborate_defs)))
     in
     get_as TypAliases.field
@@ -309,12 +310,12 @@ and elaborate_typ = function
     let* typ_aliases = elaborate_def def in
     TypAliases.setting typ_aliases (elaborate_typ e)
   | `Import (at', p) ->
-    let filename = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
-    ImportChain.with_path at' filename
-      (TypImports.get_or_put filename
+    let sig_filename = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
+    ImportChain.with_path at' sig_filename
+      (TypImports.get_or_put sig_filename
          (TypAliases.setting TypAliases.empty
-            (Fetch.fetch at' filename
-            >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename
+            (Fetch.fetch at' sig_filename
+            >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename:sig_filename
             >>= elaborate_typ)))
 
 and elaborate_defs = function
