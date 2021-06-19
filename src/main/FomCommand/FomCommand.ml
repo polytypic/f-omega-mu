@@ -1,6 +1,12 @@
 open FomBasis
 open FomDiag
 
+(* *)
+
+let () = Hashtbl.randomize ()
+
+(* *)
+
 module Options = struct
   let max_width = ref 80
   let stop : [`Typ | `Js | `Run] ref = ref `Run

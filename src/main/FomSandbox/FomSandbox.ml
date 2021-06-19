@@ -12,6 +12,10 @@ open FomToJs
 
 (* *)
 
+let () = Hashtbl.randomize ()
+
+(* *)
+
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
