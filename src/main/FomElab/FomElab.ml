@@ -104,20 +104,19 @@ module VarTbl = struct
     | Some var -> IVar.get var
 end
 
-module Elab = struct
-  type error = [Error.io_error | Error.syntax_errors | Error.source_errors]
+module Error = struct
+  type t = [Error.io_error | Error.syntax_errors | Error.source_errors]
 
-  let generalize x = map_error (fun (#error as x) -> x) x
+  let generalize x = map_error (fun (#t as x) -> x) x
 end
 
 module TypIncludes = struct
-  type t =
-    (string, (Elab.error, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
+  type t = (string, (Error.t, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
 
   let field r = r#typ_includes
 
   let get_or_put filename compute =
-    VarTbl.get_or_put field filename compute |> Elab.generalize
+    VarTbl.get_or_put field filename compute |> Error.generalize
 
   class con (typ_includes : t) =
     object
@@ -126,12 +125,12 @@ module TypIncludes = struct
 end
 
 module TypImports = struct
-  type t = (string, (Elab.error, FomAST.Typ.t) IVar.t) Hashtbl.t
+  type t = (string, (Error.t, FomAST.Typ.t) IVar.t) Hashtbl.t
 
   let field r = r#typ_imports
 
   let get_or_put filename compute =
-    VarTbl.get_or_put field filename compute |> Elab.generalize
+    VarTbl.get_or_put field filename compute |> Error.generalize
 
   class con (typ_imports : t) =
     object
@@ -142,14 +141,13 @@ end
 module ExpImports = struct
   type t =
     ( string,
-      (Elab.error, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t
-    )
+      (Error.t, FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t option) IVar.t )
     Hashtbl.t
 
   let field r = r#exp_imports
 
   let get_or_put filename compute =
-    VarTbl.get_or_put field filename compute |> Elab.generalize
+    VarTbl.get_or_put field filename compute |> Error.generalize
 
   class con (exp_imports : t) =
     object
@@ -455,9 +453,9 @@ let rec elaborate = function
 
 (* *)
 
-let elaborate_defs x = elaborate_defs x |> Elab.generalize
-let elaborate_typ x = elaborate_typ x |> Elab.generalize
-let elaborate x = elaborate x |> Elab.generalize
+let elaborate_defs x = elaborate_defs x |> Error.generalize
+let elaborate_typ x = elaborate_typ x |> Error.generalize
+let elaborate x = elaborate x |> Error.generalize
 
 (* *)
 
@@ -466,7 +464,7 @@ let with_modules ast =
   let* exp_imports = env_as ExpImports.field in
   let+ imports =
     Hashtbl.to_seq exp_imports |> Seq.map snd |> List.of_seq
-    |> MList.traverse @@ fun var -> IVar.get var |> Elab.generalize
+    |> MList.traverse @@ fun var -> IVar.get var |> Error.generalize
   in
   imports
   |> List.sort (Compare.the (fun (id, _, _) -> id) Exp.Id.compare)

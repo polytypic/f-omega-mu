@@ -5,7 +5,6 @@ open FomSource
 open FomAST
 open FomDiag
 open FomParser
-open FomElab
 open FomChecker
 open FomEnv
 open FomToJs
@@ -250,7 +249,7 @@ let js_codemirror_mode =
       in
       Js.to_string input
       |> parse_utf_8 Grammar.program Lexer.plain ~filename
-      >>= elaborate >>= with_modules >>= Exp.infer >>- pp_typ
+      >>= FomElab.elaborate >>= FomElab.with_modules >>= Exp.infer >>- pp_typ
       >>- (fun t -> utf8string "type:" ^^ t)
       >>- to_js_string ~max_width
       |> try_in
@@ -302,7 +301,7 @@ let js_codemirror_mode =
       input |> Js.to_string
       |> parse_utf_8 Grammar.program Lexer.plain
            ~filename:(Js.to_string filename)
-      >>= elaborate >>= with_modules >>= to_js >>- Js.string
+      >>= FomElab.elaborate >>= FomElab.with_modules >>= to_js >>- Js.string
       |> try_in (Cb.invoke on_result) (fun _ ->
              Cb.invoke on_result @@ Js.string "")
       |> start (Env.empty ~fetch ())
