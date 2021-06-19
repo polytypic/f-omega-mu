@@ -10,6 +10,8 @@ cd f-omega-mu
 
 git checkout -b gh-pages
 
+script/travis.sh
+
 rm docs/.gitignore
 
 script/docs.sh
