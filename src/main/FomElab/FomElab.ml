@@ -433,7 +433,9 @@ let rec elaborate = function
               >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename:sig_filename
               >>= elaborate_typ))
         |> try_in (fun contents -> return @@ Some contents) @@ function
-           | #Error.file_doesnt_exist -> return None
+           | `Error_file_doesnt_exist (_, filename) when filename = sig_filename
+             ->
+             return None
            | e -> fail e)
     in
     let+ id, _, _ =
