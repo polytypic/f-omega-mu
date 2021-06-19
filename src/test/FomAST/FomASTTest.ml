@@ -1,4 +1,5 @@
 open FomBasis
+open FomParser
 open FomTest
 
 (* *)
@@ -6,8 +7,7 @@ open FomTest
 open Rea
 
 let parse_typ utf_8 =
-  let open FomParser in
-  Buffer.from_utf_8 utf_8 |> parse Grammar.typ_exp Lexer.plain
+  Buffer.from_utf_8 utf_8 |> Parser.parse Grammar.typ_exp Lexer.plain
 
 let () =
   test "Typ.to_string" @@ fun () ->

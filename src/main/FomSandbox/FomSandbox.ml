@@ -238,9 +238,9 @@ let js_codemirror_mode =
       in
       format value |> to_js_string ~max_width
 
-    method check filename input max_width (on_result : _ Cb.t) =
+    method check path input max_width (on_result : _ Cb.t) =
       let open Rea in
-      let filename = Js.to_string filename in
+      let path = Js.to_string path in
       let env = Env.empty ~fetch () in
       let def_uses () =
         env#annotations |> Hashtbl.to_seq
@@ -248,7 +248,7 @@ let js_codemirror_mode =
         |> Array.of_seq |> Js.array
       in
       Js.to_string input
-      |> parse_utf_8 Grammar.program Lexer.plain ~filename
+      |> Parser.parse_utf_8 Grammar.program Lexer.plain ~path
       >>= FomElab.elaborate >>= FomElab.with_modules >>= Exp.infer >>- pp_typ
       >>- (fun t -> utf8string "type:" ^^ t)
       >>- to_js_string ~max_width
@@ -296,11 +296,11 @@ let js_codemirror_mode =
                 end)
       |> start env
 
-    method compile filename input (on_result : _ Cb.t) =
+    method compile path input (on_result : _ Cb.t) =
       let open Rea in
       input |> Js.to_string
-      |> parse_utf_8 Grammar.program Lexer.plain
-           ~filename:(Js.to_string filename)
+      |> Parser.parse_utf_8 Grammar.program Lexer.plain
+           ~path:(Js.to_string path)
       >>= FomElab.elaborate >>= FomElab.with_modules >>= to_js >>- Js.string
       |> try_in (Cb.invoke on_result) (fun _ ->
              Cb.invoke on_result @@ Js.string "")

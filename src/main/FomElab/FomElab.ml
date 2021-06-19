@@ -16,13 +16,10 @@ module Path = struct
 
   (* *)
 
-  let is_absolute filename = StringExt.is_prefix "/" filename
+  let is_absolute path = StringExt.is_prefix "/" path
 
-  let ensure_ext ext filename =
-    if Filename.extension filename = ext then
-      filename
-    else
-      filename ^ ext
+  let ensure_ext ext path =
+    if Filename.extension path = ext then path else path ^ ext
 
   (* *)
 
@@ -43,21 +40,20 @@ module Path = struct
 
   (* *)
 
-  let is_http filename =
-    StringExt.is_prefix "https://" filename
-    || StringExt.is_prefix "http://" filename
+  let is_http path =
+    StringExt.is_prefix "https://" path || StringExt.is_prefix "http://" path
 
   let resolve loc lit =
-    let filename = LitString.to_utf8 lit in
-    (if is_http filename then
-       filename |> split_to_origin_and_path
+    let path = LitString.to_utf8 lit in
+    (if is_http path then
+       path |> split_to_origin_and_path
     else
-      loc |> Loc.filename |> Filename.dirname |> split_to_origin_and_path
+      loc |> Loc.path |> Filename.dirname |> split_to_origin_and_path
       |> Pair.map Fun.id @@ fun parent_dir ->
-         if is_absolute filename then
-           filename
+         if is_absolute path then
+           path
          else
-           parent_dir ^ "/" ^ filename)
+           parent_dir ^ "/" ^ path)
     |> Pair.map Fun.id FilenameExt.canonic
     |> join_origin_and_path
 end
@@ -73,8 +69,8 @@ module Fetch = struct
       method fetch = fetch
     end
 
-  let fetch at filename =
-    invoke (fun r -> field r at filename) |> map_error (fun (#e as x) -> x)
+  let fetch at path =
+    invoke (fun r -> field r at path) |> map_error (fun (#e as x) -> x)
 end
 
 module TypAliases = struct
@@ -115,8 +111,8 @@ module TypIncludes = struct
 
   let field r = r#typ_includes
 
-  let get_or_put filename compute =
-    VarTbl.get_or_put field filename compute |> Error.generalize
+  let get_or_put path compute =
+    VarTbl.get_or_put field path compute |> Error.generalize
 
   class con (typ_includes : t) =
     object
@@ -129,8 +125,8 @@ module TypImports = struct
 
   let field r = r#typ_imports
 
-  let get_or_put filename compute =
-    VarTbl.get_or_put field filename compute |> Error.generalize
+  let get_or_put path compute =
+    VarTbl.get_or_put field path compute |> Error.generalize
 
   class con (typ_imports : t) =
     object
@@ -146,8 +142,8 @@ module ExpImports = struct
 
   let field r = r#exp_imports
 
-  let get_or_put filename compute =
-    VarTbl.get_or_put field filename compute |> Error.generalize
+  let get_or_put path compute =
+    VarTbl.get_or_put field path compute |> Error.generalize
 
   class con (exp_imports : t) =
     object
@@ -162,11 +158,11 @@ module ImportChain = struct
 
   let field r = r#import_chain
 
-  let with_path at filename compute =
+  let with_path at path compute =
     let* include_chain = get field in
-    PathMap.find_opt filename include_chain
+    PathMap.find_opt path include_chain
     |> MOption.iter (fun previously_at ->
-           fail @@ `Error_cyclic_includes (at, filename, previously_at))
+           fail @@ `Error_cyclic_includes (at, path, previously_at))
     >> compute
 
   class con =
@@ -253,14 +249,13 @@ let rec elaborate_def = function
     let env = env |> TypAliases.map (Typ.subst_rec ~replaced env) in
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
-    let inc_filename = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
+    let inc_path = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
     let* env =
-      ImportChain.with_path at' inc_filename
-        (TypIncludes.get_or_put inc_filename
+      ImportChain.with_path at' inc_path
+        (TypIncludes.get_or_put inc_path
            (TypAliases.setting TypAliases.empty
-              (Fetch.fetch at' inc_filename
-              >>= parse_utf_8 Grammar.typ_defs Lexer.plain
-                    ~filename:inc_filename
+              (Fetch.fetch at' inc_path
+              >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
               >>= elaborate_defs)))
     in
     get_as TypAliases.field
@@ -308,12 +303,12 @@ and elaborate_typ = function
     let* typ_aliases = elaborate_def def in
     TypAliases.setting typ_aliases (elaborate_typ e)
   | `Import (at', p) ->
-    let sig_filename = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
-    ImportChain.with_path at' sig_filename
-      (TypImports.get_or_put sig_filename
+    let sig_path = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
+    ImportChain.with_path at' sig_path
+      (TypImports.get_or_put sig_path
          (TypAliases.setting TypAliases.empty
-            (Fetch.fetch at' sig_filename
-            >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename:sig_filename
+            (Fetch.fetch at' sig_path
+            >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
             >>= elaborate_typ)))
 
 and elaborate_defs = function
@@ -421,29 +416,28 @@ let rec elaborate = function
     let+ x = elaborate x and+ f = elaborate f in
     `App (at, f, x)
   | `Import (at', p) ->
-    let mod_filename = Path.resolve at' p |> Path.ensure_ext Path.mod_ext in
-    let sig_filename = Filename.remove_extension mod_filename ^ Path.sig_ext in
+    let mod_path = Path.resolve at' p |> Path.ensure_ext Path.mod_ext in
+    let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
     let* typ_opt =
-      ImportChain.with_path at' sig_filename
-        (TypImports.get_or_put sig_filename
+      ImportChain.with_path at' sig_path
+        (TypImports.get_or_put sig_path
            (TypAliases.setting TypAliases.empty
-              (Fetch.fetch at' sig_filename
-              >>= parse_utf_8 Grammar.typ_exp Lexer.plain ~filename:sig_filename
+              (Fetch.fetch at' sig_path
+              >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
               >>= elaborate_typ))
         |> try_in (fun contents -> return @@ Some contents) @@ function
-           | `Error_file_doesnt_exist (_, filename) when filename = sig_filename
-             ->
+           | `Error_file_doesnt_exist (_, path) when path = sig_path ->
              return None
            | e -> fail e)
     in
     let+ id, _, _ =
-      ImportChain.with_path at' mod_filename
-        (ExpImports.get_or_put mod_filename
+      ImportChain.with_path at' mod_path
+        (ExpImports.get_or_put mod_path
            (TypAliases.setting TypAliases.empty
               (let+ ast =
-                 Fetch.fetch at' mod_filename
-                 >>= parse_utf_8 Grammar.program Lexer.plain
-                       ~filename:mod_filename
+                 Fetch.fetch at' mod_path
+                 >>= Parser.parse_utf_8 Grammar.program Lexer.plain
+                       ~path:mod_path
                  >>= elaborate
                in
                let id = FomAST.Exp.Id.fresh at' in

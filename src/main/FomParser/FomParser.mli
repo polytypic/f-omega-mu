@@ -5,7 +5,7 @@ open FomDiag
 module Buffer : sig
   type t
 
-  val from_utf_8 : ?filename:string -> string -> t
+  val from_utf_8 : ?path:string -> string -> t
   (** Create a new buffer from UTF-8 string. *)
 end
 
@@ -35,17 +35,19 @@ module Grammar : sig
   (** Grammar of Fωμ type definitions. *)
 end
 
-val parse :
-  'a Grammar.t ->
-  Lexer.t ->
-  Buffer.t ->
-  ('r, [> Error.lexeme | Error.grammar | Error.duplicated_label], 'a) Rea.t
-(** Parse from buffer using given grammar and lexical syntax. *)
+module Parser : sig
+  module Error : sig
+    type t = [Error.lexeme | Error.grammar | Error.duplicated_label]
+  end
 
-val parse_utf_8 :
-  'a Grammar.t ->
-  Lexer.t ->
-  ?filename:string ->
-  string ->
-  ('r, [> Error.lexeme | Error.grammar | Error.duplicated_label], 'a) Rea.t
-(** Parse from UTF-8 string using given grammar and lexical syntax. *)
+  val parse : 'a Grammar.t -> Lexer.t -> Buffer.t -> ('r, [> Error.t], 'a) Rea.t
+  (** Parse from buffer using given grammar and lexical syntax. *)
+
+  val parse_utf_8 :
+    'a Grammar.t ->
+    Lexer.t ->
+    ?path:string ->
+    string ->
+    ('r, [> Error.t], 'a) Rea.t
+  (** Parse from UTF-8 string using given grammar and lexical syntax. *)
+end

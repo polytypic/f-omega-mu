@@ -18,9 +18,9 @@ let () =
     ("https://host:80/foo/bar.fom", "/baz", "https://host:80/baz");
     ("https://host:80/foo/bar.fom", "baz", "https://host:80/foo/baz");
   ]
-  |> MList.iter @@ fun (loc, filename, expected) ->
+  |> MList.iter @@ fun (loc, path, expected) ->
      let actual =
-       FomElab.Path.resolve (Loc.of_filename loc) (LitString.of_utf8 filename)
+       FomElab.Path.resolve (Loc.of_path loc) (LitString.of_utf8 path)
      in
      if actual <> expected then (
        Printf.printf "Expected: %s\nActual:   %s\n" expected actual;

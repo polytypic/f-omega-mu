@@ -9,7 +9,7 @@ open Rea
 
 let parse_exp source and_then =
   source
-  |> parse_utf_8 Grammar.program Lexer.plain
+  |> Parser.parse_utf_8 Grammar.program Lexer.plain
   >>= elaborate
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then @@ fun _ -> verify false

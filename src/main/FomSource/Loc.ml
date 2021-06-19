@@ -1,12 +1,12 @@
 type t = Pos.t * Pos.t
 
-let of_filename filename =
-  let pos = Pos.of_filename filename in
+let of_path path =
+  let pos = Pos.of_path path in
   (pos, pos)
 
 let dummy = (Lexing.dummy_pos, Lexing.dummy_pos)
 let union l r = (fst l, snd r)
-let filename ((l : Pos.t), _) = l.pos_fname
+let path ((l : Pos.t), _) = l.pos_fname
 
 let pp ((lhs, rhs) : t) =
   let format_range lhs rhs =

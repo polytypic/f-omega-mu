@@ -66,7 +66,7 @@ module PathMap = Map.Make (String)
 
 let process filename =
   let open Rea in
-  let at = FomSource.Loc.of_filename (Sys.getcwd () ^ "/.") in
+  let at = FomSource.Loc.of_path (Sys.getcwd () ^ "/.") in
   let p = FomCST.LitString.of_utf8 filename in
   let cst = `Import (at, p) in
   let max_width = !Options.max_width in

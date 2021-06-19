@@ -1,6 +1,12 @@
 open FomBasis
 
-let parse grammar lexer buffer =
+module Error = struct
+  open FomDiag
+
+  type t = [Error.lexeme | Error.grammar | Error.duplicated_label]
+end
+
+let parse grammar lexer buffer : (_, [> Error.t], _) Rea.t =
   try
     lexer buffer
     |> MenhirLib.Convert.Simplified.traditional2revised grammar
@@ -12,5 +18,5 @@ let parse grammar lexer buffer =
   | FomCST.Exn_duplicated_label (at, label) ->
     Rea.fail @@ `Error_duplicated_label (at, label)
 
-let parse_utf_8 grammar lexer ?(filename = "") input =
-  Buffer.from_utf_8 ~filename input |> parse grammar lexer
+let parse_utf_8 grammar lexer ?(path = "") input =
+  Buffer.from_utf_8 ~path input |> parse grammar lexer

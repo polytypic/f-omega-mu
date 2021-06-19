@@ -10,7 +10,7 @@ open Rea
 
 let parse_typ source and_then =
   source
-  |> parse_utf_8 Grammar.typ_exp Lexer.plain
+  |> Parser.parse_utf_8 Grammar.typ_exp Lexer.plain
   >>= elaborate_typ
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then @@ fun _ -> verify false
@@ -65,7 +65,7 @@ let () =
 
 let parse_exp source and_then =
   source
-  |> parse_utf_8 Grammar.program Lexer.plain
+  |> Parser.parse_utf_8 Grammar.program Lexer.plain
   >>= elaborate >>= Exp.infer
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then @@ fun _ -> verify false
@@ -217,7 +217,7 @@ let () =
 let testErrors name exp =
   test name @@ fun () ->
   exp
-  |> parse_utf_8 Grammar.program Lexer.plain
+  |> Parser.parse_utf_8 Grammar.program Lexer.plain
   >>= elaborate >>= Exp.infer
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in

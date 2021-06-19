@@ -7,4 +7,4 @@ module Grammar = struct
   type 'a t = (Lexing.lexbuf -> token) -> Lexing.lexbuf -> 'a
 end
 
-include Parser
+module Parser = Parser

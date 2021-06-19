@@ -5,7 +5,7 @@ module Pos : sig
 
   (* Constructors *)
 
-  val of_filename : string -> t
+  val of_path : string -> t
 
   (* Accessors *)
 
@@ -21,13 +21,13 @@ module Loc : sig
 
   (* Constructors *)
 
-  val of_filename : string -> t
+  val of_path : string -> t
   val dummy : t
   val union : t -> t -> t
 
   (* Accessors *)
 
-  val filename : t -> string
+  val path : t -> string
 
   (* Formatting *)
 

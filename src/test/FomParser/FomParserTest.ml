@@ -10,7 +10,7 @@ open Rea
 let test_parses_as name source check =
   test name @@ fun () ->
   source
-  |> parse_utf_8 Grammar.program Lexer.plain
+  |> Parser.parse_utf_8 Grammar.program Lexer.plain
   |> try_in check @@ fun _ -> verify false
 
 let () =
