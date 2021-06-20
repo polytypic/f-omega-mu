@@ -21,27 +21,27 @@ While Fωμ\* is powerful enough to express regular datatypes, it requires type
 parameters to be hoisted outside of the `μ`. For example, the list type
 
 ```
-μlist:* → *.λα:*.opt (α, list α)
+μlist.λα.opt (α, list α)
 ```
 
 needs to be rewritten as
 
 ```
-λα:*.μlist_1:*.opt (α, list_1)
+λα.μlist_1.opt (α, list_1)
 ```
 
 Both of the above types are allowed by this generalized system and are also
 considered equivalent as shown in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAAuAKgDoBtXHVzxOIABQBKADQgodALaiQ7ALogIuEmRCUaILNDggQLQD3Ah2DxCAkwhB8OPXgzjj2sy3HaSNWnXtpPAH0ARlM2Lj4LI1CnFwl3AxiQn01teDg6ADMgzxNwwGzgSN5WAA9OPJN2XlLfUgz6HOCwliKnMorklRq6+rh8AAt4fABrQuLWTzE86snk6a7qohNxbNyjfjUk2FDZNebN9U9UrSJB4ZGgA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAA6AbVzt3gAuEAAoAlABoQUOgFshIdgF0QEXCTIhKNEFmhwQIFoB7gPbE4dODOCPZSzcdmNXrN22g4D6ARiNsupvo+VoyidrpB3s5qGvBwdABmng6GfoDZwFysAB6CKYZcWS6kcfRJXr4sGRY55YqchTHFcPgAFvD4ANbpmQ7CKT2RfZF1RIYiicn63MoRsD5SE+XTKg7R6kSt7R1AA).
 
 In this generalized system, nested types are not allowed. For example,
 
 ```
-μnested:* → *.λα:*.(α, nested (α, α))
+μnested.λα.(α, nested (α, α))
 ```
 
 is disallowed due to the argument `(α, α)` as demonstrated in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOsiGEGLQwHuAA7aOeALgBUIQEmEIYQF4QgbuBAjcBCAdAApZAGhA9YCECvWyAlPpBEuDJiy6UYAfXJVaiKdIAe-TX2NcYC554ZL9IA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOsiGEGLQwHuAA7aORAXhCBu4ECNwADoAFCIA0IHrAQgpskQEpVIIlwYTVQA).
 
 Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type
