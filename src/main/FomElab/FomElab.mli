@@ -109,7 +109,7 @@ val elaborate_typ :
   ( (< annotations : Annot.t
      ; fetch : Fetch.t
      ; import_chain : (ImportChain.t, 'r) Field.t
-     ; kind_env : Kind.Env.t
+     ; kind_env : (Kind.Env.t, 'r) Field.t
      ; typ_env : (Typ.Env.t, 'r) Field.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; typ_includes : TypIncludes.t
@@ -128,7 +128,7 @@ val elaborate :
      ; fetch : Fetch.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; import_chain : (ImportChain.t, 'r) Field.t
-     ; kind_env : Kind.Env.t
+     ; kind_env : (Kind.Env.t, 'r) Field.t
      ; typ_env : (Typ.Env.t, 'r) Field.t
      ; typ_includes : TypIncludes.t
      ; typ_imports : TypImports.t

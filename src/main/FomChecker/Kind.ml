@@ -7,22 +7,23 @@ open Rea
 module Env = struct
   include Env
 
-  type t = FomAST.Kind.t Env.t ref
+  type nonrec t = FomAST.Kind.t t ref
 
-  let create () = ref empty
   let field r = r#kind_env
+  let resetting op = setting field (ref empty) op
 
   let find_opt i =
-    let* env = env_as field in
+    let* env = get field in
     return @@ Env.find_opt i !env
 
   let add i k =
-    let+ env = env_as field in
+    let+ env = get field in
     env := Env.add i k !env
 
-  class con (env : t) =
+  class con =
     object
-      method kind_env = env
+      val kind_env : t = ref empty
+      method kind_env = Field.make kind_env (fun v -> {<kind_env = v>})
     end
 end
 
@@ -41,6 +42,13 @@ let rec resolve = function
         return k
       else
         Env.add v k' >> return k')
+
+let rec ground = function
+  | `Star _ as k -> k
+  | `Arrow (at', d, c) as k ->
+    let d' = ground d and c' = ground c in
+    if d == d' && c == c' then k else `Arrow (at', d', c')
+  | `Var (at', _) -> `Star at'
 
 let rec occurs_check at' v = function
   | `Star _ -> unit

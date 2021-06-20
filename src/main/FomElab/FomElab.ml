@@ -230,7 +230,7 @@ module Elab = struct
   let modularly op =
     op
     |> TypAliases.setting TypAliases.empty
-    |> Typ.Env.resetting |> Parameters.resetting
+    |> Typ.Env.resetting |> Kind.Env.resetting |> Parameters.resetting
 end
 
 (* *)
@@ -306,9 +306,12 @@ let rec elaborate_def = function
       (ImportChain.with_path at' inc_path
       <<< TypIncludes.get_or_put inc_path
       <<< Elab.modularly)
-        (Fetch.fetch at' inc_path
-        >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
-        >>= elaborate_defs)
+        (let* env =
+           Fetch.fetch at' inc_path
+           >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
+           >>= elaborate_defs
+         in
+         Annot.Typ.resolve Kind.resolve >> return env)
     in
     get_as TypAliases.field
     @@ TypAliases.merge
@@ -366,8 +369,8 @@ and elaborate_typ = function
          >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
        in
        let* t = elaborate_typ cst in
-       let+ _ = Typ.infer t in
-       t)
+       let* _ = Typ.infer t in
+       Typ.resolve t >>- Typ.ground)
 
 and elaborate_defs = function
   | [] -> get TypAliases.field
@@ -484,8 +487,8 @@ let rec elaborate = function
               >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
             in
             let* t = elaborate_typ cst in
-            let+ _ = Typ.infer t in
-            t)
+            let* _ = Typ.infer t in
+            Typ.resolve t >>- Typ.ground)
         |> try_in (fun contents -> return @@ Some contents) @@ function
            | `Error_file_doesnt_exist (_, path) when path = sig_path ->
              return None

@@ -134,6 +134,36 @@ let rec resolve = function
 
 (* *)
 
+let rec ground = function
+  | `Mu (at', f) as t ->
+    let f' = ground f in
+    if f == f' then t else `Mu (at', f')
+  | `Const (_, _) as t -> t
+  | `Var (_, _) as t -> t
+  | `Lam (at', d, d_kind, r) as t ->
+    let d_kind' = Kind.ground d_kind and r' = ground r in
+    if d_kind == d_kind' && r == r' then t else `Lam (at', d, d_kind', r')
+  | `App (at', f, x) as t ->
+    let f' = ground f and x' = ground x in
+    if f == f' && x = x' then t else `App (at', f', x')
+  | `ForAll (at', f) as t ->
+    let f' = ground f in
+    if f == f' then t else `ForAll (at', f')
+  | `Exists (at', f) as t ->
+    let f' = ground f in
+    if f == f' then t else `Exists (at', f')
+  | `Arrow (at', d, c) as t ->
+    let d' = ground d and c' = ground c in
+    if d == d' && c == c' then t else `Arrow (at', d', c')
+  | `Product (at', ls) as t ->
+    let ls' = ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground in
+    if ls == ls' then t else `Product (at', ls')
+  | `Sum (at', ls) as t ->
+    let ls' = ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground in
+    if ls == ls' then t else `Sum (at', ls')
+
+(* *)
+
 let rec infer t = infer_base t >>= Kind.resolve
 
 and infer_base = function

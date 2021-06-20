@@ -89,7 +89,7 @@ and infer_base = function
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
     let* r_typ = Typ.Env.adding d d_kind (infer r) in
-    let* d_kind = Kind.resolve d_kind in
+    let* d_kind = Kind.resolve d_kind >>- Kind.ground in
     Annot.Typ.def d d_kind
     >> return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
