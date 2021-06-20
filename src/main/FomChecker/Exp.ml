@@ -164,5 +164,5 @@ and infer_base = function
   | `Target (_, t, _) -> Typ.check_and_norm t
 
 let infer e =
-  let* t = infer e in
-  Annot.Typ.resolve Kind.resolve >> return t
+  let* result = catch @@ infer e in
+  Annot.Typ.resolve Kind.resolve >> of_res result

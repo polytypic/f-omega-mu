@@ -149,17 +149,40 @@ module Kind = struct
 
   (* Formatting *)
 
-  let rec pp atomize kind =
-    let open FomPP in
-    match kind with
-    | `Star _ -> star
-    | `Arrow (_, dom, cod) ->
-      pp true dom ^^ space_arrow_right_break_1 ^^ pp false cod
-      |> if atomize then egyptian parens 2 else Fun.id
-    | `Var (_, _) -> underscore
+  module Numbering = struct
+    include Env
 
-  let pp kind = pp false kind |> FomPP.group
-  let pp_annot = function `Star _ -> empty | kind -> colon ^^ align (pp kind)
+    type nonrec t = int t ref
+
+    let create () = ref empty
+  end
+
+  let pp ?(numbering = Numbering.create ()) kind =
+    let rec pp atomize kind =
+      let open FomPP in
+      match kind with
+      | `Star _ -> star
+      | `Arrow (_, dom, cod) ->
+        let dom = pp true dom in
+        let cod = pp false cod in
+        dom ^^ space_arrow_right_break_1 ^^ cod
+        |> if atomize then egyptian parens 2 else Fun.id
+      | `Var (_, i) ->
+        let n =
+          match Env.find_opt i !numbering with
+          | None ->
+            let n = Env.cardinal !numbering in
+            numbering := Env.add i n !numbering;
+            n
+          | Some n -> n
+        in
+        kappa_lower ^^ subscript n
+    in
+    pp false kind |> FomPP.group
+
+  let pp_annot ?(numbering = Numbering.create ()) = function
+    | `Star _ -> empty
+    | kind -> colon ^^ align (pp ~numbering kind)
 end
 
 module Label = struct
@@ -580,7 +603,8 @@ module Typ = struct
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
 
-  let pp ?(pp_annot = Kind.pp_annot) typ = pp pp_annot prec_min typ |> group
+  let pp ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
+    pp pp_annot prec_min typ |> group
 end
 
 module Exp = struct

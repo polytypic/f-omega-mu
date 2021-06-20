@@ -33,8 +33,14 @@ module Kind : sig
 
   (* Formatting *)
 
-  val pp : t -> document
-  val pp_annot : t -> document
+  module Numbering : sig
+    type t
+
+    val create : unit -> t
+  end
+
+  val pp : ?numbering:Numbering.t -> t -> document
+  val pp_annot : ?numbering:Numbering.t -> t -> document
 end
 
 module Label : Id.S

@@ -98,6 +98,42 @@ let find_opt_non_contractive_mu at f arity =
     | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
   | _ -> None
 
+(* *)
+
+let rec resolve = function
+  | `Mu (at', f) as t ->
+    let+ f' = resolve f in
+    if f == f' then t else `Mu (at', f')
+  | `Const (_, _) as t -> return t
+  | `Var (_, _) as t -> return t
+  | `Lam (at', d, d_kind, r) as t ->
+    let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
+    if d_kind == d_kind' && r == r' then t else `Lam (at', d, d_kind', r')
+  | `App (at', f, x) as t ->
+    let+ f' = resolve f and+ x' = resolve x in
+    if f == f' && x = x' then t else `App (at', f', x')
+  | `ForAll (at', f) as t ->
+    let+ f' = resolve f in
+    if f == f' then t else `ForAll (at', f')
+  | `Exists (at', f) as t ->
+    let+ f' = resolve f in
+    if f == f' then t else `Exists (at', f')
+  | `Arrow (at', d, c) as t ->
+    let+ d' = resolve d and+ c' = resolve c in
+    if d == d' && c == c' then t else `Arrow (at', d', c')
+  | `Product (at', ls) as t ->
+    let+ ls' =
+      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+    in
+    if ls == ls' then t else `Product (at', ls')
+  | `Sum (at', ls) as t ->
+    let+ ls' =
+      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+    in
+    if ls == ls' then t else `Sum (at', ls')
+
+(* *)
+
 let rec infer t = infer_base t >>= Kind.resolve
 
 and infer_base = function
@@ -107,9 +143,12 @@ and infer_base = function
     Kind.unify at' (`Arrow (at', kind, kind)) f_kind
     >> let* arity = Kind.resolve kind >>- Kind.min_arity in
        find_opt_nested_arg_mu at' f arity
-       |> MOption.iter (fun typ' -> fail @@ `Error_mu_nested (at', typ, typ'))
+       |> MOption.iter (fun typ' ->
+              let* typ = resolve typ and* typ' = resolve typ' in
+              fail @@ `Error_mu_nested (at', typ, typ'))
        >> (find_opt_non_contractive_mu at' f arity
           |> MOption.iter (fun typ' ->
+                 let* typ = resolve typ and* typ' = resolve typ' in
                  fail @@ `Error_mu_non_contractive (at', typ, typ')))
        >> return kind
   | `Const (at', c) -> return @@ Const.kind_of at' c
@@ -145,40 +184,6 @@ and infer_quantifier t f =
 and check expected t =
   let* actual = infer t in
   Kind.unify (at t) expected actual
-
-(* *)
-
-let rec resolve = function
-  | `Mu (at', f) as t ->
-    let+ f' = resolve f in
-    if f == f' then t else `Mu (at', f')
-  | `Const (_, _) as t -> return t
-  | `Var (_, _) as t -> return t
-  | `Lam (at', d, d_kind, r) as t ->
-    let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
-    if d_kind == d_kind' && r == r' then t else `Lam (at', d, d_kind', r')
-  | `App (at', f, x) as t ->
-    let+ f' = resolve f and+ x' = resolve x in
-    if f == f' && x = x' then t else `App (at', f', x')
-  | `ForAll (at', f) as t ->
-    let+ f' = resolve f in
-    if f == f' then t else `ForAll (at', f')
-  | `Exists (at', f) as t ->
-    let+ f' = resolve f in
-    if f == f' then t else `Exists (at', f')
-  | `Arrow (at', d, c) as t ->
-    let+ d' = resolve d and+ c' = resolve c in
-    if d == d' && c == c' then t else `Arrow (at', d', c')
-  | `Product (at', ls) as t ->
-    let+ ls' =
-      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-    in
-    if ls == ls' then t else `Product (at', ls')
-  | `Sum (at', ls) as t ->
-    let+ ls' =
-      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-    in
-    if ls == ls' then t else `Sum (at', ls')
 
 (* *)
 

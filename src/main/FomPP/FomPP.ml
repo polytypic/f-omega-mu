@@ -16,6 +16,7 @@ let logical_not = utf8string "¬"
 let logical_or = utf8string "∨"
 let mu_lower = utf8string "μ"
 let not_equal = utf8string "≠"
+let kappa_lower = utf8string "κ"
 
 (* Bracketing  *)
 
@@ -70,3 +71,21 @@ let space_in = space ^^ in'
 
 let egyptian (lhs, rhs) indent doc =
   group (lhs ^^ nest indent (break_0 ^^ doc) ^^ break_0 ^^ rhs)
+
+(* *)
+
+let sub_digit =
+  [|"₀"; "₁"; "₂"; "₃"; "₄"; "₅"; "₆"; "₇"; "₈"; "₉"|]
+
+let subscript n =
+  if n < 0 then failwith "subscript";
+  let rec loop s n =
+    if n = 0 then
+      if String.length s = 0 then sub_digit.(0) else s
+    else
+      let d = n mod 10 in
+      let n = n / 10 in
+      let s = sub_digit.(d) ^ s in
+      loop s n
+  in
+  loop "" n |> utf8string
