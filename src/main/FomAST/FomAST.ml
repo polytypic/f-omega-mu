@@ -123,6 +123,10 @@ module Kind = struct
 
   let at = function `Star at -> at | `Arrow (at, _, _) | `Var (at, _) -> at
 
+  (* *)
+
+  let fresh at = `Var (at, Id.fresh at)
+
   (* Comparison *)
 
   let index = function `Star _ -> 0 | `Arrow _ -> 1 | `Var _ -> 2
@@ -158,8 +162,7 @@ module Kind = struct
       | `Var (at', i) -> (
         match Env.find_opt i !env with
         | None ->
-          let i' = Id.fresh at' in
-          let v' = `Var (at', i') in
+          let v' = fresh at' in
           env := Env.add i v' !env;
           v'
         | Some k -> k)

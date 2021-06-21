@@ -90,6 +90,7 @@ list_n(elem, sep):
 //
 
 kind_atom:
+  | "_"                                                 {Kind.fresh $loc}
   | "*"                                                 {`Star $loc}
   | "("k=kind ")"                                       {k}
 
@@ -130,7 +131,7 @@ typ_bid:
   | i=typ_rid                                           {i}
 
 typ_bind:
-  | i=typ_bid                                           {(i, `Var ($loc, Kind.Id.fresh $loc))}
+  | i=typ_bid                                           {(i, Kind.fresh $loc)}
   | i=typ_bid":"k=kind                                  {(i, k)}
 
 typ_atom:

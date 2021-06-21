@@ -23,6 +23,10 @@ module Kind : sig
 
   val at : t -> Loc.t
 
+  (* *)
+
+  val fresh : Loc.t -> t
+
   (* Comparison *)
 
   val compare : t cmp
