@@ -2,6 +2,7 @@ open Js_of_ocaml
 open FomBasis
 open FomPP
 open FomSource
+open FomAnnot
 open FomAST
 open FomDiag
 open FomParser
@@ -115,7 +116,10 @@ let pp_typ t =
 let js_use_def ?(max_width = 60) (def, o) =
   object%js
     val def = js_loc def
-    val uses = o#uses.contents |> List.map js_loc |> Array.of_list |> Js.array
+
+    val uses =
+      o#uses.contents |> Annot.LocSet.elements |> List.map js_loc
+      |> Array.of_list |> Js.array
 
     val annot =
       (match o#annot with

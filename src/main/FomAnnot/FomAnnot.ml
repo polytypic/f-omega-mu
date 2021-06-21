@@ -7,6 +7,8 @@ open FomAST
 open Rea
 
 module Annot = struct
+  module LocSet = Set.Make (Loc)
+
   type t =
     ( Loc.t,
       < annot :
@@ -14,7 +16,7 @@ module Annot = struct
           | `ExpId of Exp.Id.t * Typ.t
           | `TypId of Typ.Id.t * Kind.t ]
       ; def : Loc.t
-      ; uses : Loc.t list ref > )
+      ; uses : LocSet.t ref > )
     Hashtbl.t
 
   let field r = r#annotations
@@ -37,7 +39,7 @@ module Annot = struct
         && (not (is_numeric id))
         && not (Hashtbl.mem annot at)
       then
-        let uses = ref [] in
+        let uses = ref LocSet.empty in
         Hashtbl.replace annot at
           (object
              method def = at
@@ -50,7 +52,7 @@ module Annot = struct
       let at = at id in
       if (not (is_fresh id)) && not (is_numeric id) then
         let o = Hashtbl.find annot def in
-        o#uses := at :: o#uses.contents
+        o#uses := LocSet.add at o#uses.contents
   end
 
   module Exp = struct
@@ -64,7 +66,7 @@ module Annot = struct
         && (not (is_numeric id))
         && not (Hashtbl.mem annot at)
       then
-        let uses = ref [] in
+        let uses = ref LocSet.empty in
         Hashtbl.replace annot at
           (object
              method def = at
@@ -77,7 +79,7 @@ module Annot = struct
       let at = at id in
       if (not (is_fresh id)) && not (is_numeric id) then
         let o = Hashtbl.find annot def in
-        o#uses := at :: o#uses.contents
+        o#uses := LocSet.add at o#uses.contents
   end
 
   module Typ = struct
@@ -106,7 +108,7 @@ module Annot = struct
       let+ annot = env_as field in
       let at = at id in
       if not (Hashtbl.mem annot at) then
-        let uses = ref [] in
+        let uses = ref LocSet.empty in
         Hashtbl.replace annot at
           (object
              method def = at
@@ -118,7 +120,7 @@ module Annot = struct
       let at = at id in
       match Hashtbl.find_opt annot def with
       | None -> ()
-      | Some o -> o#uses := at :: o#uses.contents
+      | Some o -> o#uses := LocSet.add at o#uses.contents
 
     let use id def =
       let+ annot = env_as field in
