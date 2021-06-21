@@ -217,6 +217,12 @@ and check expected t =
 
 (* *)
 
+let infer_and_resolve t =
+  let* _ = infer t in
+  resolve t
+
+(* *)
+
 let rec kind_of t = kind_of_base t >>= Kind.resolve
 
 and kind_of_base = function

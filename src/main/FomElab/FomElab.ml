@@ -284,8 +284,10 @@ let rec elaborate_pat p' e' = function
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
     let at = Typ.Id.at i in
-    let* t = elaborate_typ @@ `App (at, `Lam (at, i, k, `Var (at, i)), t) in
-    let* _ = Typ.infer t in
+    let* t =
+      `App (at, `Lam (at, i, k, `Var (at, i)), t)
+      |> elaborate_typ >>= Typ.infer_and_resolve
+    in
     get_as TypAliases.field (TypAliases.add i t)
   | `TypRec (_, bs) ->
     let* assoc =
@@ -298,7 +300,11 @@ let rec elaborate_def = function
     in
     let env = assoc |> List.to_seq |> TypAliases.of_seq in
     let env = env |> TypAliases.map (Typ.subst_rec env) in
-    let* _ = env |> TypAliases.bindings |> MList.iter_ (snd >>> Typ.infer) in
+    let* env =
+      env |> TypAliases.bindings
+      |> MList.traverse (MPair.traverse return Typ.infer_and_resolve)
+      >>- (List.to_seq >>> TypAliases.of_seq)
+    in
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
     let inc_path = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
@@ -364,13 +370,9 @@ and elaborate_typ = function
     (ImportChain.with_path at' sig_path
     <<< TypImports.get_or_put sig_path
     <<< Elab.modularly)
-      (let* cst =
-         Fetch.fetch at' sig_path
-         >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
-       in
-       let* t = elaborate_typ cst in
-       let* _ = Typ.infer t in
-       Typ.resolve t >>- Typ.ground)
+      (Fetch.fetch at' sig_path
+      >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
+      >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
 
 and elaborate_defs = function
   | [] -> get TypAliases.field
@@ -482,13 +484,9 @@ let rec elaborate = function
     let* typ_opt =
       ImportChain.with_path at' sig_path
         ((TypImports.get_or_put sig_path <<< Elab.modularly)
-           (let* cst =
-              Fetch.fetch at' sig_path
-              >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
-            in
-            let* t = elaborate_typ cst in
-            let* _ = Typ.infer t in
-            Typ.resolve t >>- Typ.ground)
+           (Fetch.fetch at' sig_path
+           >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
+           >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
         |> try_in (fun contents -> return @@ Some contents) @@ function
            | `Error_file_doesnt_exist (_, path) when path = sig_path ->
              return None

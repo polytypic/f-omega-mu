@@ -147,6 +147,25 @@ module Kind = struct
 
   let min_arity k = min_arity 0 k
 
+  (* *)
+
+  let freshen env k =
+    let rec freshen = function
+      | `Star _ as inn -> inn
+      | `Arrow (at', d, c) as inn ->
+        let d' = freshen d and c' = freshen c in
+        if d == d' && c == c' then inn else `Arrow (at', d', c')
+      | `Var (at', i) -> (
+        match Env.find_opt i !env with
+        | None ->
+          let i' = Id.fresh at' in
+          let v' = `Var (at', i') in
+          env := Env.add i v' !env;
+          v'
+        | Some k -> k)
+    in
+    freshen k
+
   (* Formatting *)
 
   module Numbering = struct
@@ -450,35 +469,37 @@ module Typ = struct
 
   (* Freshening *)
 
-  let rec freshen = function
-    | `Mu (at, t) as inn ->
-      let t' = freshen t in
-      if t == t' then inn else `Mu (at, t')
-    | `Const _ as inn -> inn
-    | `Var _ as inn -> inn
-    | `Lam (at, i, k, t) as inn ->
-      let k' =
-        match k with `Var (at', i) -> `Var (at', Kind.Id.freshen i) | k -> k
-      and t' = freshen t in
-      if k == k' && t == t' then inn else `Lam (at, i, k', t')
-    | `App (at, f, x) as inn ->
-      let f' = freshen f and x' = freshen x in
-      if f == f' && x == x' then inn else `App (at, f', x')
-    | `ForAll (at, t) as inn ->
-      let t' = freshen t in
-      if t == t' then inn else `ForAll (at, t')
-    | `Exists (at, t) as inn ->
-      let t' = freshen t in
-      if t == t' then inn else `Exists (at, t')
-    | `Arrow (at, d, c) as inn ->
-      let d' = freshen d and c' = freshen c in
-      if d == d' && c == c' then inn else `Arrow (at, d', c')
-    | `Product (at, ls) as inn ->
-      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
-      if ls == ls' then inn else `Product (at, ls')
-    | `Sum (at, ls) as inn ->
-      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
-      if ls == ls' then inn else `Sum (at, ls')
+  let freshen t =
+    let env = ref Kind.Env.empty in
+    let rec freshen = function
+      | `Mu (at, t) as inn ->
+        let t' = freshen t in
+        if t == t' then inn else `Mu (at, t')
+      | `Const _ as inn -> inn
+      | `Var _ as inn -> inn
+      | `Lam (at, i, k, t) as inn ->
+        let k' = Kind.freshen env k and t' = freshen t in
+        if k == k' && t == t' then inn else `Lam (at, i, k', t')
+      | `App (at, f, x) as inn ->
+        let f' = freshen f and x' = freshen x in
+        if f == f' && x == x' then inn else `App (at, f', x')
+      | `ForAll (at, t) as inn ->
+        let t' = freshen t in
+        if t == t' then inn else `ForAll (at, t')
+      | `Exists (at, t) as inn ->
+        let t' = freshen t in
+        if t == t' then inn else `Exists (at, t')
+      | `Arrow (at, d, c) as inn ->
+        let d' = freshen d and c' = freshen c in
+        if d == d' && c == c' then inn else `Arrow (at, d', c')
+      | `Product (at, ls) as inn ->
+        let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
+        if ls == ls' then inn else `Product (at, ls')
+      | `Sum (at, ls) as inn ->
+        let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
+        if ls == ls' then inn else `Sum (at, ls')
+    in
+    freshen t
 
   (* Comparison *)
 
