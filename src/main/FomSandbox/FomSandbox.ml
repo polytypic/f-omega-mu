@@ -12,6 +12,10 @@ open FomToJs
 
 (* *)
 
+open Rea
+
+(* *)
+
 let () = Hashtbl.randomize ()
 
 (* *)
@@ -19,13 +23,12 @@ let () = Hashtbl.randomize ()
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
-  Rea.of_async @@ fun r on_error on_ok ->
+  of_async @@ fun r on_error on_ok ->
   match try Ok (op r) with e -> Error e with
   | Ok p -> Lwt.on_any p on_ok on_error
   | Error e -> on_error e
 
 let fetch at filename =
-  let open Rea in
   of_lwt (fun _ ->
       let open Lwt.Syntax in
       let open Cohttp in
@@ -72,9 +75,10 @@ let and_mu = break_0_0 ^^ utf8string "and " ^^ mu_lower
 
 let pp_typ t =
   let open FomChecker.Typ in
+  let+ t = contract t in
   let pp_typ t =
-    let typ_doc = Typ.pp ~pp_annot:(Fun.const empty) t in
-    match Typ.hanging t with
+    let typ_doc = pp ~pp_annot:(Fun.const empty) t in
+    match hanging t with
     | Some (sep, _) -> sep ^^ typ_doc
     | None -> break_1 ^^ typ_doc |> nest 2 |> group
   in
@@ -114,6 +118,18 @@ let pp_typ t =
 (* *)
 
 let js_use_def ?(max_width = 60) (def, o) =
+  let+ annot =
+    (match o#annot with
+    | `Label (id, typ) ->
+      let+ typ = pp_typ typ in
+      Label.pp id ^^ colon ^^ typ
+    | `ExpId (id, typ) ->
+      let+ typ = pp_typ typ in
+      Exp.Id.pp id ^^ colon ^^ typ
+    | `TypId (id, kind) ->
+      return @@ group (Typ.Id.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
+    >>- to_js_string ~max_width
+  in
   object%js
     val def = js_loc def
 
@@ -121,13 +137,7 @@ let js_use_def ?(max_width = 60) (def, o) =
       o#uses.contents |> Annot.LocSet.elements |> List.map js_loc
       |> Array.of_list |> Js.array
 
-    val annot =
-      (match o#annot with
-      | `Label (id, typ) -> Label.pp id ^^ colon ^^ pp_typ typ
-      | `ExpId (id, typ) -> Exp.Id.pp id ^^ colon ^^ pp_typ typ
-      | `TypId (id, kind) ->
-        group (Typ.Id.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
-      |> to_js_string ~max_width
+    val annot = annot
   end
 
 module JsType = struct
@@ -244,28 +254,30 @@ let js_codemirror_mode =
       format value |> to_js_string ~max_width
 
     method check path input max_width (on_result : _ Cb.t) =
-      let open Rea in
       let path = Js.to_string path in
       let env = Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports () in
       let def_uses () =
-        env#annotations |> Hashtbl.to_seq
-        |> Seq.map (js_use_def ~max_width)
-        |> Array.of_seq |> Js.array
+        env#annotations |> Hashtbl.to_seq |> List.of_seq
+        |> MList.traverse (js_use_def ~max_width)
+        >>- (Array.of_list >>> Js.array)
       in
       Js.to_string input
       |> Parser.parse_utf_8 Grammar.program Lexer.plain ~path
       >>= FomElab.elaborate
-      >>- (fun (_, t, _) ->
-            utf8string "type:" ^^ pp_typ t |> to_js_string ~max_width)
+      >>= (fun (_, t, _) ->
+            let+ t = pp_typ t in
+            utf8string "type:" ^^ t |> to_js_string ~max_width)
       |> try_in
            (fun typ ->
+             let* defUses = def_uses () in
              Cb.invoke on_result
              @@ object%js
                   val typ = typ
-                  val defUses = def_uses ()
+                  val defUses = defUses
                   val diagnostics = Js.array [||]
                 end)
            (fun error ->
+             let* defUses = def_uses () in
              let diagnostics = Error.to_diagnostics error in
              Cb.invoke on_result
              @@ object%js
@@ -285,7 +297,7 @@ let js_codemirror_mode =
                                    |> nest 2 |> group))
                       |> to_js_string ~max_width
 
-                  val defUses = def_uses ()
+                  val defUses = defUses
 
                   val diagnostics =
                     match diagnostics with
@@ -302,7 +314,6 @@ let js_codemirror_mode =
       |> start env
 
     method compile path input (on_result : _ Cb.t) =
-      let open Rea in
       input |> Js.to_string
       |> Parser.parse_utf_8 Grammar.program Lexer.plain
            ~path:(Js.to_string path)

@@ -68,9 +68,7 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 end
 
-let rec infer e = infer_base e >>= Typ.resolve >>= Typ.contract
-
-and infer_base = function
+let rec infer = function
   | `Const (at', c) -> Typ.check_and_norm (Const.type_of at' c)
   | `Var (at', x) -> (
     let* x_typ_opt = Env.find_opt x in
