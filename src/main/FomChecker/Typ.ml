@@ -369,7 +369,7 @@ let rec contract t =
       match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
   in
   match t with
-  | `Lam (_, i, _, _) -> (s |> TypSet.filter (fun t -> not (is_free i t)), u)
+  | `Lam (_, i, _, _) -> (s |> TypSet.filter (not <<< is_free i), u)
   | _ -> (s, u)
 
 and contract_base = function
