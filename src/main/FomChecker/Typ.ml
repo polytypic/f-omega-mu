@@ -521,17 +521,10 @@ let rec to_strict
     let* t = t in
     to_strict t
 
-let rec to_lazy = function
-  | `Mu (at, t) -> `Mu (at, to_lazy t)
-  | `Const _ as inn -> inn
-  | `Var _ as inn -> inn
-  | `Lam (at, i, k, t) -> `Lam (at, i, k, to_lazy t)
-  | `App (at, f, x) -> `App (at, to_lazy f, to_lazy x)
-  | `ForAll (at, t) -> `ForAll (at, to_lazy t)
-  | `Exists (at, t) -> `Exists (at, to_lazy t)
-  | `Arrow (at, d, c) -> `Arrow (at, to_lazy d, to_lazy c)
-  | `Product (at, ls) -> `Product (at, ls |> List.map @@ Pair.map Fun.id to_lazy)
-  | `Sum (at, ls) -> `Sum (at, ls |> List.map @@ Pair.map Fun.id to_lazy)
+let to_lazy e =
+  (e
+    : [ | ('a, 'k) FomAST.Typ.f] as 'a
+    :> [('b, 'k) FomAST.Typ.f | `Lazy of ('r, 'e, 'b) Rea.t Lazy.t] as 'b)
 
 let join_of_norm at g =
   let module GoalMap = Map.Make (Goal) in
