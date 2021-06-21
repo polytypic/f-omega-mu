@@ -256,4 +256,14 @@ let () =
     let type r = λt.x in
     let (《x\_》, _)= (《()\()》: ∃t.t, 101) in
     (λ_:r int.λ_:r string.(), 1).2
+     |eof};
+  testErrors "kind error with let type"
+    {eof|
+    let type Apply = λf:(_ → _) → _.λx.f x in
+    let type x = Apply (λx.x → int) int in ()
+    |eof};
+  testErrors "kind error with let type μ"
+    {eof|
+    let type Apply = λf:(_ → _) → _.λx.f x in
+    let type x = Apply (λx.x → int) int in ()
     |eof}
