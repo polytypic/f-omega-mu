@@ -164,9 +164,7 @@ let rec ground = function
 
 (* *)
 
-let rec infer t = infer_base t >>= Kind.resolve
-
-and infer_base = function
+let rec infer = function
   | `Mu (at', f) as typ ->
     let* f_kind = infer f in
     let kind = `Var (at', Kind.Id.fresh at') in
@@ -223,9 +221,7 @@ let infer_and_resolve t =
 
 (* *)
 
-let rec kind_of t = kind_of_base t >>= Kind.resolve
-
-and kind_of_base = function
+let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
@@ -245,10 +241,12 @@ and kind_of_base = function
     return @@ `Star at'
 
 and kind_of_cod checked_typ =
-  let+ f_kind = kind_of checked_typ in
+  let+ f_kind = kind_of checked_typ >>= Kind.resolve in
   match f_kind with
   | `Star _ | `Var (_, _) -> failwith "impossible"
   | `Arrow (_, _, c_kind) -> c_kind
+
+let kind_of t = kind_of t >>= Kind.resolve
 
 (* *)
 
