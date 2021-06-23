@@ -332,11 +332,11 @@ and elaborate_typ = function
   | `Mu (at', t) ->
     let+ t = elaborate_typ t in
     `Mu (at', t)
-  | `Const (at', c) -> return @@ `Const (at', c)
-  | `Var (at', i) -> (
+  | `Const (_, _) as inn -> return inn
+  | `Var (_, i) as inn -> (
     let* t_opt = TypAliases.find_opt i in
     match t_opt with
-    | None -> return @@ `Var (at', i)
+    | None -> return inn
     | Some t ->
       let t = Typ.freshen t in
       Annot.Typ.use i (Typ.at t) >> return t)
