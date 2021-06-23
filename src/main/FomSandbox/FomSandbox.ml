@@ -194,22 +194,25 @@ let js_codemirror_mode =
           |> Tuple.is_tuple
         then
           keys
-          |> List.map (Js.Unsafe.get obj >>> format)
+          |> List.map (Js.Unsafe.get obj >>> format ~atomize:false)
           |> separate comma_break_1 |> egyptian parens 2
         else
           keys
           |> List.map (fun key ->
                  utf8string (Js.to_string key)
                  ^^ space_equals_space
-                 ^^ format (Js.Unsafe.get obj key)
+                 ^^ format ~atomize:false (Js.Unsafe.get obj key)
                  |> group)
           |> separate comma_break_1 |> egyptian braces 2
-      and format_array array =
-        format_label (Js.Unsafe.get array 0)
-        ^^ space_equals_space
-        ^^ format (Js.Unsafe.get array 1)
-        |> egyptian brackets 2
-      and format value =
+      and format_array ~atomize array =
+        let label = format_label (Js.Unsafe.get array 0) in
+        let value = Js.Unsafe.get array 1 in
+        match Js.typeof value |> Js.to_string with
+        | "undefined" -> tick ^^ label
+        | _ ->
+          tick ^^ label ^^ space ^^ format ~atomize:true value
+          |> if atomize then egyptian parens 2 else Fun.id
+      and format ~atomize value =
         match JsHashtbl.find_opt known value with
         | None ->
           let n = JsHashtbl.length known + 1 in
@@ -219,7 +222,7 @@ let js_codemirror_mode =
             match Js.typeof value |> Js.to_string with
             | "object" | "undefined" ->
               if Js.instanceof value JsType.array' then
-                format_array value
+                format_array ~atomize value
               else if Js.instanceof value JsType.object' then
                 format_object value
               else
@@ -235,7 +238,7 @@ let js_codemirror_mode =
                 |> Js.to_string)
             | "function" ->
               if Js.instanceof value JsType.array' then
-                format_array value
+                format_array ~atomize value
               else if Js.instanceof value JsType.function' then
                 let name =
                   match
@@ -258,7 +261,7 @@ let js_codemirror_mode =
           used := true;
           utf8format "α_%d" n
       in
-      format value |> to_js_string ~max_width
+      format ~atomize:false value |> to_js_string ~max_width
 
     method check path input max_width (on_result : _ Cb.t) =
       let path = Js.to_string path in

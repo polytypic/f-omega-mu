@@ -50,9 +50,11 @@
 %token ParenLhs "("
 %token ParenRhs ")"
 %token Percent "%"
+%token Pipe "|"
 %token Plus "+"
 %token Slash "/"
 %token Star "*"
+%token Tick "'"
 %token TriangleLhs "◁"
 %token TriangleRhs "▷"
 %token Underscore "_"
@@ -123,6 +125,10 @@ lab_typ:
   | l=label":"t=typ                                     {(l, t)}
   | i=typ_rid                                           {(Typ.Id.to_label i, `Var ($loc, i))}
 
+tick_lab_typ:
+  | "'"l=label                                          {(l, Typ.product $loc [])}
+  | "'"l=label t=typ_atom                               {(l, t)}
+
 typ_rid:
   | i=Id                                                {Typ.Id.of_string $loc i}
 
@@ -141,7 +147,6 @@ typ_atom:
   | "string"                                            {`Const ($loc, `String)}
   | "("ts=list_n(typ,",")")"                            {Typ.tuple $loc ts}
   | "{"fs=lab_list(lab_typ)"}"                          {Typ.product $loc fs}
-  | "["cs=lab_list(lab_typ)"]"                          {Typ.sum $loc cs}
   | "μ""("t=typ")"                                      {`Mu ($loc, t)}
   | "∃""("t=typ")"                                      {`Exists ($loc, t)}
   | "∀""("t=typ")"                                      {`ForAll ($loc, t)}
@@ -159,6 +164,8 @@ typ_lam(head):
   | head b=typ_bind"."t=typ                             {`Lam ($loc, fst b, snd b, t)}
 
 typ:
+  | option("|") s=list_1(tick_lab_typ, "|")             {Typ.sum $loc s}
+  | "|"                                                 {Typ.sum $loc []}
   | t=typ_inf                                           {t}
   | t=typ_lam("μ")                                      {`Mu ($loc, t)}
   | t=typ_lam("∃")                                      {`Exists ($loc, t)}
@@ -204,18 +211,21 @@ exp_atom:
   | l=LitString                                         {`Const ($loc, `LitString l)}
   | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
   | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
-  | "["l=label"="e=exp"]"                               {`Inject ($loc, l, e)}
-  | e=exp_atom"."l=label                                {`Select ($loc, e, l)}
+  | e=exp_atom"."l=label                                {`Select ($loc, e, Exp.atom l)}
+  | e=exp_atom".""("i=exp")"                            {`Select ($loc, e, i)}
   | "target""["t=typ"]"c=LitString                      {`Target ($loc, t, c)}
   | "import"p=LitString                                 {`Import ($loc, p)}
 
 exp_app:
   | e=exp_atom                                          {e}
   | f=exp_app x=exp_atom                                {`App ($loc, f, x)}
+  | f=exp_app "'"l=label                                {`App ($loc, f, Exp.atom l)}
   | f=exp_app"["x=typ"]"                                {`Inst ($loc, f, x)}
   | "case"cs=exp_atom                                   {`Case ($loc, cs)}
 
 exp_inf:
+  | "'"l=label                                          {Exp.atom l}
+  | "'"l=label e=exp_atom                               {`Inject ($loc, l, e)}
   | e=exp_app                                           {e}
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
   | f=exp_inf"◁"x=exp_inf                               {`AppR ($loc, f, x)}
@@ -253,7 +263,6 @@ exp_in:
   | e=uop"_"                                            {e}
   | e=bop                                               {e}
   | e=exp_inf                                           {e}
-  | "["i=exp_rid"]"                                     {`Inject ($loc, Exp.Id.to_label i, `Var (Exp.Id.at i, i))}
 
 exp:
   | e=exp_in                                            {e}

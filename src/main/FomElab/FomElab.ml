@@ -268,12 +268,15 @@ let rec elaborate_pat p' e' = function
                Exp.Id.freshen (Exp.Id.of_name (Label.at l) (Label.name l))
              in
              `LetIn
-               (at, i, `Select (at, p', l), elaborate_pat (`Var (at, i)) e' p)
+               ( at,
+                 i,
+                 `Select (at, p', FomCST.Exp.atom l),
+                 elaborate_pat (`Var (at, i)) e' p )
            | l, `Ann _ ->
              `LetIn
                ( at,
                  Exp.Id.of_name (Label.at l) (Label.name l),
-                 `Select (at, p', l),
+                 `Select (at, p', FomCST.Exp.atom l),
                  e' ))
          e'
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
@@ -431,7 +434,7 @@ let rec elaborate = function
     let+ fs = fs |> MList.traverse @@ MPair.traverse return elaborate in
     `Product (at, fs)
   | `Select (at, e, l) ->
-    let+ e = elaborate e in
+    let+ e = elaborate e and+ l = elaborate l in
     `Select (at, e, l)
   | `Inject (at, l, e) ->
     let+ e = elaborate e in

@@ -14,17 +14,17 @@ let type HMap = λmap.λκ.{
 let《map\《κ\HMap》》=
   let type κ = λν.{to: ν → univ, of: univ → opt ν} in
   let type map = list univ in
-  let empty = [none = ()] in
+  let empty = 'None in
   let new_key = Univ.new in
   let μget:∀ν.κ ν → map → opt ν = Λν.λk:κ ν.case {
-    none = λ().[none = ()],
-    some = λ(u:univ, m:map).
+    None = λ().'None,
+    Some = λ(u:univ, m:map).
       k.of u ▷ case {
-        none = λ().get[ν] k m,
-        some = λv:ν.[some = v]
+        None = λ().get[ν] k m,
+        Some = λv:ν.'Some v
       }
   } in
-  let add = Λν.λk:κ ν.λv:ν.λm:map.[some = (k.to v, m)] in
+  let add = Λν.λk:κ ν.λv:ν.λm:map.'Some (k.to v, m) in
   《map\《κ\{empty, new_key, get, add}》: ∃(HMap map)》: ∃map.∃(HMap map)
   in
 

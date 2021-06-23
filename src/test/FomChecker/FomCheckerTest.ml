@@ -56,7 +56,7 @@ let test_not_equal_typs source1 source2 =
   >>- not >>= verify
 
 let () =
-  test_equal_typs "λt.μl.[nil:t,cons:l]" "μl.λt.[nil:t,cons:l t]";
+  test_equal_typs "λt.μl.'nil t | 'cons l" "μl.λt.'nil t | 'cons (l t)";
   test_equal_typs "λx.μxs.x→xs" "λy.y→(μys.y→y→ys)";
   test_equal_typs "λx.x" "λy.μys.y";
   test_equal_typs "∀x.x→x" "∀y.y→y";
@@ -137,32 +137,32 @@ let () =
     |eof};
   testInfersAs "hungry function" "(μt.int → t) → μt.int → t"
     "λf:μt.int → t.f 1 2 3";
-  testInfersAs "stack ADT" "μlist.[nil: {}, cons: {hd: int, tl: list}]"
+  testInfersAs "stack ADT" "μlist.'nil | 'cons {hd: int, tl: list}"
     {eof|
-    let type option = λv.[none: {}, some: v] in
-    let type list = λv.μlist.[nil: {}, cons: {hd: v, tl: list}] in
+    let type option = λv.'none | 'some v in
+    let type list = λv.μlist.'nil | 'cons {hd: v, tl: list} in
     let type Stack = ∃t.{
       empty: ∀v.t v,
       push: ∀v.v → t v → t v,
       pop: ∀v.t v → option {value: v, stack: t v}
     } in
     let《stack\S》 =《list\{
-      empty = Λv.[nil = {}] : list v,
-      push = Λv.λx:v.λxs:list v.[cons = {hd = x, tl = xs}] : list v,
+      empty = Λv.'nil : list v,
+      push = Λv.λx:v.λxs:list v.'cons {hd = x, tl = xs} : list v,
       pop = Λv.case {
         nil = λ_:{}.
-          [none = {}] : option {value: v, stack: list v},
+          'none : option {value: v, stack: list v},
         cons = λr:{hd: v, tl: list v}.
-          [some = {value = r.hd, stack = r.tl}] : option {value: v, stack: list v}
+          'some {value = r.hd, stack = r.tl} : option {value: v, stack: list v}
       }
     }》: Stack in
     let a_stack = S.push[int] 4 (S.push[int] 1 (S.push[int] 3 (S.empty[int]))) in
     let to_list = Λv.μto_list:stack v → list v.λs:stack v.
       S.pop[v] s ▷ case {
         none = λ_:{}.
-          [nil = {}] : list v,
+          'nil : list v,
         some = λr:{value: v, stack: stack v}.
-          [cons = {hd = r.value, tl = to_list r.stack}] : list v
+          'cons {hd = r.value, tl = to_list r.stack} : list v
       } in
     to_list[int] a_stack
     |eof};
@@ -172,22 +172,22 @@ let () =
     "let type t = int in 1 =[t] 2 || 3 !=[t] 4";
   testInfersAs "mutual rec" "()"
     {eof|
-    let type opt = λt.[none: (), some: t] in
+    let type opt = λt.'none | 'some t in
     let type μstream = λt.() → opt (t, stream t) in
     let μeven: int → stream int =
-      λx:int.λ().[some = (x, odd (x+1))]
+      λx:int.λ().'some (x, odd (x+1))
     and μodd: int → stream int =
-      λx:int.λ().[some = (x, even (x+1))]
+      λx:int.λ().'some (x, even (x+1))
     in ()
     |eof};
-  testInfersAs "unions" "{x: int, y: int} → [x: int, y: int]"
-    "if true then λ{x:int}.[x] else λ{y:int}.[y]";
-  testInfersAs "intersections" "[] → {}"
-    "if true then λx:[x:int].{x} else λy:[y:int].{y}";
+  testInfersAs "unions" "{x: int, y: int} → 'x int | 'y int"
+    "if true then λ{x:int}.'x x else λ{y:int}.'y y";
+  testInfersAs "intersections" "(|) → {}"
+    "if true then λx:'x int.{x} else λy:'y int.{y}";
   testInfersAs "trie" "()"
     {eof|
-    let type opt = λα.[none: (), some: α] in
-    let type alt = λα.λβ.[In1: α, In2: β] in
+    let type opt = λα.'none | 'some α in
+    let type alt = λα.λβ.'In1 α | 'In2 β in
     let type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
     and μCases = λρ.{
       Unit: ∀ν.                        opt ν → ρ ()          ν,
@@ -206,7 +206,7 @@ let () =
         },
       Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).λ(k1:κ1, k2:κ2).
         lookup[κ1][Trie κ2 ν] t k1 ▷ case {
-          none = λ().[none = ()],
+          none = λ().'none,
           some = λt:Trie κ2 ν.lookup[κ2][ν] t k2
         }
     } in

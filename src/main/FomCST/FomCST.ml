@@ -97,6 +97,10 @@ module Exp = struct
 
   let tuple at' = function [e] -> e | es -> `Product (at', Tuple.labels at es)
 
+  let atom l =
+    let at' = Label.at l in
+    `Inject (at', l, tuple at' [])
+
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
 end

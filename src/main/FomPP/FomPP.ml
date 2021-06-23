@@ -17,6 +17,8 @@ let logical_or = utf8string "∨"
 let mu_lower = utf8string "μ"
 let not_equal = utf8string "≠"
 let kappa_lower = utf8string "κ"
+let pipe = utf8string "|"
+let tick = utf8string "'"
 
 (* Bracketing  *)
 
@@ -59,6 +61,8 @@ let type' = utf8string "type"
 let break_0 = break 0
 let break_0_0 = break_0 ^^ break_0
 let break_1 = break 1
+let pipe_space = pipe ^^ space
+let break_1_pipe_space = break_1 ^^ pipe_space
 let comma_break_1 = comma ^^ break_1
 let let_space = let' ^^ space
 let space_arrow_right = space ^^ arrow_right

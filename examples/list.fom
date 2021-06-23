@@ -1,19 +1,19 @@
 # List using a recursive sum type
 
-let type opt = λα.[none: (), some: α] in
+let type opt = λα.'None | 'Some α in
 
 let type μlist = λα.opt (α, list α) in
 
-let infiniteOf = Λα.λx:α.μxs:μω.[some: (α, ω)].[some = (x, xs)] in
+let infiniteOf = Λα.λx:α.μxs:μω.'Some (α, ω).'Some (x, xs) in
 
 let μtakeN:∀α.int → list α → list α =
   Λα.λn:int.λxs:list α.
     if n ≤ 0 then
-      [none = ()]
+      'None
     else
       xs ▷ case {
-        none = λ().[none = ()],
-        some = λ(x:α, xs:list α).[some = (x, takeN[α] (n-1) xs)]
+        None = λ().'None,
+        Some = λ(x:α, xs:list α).'Some (x, takeN[α] (n-1) xs)
       } in
 
 takeN[string] 5 (infiniteOf[string] "Fωμ")

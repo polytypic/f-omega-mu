@@ -191,7 +191,7 @@ module Exp = struct
       | `Lam of Id.t * t
       | `Mu of t
       | `Product of (Label.t * t) list
-      | `Select of t * Label.t
+      | `Select of t * t
       | `Target of LitString.t
       | `Var of Id.t ]
 
@@ -218,8 +218,9 @@ module Exp = struct
       | `IfElse (cl, tl, el), `IfElse (cr, tr, er) ->
         compare cl cr <>? fun () ->
         compare tl tr <>? fun () -> compare el er
-      | `Select (el, ll), `Select (er, lr) | `Inject (ll, el), `Inject (lr, er)
-        ->
+      | `Select (el, ll), `Select (er, lr) ->
+        compare el er <>? fun () -> compare ll lr
+      | `Inject (ll, el), `Inject (lr, er) ->
         Label.compare ll lr <>? fun () -> compare el er
       | `Lam (vl, el), `Lam (vr, er) ->
         Id.compare vl vr <>? fun () -> compare el er
@@ -232,7 +233,7 @@ module Exp = struct
       | `Var l, `Var r -> Id.compare l r
       | _ -> index l - index r
 
-    let[@warning "-32"] rec pp = function
+    let[@warning "-32"] rec pp : t -> document = function
       | `App (f, x) -> [pp f; space; pp x] |> concat |> egyptian parens 2
       | `Case t -> [utf8string "case"; space; pp t] |> concat
       | `Const c ->
@@ -245,7 +246,7 @@ module Exp = struct
         ]
         |> concat |> egyptian parens 2
       | `Inject (l, t) ->
-        [Label.pp l; equals; pp t] |> concat |> egyptian brackets 2
+        [tick; Label.pp l; break_1; pp t] |> concat |> egyptian parens 2
       | `Lam (v, t) ->
         [lambda_lower; Id.pp v; dot; pp t] |> concat |> egyptian parens 2
       | `Mu t -> [mu_lower; pp t |> egyptian parens 2] |> concat
@@ -253,7 +254,7 @@ module Exp = struct
         ls
         |> List.map (fun (l, t) -> [Label.pp l; equals; pp t] |> concat)
         |> separate comma_break_1 |> egyptian braces 2
-      | `Select (t, l) -> [pp t; dot; Label.pp l] |> concat
+      | `Select (t, l) -> [pp t; dot; pp l |> egyptian parens 2] |> concat
       | `Target s ->
         [utf8string "target"; space; LitString.to_utf8_json s |> utf8string]
         |> concat |> egyptian parens 2
@@ -316,7 +317,7 @@ module Exp = struct
     | `Mu (_, e) -> `Mu (erase e)
     | `IfElse (_, c, t, e) -> `IfElse (erase c, erase t, erase e)
     | `Product (_, fs) -> `Product (fs |> List.map (Pair.map Fun.id erase))
-    | `Select (_, e, l) -> `Select (erase e, l)
+    | `Select (_, e, l) -> `Select (erase e, erase l)
     | `Inject (_, l, e) -> `Inject (l, erase e)
     | `Case (_, cs) -> `Case (erase cs)
     | `Gen (_, _, _, e) | `Inst (_, e, _) | `Pack (_, _, e, _) -> erase e
@@ -332,7 +333,7 @@ module Exp = struct
     | `Mu e -> fn (`Mu (bottomUp fn e))
     | `Lam (i, e) -> fn (`Lam (i, bottomUp fn e))
     | `Inject (l, e) -> fn (`Inject (l, bottomUp fn e))
-    | `Select (e, l) -> fn (`Select (bottomUp fn e, l))
+    | `Select (e, l) -> fn (`Select (bottomUp fn e, bottomUp fn l))
     | `Case cs -> fn (`Case (bottomUp fn cs))
 
   let size =
@@ -341,7 +342,8 @@ module Exp = struct
     | `App (f, x) -> f + x + 1
     | `IfElse (c, t, e) -> c + t + e + 1
     | `Product fs -> fs |> List.fold_left (fun s (_, e) -> s + e) 1
-    | `Mu e | `Lam (_, e) | `Inject (_, e) | `Select (e, _) -> e + 1
+    | `Mu e | `Lam (_, e) | `Inject (_, e) -> e + 1
+    | `Select (e, l) -> e + l + 1
     | `Case cs -> cs + 1
 
   let rec is_free i' = function
@@ -351,7 +353,8 @@ module Exp = struct
     | `App (f, x) -> is_free i' f || is_free i' x
     | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
     | `Product fs -> fs |> List.exists (snd >>> is_free i')
-    | `Mu e | `Select (e, _) | `Inject (_, e) | `Case e -> is_free i' e
+    | `Mu e | `Inject (_, e) | `Case e -> is_free i' e
+    | `Select (e, l) -> is_free i' e || is_free i' l
 
   let rec subst i the inn =
     match inn with
@@ -370,7 +373,7 @@ module Exp = struct
     | `Mu e -> `Mu (subst i the e)
     | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
     | `Product fs -> `Product (fs |> List.map (Pair.map Fun.id (subst i the)))
-    | `Select (e, l) -> `Select (subst i the e, l)
+    | `Select (e, l) -> `Select (subst i the e, subst i the l)
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case cs -> `Case (subst i the cs)
 
@@ -391,7 +394,8 @@ module Exp = struct
         | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
         | `Product fs -> fs |> MList.for_all (fun (_, e) -> is_total e)
         | `Mu (`Lam (i, e)) -> is_total e |> Env.adding i e
-        | `Select (e, _) | `Inject (_, e) -> is_total e
+        | `Select (e, l) -> is_total e &&& is_total l
+        | `Inject (_, e) -> is_total e
         | `App (`Var f, x) -> (
           let* f_opt = Env.find_opt f in
           match f_opt with
@@ -561,10 +565,10 @@ module Exp = struct
       let+ fs = fs |> MList.traverse @@ MPair.traverse return simplify in
       `Product fs
     | `Select (e, l) -> (
-      let* e = simplify e in
+      let* e = simplify e and* l = simplify l in
       let default () = return @@ `Select (e, l) in
-      match e with
-      | `Product fs ->
+      match (e, l) with
+      | `Product fs, `Inject (l, _) ->
         let* fs_are_total =
           fs
           |> List.filter (fst >>> Label.equal l >>> not)
@@ -682,9 +686,12 @@ module Exp = struct
       parens
       @@ (fs |> List.fold_left (fun es e -> es ^ e ^ str ", ") (str "{"))
       ^ str "}"
-    | `Select (e, l) ->
+    | `Select (e, `Inject (l, _)) ->
       let+ e = to_js_expr e in
       e ^ Label.to_js_select l
+    | `Select (e, l) ->
+      let+ e = to_js_expr e and+ l = to_js_expr l in
+      e ^ str "[" ^ l ^ str "[0]]"
     | `Inject (l, e) ->
       let+ e = to_js_expr e in
       str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"

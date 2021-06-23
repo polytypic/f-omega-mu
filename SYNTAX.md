@@ -15,7 +15,7 @@ typ
   | typ '→' typ                                                // Function type
   | '(' (typ ',')* ')'                                         // Tuple type
   | '{' (label (':' typ)? ',')* '}'                            // Product type
-  | '[' (label (':' typ)? ',')* ']'                            // Sum type
+  | '|' | ('|' "'" label typ?)+                                // Sum type
   | typ typ                                                    // Apply type level function
   | 'λ' tid (':' kind)? '.' typ                                // Type level function
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
@@ -39,8 +39,8 @@ exp
   | (int | 'true' | 'false' | string)                          // Literals
   | '(' (exp ',')* '}'                                         // Tuple introduction
   | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
-  | exp '.' label                                              // Product elimination
-  | '[' label ('=' exp)? ']'                                   // Sum introduction
+  | exp '.' (label | '(' exp ')')                              // Product elimination
+  | "'" label exp?                                             // Sum introduction
   | 'case' exp                                                 // Sum elimination (*2)
   | '<<' typ '\\' exp '>>' ':' typ                             // Existential packing
   | exp exp                                                    // Apply function

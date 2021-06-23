@@ -202,7 +202,7 @@ module Exp : sig
     | `Mu of Loc.t * 'e
     | `IfElse of Loc.t * 'e * 'e * 'e
     | `Product of Loc.t * (Label.t * 'e) list
-    | `Select of Loc.t * 'e * Label.t
+    | `Select of Loc.t * 'e * 'e
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't

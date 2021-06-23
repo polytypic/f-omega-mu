@@ -554,6 +554,7 @@ module Typ = struct
   let prec_min = 0
   let prec_arrow = 1
   let prec_app = 2
+  let prec_max = 3
 
   (* *)
 
@@ -562,7 +563,7 @@ module Typ = struct
   let rec hanging = function
     | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
       some_spaces
-    | `Product _ | `Sum _ -> some_spaces
+    | `Product _ -> some_spaces
     | `App _ as t -> (
       match unapp t with `Var _, [x] -> hanging x | _ -> None)
     | _ -> None
@@ -594,6 +595,21 @@ module Typ = struct
            | None -> break_1 ^^ pp pp_annot prec_min typ |> nest 2 |> group))
     |> separate comma_break_1
 
+  and ticked pp_annot labels =
+    match
+      labels
+      |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
+      |> List.map @@ function
+         | l, `Product (_, []) -> tick ^^ Label.pp l
+         | l, t ->
+           tick ^^ Label.pp l ^^ break_1 ^^ pp pp_annot prec_max t
+           |> nest 2 |> group
+    with
+    | [l] -> l
+    | [] -> pipe
+    | ls ->
+      ls |> separate break_1_pipe_space |> precede (ifflat empty pipe_space)
+
   and tuple pp_annot labels =
     labels |> List.map (snd >>> pp pp_annot prec_min) |> separate comma_break_1
 
@@ -618,7 +634,9 @@ module Typ = struct
         tuple pp_annot labels |> egyptian parens 2
       else
         labeled pp_annot labels |> egyptian braces 2
-    | `Sum (_, labels) -> labeled pp_annot labels |> egyptian brackets 2
+    | `Sum (_, labels) ->
+      ticked pp_annot labels
+      |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
     | `App (_, _, _) -> (
       match unapp typ with
       | f, xs ->
@@ -798,7 +816,7 @@ module Exp = struct
     | `Mu of Loc.t * 'e
     | `IfElse of Loc.t * 'e * 'e * 'e
     | `Product of Loc.t * (Label.t * 'e) list
-    | `Select of Loc.t * 'e * Label.t
+    | `Select of Loc.t * 'e * 'e
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't

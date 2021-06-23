@@ -8,20 +8,20 @@ let μfold:∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
       μfold:μ(φ) → α.λv:μ(φ).algebra (F.map[μ(φ)][α] fold v) in
 
 # Option type
-let type Opt = λα.[None: (), Some: α] in
+let type Opt = λα.'None | 'Some α in
 
 # List type
 let type ListF = λα.λτ.Opt (α, τ) in
 let type List = λα.μ(ListF α) in
 let ListF = Λτ.{
   map = Λα.Λβ.λf:α → β.case {
-      None = λ().[None = ()],
-      Some = λ(x:τ, xs:α).[Some = (x, f xs)]
+      None = λ().'None,
+      Some = λ(x:τ, xs:α).'Some (x, f xs)
     }
 } in
 
 let List =
-  let one = Λα.λx:α.[Some = (x, [None = ()])] in
+  let one = Λα.λx:α.'Some (x, 'None) in
   let μhas:∀α.(α → bool) → List α → bool = Λα.λp:α → bool.case {
       None = λ().false,
       Some = λ(x:α, xs:List α).p x ∨ has[α] p xs
@@ -31,11 +31,11 @@ let List =
         None = λ().r,
         Some = λ(x:α, r:ρ).rxr r x
       } in
-  let rev_to = Λα.fold[List α][α] (λxs:List α.λx:α.[Some = (x, xs)]) in
-  let rev = Λα.rev_to[α] [None = ()] in
+  let rev_to = Λα.fold[List α][α] (λxs:List α.λx:α.'Some (x, xs)) in
+  let rev = Λα.rev_to[α] 'None in
   let filter = Λα.λp:α → bool.λxs:List α.
     xs
-    ▷ fold[List α][α] (λxs:List α.λx:α.if p x then [Some = (x, xs)] else xs) [None = ()]
+    ▷ fold[List α][α] (λxs:List α.λx:α.if p x then 'Some (x, xs) else xs) 'None
     ▷ rev[α] in
   let concat = Λα.λxs:List α.λys:List α.rev[α] xs ▷ rev_to[α] ys in
   {one, has, fold, rev, filter, concat} in
@@ -53,7 +53,7 @@ let type Set = λelem.λset.{
 let Set = {
   make = Λelem.λeq:elem → elem → bool.
     let type set = List elem in
-    let empty = [None = ()] in
+    let empty = 'None in
     let singleton = List.one[elem] in
     let remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y) in
     let union = λl:set.λr:set.
@@ -63,12 +63,12 @@ let Set = {
 } in
 
 # Term type
-let type TermBase = λρ.λσ.λτ.[
-  Lit: {val: int},
-  Var: {id: ρ},
-  Abs: {var: string, exp: σ},
-  App: {fn: τ, arg: σ}
-] in
+let type TermBase = λρ.λσ.λτ.
+  | 'Lit {val: int}
+  | 'Var {id: ρ}
+  | 'Abs {var: string, exp: σ}
+  | 'App {fn: τ, arg: σ}
+in
 let type TermF = λτ.TermBase string τ τ in
 let type Term = μ(TermF) in
 let type EvalCtx = TermBase string Term in
@@ -76,10 +76,10 @@ let type VarTerm = λτ.TermBase τ Term Term in
 
 let TermF = {
   map = Λα.Λβ.λab:α → β.case {
-    Lit = λ{val:int}.[Lit = {val}],
-    Var = λ{id:string}.[Var = {id}],
-    Abs = λ{var:string, exp:α}.[Abs = {var, exp = ab exp}],
-    App = λ{fn:α, arg:α}.[App = {fn = ab fn, arg = ab arg}]
+    Lit = λ{val:int}.'Lit {val},
+    Var = λ{id:string}.'Var {id},
+    Abs = λ{var:string, exp:α}.'Abs {var, exp = ab exp},
+    App = λ{fn:α, arg:α}.'App {fn = ab fn, arg = ab arg}
   }
 } in
 
@@ -96,16 +96,13 @@ let fv =
   } in
 
 # Using `fv`
-[
-  App = {
-    fn = [
-      Abs = {
-        var = "x",
-        exp = [App = {fn = [Var = {id = "F"}], arg = [Var = {id = "x"}]}]
-      }
-    ],
-    arg = [Var = {id = "y"}]
-  }
-]
+'App {
+  fn =
+    'Abs {
+      var = "x",
+      exp = 'App {fn = 'Var {id = "F"}, arg = 'Var {id = "x"}}
+    },
+  arg = 'Var {id = "y"}
+}
 ▷ fv
 ▷ Ids.to_list

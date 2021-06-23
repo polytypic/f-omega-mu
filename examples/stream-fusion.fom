@@ -12,55 +12,55 @@ let List = import "lib/list" in
 
 # Non recursive existential stream type
 let《stream\Stream》=
-  let type step = λα.λs.[done: (), yield: (α, s), skip: s] in
+  let type step = λα.λs.'Done | 'Yield (α, s) | 'Skip s in
   let type stream = λα.∃s.(s, s → step α s) in
   let of_list = Λα.λxs:list α.《list α\(
     xs,
     case {
-      none = λ().[done = ()],
-      some = λc:(α, list α).[yield = c]
+      None = λ().'Done,
+      Some = λc:(α, list α).'Yield c
     }
   )》: stream α in
   let to_list = Λα.λ《s\(xs, next)》:stream α.
     let to_list = μto_list:s → list α.λxs:s.
       next xs ▷ case {
-        done = λ().[none = ()],
-        yield = λ(hd: α, tl: s).[some = (hd, to_list tl)],
-        skip = to_list
+        Done = λ().'None,
+        Yield = λ(hd: α, tl: s).'Some (hd, to_list tl),
+        Skip = to_list
       } in
     to_list xs in
   let map = Λα.Λβ.λfn:α → β.λ《s\(xs, next)》:stream α.《s\(
       xs,
       λxs:s.
         next xs ▷ case {
-          done = λ().[done = ()],
-          yield = λ(hd: α, tl: s).[yield = (fn hd, tl)],
-          skip = λskip:s.[skip]
+          Done = λ().'Done,
+          Yield = λ(hd: α, tl: s).'Yield (fn hd, tl),
+          Skip = λs:s.'Skip s
         }
     )》: stream β in
   let filter = Λα.λp:α → bool.λ《s\(xs, next)》:stream α.《s\(
       xs,
       λxs:s.
         next xs ▷ case {
-          done = λ().[done = ()],
-          yield = λ(hd: α, tl: s).
-            if p hd then [yield = (hd, tl)] else [skip = tl],
-          skip = λskip:s.[skip]
+          Done = λ().'Done,
+          Yield = λ(hd: α, tl: s).
+            if p hd then 'Yield (hd, tl) else 'Skip tl,
+          Skip = λs:s.'Skip s
         }
     )》: stream α in
   let append = Λα.λ《s1\(xs1, next1)》:stream α.λ《s2\(xs2, next2)》:stream α.
-    let type s = [S1: s1, S2: s2] in《s\(
-      [S1 = xs1],
+    let type s = 'S1 s1 | 'S2 s2 in《s\(
+      'S1 xs1,
       case {
         S1 = λs1:s1.next1 s1 ▷ case {
-          done = λ().[skip = [S2 = xs2]],
-          yield = λ(hd: α, tl: s1).[yield = (hd, [S1 = tl])],
-          skip = λs1:s1.[skip = [S1 = s1]]
+          Done = λ().'Skip ('S2 xs2),
+          Yield = λ(hd: α, tl: s1).'Yield (hd, 'S1 tl),
+          Skip = λs1:s1.'Skip ('S1 s1)
         },
         S2 = λs2:s2.next2 s2 ▷ case {
-          done = λ().[done = ()],
-          yield = λ(hd: α, tl: s2).[yield = (hd, [S2 = tl])],
-          skip = λs2:s2.[skip = [S2 = s2]]
+          Done = λ().'Done,
+          Yield = λ(hd: α, tl: s2).'Yield (hd, 'S2 tl),
+          Skip = λs2:s2.'Skip ('S2 s2)
         }
       }
     )》: stream α in

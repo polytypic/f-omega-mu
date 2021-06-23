@@ -66,6 +66,7 @@ let rec token_or_comment buffer =
   let return = return_from buffer in
   match%sedlex buffer with
   | "%" -> return Percent
+  | "'" -> return Tick
   | "(" -> return ParenLhs
   | ")" -> return ParenRhs
   | "*" -> return Star
@@ -82,6 +83,7 @@ let rec token_or_comment buffer =
   | "\\" -> return Backslash
   | "]" -> return BracketRhs
   | "{" -> return BraceLhs
+  | "|" -> return Pipe
   | "}" -> return BraceRhs
   (* *)
   | "_" -> return Underscore
@@ -194,7 +196,7 @@ let token_info_utf_8 input =
       | ForAll -> tag
       | Greater -> operator
       | GreaterEqual -> operator
-      | Id _ -> variable
+      | Id s -> variable
       | IdSub _ -> variable
       | If -> keyword
       | Import -> keyword
@@ -218,12 +220,14 @@ let token_info_utf_8 input =
       | ParenLhs -> punctuation
       | ParenRhs -> punctuation
       | Percent -> operator
+      | Pipe -> punctuation
       | Plus -> operator
       | Slash -> operator
       | Star -> operator
       | String -> builtin
       | Target -> keyword
       | Then -> keyword
+      | Tick -> punctuation
       | TriangleLhs -> punctuation
       | TriangleRhs -> punctuation
       | Type -> keyword

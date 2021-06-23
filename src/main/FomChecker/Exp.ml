@@ -49,6 +49,18 @@ module Typ = struct
     | `Sum (_, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "[_]", typ)
 
+  let check_unit at typ =
+    let* ls = check_product at typ in
+    match ls with
+    | [] -> unit
+    | _ -> fail @@ `Error_typ_unexpected (at, "()", typ)
+
+  let check_atom at typ =
+    let* ls = check_sum at typ in
+    match ls with
+    | [] -> fail @@ `Error_typ_unexpected (at, "[]", typ)
+    | ls -> ls |> MList.iter (snd >>> check_unit at) >> return (List.map fst ls)
+
   let check_for_all at typ =
     match unfold_of_norm typ with
     | `ForAll (_, f_con) -> (
@@ -111,15 +123,28 @@ let rec infer = function
   | `Product (at', fs) ->
     let+ fs = fs |> MList.traverse @@ MPair.traverse return infer in
     Typ.product at' fs
-  | `Select (_, p, l) -> (
-    let* p_typ = infer p in
+  | `Select (at', p, i) ->
+    let* p_typ = infer p and* i_typ = infer i in
     let* ls = Typ.check_product (at p) p_typ in
-    match ls |> List.find_opt (fst >>> Label.equal l) with
-    | Some (l', l_typ) ->
-      Annot.Label.def l' l_typ
-      >> Annot.Label.use l (Label.at l')
-      >> return l_typ
-    | None -> fail @@ `Error_product_lacks (at p, p_typ, l))
+    let* ks = Typ.check_atom (at i) i_typ in
+    let rec select t_opt ls ks =
+      match (ls, ks) with
+      | (l, _) :: ls, k :: _ when Label.compare l k < 0 -> select t_opt ls ks
+      | (l, _) :: _, k :: _ when 0 < Label.compare l k ->
+        fail @@ `Error_product_lacks (at', p_typ, k)
+      | (l, t) :: ls, k :: ks ->
+        Annot.Label.def l t
+        >> Annot.Label.use k (Label.at l)
+        >> let* t_opt =
+             match t_opt with
+             | None -> return @@ Some t
+             | Some t' -> Typ.join_of_norm at' (t, t') >>- fun t -> Some t
+           in
+           select t_opt ls ks
+      | [], k :: _ -> fail @@ `Error_product_lacks (at', p_typ, k)
+      | _, [] -> return @@ Option.get t_opt
+    in
+    select None ls ks
   | `Inject (at', l, e) ->
     let+ e_typ = infer e in
     Typ.sum at' [(l, e_typ)]

@@ -32,7 +32,7 @@ needs to be rewritten as
 
 Both of the above types are allowed by this generalized system and are also
 considered equivalent as shown in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAA6AbVzt3gAuEAAoAlABoQUOgFshIdgF0QEXCTIhKNEFmhwQIFoB7gPbE4dODOCPZSzcdmNXrN22g4D6ARiNsupvo+VoyidrpB3s5qGvBwdABmng6GfoDZwFysAB6CKYZcWS6kcfRJXr4sGRY55YqchTHFcPgAFvD4ANbpmQ7CKT2RfZF1RIYiicn63MoRsD5SE+XTKg7R6kSt7R1AA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAA6AcgDk7ctAD4huAZToBbWuxARcJMiEo0QWaHBAgWgHuB1sTh04M4ACnYAaNRpDsAlHIVKVtfTAD6ARm1suejV7GjCDmVm5eDvKK8HB0AGbublo+gNnAXKwAHgBcSVpcGY6kMfQJ4d4saYbZZbacBVFFcPgAFvD4ANap6W5Z1rC1rGW9NVxEWqbxiRoA2uwAun0enlaTZbMLbpEKRC1t7UA).
 
 In this generalized system, nested types are not allowed. For example,
 

@@ -83,6 +83,8 @@ CodeMirror.defineMode('fom', () => ({
       stream.start += token.begins
       stream.pos += token.ends
     }
+    if (token.name === 'variable' && stream.string[stream.start - 1] === "'")
+      return 'property'
     return token.name
   },
 }))
