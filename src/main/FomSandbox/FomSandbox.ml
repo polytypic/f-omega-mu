@@ -178,6 +178,13 @@ let js_codemirror_mode =
   object%js
     method format (value : unit Js.t) max_width =
       let known = JsHashtbl.create 100 in
+      let format_label value =
+        match Js.typeof value |> Js.to_string with
+        | "number" ->
+          let float = Js.Unsafe.coerce value |> Js.float_of_number in
+          utf8format "%.16g" float
+        | _ -> utf8string @@ Js.to_string value
+      in
       let rec format_object obj =
         let keys = Js.object_keys obj |> Js.to_array |> Array.to_list in
         if
@@ -198,7 +205,7 @@ let js_codemirror_mode =
                  |> group)
           |> separate comma_break_1 |> egyptian braces 2
       and format_array array =
-        utf8string (Js.to_string (Js.Unsafe.get array 0))
+        format_label (Js.Unsafe.get array 0)
         ^^ space_equals_space
         ^^ format (Js.Unsafe.get array 1)
         |> egyptian brackets 2
