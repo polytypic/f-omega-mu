@@ -25,7 +25,7 @@ let triangle_lhs = [%sedlex.regexp? 0x25c1 (* ◁ *)]
 let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
 let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
 let whitespace = [%sedlex.regexp? Plus (Chars " \t\n\r")]
-let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star '0' .. '9']
+let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star (Opt '_', Plus '0' .. '9')]
 
 (* *)
 
@@ -119,7 +119,12 @@ let rec token_or_comment buffer =
   | triangle_lhs | "<|" -> return TriangleLhs
   | triangle_rhs | "|>" -> return TriangleRhs
   (* *)
-  | nat_10 -> return (LitNat (Buffer.lexeme_utf_8 buffer |> Bigint.of_string))
+  | nat_10 ->
+    return
+      (LitNat
+         (Buffer.lexeme_utf_8 buffer |> String.to_seq
+         |> Seq.filter (( <> ) '_')
+         |> String.of_seq |> Bigint.of_string))
   (* *)
   | string ->
     return
