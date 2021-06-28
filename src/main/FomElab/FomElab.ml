@@ -78,6 +78,15 @@ end
 module TypAliases = struct
   include FomAST.Typ.Env
 
+  let empty =
+    let at = Loc.of_path "prelude" in
+    [
+      (Typ.Id.of_string Loc.dummy "bool", `Const (at, `Bool));
+      (Typ.Id.of_string Loc.dummy "int", `Const (at, `Int));
+      (Typ.Id.of_string Loc.dummy "string", `Const (at, `String));
+    ]
+    |> List.to_seq |> of_seq
+
   type nonrec t = FomAST.Typ.t t
 
   let field r = r#typ_aliases

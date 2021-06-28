@@ -88,7 +88,6 @@ let rec token_or_comment buffer =
   (* *)
   | "_" -> return Underscore
   | "and" -> return And
-  | "bool" -> return Bool
   | "case" -> return Case
   | "else" -> return Else
   | "exists" | exists -> return Exists
@@ -98,9 +97,7 @@ let rec token_or_comment buffer =
   | "import" -> return Import
   | "in" -> return In
   | "include" -> return Include
-  | "int" -> return Int
   | "let" -> return Let
-  | "string" -> return String
   | "target" -> return Target
   | "then" -> return Then
   | "true" -> return lit_true
@@ -177,7 +174,6 @@ let token_info_utf_8 input =
       | And -> keyword
       | ArrowRight -> operator
       | Backslash -> punctuation
-      | Bool -> builtin
       | BraceLhs -> punctuation
       | BraceRhs -> punctuation
       | BracketLhs -> punctuation
@@ -196,13 +192,13 @@ let token_info_utf_8 input =
       | ForAll -> tag
       | Greater -> operator
       | GreaterEqual -> operator
-      | Id s -> variable
+      | Id ("bool" | "int" | "string") -> builtin
+      | Id _ -> variable
       | IdSub _ -> variable
       | If -> keyword
       | Import -> keyword
       | In -> keyword
       | Include -> keyword
-      | Int -> builtin
       | LambdaLower -> tag
       | LambdaUpper -> tag
       | Less -> operator
@@ -224,7 +220,6 @@ let token_info_utf_8 input =
       | Plus -> operator
       | Slash -> operator
       | Star -> operator
-      | String -> builtin
       | Target -> keyword
       | Then -> keyword
       | Tick -> punctuation

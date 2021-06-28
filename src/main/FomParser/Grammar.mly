@@ -7,16 +7,13 @@
 %token <string> Comment
 
 %token And "and"
-%token Bool "bool"
 %token Case "case"
 %token Else "else"
 %token If "if"
 %token Import "import"
 %token In "in"
 %token Include "include"
-%token Int "int"
 %token Let "let"
-%token String "string"
 %token Target "target"
 %token Then "then"
 %token Type "type"
@@ -142,9 +139,6 @@ typ_bind:
 
 typ_atom:
   | i=typ_rid                                           {`Var ($loc, i)}
-  | "int"                                               {`Const ($loc, `Int)}
-  | "bool"                                              {`Const ($loc, `Bool)}
-  | "string"                                            {`Const ($loc, `String)}
   | "("ts=list_n(typ,",")")"                            {Typ.tuple $loc ts}
   | "{"fs=lab_list(lab_typ)"}"                          {Typ.product $loc fs}
   | "μ""("t=typ")"                                      {`Mu ($loc, t)}
