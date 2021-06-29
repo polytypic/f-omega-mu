@@ -1,5 +1,7 @@
 let type opt = λα.'None | 'Some α in
 
+let type res = λω.λα.'Error ω | 'Ok α in
+
 let type μlist = λα.opt (α, list α) in
 let type μlist_of_1 = λα.'Some (α, 'None) in
 let type μlist_of_1_to_n = λα.'Some (α, list α) in
