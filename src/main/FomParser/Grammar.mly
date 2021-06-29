@@ -91,7 +91,7 @@ list_n(elem, sep):
 kind_atom:
   | "_"                                                 {Kind.fresh $loc}
   | "*"                                                 {`Star $loc}
-  | "("k=kind ")"                                       {k}
+  | "("k=kind")"                                        {k}
 
 kind:
   | k=kind_atom                                         {k}

@@ -47,7 +47,7 @@ module Typ = struct
   let check_sum at typ =
     match unfold_of_norm typ with
     | `Sum (_, ls) -> return ls
-    | _ -> fail @@ `Error_typ_unexpected (at, "[_]", typ)
+    | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
   let check_unit at typ =
     let* ls = check_product at typ in
@@ -58,7 +58,7 @@ module Typ = struct
   let check_atom at typ =
     let* ls = check_sum at typ in
     match ls with
-    | [] -> fail @@ `Error_typ_unexpected (at, "[]", typ)
+    | [] -> fail @@ `Error_typ_unexpected (at, "'_", typ)
     | ls -> ls |> MList.iter (snd >>> check_unit at) >> return (List.map fst ls)
 
   let check_for_all at typ =
