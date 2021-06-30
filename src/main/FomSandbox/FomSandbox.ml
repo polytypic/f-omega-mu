@@ -134,8 +134,8 @@ let js_use_def ?(max_width = 60) (def, o) =
     val def = js_loc def
 
     val uses =
-      o#uses.contents |> Annot.LocSet.elements |> List.map js_loc
-      |> Array.of_list |> Js.array
+      o#uses |> Annot.LocSet.elements |> List.map js_loc |> Array.of_list
+      |> Js.array
 
     val annot = annot
   end
@@ -267,7 +267,8 @@ let js_codemirror_mode =
       let path = Js.to_string path in
       let env = Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports () in
       let def_uses () =
-        env#annotations |> Hashtbl.to_seq |> List.of_seq
+        !(Field.get Annot.field env)
+        |> Annot.LocMap.bindings
         |> MList.traverse (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in

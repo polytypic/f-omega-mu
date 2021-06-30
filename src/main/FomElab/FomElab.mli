@@ -106,7 +106,7 @@ end
 
 val elaborate_typ :
   FomCST.Typ.t ->
-  ( (< annotations : Annot.t
+  ( (< annotations : (Annot.t, 'r) Field.t
      ; fetch : Fetch.t
      ; import_chain : (ImportChain.t, 'r) Field.t
      ; kind_env : (Kind.Env.t, 'r) Field.t
@@ -124,7 +124,7 @@ val elaborate_typ :
 
 val elaborate :
   FomCST.Exp.t ->
-  ( (< annotations : Annot.t
+  ( (< annotations : (Annot.t, 'r) Field.t
      ; fetch : Fetch.t
      ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; import_chain : (ImportChain.t, 'r) Field.t

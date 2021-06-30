@@ -8,78 +8,81 @@ open Rea
 
 module Annot = struct
   module LocSet = Set.Make (Loc)
+  module LocMap = Map.Make (Loc)
 
   type t =
-    ( Loc.t,
-      < annot :
-          [ `Label of Label.t * Typ.t
-          | `ExpId of Exp.Id.t * Typ.t
-          | `TypId of Typ.Id.t * Kind.t ]
-      ; def : Loc.t
-      ; uses : LocSet.t ref > )
-    Hashtbl.t
+    < annot :
+        [ `Label of Label.t * Typ.t
+        | `ExpId of Exp.Id.t * Typ.t
+        | `TypId of Typ.Id.t * Kind.t ]
+    ; def : Loc.t
+    ; uses : LocSet.t >
+    LocMap.t
+    ref
 
-  let field r = r#annotations
+  let field r : (t, _) Field.t = r#annotations
 
   class con (annotations : t) =
     object
-      method annotations = annotations
+      val annotations = annotations
+      method annotations = Field.make annotations (fun v -> {<annotations = v>})
     end
 
-  let empty () = Hashtbl.create ~random:true 1000
+  let empty () = ref LocMap.empty
+
+  let new_def def annot =
+    object
+      method def = def
+      method annot = annot
+      method uses = LocSet.empty
+    end
+
+  let add_use use o =
+    let annot = o#annot and def = o#def and uses = LocSet.add use o#uses in
+    object
+      method def = def
+      method annot = annot
+      method uses = uses
+    end
 
   module Label = struct
     open Label
 
     let def id typ =
-      let+ annot = env_as field in
+      let+ annot = get field in
       let at = at id in
       if
         (not (is_fresh id))
         && (not (is_numeric id))
-        && not (Hashtbl.mem annot at)
+        && not (LocMap.mem at !annot)
       then
-        let uses = ref LocSet.empty in
-        Hashtbl.replace annot at
-          (object
-             method def = at
-             method annot = `Label (id, typ)
-             method uses = uses
-          end)
+        annot := LocMap.add at (new_def at @@ `Label (id, typ)) !annot
 
     let use id def =
-      let+ annot = env_as field in
+      let+ annot = get field in
       let at = at id in
       if (not (is_fresh id)) && not (is_numeric id) then
-        let o = Hashtbl.find annot def in
-        o#uses := LocSet.add at o#uses.contents
+        annot := LocMap.update def (Option.map (add_use at)) !annot
   end
 
   module Exp = struct
     open Exp.Id
 
     let def id typ =
-      let+ annot = env_as field in
+      let+ annot = get field in
       let at = at id in
       if
         (not (is_fresh id))
         && (not (is_numeric id))
-        && not (Hashtbl.mem annot at)
+        && not (LocMap.mem at !annot)
       then
-        let uses = ref LocSet.empty in
-        Hashtbl.replace annot at
-          (object
-             method def = at
-             method annot = `ExpId (id, typ)
-             method uses = uses
-          end)
+        annot := LocMap.add at (new_def at @@ `ExpId (id, typ)) !annot
 
     let use id def =
-      let+ annot = env_as field in
+      let+ annot = get field in
       let at = at id in
       if (not (is_fresh id)) && not (is_numeric id) then
-        let o = Hashtbl.find annot def in
-        o#uses := LocSet.add at o#uses.contents
+        annot := LocMap.update def (Option.map (add_use at)) !annot
   end
 
   module Typ = struct
@@ -95,35 +98,30 @@ module Annot = struct
       end
 
     let resolve resolve_kind =
-      let* annot = env_as field in
-      annot |> Hashtbl.to_seq |> List.of_seq
-      |> MList.iter @@ fun (at, v) ->
-         match v#annot with
-         | `TypId (id, kind) ->
-           let+ kind = resolve_kind kind in
-           Hashtbl.replace annot at @@ with_annot v @@ `TypId (id, kind)
-         | _ -> unit
+      let* annot = get field in
+      !annot |> LocMap.bindings
+      |> MList.traverse (fun (at, v) ->
+             match v#annot with
+             | `TypId (id, kind) ->
+               let+ kind = resolve_kind kind in
+               (at, with_annot v @@ `TypId (id, kind))
+             | _ -> return (at, v))
+      >>- (List.to_seq >>> LocMap.of_seq >>> ( := ) annot)
 
     let def id kind =
-      let+ annot = env_as field in
+      let+ annot = get field in
       let at = at id in
-      if not (Hashtbl.mem annot at) then
-        let uses = ref LocSet.empty in
-        Hashtbl.replace annot at
-          (object
-             method def = at
-             method annot = `TypId (id, kind)
-             method uses = uses
-          end)
+      if not (LocMap.mem at !annot) then
+        annot := LocMap.add at (new_def at @@ `TypId (id, kind)) !annot
 
     let use' id def annot =
       let at = at id in
-      match Hashtbl.find_opt annot def with
+      match LocMap.find_opt def !annot with
       | None -> ()
-      | Some o -> o#uses := LocSet.add at o#uses.contents
+      | Some o -> annot := LocMap.update def (Option.map (add_use at)) !annot
 
     let use id def =
-      let+ annot = env_as field in
+      let+ annot = get field in
       use' id def annot
   end
 end
