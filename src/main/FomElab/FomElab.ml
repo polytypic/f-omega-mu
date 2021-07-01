@@ -123,7 +123,10 @@ module Error = struct
 end
 
 module TypIncludes = struct
-  type t = (string, (Error.t, FomAST.Typ.t FomAST.Typ.Env.t) IVar.t) Hashtbl.t
+  type t =
+    ( string,
+      (Error.t, FomAST.Typ.t FomAST.Typ.Env.t * Annot.map) IVar.t )
+    Hashtbl.t
 
   let create () = Hashtbl.create 100
   let field r = r#typ_includes
@@ -199,16 +202,17 @@ end
 module Parameters = struct
   include PathSet
 
-  type nonrec t = t ref
+  type nonrec t = t MVar.t
 
+  let empty () = MVar.create empty
   let field r : (t, _) Field.t = r#parameters
-  let resetting op = setting field (ref empty) op
+  let resetting op = setting field (empty ()) op
 
   let add filename =
-    let+ ps = get field in
-    ps := add filename !ps
+    let* ps = get field in
+    MVar.mutate ps (add filename)
 
-  let get () = get field >>- (( ! ) >>> elements)
+  let get () = get field >>= MVar.get >>- elements
 
   let taking_in ast =
     let* imports = env_as ExpImports.field in
@@ -230,7 +234,7 @@ module Parameters = struct
 
   class con =
     object
-      val parameters : t = ref empty
+      val parameters : t = empty ()
       method parameters = Field.make parameters (fun v -> {<parameters = v>})
     end
 end
@@ -240,6 +244,7 @@ module Elab = struct
     op
     |> TypAliases.setting TypAliases.empty
     |> Typ.Env.resetting |> Kind.Env.resetting |> Parameters.resetting
+    |> Annot.scoping
 end
 
 (* *)
@@ -320,7 +325,7 @@ let rec elaborate_def = function
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
     let inc_path = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
-    let* env =
+    let* env, newer =
       (ImportChain.with_path at' inc_path
       <<< TypIncludes.get_or_put inc_path
       <<< Elab.modularly)
@@ -329,16 +334,13 @@ let rec elaborate_def = function
            >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
            >>= elaborate_defs
          in
-         Annot.Typ.resolve Kind.resolve >> return env)
+         Annot.Typ.resolve Kind.resolve
+         >> let+ annot = get Annot.field >>= MVar.get in
+            (env, annot))
     in
-    get_as TypAliases.field
-    @@ TypAliases.merge
-         (fun _ l r ->
-           match (l, r) with
-           | Some l, _ -> Some l
-           | _, Some r -> Some r
-           | _, _ -> None)
-         env
+    let* annot = get Annot.field in
+    MVar.mutate annot (Annot.LocMap.merge MapExt.prefer_lhs newer)
+    >> get_as TypAliases.field @@ TypAliases.merge MapExt.prefer_lhs env
 
 and elaborate_typ = function
   | `Mu (at', t) ->

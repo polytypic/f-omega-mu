@@ -267,9 +267,8 @@ let js_codemirror_mode =
       let path = Js.to_string path in
       let env = Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports () in
       let def_uses () =
-        !(Field.get Annot.field env)
-        |> Annot.LocMap.bindings
-        |> MList.traverse (js_use_def ~max_width)
+        Field.get Annot.field env |> MVar.get >>- Annot.LocMap.bindings
+        >>= MList.traverse (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in
       Js.to_string input

@@ -47,6 +47,11 @@ module ListExt : sig
   val share_phys_eq : 'a bop -> 'a list bop
 end
 
+module MapExt : sig
+  val prefer_lhs : 'k -> 'v option -> 'v option -> 'v option
+  val prefer_rhs : 'k -> 'v option -> 'v option -> 'v option
+end
+
 module Monad : sig
   module type Monad = sig
     type (-'I, 'T, +'O, +'a) m
@@ -246,7 +251,17 @@ module IVar : sig
 
   val empty : unit -> ('e, 'a) t
   val get : ('e, 'a) t -> ('r, 'e, 'a) Rea.t
-  val put : ('e, 'a) t -> [`Ok of 'a | `Error of 'e] -> ('r, 'f, unit) Rea.t
+  val put : ('e, 'a) t -> ('e, 'a) Res.t -> ('r, 'f, unit) Rea.t
+end
+
+module MVar : sig
+  type 'v t
+
+  val create : 'v -> 'v t
+  val get : 'v t -> ('r, 'e, 'v) Rea.t
+  val mutate : 'v t -> ('v -> 'v) -> ('r, 'e, unit) Rea.t
+  val try_mutate : 'v t -> ('v -> ('r, 'e, 'v) Rea.t) -> ('r, 'e, unit) Rea.t
+  val try_modify : 'v t -> ('v -> ('r, 'e, 'v * 'a) Rea.t) -> ('r, 'e, 'a) Rea.t
 end
 
 module StringExt : sig

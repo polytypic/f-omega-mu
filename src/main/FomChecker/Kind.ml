@@ -7,22 +7,23 @@ open Rea
 module Env = struct
   include Env
 
-  type nonrec t = FomAST.Kind.t t ref
+  type nonrec t = FomAST.Kind.t t MVar.t
 
+  let empty () = MVar.create empty
   let field r = r#kind_env
-  let resetting op = setting field (ref empty) op
+  let resetting op = setting field (empty ()) op
 
   let find_opt i =
-    let* env = get field in
-    return @@ Env.find_opt i !env
+    let+ env = get field >>= MVar.get in
+    Env.find_opt i env
 
   let add i k =
-    let+ env = get field in
-    env := Env.add i k !env
+    let* env = get field in
+    MVar.mutate env @@ Env.add i k
 
   class con =
     object
-      val kind_env : t = ref empty
+      val kind_env : t = empty ()
       method kind_env = Field.make kind_env (fun v -> {<kind_env = v>})
     end
 end

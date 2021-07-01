@@ -10,7 +10,7 @@ module Annot = struct
   module LocSet = Set.Make (Loc)
   module LocMap = Map.Make (Loc)
 
-  type t =
+  type map =
     < annot :
         [ `Label of Label.t * Typ.t
         | `ExpId of Exp.Id.t * Typ.t
@@ -18,17 +18,25 @@ module Annot = struct
     ; def : Loc.t
     ; uses : LocSet.t >
     LocMap.t
-    ref
+
+  type t = map MVar.t
 
   let field r : (t, _) Field.t = r#annotations
+  let empty () = MVar.create LocMap.empty
+
+  let scoping op =
+    let* current = get field in
+    setting field (empty ())
+      ( op >>= fun result ->
+        let* newer = get field >>= MVar.get in
+        MVar.mutate current (LocMap.merge MapExt.prefer_lhs newer)
+        >> return result )
 
   class con (annotations : t) =
     object
       val annotations = annotations
       method annotations = Field.make annotations (fun v -> {<annotations = v>})
     end
-
-  let empty () = ref LocMap.empty
 
   let new_def def annot =
     object
@@ -49,40 +57,52 @@ module Annot = struct
     open Label
 
     let def id typ =
-      let+ annot = get field in
+      let* annot = get field in
+      MVar.mutate annot @@ fun annot ->
       let at = at id in
       if
         (not (is_fresh id))
         && (not (is_numeric id))
-        && not (LocMap.mem at !annot)
+        && not (LocMap.mem at annot)
       then
-        annot := LocMap.add at (new_def at @@ `Label (id, typ)) !annot
+        LocMap.add at (new_def at @@ `Label (id, typ)) annot
+      else
+        annot
 
     let use id def =
-      let+ annot = get field in
+      let* annot = get field in
+      MVar.mutate annot @@ fun annot ->
       let at = at id in
       if (not (is_fresh id)) && not (is_numeric id) then
-        annot := LocMap.update def (Option.map (add_use at)) !annot
+        LocMap.update def (Option.map (add_use at)) annot
+      else
+        annot
   end
 
   module Exp = struct
     open Exp.Id
 
     let def id typ =
-      let+ annot = get field in
+      let* annot = get field in
+      MVar.mutate annot @@ fun annot ->
       let at = at id in
       if
         (not (is_fresh id))
         && (not (is_numeric id))
-        && not (LocMap.mem at !annot)
+        && not (LocMap.mem at annot)
       then
-        annot := LocMap.add at (new_def at @@ `ExpId (id, typ)) !annot
+        LocMap.add at (new_def at @@ `ExpId (id, typ)) annot
+      else
+        annot
 
     let use id def =
-      let+ annot = get field in
+      let* annot = get field in
+      MVar.mutate annot @@ fun annot ->
       let at = at id in
       if (not (is_fresh id)) && not (is_numeric id) then
-        annot := LocMap.update def (Option.map (add_use at)) !annot
+        LocMap.update def (Option.map (add_use at)) annot
+      else
+        annot
   end
 
   module Typ = struct
@@ -99,29 +119,31 @@ module Annot = struct
 
     let resolve resolve_kind =
       let* annot = get field in
-      !annot |> LocMap.bindings
+      MVar.try_mutate annot @@ fun annot ->
+      annot |> LocMap.bindings
       |> MList.traverse (fun (at, v) ->
              match v#annot with
              | `TypId (id, kind) ->
                let+ kind = resolve_kind kind in
                (at, with_annot v @@ `TypId (id, kind))
              | _ -> return (at, v))
-      >>- (List.to_seq >>> LocMap.of_seq >>> ( := ) annot)
+      >>- (List.to_seq >>> LocMap.of_seq)
 
     let def id kind =
-      let+ annot = get field in
+      let* annot = get field in
+      MVar.mutate annot @@ fun annot ->
       let at = at id in
-      if not (LocMap.mem at !annot) then
-        annot := LocMap.add at (new_def at @@ `TypId (id, kind)) !annot
-
-    let use' id def annot =
-      let at = at id in
-      match LocMap.find_opt def !annot with
-      | None -> ()
-      | Some o -> annot := LocMap.update def (Option.map (add_use at)) !annot
+      if not (LocMap.mem at annot) then
+        LocMap.add at (new_def at @@ `TypId (id, kind)) annot
+      else
+        annot
 
     let use id def =
-      let+ annot = get field in
-      use' id def annot
+      let* annot = get field in
+      MVar.mutate annot @@ fun annot ->
+      let at = at id in
+      match LocMap.find_opt def annot with
+      | None -> annot
+      | Some o -> LocMap.update def (Option.map (add_use at)) annot
   end
 end
