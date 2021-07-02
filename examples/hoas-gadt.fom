@@ -32,12 +32,12 @@ let μeval:∀α.Expr α → α = match[λα.α] {
 
 let Fact = Fix[int][int] (
   Lam[int → int][int → int] (λf:Expr (int → int). Lam[int][int] (λx:Expr int.
-    If[int] (Bin[int][int][bool] (λx:int.λy:int.x =[int] y) x (Val[int] 0))
+    If[int] (Bin[int][int][bool] (=[int]) x (Val[int] 0))
       (Val[int] 1)
-      (Bin[int][int][int] (λx:int.λy:int.x*y)
+      (Bin[int][int][int] (*)
         x
         (App[int][int] f (
-          Bin[int][int][int] (λx:int.λy:int.x-y)
+          Bin[int][int][int] (-)
             x
             (Val[int] 1))))))) in
 
