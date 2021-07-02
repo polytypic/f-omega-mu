@@ -12,8 +12,8 @@ let List = import "lib/list" in
 
 # Non recursive existential stream type
 let《stream\Stream》=
-  let type step = λα.λs.'Done | 'Yield (α, s) | 'Skip s in
-  let type stream = λα.∃s.(s, s → step α s) in
+  type step = λα.λs.'Done | 'Yield (α, s) | 'Skip s in
+  type stream = λα.∃s.(s, s → step α s) in
   let of_list = Λα.λxs:list α.《list α\(
     xs,
     case {
@@ -49,7 +49,7 @@ let《stream\Stream》=
         }
     )》: stream α in
   let append = Λα.λ《s1\(xs1, next1)》:stream α.λ《s2\(xs2, next2)》:stream α.
-    let type s = 'S1 s1 | 'S2 s2 in《s\(
+    type s = 'S1 s1 | 'S2 s2 in《s\(
       'S1 xs1,
       case {
         S1 = λs1:s1.next1 s1 ▷ case {

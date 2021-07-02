@@ -1,8 +1,8 @@
 # List using a recursive sum type
 
-let type opt = λα.'None | 'Some α in
+type opt = λα.'None | 'Some α in
 
-let type μlist = λα.opt (α, list α) in
+type μlist = λα.opt (α, list α) in
 
 let infiniteOf = Λα.λx:α.μxs:μω.'Some (α, ω).'Some (x, xs) in
 

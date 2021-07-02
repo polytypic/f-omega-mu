@@ -1,5 +1,5 @@
 include "types" in
 
-let type Univ = λuniv.{
+type Univ = λuniv.{
   new: ∀α.() → {to: α → univ, of: univ → opt α}
 }

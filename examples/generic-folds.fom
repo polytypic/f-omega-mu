@@ -1,6 +1,6 @@
 # Generic `fold`s
 
-let type Functor = λφ.{map: ∀α.∀β.(α → β) → (φ α → φ β)} in
+type Functor = λφ.{map: ∀α.∀β.(α → β) → (φ α → φ β)} in
 
 let μfold:∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
   Λφ.Λα.λF:Functor φ.
@@ -8,11 +8,11 @@ let μfold:∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
       μfold:μ(φ) → α.λv:μ(φ).algebra (F.map[μ(φ)][α] fold v) in
 
 # Option type
-let type Opt = λα.'None | 'Some α in
+type Opt = λα.'None | 'Some α in
 
 # List type
-let type ListF = λα.λτ.Opt (α, τ) in
-let type List = λα.μ(ListF α) in
+type ListF = λα.λτ.Opt (α, τ) in
+type List = λα.μ(ListF α) in
 let ListF = Λτ.{
   map = Λα.Λβ.λf:α → β.case {
       None = λ().'None,
@@ -41,7 +41,7 @@ let List =
   {one, has, fold, rev, filter, concat} in
 
 # Set ADT
-let type Set = λelem.λset.{
+type Set = λelem.λset.{
   empty: set,
   singleton: elem → set,
   remove: elem → set → set,
@@ -52,7 +52,7 @@ let type Set = λelem.λset.{
 # Naïve Set implementation
 let Set = {
   make = Λelem.λeq:elem → elem → bool.
-    let type set = List elem in
+    type set = List elem in
     let empty = 'None in
     let singleton = List.one[elem] in
     let remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y) in
@@ -63,16 +63,16 @@ let Set = {
 } in
 
 # Term type
-let type TermBase = λρ.λσ.λτ.
+type TermBase = λρ.λσ.λτ.
   | 'Lit {val: int}
   | 'Var {id: ρ}
   | 'Abs {var: string, exp: σ}
   | 'App {fn: τ, arg: σ}
 in
-let type TermF = λτ.TermBase string τ τ in
-let type Term = μ(TermF) in
-let type EvalCtx = TermBase string Term in
-let type VarTerm = λτ.TermBase τ Term Term in
+type TermF = λτ.TermBase string τ τ in
+type Term = μ(TermF) in
+type EvalCtx = TermBase string Term in
+type VarTerm = λτ.TermBase τ Term Term in
 
 let TermF = {
   map = Λα.Λβ.λab:α → β.case {

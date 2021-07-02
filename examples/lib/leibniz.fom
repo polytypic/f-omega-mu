@@ -1,6 +1,6 @@
 include "eq" in
 
-let type Leibniz = λα.λβ.∀φ.φ α → φ β in
+type Leibniz = λα.λβ.∀φ.φ α → φ β in
 
 let refl = Λα.Λφ.λx:φ α.x in
 let symm = Λα.Λβ.λab:Leibniz α β.Λφ.ab[λβ.φ β → φ α] (λx:φ α.x) in

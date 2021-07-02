@@ -110,7 +110,7 @@ let () =
     |eof};
   testInfersAs "list encoding" "int"
     {eof|
-    let type list = λt.μlist.∀r.{nil: r, cons: t → list → r} → r in
+    type list = λt.μlist.∀r.{nil: r, cons: t → list → r} → r in
     let nil = Λt.Λr.λc:{nil: r, cons: t → list t → r}.c.nil in
     let cons = Λt.λhd:t.λtl:list t.Λr.λc:{nil: r, cons: t → list t → r}.c.cons hd tl in
     let fold = Λt.Λr.μfold:(t → r → r) → r → list t → r.λfn:t → r → r.λz:r.λxs:list t.
@@ -121,7 +121,7 @@ let () =
   testInfersAs "generic fold"
     {eof|∀f.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|eof}
     {eof|
-    let type Functor = λf.∀a.∀b.(a → b) → (f a → f b) in
+    type Functor = λf.∀a.∀b.(a → b) → (f a → f b) in
     Λf.λfmap: Functor f.
       Λa.λalgebra: f a → a.
         μdoFold: μ(f) → a.
@@ -130,7 +130,7 @@ let () =
     |eof};
   testInfersAs "existential silly" "∃t.{an: t, do: t → t}"
     {eof|
-    let type doan = ∃t.{do: t → t, an: t} in
+    type doan = ∃t.{do: t → t, an: t} in
     let x =《int\{do = λx:int.x+1, an = 1}》: doan in
     let《t\r》= x in
     《t\{do = r.do, an = r.do r.an}》: doan
@@ -139,9 +139,9 @@ let () =
     "λf:μt.int → t.f 1 2 3";
   testInfersAs "stack ADT" "μlist.'nil | 'cons {hd: int, tl: list}"
     {eof|
-    let type option = λv.'none | 'some v in
-    let type list = λv.μlist.'nil | 'cons {hd: v, tl: list} in
-    let type Stack = ∃t.{
+    type option = λv.'none | 'some v in
+    type list = λv.μlist.'nil | 'cons {hd: v, tl: list} in
+    type Stack = ∃t.{
       empty: ∀v.t v,
       push: ∀v.v → t v → t v,
       pop: ∀v.t v → option {value: v, stack: t v}
@@ -167,13 +167,12 @@ let () =
     to_list[int] a_stack
     |eof};
   testInfersAs "target" "string"
-    "let type str = string in target[str] \"'a string'\"";
-  testInfersAs "let type in const" "bool"
-    "let type t = int in 1 =[t] 2 || 3 !=[t] 4";
+    "type str = string in target[str] \"'a string'\"";
+  testInfersAs "type in const" "bool" "type t = int in 1 =[t] 2 || 3 !=[t] 4";
   testInfersAs "mutual rec" "()"
     {eof|
-    let type opt = λt.'none | 'some t in
-    let type μstream = λt.() → opt (t, stream t) in
+    type opt = λt.'none | 'some t in
+    type μstream = λt.() → opt (t, stream t) in
     let μeven: int → stream int =
       λx:int.λ().'some (x, odd (x+1))
     and μodd: int → stream int =
@@ -186,9 +185,9 @@ let () =
     "if true then λx:'x int.{x} else λy:'y int.{y}";
   testInfersAs "trie" "()"
     {eof|
-    let type opt = λα.'none | 'some α in
-    let type alt = λα.λβ.'In1 α | 'In2 β in
-    let type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
+    type opt = λα.'none | 'some α in
+    type alt = λα.λβ.'In1 α | 'In2 β in
+    type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
     and μCases = λρ.{
       Unit: ∀ν.                        opt ν → ρ ()          ν,
       Alt : ∀ν.∀κ1.∀κ2.Trie κ1 ν → Trie κ2 ν → ρ (alt κ1 κ2) ν,
@@ -214,7 +213,7 @@ let () =
     |eof};
   testInfersAs "fix via μ type" "int"
     {eof|
-    let type t = λa.λb.μt.t → a → b in
+    type t = λa.λb.μt.t → a → b in
     let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) (λx:t a b.λn:a.f (x x) n) in
     let fact = λfact:int → int.λn:int.if n =[int] 0 then 1 else n*fact (n-1) in
     fix[int][int] fact 5
@@ -240,30 +239,30 @@ let testErrors name exp =
 let () =
   testErrors "non contractive case"
     {eof|
-    let type μnon_contractive = λt.non_contractive t in
+    type μnon_contractive = λt.non_contractive t in
     λx:non_contractive int.x ▷ case {}
     |eof};
   testErrors "free variable in def and Λ"
-    "let type def = λt.x in Λx.λ_:def int.λ_:def string.()";
+    "type def = λt.x in Λx.λ_:def int.λ_:def string.()";
   testErrors "free variable in def and 《》"
     {eof|
-    let type r = λt.x in
+    type r = λt.x in
     let《x\_》= 《()\()》: ∃t.t in
     (λ_:r int.λ_:r string.(), 1).2
     |eof};
   testErrors "free variable in def and 《》 inside pattern"
     {eof|
-    let type r = λt.x in
+    type r = λt.x in
     let (《x\_》, _)= (《()\()》: ∃t.t, 101) in
     (λ_:r int.λ_:r string.(), 1).2
      |eof};
-  testErrors "kind error with let type"
+  testErrors "kind error with type"
     {eof|
-    let type Apply = λf:(_ → _) → _.λx.f x in
-    let type x = Apply (λx.x → int) int in ()
+    type Apply = λf:(_ → _) → _.λx.f x in
+    type x = Apply (λx.x → int) int in ()
     |eof};
-  testErrors "kind error with let type μ"
+  testErrors "kind error with type μ"
     {eof|
-    let type Apply = λf:(_ → _) → _.λx.f x in
-    let type x = Apply (λx.x → int) int in ()
+    type Apply = λf:(_ → _) → _.λx.f x in
+    type x = Apply (λx.x → int) int in ()
     |eof}

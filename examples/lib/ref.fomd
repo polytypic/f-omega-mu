@@ -1,4 +1,4 @@
-let type Ref = λref.{
+type Ref = λref.{
   ref: ∀α.α → ref α,
   get: ∀α.ref α → α,
   set: ∀α.ref α → α → ()

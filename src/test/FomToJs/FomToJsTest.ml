@@ -24,7 +24,7 @@ let () =
   testCompiles "fix via μ type unapplied"
     {eof|
     let Z = Λa.Λb.
-      let type μt = t → a → b in
+      type μt = t → a → b in
       λf:(a → b) → a → b.(λg:t.g g) (λx:t.λn:a.f (x x) n) in
     let fact = Z[int][int] (λfact:int → int.
       λn:int.if n ≤ 0 then 1 else n*fact(n-1)) in
@@ -33,7 +33,7 @@ let () =
   testCompiles "fix via μ type applied"
     {eof|
     let Z = Λa.Λb.
-      let type μt = t → a → b in
+      type μt = t → a → b in
       λf:(a → b) → a → b.(λg:t.g g) (λx:t.λn:a.f (x x) n) in
     let fact = Z[int][int] (λfact:int → int.
       λn:int.if n ≤ 0 then 1 else n*fact(n-1)) in

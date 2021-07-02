@@ -32,7 +32,7 @@ needs to be rewritten as
 
 Both of the above types are allowed by this generalized system and are also
 considered equivalent as shown in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoInOGATwAd4QB7KuAXhEG7gQRuAA6AcgDk7ctAD4huAZToBbWuxARcJMiEo0QWaHBAgWgHuB1sTh04M4ACnYAaNRpDsAlHIVKVtfTAD6ARm1suejV7GjCDmVm5eDvKK8HB0AGbublo+gNnAXKwAHgBcSVpcGY6kMfQJ4d4saYbZZbacBVFFcPgAFvD4ANap6W5Z1rC1rGW9NVxEWqbxiRoA2uwAun0enlaTZbMLbpEKRC1t7UA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoImATwAd4QB7CuAXhEG7gQRuAA6AcgDkbdqAPiE4BlGgFtqrEBFwlyVEFmhwQIJoB7gZbHZt2dOAApWAGiUqQrAJQy5C6tpgB9AIzqWHLStf76IY2aOrjayJDhwNABmTo5q7oDZwBzMAB4AXLFqHMm2ROG00UFuTIm6aYWW7NmhufBw+AAW8PgA1glJjqnmsBXMhZ3lHERqhlExKgDarAC6Xc4uZqOFkzOOIXJEDU3NQA).
 
 In this generalized system, nested types are not allowed. For example,
 
@@ -41,7 +41,7 @@ In this generalized system, nested types are not allowed. For example,
 ```
 
 is disallowed due to the argument `(α, α)` as demonstrated in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOsiGEGLQwHuAA7aORAXhCBu4ECNwADoAFCIA0IHrAQgpskQEpVIIlwYTVQA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOmLQwHuAA7aORAXhEG7gQI3AAOgAUAgDQgOsBCDGSBASkUgibBiMVA).
 
 Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type

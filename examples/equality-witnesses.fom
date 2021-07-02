@@ -1,9 +1,9 @@
 # First-class type equality witnesses
 
-let type Leibniz = λα.λβ.∀φ.φ α → φ β in
-let type Fold = λα.λβ.∀φ.(∀γ.φ γ γ) → φ α β in
+type Leibniz = λα.λβ.∀φ.φ α → φ β in
+type Fold = λα.λβ.∀φ.(∀γ.φ γ γ) → φ α β in
 
-let type Eq = λeq.{
+type Eq = λeq.{
   ofFold: ∀α.∀β.Fold α β → eq α β,
   ofLeibniz: ∀α.∀β.Leibniz α β → eq α β,
   refl: ∀α.eq α α,

@@ -1,6 +1,6 @@
 # Encoding of a HOAS GADT
 
-let type μExpr = λα.∀ρ.Cases ρ → ρ α
+type μExpr = λα.∀ρ.Cases ρ → ρ α
 
 and μCases = λρ.{
   Val: ∀α.                                  α → ρ α,

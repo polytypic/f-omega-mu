@@ -1,6 +1,6 @@
 include "ref" in
 
-let type ref = λα.∃ref.ref α in
+type ref = λα.∃ref.ref α in
 
 let ref = target[∀α.α → ref α] "x => [x]" in
 let get = target[∀α.ref α → α] "r => r[0]" in

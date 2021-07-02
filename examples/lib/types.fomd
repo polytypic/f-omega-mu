@@ -1,15 +1,15 @@
-let type opt = λα.'None | 'Some α in
+type opt = λα.'None | 'Some α in
 
-let type res = λω.λα.'Error ω | 'Ok α in
+type res = λω.λα.'Error ω | 'Ok α in
 
-let type μlist = λα.opt (α, list α) in
-let type μlist_of_1 = λα.'Some (α, 'None) in
-let type μlist_of_1_to_n = λα.'Some (α, list α) in
-let type μlist_of_inf = λα.'Some (α, list_of_inf α) in
+type μlist = λα.opt (α, list α) in
+type μlist_of_1 = λα.'Some (α, 'None) in
+type μlist_of_1_to_n = λα.'Some (α, list α) in
+type μlist_of_inf = λα.'Some (α, list_of_inf α) in
 
-let type alt = λα.λβ.'In1 α | 'In2 β in
+type alt = λα.λβ.'In1 α | 'In2 β in
 
-let type iso = λα.λβ.(α → β, β → α) in
+type iso = λα.λβ.(α → β, β → α) in
 
-let type any = ∃α.α in
-let type nothing = ∀α.α
+type any = ∃α.α in
+type nothing = ∀α.α

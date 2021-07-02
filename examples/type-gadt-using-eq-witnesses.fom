@@ -4,7 +4,7 @@ include "lib/types" in
 
 let《eq\Eq》= import "lib/leibniz" in
 
-let type μType = λτ.
+type μType = λτ.
   | 'Bool (Bool τ)
   | 'Int (Int τ)
   | 'String (String τ)

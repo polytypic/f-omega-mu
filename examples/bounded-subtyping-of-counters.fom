@@ -3,13 +3,13 @@
 # Similarly to TAPL, section 32.4, an object has state `τ` and methods
 # operating on said state `M τ`:
 
-let type Object = λM.λτ.(τ, M τ) in
+type Object = λM.λτ.(τ, M τ) in
 
 # The methods form the interface to the object.  For example, counter
 # objects can be incremented and the current value can be fetched as
 # an integer:
 
-let type CounterM = λτ.{
+type CounterM = λτ.{
   inc: τ → τ,
   get: τ → int
 } in
@@ -30,7 +30,7 @@ let aCounter =《int\(0, CounterClass)》: ∃(Object CounterM) in
 # reset and that keeps track of how many times the counter has been
 # reset:
 
-let type ResetCounterM = λτ.{
+type ResetCounterM = λτ.{
   inc: τ → τ,
   get: τ → int,
   reset: τ → τ,

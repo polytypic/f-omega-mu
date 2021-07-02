@@ -21,8 +21,8 @@ typ
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
   | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
-  | 'let' 'type' tid (':' kind)? '=' typ 'in' typ              // Type binding (*4)
-  | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' typ // Recursive type bindings (*4)
+  | 'type' tid (':' kind)? '=' typ 'in' typ                    // Type binding (*4)
+  | 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' typ       // Recursive type bindings (*4)
   | 'include' string 'in' typ                                  // Include type definitions
   | 'import' string                                            // Import type
 
@@ -48,8 +48,8 @@ exp
   | exp '▷' exp                                                // (L) Apply backward (*3)
   | uop exp                                                    // Apply unary operator
   | exp bop exp                                                // Apply binary operator
-  | 'let' 'type' tid (':' kind)? '=' typ 'in' exp              // Type binding (*4)
-  | 'let' 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp // Recursive type bindings (*4)
+  | 'type' tid (':' kind)? '=' typ 'in' exp                    // Type binding (*4)
+  | 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp       // Recursive type bindings (*4)
   | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*5)
   | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*5)
   | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)

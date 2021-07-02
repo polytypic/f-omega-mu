@@ -2,7 +2,7 @@
 
 include "lib/types" in
 
-let type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
+type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
 
 and μCases = λρ.{
   Unit: ∀ν.                        opt ν → ρ ()          ν,

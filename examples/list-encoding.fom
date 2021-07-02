@@ -1,6 +1,6 @@
 # Recursive `list` type encoding and `fold` function
 
-let type μlist = λt.∀r.{nil: r, cons: t → list t → r} → r in
+type μlist = λt.∀r.{nil: r, cons: t → list t → r} → r in
 
 let nil = Λt.Λr.λc:{nil: r, cons: t → list t → r}.c.nil in
 let cons = Λt.λhd:t.λtl:list t.Λr.λc:{nil: r, cons: t → list t → r}.c.cons hd tl in

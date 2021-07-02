@@ -4,7 +4,7 @@ include "lib/types" in
 
 let《univ\Univ》= import "lib/univ" in
 
-let type HMap = λmap.λκ.{
+type HMap = λmap.λκ.{
   empty: map,
   new_key: ∀ν.() → κ ν,
   get: ∀ν.κ ν → map → opt ν,
@@ -12,8 +12,8 @@ let type HMap = λmap.λκ.{
 } in
 
 let《map\《κ\HMap》》=
-  let type κ = λν.{to: ν → univ, of: univ → opt ν} in
-  let type map = list univ in
+  type κ = λν.{to: ν → univ, of: univ → opt ν} in
+  type map = list univ in
   let empty = 'None in
   let new_key = Univ.new in
   let μget:∀ν.κ ν → map → opt ν = Λν.λk:κ ν.case {

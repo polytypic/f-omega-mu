@@ -5,7 +5,7 @@
 #   On Understanding Data Abstraction, Revisited
 #   by William R. Cook.
 
-let type μISet = {
+type μISet = {
   isEmpty: bool,
   contains: int → bool,
   insert: int → ISet,

@@ -109,8 +109,8 @@ lab_list(item):
 //
 
 typ_def:
-  | "let""type"b=typ_bind"="t=typ                       {`Typ ($loc, fst b, snd b, t)}
-  | "let""type"bs=list_1(typ_mu_def, "and")             {`TypRec ($loc, bs)}
+  | "type"b=typ_bind"="t=typ                            {`Typ ($loc, fst b, snd b, t)}
+  | "type"bs=list_1(typ_mu_def, "and")                  {`TypRec ($loc, bs)}
   | "include"p=LitString                                {`Include ($loc, p)}
 
 typ_mu_def:

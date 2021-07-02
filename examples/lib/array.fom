@@ -1,6 +1,6 @@
 include "array" in
 
-let type array = λα.∃array.array α in
+type array = λα.∃array.array α in
 
 let tabulate = target[∀α.(int → α) → int → array α]
   "fn => n => {const a = new Array(n); for (let i=0; i<n; ++i) a[i] = fn(i); return a}" in

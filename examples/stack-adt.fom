@@ -2,7 +2,7 @@
 
 include "lib/types" in
 
-let type Stack = λstack.{
+type Stack = λstack.{
   empty: ∀α.stack α,
   push: ∀α.α → stack α → stack α,
   pop: ∀α.stack α → opt (α, stack α)
