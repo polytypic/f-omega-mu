@@ -331,7 +331,7 @@ let rec elaborate_def = function
       <<< Elab.modularly)
         (let* env =
            Fetch.fetch at' inc_path
-           >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.plain ~path:inc_path
+           >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
            >>= elaborate_defs
          in
          Annot.Typ.resolve Kind.resolve
@@ -385,7 +385,7 @@ and elaborate_typ = function
     <<< TypImports.get_or_put sig_path
     <<< Elab.modularly)
       (Fetch.fetch at' sig_path
-      >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
+      >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
       >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
 
 and elaborate_defs = function
@@ -499,7 +499,7 @@ let rec elaborate = function
       ImportChain.with_path at' sig_path
         ((TypImports.get_or_put sig_path <<< Elab.modularly)
            (Fetch.fetch at' sig_path
-           >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.plain ~path:sig_path
+           >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
            >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
         |> try_in (fun contents -> return @@ Some contents) @@ function
            | `Error_file_doesnt_exist (_, path) when path = sig_path ->
@@ -512,7 +512,7 @@ let rec elaborate = function
       <<< Elab.modularly)
         (let* ast =
            Fetch.fetch at' mod_path
-           >>= Parser.parse_utf_8 Grammar.program Lexer.plain ~path:mod_path
+           >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
            >>= elaborate
          in
          let id = FomAST.Exp.Id.fresh at' in

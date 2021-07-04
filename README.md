@@ -32,7 +32,7 @@ needs to be rewritten as
 
 Both of the above types are allowed by this generalized system and are also
 considered equivalent as shown in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoImATwAd4QB7CuAXhEG7gQRuAA6AcgDkbdqAPiE4BlGgFtqrEBFwlyVEFmhwQIJoB7gZbHZt2dOAApWAGiUqQrAJQy5C6tpgB9AIzqWHLStf76IY2aOrjayJDhwNABmTo5q7oDZwBzMAB4AXLFqHMm2ROG00UFuTIm6aYWW7NmhufBw+AAW8PgA1glJjqnmsBXMhZ3lHERqhlExKgDarAC6Xc4uZqOFkzOOIXJEDU3NQA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgMglgzgLiCmBHArhAbgQwDbwHYGN4AoImATwAd4QB7CuAXhEG7gQRuAA6AcgDkbdqAPiE4BlGgFtqrEuSogs0OCBBNAPcALY7NuzpwAFKwA08xSFYBKUpWoaYAfQCMKlh3WLHO+iAPHbjy0Q4cDQAZna2ys6A2cAczAAeAFwRyhxxgfDBYX5OTDFaidlm7GnpcPgAFvD4ANbRsbYJJrBFzNmNhRxEynqh4YoA2qwAuk32Dsa92YMjtgEVVdVAA).
 
 In this generalized system, nested types are not allowed. For example,
 
@@ -41,7 +41,7 @@ In this generalized system, nested types are not allowed. For example,
 ```
 
 is disallowed due to the argument `(α, α)` as demonstrated in this
-[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOmLQwHuAA7aORAXhEG7gQI3AAOgAUAgDQgOsBCDGSBASkUgibBiMVA).
+[example](https://polytypic.github.io/f-omega-mu/#MQAgcgpgzgLhAmJ4EMaoJ4AdomQJwiQEspkAbMgewHcEAoOmLQwHuAA7aORAXhEG7gQI3AAOgAUAgDQgOsBCDGSBASkUMRioA).
 
 Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type
@@ -59,7 +59,7 @@ probably more bugs than one could imagine.
 ## Next steps
 
 - Try examples in the
-  [online playground](https://polytypic.github.io/f-omega-mu/#MQAgKgFgpiAuBOBDAJgS1qg9gO0QGxAAMAzRAY1kM3lXxGIFdsKtsAoNvKWEQHuBSKALlTYegJMIQIngF42IEIG7gbMNEA6OfMnEQ2EIBMiEAEYN82NF3HNIKHgDOMXQCp65HgApdAWiMBKSezYBHgBWIA).
+  [online playground](https://polytypic.github.io/f-omega-mu/#MQAgKgFgpiAuBOBDAJgS1qg9gO0QGxAAMAzRAY1kM3lXxGIFdsKtsAoNvKWEQHuBSKALlTYegJMIQIngF42IEIG7gbMNEA6OfMnEQ2EIBMiEAEYN82NF3HNIKHgDOMXQCp65HgApdAWiMBKDgJ4AViA).
 - See the [syntax summary](SYNTAX.md).
 - See project [TODO](TODO.md) list.
 

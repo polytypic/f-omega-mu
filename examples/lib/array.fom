@@ -1,16 +1,16 @@
-include "array" in
+include "array"
 
-type array = λα.∃array.array α in
+type array = λα.∃array.array α
 
 let tabulate = target[∀α.(int → α) → int → array α]
-  "fn => n => {const a = new Array(n); for (let i=0; i<n; ++i) a[i] = fn(i); return a}" in
+  "fn => n => {const a = new Array(n); for (let i=0; i<n; ++i) a[i] = fn(i); return a}"
 
-let length = target[∀α.array α → int] "a => a.length" in
+let length = target[∀α.array α → int] "a => a.length"
 
 let sub = target[∀α.array α → int → α]
-  "a => i => { if (i < 0 || a.length <= i) throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`; return a[i] }" in
+  "a => i => { if (i < 0 || a.length <= i) throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`; return a[i] }"
 
 let update = target[∀α.array α → int → α → ()]
-  "a => i => v => { if (i < 0 || a.length <= i) throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`; a[i] = v }" in
+  "a => i => v => { if (i < 0 || a.length <= i) throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`; a[i] = v }"
 
 《array\{tabulate, length, sub, update}》: ∃(Array)

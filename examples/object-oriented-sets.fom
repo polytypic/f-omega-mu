@@ -6,55 +6,55 @@
 #   by William R. Cook.
 
 type μISet = {
-  isEmpty: bool,
-  contains: int → bool,
-  insert: int → ISet,
+  isEmpty: bool
+  contains: int → bool
+  insert: int → ISet
   union: ISet → ISet
-} in
+}
 
-let μEmpty: ISet = μthis:ISet.{
-    isEmpty = true,
-    contains = λ_:int.false,
-    insert = λi:int.Insert (this, i),
-    union = λs:ISet.s
-  }
-
-and μInsert: (ISet, int) → ISet = λ(s:ISet, n:int).
+let μInsert: (ISet, int) → ISet = λ(s:ISet, n:int).
   if s.contains n then s else μthis:ISet.{
-    isEmpty = false,
-    contains = λi:int.i =[int] n ∨ s.contains i,
-    insert = λi:int.Insert (this, i),
-    union = λs:ISet.Union (this, s),
+    isEmpty = false
+    contains = λi:int.i =[int] n ∨ s.contains i
+    insert = λi:int.Insert (this, i)
+    union = λs:ISet.Union (this, s)
   }
 
 and μUnion: (ISet, ISet) → ISet = λ(s1:ISet, s2:ISet).
   μthis:ISet.{
-    isEmpty = s1.isEmpty ∧ s2.isEmpty,
-    contains = λi:int.s1.contains i ∨ s2.contains i,
-    insert = λi:int.Insert (this, i),
+    isEmpty = s1.isEmpty ∧ s2.isEmpty
+    contains = λi:int.s1.contains i ∨ s2.contains i
+    insert = λi:int.Insert (this, i)
     union = λs:ISet.Union (this, s)
-  } in
+  }
+
+let Empty = μthis:ISet.{
+    isEmpty = true
+    contains = λ_:int.false
+    insert = λi:int.Insert (this, i)
+    union = λs:ISet.s
+  }
 
 let Even = μthis:ISet.{
-    isEmpty = false,
-    contains = λi:int.i % 2 =[int] 0,
-    insert = λi:int.Insert (this, i),
+    isEmpty = false
+    contains = λi:int.i % 2 =[int] 0
+    insert = λi:int.Insert (this, i)
     union = λs:ISet.Union (this, s)
-  } in
+  }
 
 let Full = μthis:ISet.{
-   isEmpty = false,
-   contains = λi:int.true,
-   insert = λi:int.this,
+   isEmpty = false
+   contains = λi:int.true
+   insert = λi:int.this
    union = λs:ISet.this
- } in
+ }
 
 let Interval = λ(n:int, m:int).
   μthis:ISet.{
-    isEmpty = n > m,
-    contains = λi:int.n ≤ i ∧ i ≤ m,
-    insert = λi:int.Insert (this, i),
+    isEmpty = n > m
+    contains = λi:int.n ≤ i ∧ i ≤ m
+    insert = λi:int.Insert (this, i)
     union = λs:ISet.Union (this, s)
-  } in
+  }
 
 (Empty.insert 4).union(Empty.insert 2)

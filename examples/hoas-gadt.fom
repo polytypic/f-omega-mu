@@ -3,32 +3,32 @@
 type μExpr = λα.∀ρ.Cases ρ → ρ α
 
 and μCases = λρ.{
-  Val: ∀α.                                  α → ρ α,
-  Bin: ∀α.∀β.∀γ.(α → β → γ) → Expr α → Expr β → ρ γ,
-   If: ∀α.        Expr bool → Expr α → Expr α → ρ α,
-  App: ∀α.∀β.           Expr (α → β) → Expr α → ρ β,
-  Lam: ∀α.∀β.               (Expr α → Expr β) → ρ (α → β),
+  Val: ∀α.                                  α → ρ α
+  Bin: ∀α.∀β.∀γ.(α → β → γ) → Expr α → Expr β → ρ γ
+  If : ∀α.        Expr bool → Expr α → Expr α → ρ α
+  App: ∀α.∀β.           Expr (α → β) → Expr α → ρ β
+  Lam: ∀α.∀β.               (Expr α → Expr β) → ρ (α → β)
   Fix: ∀α.∀β.          Expr ((α → β) → α → β) → ρ (α → β)
-} in
+}
 
-let Val = Λα.      λx:α.                            Λρ.λcs:Cases ρ.cs.Val[α] x in
-let Bin = Λα.Λβ.Λγ.λf:α → β → γ.λx:Expr α.λy:Expr β.Λρ.λcs:Cases ρ.cs.Bin[α][β][γ] f x y in
-let  If = Λα.      λc:Expr bool.λt:Expr α.λe:Expr α.Λρ.λcs:Cases ρ.cs.If[α] c t e in
-let App = Λα.Λβ.   λf:Expr (α → β).λx:Expr α.       Λρ.λcs:Cases ρ.cs.App[α][β] f x in
-let Lam = Λα.Λβ.   λf:Expr α → Expr β.              Λρ.λcs:Cases ρ.cs.Lam[α][β] f in
-let Fix = Λα.Λβ.   λf:Expr ((α → β) → α → β).       Λρ.λcs:Cases ρ.cs.Fix[α][β] f in
+let Val = Λα.      λx:α.                            Λρ.λcs:Cases ρ.cs.Val[α] x
+let Bin = Λα.Λβ.Λγ.λf:α → β → γ.λx:Expr α.λy:Expr β.Λρ.λcs:Cases ρ.cs.Bin[α][β][γ] f x y
+let  If = Λα.      λc:Expr bool.λt:Expr α.λe:Expr α.Λρ.λcs:Cases ρ.cs.If[α] c t e
+let App = Λα.Λβ.   λf:Expr (α → β).λx:Expr α.       Λρ.λcs:Cases ρ.cs.App[α][β] f x
+let Lam = Λα.Λβ.   λf:Expr α → Expr β.              Λρ.λcs:Cases ρ.cs.Lam[α][β] f
+let Fix = Λα.Λβ.   λf:Expr ((α → β) → α → β).       Λρ.λcs:Cases ρ.cs.Fix[α][β] f
 
-let match = Λρ.λcs:Cases ρ.Λα.λe:Expr α.e[ρ] cs in
+let match = Λρ.λcs:Cases ρ.Λα.λe:Expr α.e[ρ] cs
 
 let μeval:∀α.Expr α → α = match[λα.α] {
-  Val = Λα.λx:α.x,
-  Bin = Λα.Λβ.Λγ.λxyz:α → β → γ.λx:Expr α.λy:Expr β.xyz (eval[α] x) (eval[β] y),
-   If = Λα.λc:Expr bool.λt:Expr α.λe:Expr α.eval[α] (if eval[bool] c then t else e),
-  App = Λα.Λβ.λxy:Expr (α → β).λx:Expr α.eval[α → β] xy (eval[α] x),
-  Lam = Λα.Λβ.λf:Expr α → Expr β.λx:α.eval[β] (f (Val[α] x)),
+  Val = Λα.λx:α.x
+  Bin = Λα.Λβ.Λγ.λxyz:α → β → γ.λx:Expr α.λy:Expr β.xyz (eval[α] x) (eval[β] y)
+  If  = Λα.λc:Expr bool.λt:Expr α.λe:Expr α.eval[α] (if eval[bool] c then t else e)
+  App = Λα.Λβ.λxy:Expr (α → β).λx:Expr α.eval[α → β] xy (eval[α] x)
+  Lam = Λα.Λβ.λf:Expr α → Expr β.λx:α.eval[β] (f (Val[α] x))
   Fix = Λα.Λβ.λf:Expr ((α → β) → α → β).
     let f = eval[(α → β) → α → β] f in μg:α → β.λx:α.f g x
-} in
+}
 
 let Fact = Fix[int][int] (
   Lam[int → int][int → int] (λf:Expr (int → int). Lam[int][int] (λx:Expr int.
@@ -39,6 +39,6 @@ let Fact = Fix[int][int] (
         (App[int][int] f (
           Bin[int][int][int] (-)
             x
-            (Val[int] 1))))))) in
+            (Val[int] 1)))))))
 
 eval[int] (App[int][int] Fact (Val[int] 5))

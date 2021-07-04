@@ -1,5 +1,5 @@
-let to_string = target[∀α.α → string] "x => \"\"+x" in
+let to_string = target[∀α.α → string] "x => \"\"+x"
 
-let fail = target[∀α.string → α] "m => { throw m }" in
+let fail = target[∀α.string → α] "m => { throw m }"
 
 {to_string, fail}

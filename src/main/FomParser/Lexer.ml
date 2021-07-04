@@ -146,7 +146,8 @@ let rec token buffer =
   | Comment _, _, _ -> token buffer
   | other -> other
 
-type t = Buffer.t -> unit -> token * Lexing.position * Lexing.position
+type tok = token * Lexing.position * Lexing.position
+type t = Buffer.t -> unit -> tok
 
 let plain : t = fun buffer () -> token buffer
 
@@ -228,3 +229,123 @@ let token_info_utf_8 input =
       | Type -> keyword
       | Underscore -> variable);
   }
+
+module Offside = struct
+  type 'a monad =
+    | Monad of
+        ((Buffer.t -> tok) -> Buffer.t -> tok option -> 'a result * tok option)
+
+  and 'a result = Emit of tok * 'a monad | Return of 'a
+
+  let return value = Monad (fun _ _ tok_opt -> (Return value, tok_opt))
+  let unit = return ()
+
+  let rec ( >>= ) (Monad xM) xyM =
+    Monad
+      (fun get_tok buffer tok_opt ->
+        match xM get_tok buffer tok_opt with
+        | Emit (tok, xM), tok_opt -> (Emit (tok, xM >>= xyM), tok_opt)
+        | Return x, tok_opt ->
+          let (Monad yM) = xyM x in
+          yM get_tok buffer tok_opt)
+
+  let ( let* ) = ( >>= )
+  let ( >> ) lhs rhs = lhs >>= fun () -> rhs
+
+  (* *)
+
+  let get =
+    Monad
+      (fun get_tok buffer tok_opt ->
+        ( Return (match tok_opt with Some tok -> tok | None -> get_tok buffer),
+          None ))
+
+  let unget tok =
+    Monad
+      (fun get_tok buffer tok_opt ->
+        match tok_opt with
+        | Some _ -> failwith "unget"
+        | None -> (Return (), Some tok))
+
+  let error message =
+    Monad (fun _ buffer _ -> raise @@ Exn_lexeme (Buffer.loc buffer, message))
+
+  let emit tok = Monad (fun _ _ tok_opt -> (Emit (tok, unit), tok_opt))
+  let emit_if bool tok = if bool then emit tok else unit
+
+  (* *)
+
+  let col_of (_, (p : Lexing.position), _) = p.pos_cnum - p.pos_bol
+  let tok_of (t, _, _) = t
+  let set token (_, s, e) = (token, s, e)
+
+  (* *)
+
+  let rec initial tok = match tok_of tok with _ -> nest tok >> get >>= initial
+
+  and inside_braces insert indent tok =
+    match tok_of tok with
+    | BraceRhs -> emit tok
+    | Comma ->
+      if col_of tok < indent - 2 then
+        error "offside"
+      else
+        emit tok >> get >>= inside_braces false indent
+    | _ ->
+      if col_of tok < indent then
+        error "offside"
+      else
+        emit_if (col_of tok = indent && insert) (set Comma tok)
+        >> nest tok >> get >>= inside_braces true indent
+
+  and inside_parens closing tok =
+    if tok_of tok = closing then
+      emit tok
+    else
+      nest tok >> get >>= inside_parens closing
+
+  and insert_in indent tok =
+    match tok_of tok with
+    | EOF -> emit tok
+    | And ->
+      if col_of tok < indent then
+        error "offside"
+      else
+        emit tok >> get >>= insert_in indent
+    | In -> if col_of tok < indent then error "offside" else emit tok
+    | _ ->
+      if col_of tok < indent then
+        error "offside"
+      else if col_of tok = indent then
+        unget tok >> emit (set In tok)
+      else
+        nest tok >> get >>= insert_in indent
+
+  and nest tok =
+    emit tok
+    >>
+    match tok_of tok with
+    | BraceLhs -> get >>= fun tok -> inside_braces false (col_of tok) tok
+    | ParenLhs -> get >>= inside_parens ParenRhs
+    | DoubleAngleLhs -> get >>= inside_parens DoubleAngleRhs
+    | BracketLhs -> get >>= inside_parens BracketRhs
+    | Type | Include | Let -> get >>= insert_in (col_of tok)
+    | _ -> unit
+
+  (* *)
+
+  type state = (unit monad * tok option) ref
+
+  let init () : state = ref (get >>= initial, None)
+end
+
+let offside : t =
+ fun buffer ->
+  let state = Offside.init () in
+  fun () ->
+    let Monad uM, tok_opt = !state in
+    match uM token buffer tok_opt with
+    | Emit (tok, continue), tok_opt ->
+      state := (continue, tok_opt);
+      tok
+    | Return (), _ -> failwith "return"

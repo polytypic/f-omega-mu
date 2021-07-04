@@ -1,9 +1,9 @@
-include "ref" in
+include "ref"
 
-type ref = λα.∃ref.ref α in
+type ref = λα.∃ref.ref α
 
-let ref = target[∀α.α → ref α] "x => [x]" in
-let get = target[∀α.ref α → α] "r => r[0]" in
-let set = target[∀α.ref α → α → ()] "r => x => { r[0] = x }" in
+let ref = target[∀α.α → ref α] "x => [x]"
+let get = target[∀α.ref α → α] "r => r[0]"
+let set = target[∀α.ref α → α → ()] "r => x => { r[0] = x }"
 
 《ref\{ref, get, set}》: ∃(Ref)

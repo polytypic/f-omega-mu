@@ -272,7 +272,7 @@ let js_codemirror_mode =
         >>- (Array.of_list >>> Js.array)
       in
       Js.to_string input
-      |> Parser.parse_utf_8 Grammar.program Lexer.plain ~path
+      |> Parser.parse_utf_8 Grammar.program Lexer.offside ~path
       >>= FomElab.elaborate
       >>= (fun (_, t, _) ->
             let+ t = pp_typ t in
@@ -325,7 +325,7 @@ let js_codemirror_mode =
 
     method compile path input (on_result : _ Cb.t) =
       input |> Js.to_string
-      |> Parser.parse_utf_8 Grammar.program Lexer.plain
+      |> Parser.parse_utf_8 Grammar.program Lexer.offside
            ~path:(Js.to_string path)
       >>= FomElab.elaborate >>= FomElab.with_modules >>- fst >>= to_js
       >>- Js.string

@@ -15,6 +15,9 @@ module Lexer : sig
   val plain : t
   (** Lexical syntax without offside rules. *)
 
+  val offside : t
+  (** Lexical syntax with offside rules. *)
+
   type token_info = {begins : int; ends : int; name : string}
   (** Describes a token for syntax highlighting purposes. *)
 

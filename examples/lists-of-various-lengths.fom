@@ -1,16 +1,16 @@
 # Types of lists of various lengths
 
 # An ordinary recursive list type
-type μlist_of_0_to_n = λα.'Nil | 'Cons (α, list_of_0_to_n α) in
+type μlist_of_0_to_n = λα.'Nil | 'Cons (α, list_of_0_to_n α)
 
 # A list of exactly one element
-type  list_of_1      = λα.'Cons (α, 'Nil) in
+type  list_of_1      = λα.'Cons (α, 'Nil)
 
 # A list of one or more elements
-type  list_of_1_to_n = λα.'Cons (α, list_of_0_to_n α) in
+type  list_of_1_to_n = λα.'Cons (α, list_of_0_to_n α)
 
 # An infinite list (due to strictness these are always cycles)
-type μlist_of_inf    = λα.'Cons (α, list_of_inf α) in
+type μlist_of_inf    = λα.'Cons (α, list_of_inf α)
 
 # We now have the following subtype relationships:
 #
@@ -29,22 +29,22 @@ type μlist_of_inf    = λα.'Cons (α, list_of_inf α) in
 # Moreover, lists of any finite length or more can be similarly specified
 # yielding the expected subtype relationships.
 
-let an_empty_list     : list_of_0_to_n int = 'Nil in
-let a_singleton_list  : list_of_1      int = 'Cons (2, 'Nil) in
-let a_non_empty_list  : list_of_1_to_n int = 'Cons (101, 'Nil) in
-let μan_infinite_list : list_of_inf    int = 'Cons (42, an_infinite_list) in
+let an_empty_list     : list_of_0_to_n int = 'Nil
+let a_singleton_list  : list_of_1      int = 'Cons (2, 'Nil)
+let a_non_empty_list  : list_of_1_to_n int = 'Cons (101, 'Nil)
+let μan_infinite_list : list_of_inf    int = 'Cons (42, an_infinite_list)
 
 # Type safe function to get the first element of a non-empty list:
-let head = Λα.case { Cons = λ(x:α, _:list_of_0_to_n α).x } in
+let head = Λα.case { Cons = λ(x:α, _:list_of_0_to_n α).x }
 
-let _ = head[int] an_infinite_list in
-let _ = head[int] a_non_empty_list in
-let _ = head[int] ◁ 'Cons (4, an_empty_list) in
+let _ = head[int] an_infinite_list
+let _ = head[int] a_non_empty_list
+let _ = head[int] ◁ 'Cons (4, an_empty_list)
 
 # Extract the only element of a one element list:
-let only = Λα.case { Cons = λ(x: α, _:'Nil).x } in
+let only = Λα.case { Cons = λ(x: α, _:'Nil).x }
 
-let _ = only[int] a_singleton_list in
+let _ = only[int] a_singleton_list
 
 # The type of `cycle` guarantees that it returns an infinite list:
 let cycle = Λα.λxxs:list_of_1_to_n α.
@@ -55,10 +55,10 @@ let cycle = Λα.λxxs:list_of_1_to_n α.
         cycle
       else
         xs ▷ case {
-          Nil = λ().cycle,
+          Nil = λ().cycle
           Cons = λ(x:α, xs:list_of_0_to_n α).'Cons (x, complete xs)
-        } in
-    xxs ▷ case { Cons = λ(x:α, xs:list_of_0_to_n α).'Cons (x, complete xs) } in
+        }
+    xxs ▷ case { Cons = λ(x:α, xs:list_of_0_to_n α).'Cons (x, complete xs) }
 
 cycle[int] ◁ 'Cons (4, a_singleton_list)
 ▷ cycle[int]

@@ -7,41 +7,41 @@
 
 # Pairs
 
-type Pair = λl.λr.λf.f l r in
+type Pair = λl.λr.λf.f l r
 
-type Fst = λp.p (λl.λ_.l) in
-type Snd = λp.p (λ_.λr.r) in
+type Fst = λp.p (λl.λ_.l)
+type Snd = λp.p (λ_.λr.r)
 
 type Cross = λf.λg.λp.
-  type l = f (Fst p) in
-  type r = g (Snd p) in
-  Pair l r in
+  type l = f (Fst p)
+  type r = g (Snd p)
+  Pair l r
 
 # Booleans
 
-type T = λt.λ_.t in
-type F = λ_.λf.f in
+type T = λt.λ_.t
+type F = λ_.λf.f
 
-type Not = λb.λt.λf.b f t in
+type Not = λb.λt.λf.b f t
 
-type And = λl.λr.λt.λf.l (r t f) f in
-type Or  = λl.λr.λt.λf.l t (r t f) in
+type And = λl.λr.λt.λf.l (r t f) f
+type Or  = λl.λr.λt.λf.l t (r t f)
 
 # Natural numbers
 
-type Succ = λn.λs.λz.s (n s z) in
+type Succ = λn.λs.λz.s (n s z)
 
-type N0 = λ_.λz.z in
-type N1 = Succ N0 in
-type N2 = Succ N1 in
-type N3 = Succ N2 in
+type N0 = λ_.λz.z
+type N1 = Succ N0
+type N2 = Succ N1
+type N3 = Succ N2
 
 # Lists
 
-type Nil = λn.λc.n in
-type Cons = λh.λt.λn.λc.c h (t n c) in
+type Nil = λn.λc.n
+type Cons = λh.λt.λn.λc.c h (t n c)
 
-type Map = λf.λxs.λn.λc.xs n (λx.c (f x)) in
+type Map = λf.λxs.λn.λc.xs n (λx.c (f x))
 
 #
 

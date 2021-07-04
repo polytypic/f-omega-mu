@@ -1,12 +1,12 @@
 include "types" in {
-  one: ∀α.α → list_of_1 α,
-  has: ∀α.(α → bool) → list α → bool,
-  fold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ,
-  rev_to: ∀α.list α → list α → list α,
-  rev: ∀α.list α → list α,
-  filter: ∀α.(α → bool) → list α → list α,
-  concat: ∀α.list α → list α → list α,
-  infinite_of: ∀α.α → list_of_inf α,
-  take_n: ∀α.int → list α → list α,
+  one: ∀α.α → list_of_1 α
+  has: ∀α.(α → bool) → list α → bool
+  fold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ
+  rev_to: ∀α.list α → list α → list α
+  rev: ∀α.list α → list α
+  filter: ∀α.(α → bool) → list α → list α
+  concat: ∀α.list α → list α → list α
+  infinite_of: ∀α.α → list_of_inf α
+  take_n: ∀α.int → list α → list α
   iota: int → list int
 }

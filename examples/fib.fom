@@ -5,7 +5,7 @@ let fib =
     λi:int.λj:int.λn:int.
       if n ≤ 0
       then i
-      else loop j (i + j) (n - 1) in
-  loop 0 1 in
+      else loop j (i + j) (n - 1)
+  loop 0 1
 
 fib 10

@@ -1,8 +1,8 @@
 # GADT type encoding using type equality witnesses
 
-include "lib/types" in
+include "lib/types"
 
-let《eq\Eq》= import "lib/leibniz" in
+let《eq\Eq》= import "lib/leibniz"
 
 type μType = λτ.
   | 'Bool (Bool τ)
@@ -17,46 +17,46 @@ and μString = λτ.eq string τ
 and μAlt = λτ.λα.λβ.(eq (alt α β) τ, Type α, Type β)
 and μPair = λτ.λα.λβ.(eq (α, β) τ, Type α, Type β)
 and μIso = λτ.λα.λβ.(eq α τ, iso α β, Type β)
-in
 
-let bool = 'Bool (Eq.refl[bool]) in
-let int = 'Int (Eq.refl[int]) in
-let string = 'String (Eq.refl[string]) in
+let bool = 'Bool (Eq.refl[bool])
+let int = 'Int (Eq.refl[int])
+let string = 'String (Eq.refl[string])
 let alt = Λa.Λb.λa:Type a.λb:Type b.
-  'Alt (《a\《b\(Eq.refl[alt a b], a, b)》: ∃(Alt (alt a b) a)》: ∃α.∃β.Alt (alt a b) α β) in
+  'Alt (《a\《b\(Eq.refl[alt a b], a, b)》: ∃(Alt (alt a b) a)》: ∃α.∃β.Alt (alt a b) α β)
 let pair = Λa.Λb.λa:Type a.λb:Type b.
-  'Pair (《a\《b\(Eq.refl[(a, b)], a, b)》: ∃(Pair (a, b) a)》: ∃α.∃β.Pair (a, b) α β) in
+  'Pair (《a\《b\(Eq.refl[(a, b)], a, b)》: ∃(Pair (a, b) a)》: ∃α.∃β.Pair (a, b) α β)
 let iso = Λa.Λb.λaIb:iso a b.λb:Type b.
-  'Iso (《a\《b\(Eq.refl[a], aIb, b)》: ∃(Iso a a)》: ∃α.∃β.Iso a α β) in
+  'Iso (《a\《b\(Eq.refl[a], aIb, b)》: ∃(Iso a a)》: ∃α.∃β.Iso a α β)
 
-let String = import "lib/string" in
-let Int = import "lib/int" in
-let Bool = import "lib/bool" in
+let String = import "lib/string"
+let Int = import "lib/int"
+let Bool = import "lib/bool"
 
 let μto_string:∀τ.Type τ → τ → string = Λτ.case {
   Bool = λeq:Bool τ.λx:τ.
-    Bool.to_string ◁ Eq.from[bool][τ] eq x,
+    Bool.to_string ◁ Eq.from[bool][τ] eq x
   Int = λeq:Int τ.λx:τ.
-    Int.to_string ◁ Eq.from[int][τ] eq x,
+    Int.to_string ◁ Eq.from[int][τ] eq x
   String = λeq:String τ.λx:τ.
-    String.to_literal (Eq.from[string][τ] eq x),
+    String.to_literal (Eq.from[string][τ] eq x)
   Alt = λ《a\《b\(eq, ta, tb)》》: ∃α.∃β.Alt τ α β.
-    let to_string_a = to_string[a] ta in
-    let to_string_b = to_string[b] tb in
+    let to_string_a = to_string[a] ta
+    let to_string_b = to_string[b] tb
     λt:τ.Eq.from[alt a b][τ] eq t ▷ case {
-      In1 = λa:a."('In1 " ▷ String.add (to_string_a a) ▷ String.add ")",
+      In1 = λa:a."('In1 " ▷ String.add (to_string_a a) ▷ String.add ")"
       In2 = λb:b."('In2 " ▷ String.add (to_string_b b) ▷ String.add ")"
-    },
+    }
   Pair = λ《a\《b\(eq, ta, tb)》》: ∃α.∃β.Pair τ α β.
-    let to_string_a = to_string[a] ta in
-    let to_string_b = to_string[b] tb in
-    λt:τ.let (a, b) = Eq.from[(a, b)][τ] eq t in
+    let to_string_a = to_string[a] ta
+    let to_string_b = to_string[b] tb
+    λt:τ.
+      let (a, b) = Eq.from[(a, b)][τ] eq t
       "(" ▷ String.add (to_string_a a) ▷ String.add ", "
-          ▷ String.add (to_string_b b) ▷ String.add ")",
+          ▷ String.add (to_string_b b) ▷ String.add ")"
   Iso = λ《a\《b\(eq, (a2b, _), tb)》》: ∃α.∃β.Iso τ α β.
-    let to_string_b = to_string[b] tb in
+    let to_string_b = to_string[b] tb
     λt:τ.to_string_b (a2b (Eq.from[a][τ] eq t))
-} in
+}
 
 to_string[(bool, alt string int)]
   (pair[bool][alt string int] bool (alt[string][int] string int))

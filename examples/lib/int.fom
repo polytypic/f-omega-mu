@@ -1,5 +1,5 @@
-let Target = import "target" in
+let Target = import "target"
 
-let to_string = Target.to_string[int] in
+let to_string = Target.to_string[int]
 
 {to_string}

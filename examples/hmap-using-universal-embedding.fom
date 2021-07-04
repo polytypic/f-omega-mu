@@ -1,38 +1,37 @@
 # Heterogenous map using a universal embedding
 
-include "lib/types" in
+include "lib/types"
 
-let《univ\Univ》= import "lib/univ" in
+let《univ\Univ》= import "lib/univ"
 
 type HMap = λmap.λκ.{
-  empty: map,
-  new_key: ∀ν.() → κ ν,
-  get: ∀ν.κ ν → map → opt ν,
+  empty: map
+  new_key: ∀ν.() → κ ν
+  get: ∀ν.κ ν → map → opt ν
   add: ∀ν.κ ν → ν → map → map
-} in
+}
 
 let《map\《κ\HMap》》=
-  type κ = λν.{to: ν → univ, of: univ → opt ν} in
-  type map = list univ in
-  let empty = 'None in
-  let new_key = Univ.new in
+  type κ = λν.{to: ν → univ, of: univ → opt ν}
+  type map = list univ
+  let empty = 'None
+  let new_key = Univ.new
   let μget:∀ν.κ ν → map → opt ν = Λν.λk:κ ν.case {
-    None = λ().'None,
+    None = λ().'None
     Some = λ(u:univ, m:map).
       k.of u ▷ case {
-        None = λ().get[ν] k m,
+        None = λ().get[ν] k m
         Some = λv:ν.'Some v
       }
-  } in
-  let add = Λν.λk:κ ν.λv:ν.λm:map.'Some (k.to v, m) in
+  }
+  let add = Λν.λk:κ ν.λv:ν.λm:map.'Some (k.to v, m)
   《map\《κ\{empty, new_key, get, add}》: ∃(HMap map)》: ∃map.∃(HMap map)
-  in
 
-let k1 = HMap.new_key[int] () in
-let k2 = HMap.new_key[string] () in
+let k1 = HMap.new_key[int] ()
+let k2 = HMap.new_key[string] ()
 let m =
   HMap.empty
   ▷ HMap.add[int] k1 101
-  ▷ HMap.add[string] k2 "42" in
+  ▷ HMap.add[string] k2 "42"
 
 (HMap.get[int] k1 m, HMap.get[string] k2 m)

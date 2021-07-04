@@ -75,6 +75,9 @@ bop
 
 **Notes:**
 
+- To reduce noise, end of line commas inside braces `{ ... }` and `in` keywords
+  are automatically inserted based on layout.
+
 - Binary operators are listed above in order from lowest to highest precedence
   and with associativity {`L`, `-`, `R`}.
 

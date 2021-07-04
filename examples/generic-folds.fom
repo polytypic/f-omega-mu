@@ -1,66 +1,66 @@
 # Generic `fold`s
 
-type Functor = λφ.{map: ∀α.∀β.(α → β) → (φ α → φ β)} in
+type Functor = λφ.{map: ∀α.∀β.(α → β) → (φ α → φ β)}
 
 let μfold:∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
   Λφ.Λα.λF:Functor φ.
     λalgebra:φ α → α.
-      μfold:μ(φ) → α.λv:μ(φ).algebra (F.map[μ(φ)][α] fold v) in
+      μfold:μ(φ) → α.λv:μ(φ).algebra (F.map[μ(φ)][α] fold v)
 
 # Option type
-type Opt = λα.'None | 'Some α in
+type Opt = λα.'None | 'Some α
 
 # List type
-type ListF = λα.λτ.Opt (α, τ) in
-type List = λα.μ(ListF α) in
+type ListF = λα.λτ.Opt (α, τ)
+type List = λα.μ(ListF α)
 let ListF = Λτ.{
   map = Λα.Λβ.λf:α → β.case {
-      None = λ().'None,
+      None = λ().'None
       Some = λ(x:τ, xs:α).'Some (x, f xs)
     }
-} in
+}
 
 let List =
-  let one = Λα.λx:α.'Some (x, 'None) in
+  let one = Λα.λx:α.'Some (x, 'None)
   let μhas:∀α.(α → bool) → List α → bool = Λα.λp:α → bool.case {
-      None = λ().false,
+      None = λ().false
       Some = λ(x:α, xs:List α).p x ∨ has[α] p xs
-    } in
+    }
   let fold = Λρ.Λα.λrxr:ρ → α → ρ.λr:ρ.
     fold[ListF α][ρ] (ListF[α]) ◁ case {
-        None = λ().r,
+        None = λ().r
         Some = λ(x:α, r:ρ).rxr r x
-      } in
-  let rev_to = Λα.fold[List α][α] (λxs:List α.λx:α.'Some (x, xs)) in
-  let rev = Λα.rev_to[α] 'None in
+      }
+  let rev_to = Λα.fold[List α][α] (λxs:List α.λx:α.'Some (x, xs))
+  let rev = Λα.rev_to[α] 'None
   let filter = Λα.λp:α → bool.λxs:List α.
     xs
     ▷ fold[List α][α] (λxs:List α.λx:α.if p x then 'Some (x, xs) else xs) 'None
-    ▷ rev[α] in
-  let concat = Λα.λxs:List α.λys:List α.rev[α] xs ▷ rev_to[α] ys in
-  {one, has, fold, rev, filter, concat} in
+    ▷ rev[α]
+  let concat = Λα.λxs:List α.λys:List α.rev[α] xs ▷ rev_to[α] ys
+  {one, has, fold, rev, filter, concat}
 
 # Set ADT
 type Set = λelem.λset.{
-  empty: set,
-  singleton: elem → set,
-  remove: elem → set → set,
-  union: set → set → set,
+  empty: set
+  singleton: elem → set
+  remove: elem → set → set
+  union: set → set → set
   to_list: set → List elem
-} in
+}
 
 # Naïve Set implementation
 let Set = {
   make = Λelem.λeq:elem → elem → bool.
-    type set = List elem in
-    let empty = 'None in
-    let singleton = List.one[elem] in
-    let remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y) in
+    type set = List elem
+    let empty = 'None
+    let singleton = List.one[elem]
+    let remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y)
     let union = λl:set.λr:set.
-      List.concat[elem] l (List.filter[elem] (λi:elem.¬List.has[elem] (eq i) l) r) in
-    let to_list = λs:set.s in
+      List.concat[elem] l (List.filter[elem] (λi:elem.¬List.has[elem] (eq i) l) r)
+    let to_list = λs:set.s
     《set\{empty, singleton, remove, union, to_list}》: ∃(Set elem)
-} in
+}
 
 # Term type
 type TermBase = λρ.λσ.λτ.
@@ -68,40 +68,39 @@ type TermBase = λρ.λσ.λτ.
   | 'Var {id: ρ}
   | 'Abs {var: string, exp: σ}
   | 'App {fn: τ, arg: σ}
-in
-type TermF = λτ.TermBase string τ τ in
-type Term = μ(TermF) in
-type EvalCtx = TermBase string Term in
-type VarTerm = λτ.TermBase τ Term Term in
+type TermF = λτ.TermBase string τ τ
+type Term = μ(TermF)
+type EvalCtx = TermBase string Term
+type VarTerm = λτ.TermBase τ Term Term
 
 let TermF = {
   map = Λα.Λβ.λab:α → β.case {
-    Lit = λ{val:int}.'Lit {val},
-    Var = λ{id:string}.'Var {id},
-    Abs = λ{var:string, exp:α}.'Abs {var, exp = ab exp},
+    Lit = λ{val:int}.'Lit {val}
+    Var = λ{id:string}.'Var {id}
+    Abs = λ{var:string, exp:α}.'Abs {var, exp = ab exp}
     App = λ{fn:α, arg:α}.'App {fn = ab fn, arg = ab arg}
   }
-} in
+}
 
 # Set of strings
-let《ids\Ids》= Set.make[string] (=[string]) in
+let《ids\Ids》= Set.make[string] (=[string])
 
 # Compute free variables using `fold`
 let fv =
   fold[TermF][ids] TermF ◁ case {
-    Lit = λ{val=_:int}.Ids.empty,
-    Var = λ{id:string}.Ids.singleton id,
-    Abs = λ{var:string, exp:ids}.Ids.remove var exp,
+    Lit = λ{val=_:int}.Ids.empty
+    Var = λ{id:string}.Ids.singleton id
+    Abs = λ{var:string, exp:ids}.Ids.remove var exp
     App = λ{fn:ids, arg:ids}.Ids.union fn arg
-  } in
+  }
 
 # Using `fv`
 'App {
   fn =
     'Abs {
-      var = "x",
+      var = "x"
       exp = 'App {fn = 'Var {id = "F"}, arg = 'Var {id = "x"}}
-    },
+    }
   arg = 'Var {id = "y"}
 }
 ▷ fv
