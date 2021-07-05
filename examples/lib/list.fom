@@ -13,14 +13,14 @@ let μfold:∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ =
     Some = λ(x:α, xs:list α).fold[ρ][α] rxr (rxr r x) xs
   }
 
-let rev_to = Λα.fold[list α][α] (λxs:list α.λx:α.'Some (x, xs))
+let rev_to = Λα.fold[list α][α] λxs:list α.λx:α.'Some (x, xs)
 
 let rev = Λα.rev_to[α] 'None
 
 let filter = Λα.λp:α → bool.λxs:list α.
   xs
   ▷ fold[list α][α]
-      (λxs:list α.λx:α.if p x then 'Some (x, xs) else xs)
+      λxs:list α.λx:α.if p x then 'Some (x, xs) else xs
       'None
   ▷ rev[α]
 

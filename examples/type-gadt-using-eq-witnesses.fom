@@ -8,9 +8,9 @@ type μType = λτ.
   | 'Bool (Bool τ)
   | 'Int (Int τ)
   | 'String (String τ)
-  | 'Alt (∃α.∃β.Alt τ α β)
-  | 'Pair (∃α.∃β.Pair τ α β)
-  | 'Iso (∃α.∃β.Iso τ α β)
+  | 'Alt ∃α.∃β.Alt τ α β
+  | 'Pair ∃α.∃β.Pair τ α β
+  | 'Iso ∃α.∃β.Iso τ α β
 and μBool = λτ.eq bool τ
 and μInt = λτ.eq int τ
 and μString = λτ.eq string τ

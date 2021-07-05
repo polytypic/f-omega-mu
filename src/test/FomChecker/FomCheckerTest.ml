@@ -214,7 +214,7 @@ let () =
   testInfersAs "fix via μ type" "int"
     {eof|
     type t = λa.λb.μt.t → a → b
-    let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) (λx:t a b.λn:a.f (x x) n)
+    let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) λx:t a b.λn:a.f (x x) n
     let fact = λfact:int → int.λn:int.if n =[int] 0 then 1 else n*fact (n-1)
     fix[int][int] fact 5
     |eof}

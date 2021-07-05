@@ -9,8 +9,8 @@
 
 type Pair = λl.λr.λf.f l r
 
-type Fst = λp.p (λl.λ_.l)
-type Snd = λp.p (λ_.λr.r)
+type Fst = λp.p λl.λ_.l
+type Snd = λp.p λ_.λr.r
 
 type Cross = λf.λg.λp.
   type l = f (Fst p)
@@ -41,8 +41,11 @@ type N3 = Succ N2
 type Nil = λn.λc.n
 type Cons = λh.λt.λn.λc.c h (t n c)
 
-type Map = λf.λxs.λn.λc.xs n (λx.c (f x))
+type Map = λf.λxs.λn.λc.xs n λx.c (f x)
 
 #
 
-λ_:Map (λt.(t,t)) (Cons int (Cons string (Cons bool Nil))) () (λh.λt.(h, t)).()
+λ_:Map λt.(t, t)
+       (Cons int (Cons string (Cons bool Nil)))
+       ()
+       λh.λt.(h, t).()

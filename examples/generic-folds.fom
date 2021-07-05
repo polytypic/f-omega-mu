@@ -31,7 +31,7 @@ let List =
         None = λ().r
         Some = λ(x:α, r:ρ).rxr r x
       }
-  let rev_to = Λα.fold[List α][α] (λxs:List α.λx:α.'Some (x, xs))
+  let rev_to = Λα.fold[List α][α] λxs:List α.λx:α.'Some (x, xs)
   let rev = Λα.rev_to[α] 'None
   let filter = Λα.λp:α → bool.λxs:List α.
     xs
@@ -55,7 +55,7 @@ let Set = {
     type set = List elem
     let empty = 'None
     let singleton = List.one[elem]
-    let remove = λx:elem.List.filter[elem] (λy:elem.¬eq x y)
+    let remove = λx:elem.List.filter[elem] λy:elem.¬eq x y
     let union = λl:set.λr:set.
       List.concat[elem] l (List.filter[elem] (λi:elem.¬List.has[elem] (eq i) l) r)
     let to_list = λs:set.s

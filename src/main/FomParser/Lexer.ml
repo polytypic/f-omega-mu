@@ -230,122 +230,300 @@ let token_info_utf_8 input =
       | Underscore -> variable);
   }
 
+let[@warning "-32"] to_string = function
+  | And -> "and"
+  | ArrowRight -> "→"
+  | Backslash -> "\\"
+  | BraceLhs -> "{"
+  | BraceRhs -> "}"
+  | BracketLhs -> "["
+  | BracketRhs -> "]"
+  | Case -> "case"
+  | Colon -> ":"
+  | Comma -> ","
+  | Comment _ -> "# ..."
+  | Dot -> "."
+  | DoubleAngleLhs -> "《"
+  | DoubleAngleRhs -> "》"
+  | EOF -> "<EOF>"
+  | Else -> "else"
+  | Equal -> "="
+  | Exists -> "∃"
+  | ForAll -> "∀"
+  | Greater -> ">"
+  | GreaterEqual -> "≥"
+  | Id id -> id
+  | IdSub id -> id
+  | If -> "if"
+  | Import -> "import"
+  | In -> "in"
+  | Include -> "include"
+  | LambdaLower -> "λ"
+  | LambdaUpper -> "Λ"
+  | Less -> "<"
+  | LessEqual -> "≤"
+  | Let -> "let"
+  | LitBool b -> Bool.to_string b
+  | LitNat n -> Bigint.to_string n
+  | LitString s -> FomAST.LitString.to_utf8_json s
+  | LogicalAnd -> "∧"
+  | LogicalNot -> "∨"
+  | LogicalOr -> "¬"
+  | Minus -> "-"
+  | MuLower -> "μ"
+  | NotEqual -> "≠"
+  | ParenLhs -> "("
+  | ParenRhs -> ")"
+  | Percent -> "%"
+  | Pipe -> "|"
+  | Plus -> "+"
+  | Slash -> "/"
+  | Star -> "*"
+  | Target -> "target"
+  | Then -> "then"
+  | Tick -> "'"
+  | TriangleLhs -> "◁"
+  | TriangleRhs -> "▷"
+  | Type -> "type"
+  | Underscore -> "_"
+
 module Offside = struct
   type 'a monad =
     | Monad of
-        ((Buffer.t -> tok) -> Buffer.t -> tok option -> 'a result * tok option)
+        ((Buffer.t -> tok) ->
+        Buffer.t ->
+        Lexing.position ->
+        bool ->
+        tok option ->
+        'a result * bool * tok option)
 
   and 'a result = Emit of tok * 'a monad | Return of 'a
 
-  let return value = Monad (fun _ _ tok_opt -> (Return value, tok_opt))
+  let return value =
+    Monad (fun _ _ _ is_typ tok_opt -> (Return value, is_typ, tok_opt))
+
   let unit = return ()
 
   let rec ( >>= ) (Monad xM) xyM =
     Monad
-      (fun get_tok buffer tok_opt ->
-        match xM get_tok buffer tok_opt with
-        | Emit (tok, xM), tok_opt -> (Emit (tok, xM >>= xyM), tok_opt)
-        | Return x, tok_opt ->
+      (fun get_tok buffer last_pos is_typ tok_opt ->
+        match xM get_tok buffer last_pos is_typ tok_opt with
+        | Emit (tok, xM), is_typ, tok_opt ->
+          (Emit (tok, xM >>= xyM), is_typ, tok_opt)
+        | Return x, is_typ, tok_opt ->
           let (Monad yM) = xyM x in
-          yM get_tok buffer tok_opt)
+          yM get_tok buffer last_pos is_typ tok_opt)
 
   let ( let* ) = ( >>= )
   let ( >> ) lhs rhs = lhs >>= fun () -> rhs
 
   (* *)
 
+  let col_of (_, (p : Lexing.position), _) = p.pos_cnum - p.pos_bol
+  let tok_of (t, _, _) = t
+
+  let set token (_, s, (e : Lexing.position)) =
+    (token, s, {e with pos_bol = e.pos_bol - 1})
+
+  (* *)
+
   let get =
     Monad
-      (fun get_tok buffer tok_opt ->
+      (fun get_tok buffer _ is_typ tok_opt ->
         ( Return (match tok_opt with Some tok -> tok | None -> get_tok buffer),
+          is_typ,
           None ))
 
   let unget tok =
     Monad
-      (fun get_tok buffer tok_opt ->
+      (fun _ _ _ is_typ tok_opt ->
         match tok_opt with
         | Some _ -> failwith "unget"
-        | None -> (Return (), Some tok))
+        | None -> (Return (), is_typ, Some tok))
 
   let error message =
     Monad (fun _ buffer _ -> raise @@ Exn_lexeme (Buffer.loc buffer, message))
 
-  let emit tok = Monad (fun _ _ tok_opt -> (Emit (tok, unit), tok_opt))
+  let emit tok =
+    Monad (fun _ _ _ is_typ tok_opt -> (Emit (tok, unit), is_typ, tok_opt))
+
   let emit_if bool tok = if bool then emit tok else unit
+  let emit_before tok token = unget tok >> emit (set token tok)
+
+  let expect exp =
+    get >>= fun tok ->
+    if tok_of tok <> exp then error "unexpected" else emit tok
+
+  let new_line (t, (p : Lexing.position), _) =
+    Monad
+      (fun _ _ last_pos is_typ tok_opt ->
+        (Return (last_pos.pos_bol <> p.pos_bol), is_typ, tok_opt))
+
+  let is_typ =
+    Monad (fun _ _ _ is_typ tok_opt -> (Return is_typ, is_typ, tok_opt))
+
+  let set_is_typ is_typ =
+    Monad (fun _ _ _ _ tok_opt -> (Return (), is_typ, tok_opt))
+
+  let as_typ op =
+    let* was = is_typ in
+    set_is_typ true >> op >>= fun res -> set_is_typ was >> return res
 
   (* *)
 
-  let col_of (_, (p : Lexing.position), _) = p.pos_cnum - p.pos_bol
-  let tok_of (t, _, _) = t
-  let set token (_, s, e) = (token, s, e)
-
-  (* *)
-
-  let rec initial tok = match tok_of tok with _ -> nest tok >> get >>= initial
+  let rec initial tok = match tok_of tok with _ -> nest tok >>= initial
 
   and inside_braces insert indent tok =
     match tok_of tok with
     | BraceRhs -> emit tok
     | Comma ->
-      if col_of tok < indent - 2 then
+      let* new_line = new_line tok in
+      if new_line && col_of tok < indent - 2 then
         error "offside"
       else
         emit tok >> get >>= inside_braces false indent
     | _ ->
-      if col_of tok < indent then
+      let* new_line = new_line tok in
+      if new_line && col_of tok < indent then
         error "offside"
       else
-        emit_if (col_of tok = indent && insert) (set Comma tok)
-        >> nest tok >> get >>= inside_braces true indent
+        emit_if (new_line && col_of tok = indent && insert) (set Comma tok)
+        >> nest tok >>= inside_braces true indent
 
   and inside_parens closing tok =
     if tok_of tok = closing then
       emit tok
     else
-      nest tok >> get >>= inside_parens closing
+      nest tok >>= inside_parens closing
 
   and insert_in indent tok =
     match tok_of tok with
     | EOF -> emit tok
     | And ->
-      if col_of tok < indent then
+      let* new_line = new_line tok in
+      if new_line && col_of tok < indent then
         error "offside"
       else
-        emit tok >> get >>= insert_in indent
+        emit tok >> expect MuLower >> get >>= insert_in indent
     | In -> if col_of tok < indent then error "offside" else emit tok
     | _ ->
-      if col_of tok < indent then
+      let* new_line = new_line tok in
+      if new_line && col_of tok < indent then
         error "offside"
-      else if col_of tok = indent then
-        unget tok >> emit (set In tok)
+      else if new_line && col_of tok = indent then
+        emit_before tok In
       else
-        nest tok >> get >>= insert_in indent
+        nest tok >>= insert_in indent
+
+  and inside_binder tok =
+    match tok_of tok with
+    | Colon ->
+      emit tok
+      >> as_typ (get >>= fun tok -> inside_annot (col_of tok) tok)
+      >> get >>= inside_binder
+    | Dot -> emit tok >> get >>= fun tok -> inside_body (col_of tok) tok
+    | _ -> nest tok >>= inside_binder
+
+  and inside_annot indent tok =
+    match tok_of tok with
+    | Dot | Equal | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs
+    | ParenRhs ->
+      unget tok
+    | _ ->
+      let* new_line = new_line tok in
+      if new_line && col_of tok < indent then
+        unget tok
+      else
+        nest tok >>= inside_annot indent
+
+  and inside_body indent tok =
+    let* is_typ = is_typ in
+    match tok_of tok with
+    | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | Else | ParenRhs ->
+      emit_before tok ParenRhs
+    | (Dot | Equal) when is_typ -> emit_before tok ParenRhs
+    | _ ->
+      let* new_line = new_line tok in
+      if new_line && col_of tok < indent then
+        emit_before tok ParenRhs
+      else
+        nest tok >>= inside_body indent
+
+  and inside_if indent tok =
+    match tok_of tok with
+    | Then -> emit tok >> get >>= inside_then indent
+    | _ -> nest tok >>= inside_if indent
+
+  and inside_then indent tok =
+    match tok_of tok with
+    | Else -> emit tok >> get >>= inside_else indent
+    | _ -> nest tok >>= inside_then indent
+
+  and inside_else indent tok =
+    match tok_of tok with
+    | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | ParenRhs ->
+      emit_before tok ParenRhs
+    | _ ->
+      let* new_line = new_line tok in
+      if new_line && col_of tok <= indent then
+        emit_before tok ParenRhs
+      else
+        nest tok >>= inside_else indent
 
   and nest tok =
-    emit tok
-    >>
-    match tok_of tok with
-    | BraceLhs -> get >>= fun tok -> inside_braces false (col_of tok) tok
-    | ParenLhs -> get >>= inside_parens ParenRhs
-    | DoubleAngleLhs -> get >>= inside_parens DoubleAngleRhs
-    | BracketLhs -> get >>= inside_parens BracketRhs
-    | Type | Include | Let -> get >>= insert_in (col_of tok)
-    | _ -> unit
+    (match tok_of tok with
+    | ForAll | Exists | MuLower ->
+      get >>= fun tok ->
+      if tok_of tok <> ParenLhs then emit_before tok ParenLhs else unget tok
+    | If | LambdaLower | LambdaUpper -> emit (set ParenLhs tok)
+    | _ -> unit)
+    >> emit tok
+    >> (match tok_of tok with
+       | BraceLhs -> get >>= fun tok -> inside_braces false (col_of tok) tok
+       | ParenLhs -> get >>= inside_parens ParenRhs
+       | DoubleAngleLhs -> get >>= inside_parens DoubleAngleRhs
+       | BracketLhs -> as_typ (get >>= inside_parens BracketRhs)
+       | Include -> get >>= insert_in (col_of tok)
+       | Type ->
+         let indent = col_of tok in
+         get >>= fun tok ->
+         if tok_of tok = MuLower then
+           as_typ (emit tok >> get >>= insert_in indent)
+         else
+           as_typ (insert_in indent tok)
+       | Let ->
+         let indent = col_of tok in
+         get >>= fun tok ->
+         if tok_of tok = MuLower then
+           emit tok >> get >>= insert_in indent
+         else
+           insert_in indent tok
+       | Colon -> as_typ (get >>= fun tok -> inside_annot (col_of tok) tok)
+       | LambdaLower | LambdaUpper -> get >>= inside_binder
+       | ForAll | Exists | MuLower ->
+         get >>= fun tok ->
+         if tok_of tok <> ParenLhs then
+           inside_binder tok
+         else
+           unget tok
+       | If -> get >>= inside_if (col_of tok)
+       | _ -> unit)
+    >> get
 
   (* *)
 
-  type state = (unit monad * tok option) ref
+  type state = (unit monad * Lexing.position * bool * tok option) ref
 
-  let init () : state = ref (get >>= initial, None)
+  let init () : state = ref (get >>= initial, Lexing.dummy_pos, false, None)
 end
 
 let offside : t =
  fun buffer ->
   let state = Offside.init () in
   fun () ->
-    let Monad uM, tok_opt = !state in
-    match uM token buffer tok_opt with
-    | Emit (tok, continue), tok_opt ->
-      state := (continue, tok_opt);
+    let Monad uM, last_pos, is_typ, tok_opt = !state in
+    match uM token buffer last_pos is_typ tok_opt with
+    | Emit (((_, _, last_pos) as tok), continue), is_typ, tok_opt ->
+      state := (continue, last_pos, is_typ, tok_opt);
       tok
-    | Return (), _ -> failwith "return"
+    | Return (), _, _ -> failwith "return"
