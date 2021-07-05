@@ -70,7 +70,7 @@ let js_loc (begins, ends) =
 
 (* *)
 
-let let_type_mu = utf8string "let type " ^^ mu_lower
+let type_mu = utf8string "type " ^^ mu_lower
 let and_mu = break_0_0 ^^ utf8string "and " ^^ mu_lower
 
 let pp_typ t =
@@ -112,7 +112,7 @@ let pp_typ t =
          (break_0
          ^^
          match ds with
-         | d :: ds -> let_type_mu ^^ d ^^ concat (ds |> List.map (( ^^ ) and_mu))
+         | d :: ds -> type_mu ^^ d ^^ concat (ds |> List.map (( ^^ ) and_mu))
          | _ -> failwith "impossible")
 
 (* *)
