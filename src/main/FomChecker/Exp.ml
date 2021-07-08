@@ -89,19 +89,17 @@ let rec infer = function
     | Some (def, x_typ) -> Annot.Exp.use x (Id.at def) >> return x_typ)
   | `Lam (at', d, d_typ, r) ->
     let* d_typ = Typ.check_and_norm d_typ in
-    Annot.Exp.def d d_typ
-    >> let+ r_typ = Env.adding d d_typ (infer r) in
-       `Arrow (at', d_typ, r_typ)
+    let+ r_typ = Annot.Exp.def d d_typ >> Env.adding d d_typ (infer r) in
+    `Arrow (at', d_typ, r_typ)
   | `App (_, f, x) ->
     let* f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
     let* x_typ = infer x in
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
-    let* r_typ = Typ.Env.adding d d_kind (infer r) in
+    let* r_typ = Annot.Typ.def d d_kind >> Typ.Env.adding d d_kind (infer r) in
     let* d_kind = Kind.resolve d_kind >>- Kind.ground in
-    Annot.Typ.def d d_kind
-    >> return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
+    return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
     let* f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
@@ -176,14 +174,14 @@ let rec infer = function
     let* v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
     let id_typ = Typ.norm (`App (at', v_con, `Var (at', tid))) in
-    Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
-    >> let* e_typ =
-         infer e |> Env.adding id id_typ |> Typ.Env.adding tid d_kind
-       in
-       if Typ.is_free tid e_typ then
-         fail @@ `Error_typ_var_escapes (at', tid, e_typ)
-       else
-         return e_typ
+    let* e_typ =
+      Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
+      >> Env.adding id id_typ (Typ.Env.adding tid d_kind (infer e))
+    in
+    if Typ.is_free tid e_typ then
+      fail @@ `Error_typ_var_escapes (at', tid, e_typ)
+    else
+      return e_typ
   | `Target (_, t, _) -> Typ.check_and_norm t
 
 let infer e =

@@ -186,9 +186,8 @@ let rec infer = function
     | None -> fail @@ `Error_typ_var_unbound (at', i)
     | Some (def, i_kind) -> Annot.Typ.use i (Id.at def) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
-    Annot.Typ.def d d_kind
-    >> let+ r_kind = Env.adding d d_kind (infer r) in
-       `Arrow (at', d_kind, r_kind)
+    let+ r_kind = Annot.Typ.def d d_kind >> Env.adding d d_kind (infer r) in
+    `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) ->
     let* f_kind = infer f and* d_kind = infer x in
     let c_kind = `Var (at', Kind.Id.fresh at') in
