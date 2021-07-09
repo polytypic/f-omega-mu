@@ -27,7 +27,7 @@ let Fold =
   let ofFold = Λα.Λβ.λab:Fold α β.ab
   let ofLeibniz = Λα.Λβ.λab:Leibniz α β.Λφ.λh:∀γ.φ γ γ.ab[φ α] (h[α])
   let refl = Λα.Λφ.λf:∀γ.φ γ γ.f[α]
-  let symm = Λα.Λβ.λab:Fold α β.Λφ.λf:(∀γ.φ γ γ).ab[λα.λβ.φ β α] f
+  let symm = Λα.Λβ.λab:Fold α β.Λφ.λf:∀γ.φ γ γ.ab[λα.λβ.φ β α] f
   let trans = Λα.Λβ.Λγ.λbc:Fold β γ.λab:Fold α β.Λϕ.
     λf:∀γ.ϕ γ γ.bc[λγ.λδ.ϕ α γ → ϕ α δ] (Λγ.λx:ϕ α γ.x) (ab[ϕ] f)
   let to = Λα.Λβ.λab:Fold α β.ab[λα.λβ.α → β] (Λγ.λx:γ.x)
