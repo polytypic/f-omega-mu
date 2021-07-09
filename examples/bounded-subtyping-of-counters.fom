@@ -39,7 +39,7 @@ type ResetCounterM = λτ.{
 
 let ResetCounterClass = {
   get = λ{count: int}.count
-  inc = λ{count: int,resets: int}.{count = count + 1, resets}
+  inc = λ{count: int, resets: int}.{count = count + 1, resets}
   reset = λ{resets: int}.{count = 0, resets = resets + 1}
   reset_count = λ{resets: int}.resets
 }
