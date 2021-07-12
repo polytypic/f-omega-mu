@@ -8,6 +8,7 @@ module Exn = Exn
 module Field = Field
 module FilenameExt = FilenameExt
 module IVar = IVar
+module LVar = LVar
 module ListExt = ListExt
 module MapExt = MapExt
 module Monad = Monad

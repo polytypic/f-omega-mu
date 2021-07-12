@@ -13,6 +13,8 @@ typ
   : tid                                                        // Type variable (*1)
   | ('int' | 'bool' | 'string')                                // Builtin types
   | typ '→' typ                                                // Function type
+  | typ '∨' typ                                                // Join of types
+  | typ '∧' typ                                                // Meet of types
   | '(' (typ ',')* ')'                                         // Tuple type
   | '{' (label (':' typ)? ',')* '}'                            // Product type
   | '|' | ('|' "'" label typ?)+                                // Sum type

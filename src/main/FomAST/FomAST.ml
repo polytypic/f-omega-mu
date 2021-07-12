@@ -391,7 +391,7 @@ module Typ = struct
 
   let subst_rec env t = if Env.is_empty env then t else subst_rec env t
 
-  let rec is_free id = function
+  let is_free' is_free id = function
     | `Const _ -> false
     | `Var (_, id') -> Id.equal id id'
     | `Lam (_, id', _, body) -> (not (Id.equal id id')) && is_free id body
@@ -400,6 +400,8 @@ module Typ = struct
     | `Arrow (_, d, c) -> is_free id d || is_free id c
     | `Product (_, ls) | `Sum (_, ls) ->
       ls |> List.exists @@ fun (_, t) -> is_free id t
+
+  let rec is_free id = is_free' is_free id
 
   let rec subst_par env = function
     | `Mu (at, t) as inn ->

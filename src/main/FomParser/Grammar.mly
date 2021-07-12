@@ -155,7 +155,12 @@ typ_app:
 
 typ_inf:
   | t=typ_app                                           {t}
-  | d=typ_app"→"c=typ                                   {`Arrow ($loc, d, c)}
+  | l=typ_inf"∨"r=typ_inf                               {`Join ($loc, l, r)}
+  | l=typ_inf"∧"r=typ_inf                               {`Meet ($loc, l, r)}
+
+typ_arr:
+  | t=typ_inf                                           {t}
+  | d=typ_inf"→"c=typ                                   {`Arrow ($loc, d, c)}
 
 typ_lam(head):
   | head b=typ_bind"."t=typ                             {`Lam ($loc, fst b, snd b, t)}
@@ -163,7 +168,7 @@ typ_lam(head):
 typ:
   | option("|") s=list_1(tick_lab_typ, "|")             {Typ.sum $loc s}
   | "|"                                                 {Typ.sum $loc []}
-  | t=typ_inf                                           {t}
+  | t=typ_arr                                           {t}
   | t=typ_lam("μ")                                      {`Mu ($loc, t)}
   | t=typ_lam("∃")                                      {`Exists ($loc, t)}
   | t=typ_lam("∀")                                      {`ForAll ($loc, t)}

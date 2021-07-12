@@ -31,13 +31,19 @@ module Typ = struct
 
   type 't f =
     [ ('t, Kind.t) Typ.f
+    | `Join of Loc.t * 't * 't
+    | `Meet of Loc.t * 't * 't
     | `LetDefIn of Loc.t * 't Def.f * 't
     | `Import of Loc.t * LitString.t ]
 
   type t = [ | t f]
 
   let at = function
-    | `LetDefIn (at, _, _) | `Import (at, _) -> at
+    | `Join (at, _, _)
+    | `Meet (at, _, _)
+    | `LetDefIn (at, _, _)
+    | `Import (at, _) ->
+      at
     | #Typ.f as ast -> Typ.at ast
 
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)

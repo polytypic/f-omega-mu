@@ -376,6 +376,14 @@ and elaborate_typ = function
   | `Sum (at', ls) ->
     let+ ls = ls |> MList.traverse @@ MPair.traverse return elaborate_typ in
     `Sum (at', ls)
+  | `Join (at', l, r) ->
+    let* l = elaborate_typ l >>- Typ.norm
+    and* r = elaborate_typ r >>- Typ.norm in
+    Typ.join_of_norm at' (l, r)
+  | `Meet (at', l, r) ->
+    let* l = elaborate_typ l >>- Typ.norm
+    and* r = elaborate_typ r >>- Typ.norm in
+    Typ.meet_of_norm at' (l, r)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     TypAliases.setting typ_aliases (elaborate_typ e)

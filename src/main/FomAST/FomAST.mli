@@ -127,6 +127,7 @@ module Typ : sig
   (* *)
 
   val free : t -> IdSet.t
+  val is_free' : (Id.t -> 't -> bool) -> Id.t -> ('t, 'k) f -> bool
   val is_free : Id.t -> t -> bool
   val subst : Id.t -> t -> t uop
   val subst_par : t Env.t -> t uop

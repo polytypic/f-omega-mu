@@ -1,0 +1,25 @@
+include "types"
+include "algebras"
+
+{
+  Identity: Monad id ∧ Applicative id
+
+  Constant: ∀γ.Functor λ_.γ
+
+  Applicative: {
+    map: ∀𝐹.Applicative 𝐹 → ∀α.∀β.(α → β) → 𝐹 α → 𝐹 β
+  }
+
+  Monad: {
+    map: ∀𝐹.Monad 𝐹 → ∀α.∀β.(α → β) → 𝐹 α → 𝐹 β
+  }
+
+  Traversable: {
+    sequence: ∀𝐹.Applicative 𝐹 → ∀𝑇.Traversable 𝑇 → ∀α.𝑇 (𝐹 α) → 𝐹 (𝑇 α)
+  }
+
+  Profunctor: {
+    map: ∀𝐹.Profunctor 𝐹 → ∀γ.∀α.∀β.(α → β) → 𝐹 γ α → 𝐹 γ β
+    contramap: ∀𝐹.Profunctor 𝐹 → ∀γ.∀α.∀β.(α → β) → 𝐹 β γ → 𝐹 α γ
+  }
+}
