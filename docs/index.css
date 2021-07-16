@@ -21,6 +21,7 @@ select {
   background: #20222e !important;
   border: 2px #282a36 solid;
   border-radius: 5px;
+  z-index: 1;
 }
 
 #fomDiv .CodeMirror.cm-s-dracula:hover,
@@ -43,6 +44,10 @@ select {
   position: fixed;
   top: 1em;
   right: 1em;
+  z-index: 0;
+}
+
+#typDiv .CodeMirror:hover {
   z-index: 10;
 }
 
