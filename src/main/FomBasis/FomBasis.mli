@@ -281,6 +281,10 @@ module UTF8 : sig
   (** Convert an array of Unicode characters to UTF-8 string. *)
 end
 
+module UTF16 : sig
+  val of_uchar_array : Uchar.t array -> bytes
+end
+
 val failwithf : ('a, unit, string, string, string, 'b) format6 -> 'a
 (** Fail with formatted message. *)
 

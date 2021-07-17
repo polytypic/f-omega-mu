@@ -1,3 +1,4 @@
+open FomBasis
 open FomSource
 open Grammar
 
@@ -246,11 +247,15 @@ let string = "string"
 let tag = "tag"
 let variable = "variable"
 
+let offset_as_utf_16 input i =
+  let input = UTF8.to_uchar_array input in
+  (Array.sub input 0 i |> UTF16.of_uchar_array |> Bytes.length) / 2
+
 let token_info_utf_8 input =
   Buffer.from_utf_8 input |> token_or_comment |> fun (token, lhs, rhs) ->
   {
-    begins = lhs.pos_cnum - lhs.pos_bol;
-    ends = rhs.pos_cnum - lhs.pos_bol;
+    begins = lhs.pos_cnum;
+    ends = rhs.pos_cnum;
     name =
       (match token with
       | And -> keyword

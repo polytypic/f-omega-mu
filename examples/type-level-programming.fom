@@ -31,10 +31,10 @@ type Or  = λl.λr.λt.λf.l t (r t f)
 
 type Succ = λn.λs.λz.s (n s z)
 
-type N0 = λ_.λz.z
-type N1 = Succ N0
-type N2 = Succ N1
-type N3 = Succ N2
+type 𝟘 = λ_.λz.z
+type 𝟙 = Succ 𝟘
+type 𝟚 = Succ 𝟙
+type 𝟛 = Succ 𝟚
 
 # Lists
 

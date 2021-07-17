@@ -16,7 +16,16 @@ module Pair = Pair
 module Rea = Rea
 module Res = Res
 module StringExt = StringExt
-module UTF8 = UTF8
+
+module UTF8 = struct
+  let of_uchar_array = UTF.to_utf8
+  let to_uchar_array = UTF.to_uchar_array
+end
+
+module UTF16 = struct
+  let of_uchar_array = UTF.to_utf16_bytes
+end
+
 module Zero = Zero
 
 let failwithf = Exn.failwithf

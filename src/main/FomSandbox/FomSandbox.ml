@@ -263,6 +263,8 @@ let js_codemirror_mode =
       in
       format ~atomize:false value |> to_js_string ~max_width
 
+    method offset input i = Lexer.offset_as_utf_16 (Js.to_string input) i
+
     method check path input max_width (on_result : _ Cb.t) =
       let path = Js.to_string path in
       let env = Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports () in

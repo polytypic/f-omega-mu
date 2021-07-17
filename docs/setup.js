@@ -76,12 +76,13 @@ const jsCM = CodeMirror(jsDiv, {
 
 CodeMirror.defineMode('fom', () => ({
   token: stream => {
+    const input = stream.string.slice(stream.start)
     const token = fom.token(stream.string.slice(stream.start))
     if (token.name === 'error') {
       stream.skipToEnd()
     } else {
-      stream.start += token.begins
-      stream.pos += token.ends
+      stream.start += fom.offset(input, token.begins)
+      stream.pos += fom.offset(input, token.ends)
     }
     if (token.name === 'variable' && stream.string[stream.start - 1] === "'")
       return 'property'
@@ -169,23 +170,32 @@ const duAt = (cursor, offset) => {
   }
 }
 
+const posAsNative = (cm, {line, ch}) => {
+  const input = cm.getLine(line)
+  return {line, ch: fom.offset(input, ch)}
+}
+
 const updateDefUses = throttled(100, () => {
   clearMarkers(duMarkers)
   const du = duAt(fomCM.getCursor())
   if (du) {
     if (du.def.file === url) {
       duMarkers.push(
-        fomCM.markText(du.def.begins, du.def.ends, {
-          css: 'background: darkgreen',
-        })
+        fomCM.markText(
+          posAsNative(fomCM, du.def.begins),
+          posAsNative(fomCM, du.def.ends),
+          {css: 'background: darkgreen'}
+        )
       )
     }
     du.uses.forEach(use => {
       if (use.file === url) {
         duMarkers.push(
-          fomCM.markText(use.begins, use.ends, {
-            css: 'background: blue',
-          })
+          fomCM.markText(
+            posAsNative(fomCM, use.begins),
+            posAsNative(fomCM, use.ends),
+            {css: 'background: blue'}
+          )
         )
       }
     })
@@ -296,11 +306,11 @@ const check = throttled(
             ? 'text-shadow: 0px 0px 10px orange'
             : 'text-shadow: 0px 0px 10px red'
           diagnosticMarkers.push(
-            fomCM.markText(diagnostic.begins, diagnostic.ends, {
-              className: 'marker',
-              css: css,
-              title: diagnostic.message,
-            })
+            fomCM.markText(
+              posAsNative(fomCM, diagnostic.begins),
+              posAsNative(fomCM, diagnostic.ends),
+              {className: 'marker', css, title: diagnostic.message}
+            )
           )
         })
       } else {
@@ -388,15 +398,17 @@ fomCM.on('keyup', (_, event) => {
       const selections = []
       let primary = 0
       const at = loc => {
+        const begins = posAsNative(fomCM, loc.begins)
+        const ends = posAsNative(fomCM, loc.ends)
         if (loc.file === url) {
           if (
-            cursor.line === loc.begins.line &&
-            loc.begins.ch <= cursor.ch &&
-            cursor.ch <= loc.ends.ch
+            cursor.line === begins.line &&
+            begins.ch <= cursor.ch &&
+            cursor.ch <= ends.ch
           ) {
             primary = selections.length
           }
-          selections.push({anchor: loc.begins, head: loc.ends})
+          selections.push({anchor: begins, head: ends})
         }
       }
       at(du.def)

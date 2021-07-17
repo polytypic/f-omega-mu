@@ -23,6 +23,9 @@ module Lexer : sig
 
   val token_info_utf_8 : string -> token_info
   (** Parse info of first single token from given UTF-8 string input. *)
+
+  val offset_as_utf_16 : string -> int -> int
+  (** Convert UTF-32 character offset to UTF-16 character offset with respect to given UTF-8 string. *)
 end
 
 module Grammar : sig

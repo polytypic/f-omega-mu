@@ -15,9 +15,13 @@ let to_uchar_array str =
   else
     buffer
 
-let of_uchar_array chars =
+let encode_as encoding chars =
   let buffer = Buffer.create (Array.length chars * 2) in
-  let encoder = Uutf.encoder `UTF_8 (`Buffer buffer) in
-  chars |> Array.iter (fun char -> Uutf.encode encoder (`Uchar char) |> ignore);
+  let encoder = Uutf.encoder encoding @@ `Buffer buffer in
+  (chars
+  |> Array.iter @@ fun char -> ignore @@ Uutf.encode encoder @@ `Uchar char);
   Uutf.encode encoder `End |> ignore;
-  Buffer.contents buffer
+  buffer
+
+let to_utf16_bytes chars = chars |> encode_as `UTF_16 |> Buffer.to_bytes
+let to_utf8 chars = chars |> encode_as `UTF_8 |> Buffer.contents
