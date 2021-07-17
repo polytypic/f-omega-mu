@@ -13,7 +13,7 @@ and μNat = λn.∀r.Cases r → r n
 let Zero =             Λr.λcs:Cases r.cs.Zero
 let Succ = Λn.λn:Nat n.Λr.λcs:Cases r.cs.Succ[n] n
 
-type N = ∃(Nat)
+type ℕ = ∃(Nat)
 
 let μto_int:∀n.Nat n → int = Λn.λn:Nat n.
   n[λ_.int] {
@@ -21,5 +21,5 @@ let μto_int:∀n.Nat n → int = Λn.λn:Nat n.
     Succ = Λn.λn:Nat n.to_int[n] n + 1
   }
 
-let《n\n》=《S (S Z)\Succ[S Z] (Succ[Z] Zero)》: N
+let《n\n》=《S (S Z)\Succ[S Z] (Succ[Z] Zero)》: ℕ
 to_int[n] n

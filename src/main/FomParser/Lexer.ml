@@ -39,7 +39,87 @@ let id_first =
 
 let id_rest = [%sedlex.regexp? tr8876_ident_char | '_' | '0' .. '9']
 let id = [%sedlex.regexp? id_first, Star id_rest | '_', Plus id_rest]
-let id_sub = [%sedlex.regexp? id, Plus sub_digit]
+
+let math_symbol =
+  [%sedlex.regexp?
+    (* Letterlike Symbols *)
+    ( 0x2100 .. 0x210f
+    | 0x2110 .. 0x211f
+    | 0x2120 .. 0x212f
+    | 0x2130 .. 0x213f
+    | 0x2140 .. 0x214f
+    (* Mathematical Alphanumeric Symbols *)
+    | 0x1d400 .. 0x1d40f
+    | 0x1d410 .. 0x1d41f
+    | 0x1d420 .. 0x1d42f
+    | 0x1d430 .. 0x1d43f
+    | 0x1d440 .. 0x1d44f
+    | 0x1d450 .. 0x1d45f
+    | 0x1d460 .. 0x1d46f
+    | 0x1d470 .. 0x1d47f
+    | 0x1d480 .. 0x1d48f
+    | 0x1d490 .. 0x1d49f
+    | 0x1d4a0 .. 0x1d4af
+    | 0x1d4b0 .. 0x1d4bf
+    | 0x1d4c0 .. 0x1d4cf
+    | 0x1d4d0 .. 0x1d4df
+    | 0x1d4e0 .. 0x1d4ef
+    | 0x1d4f0 .. 0x1d4ff
+    | 0x1d500 .. 0x1d50f
+    | 0x1d510 .. 0x1d51f
+    | 0x1d520 .. 0x1d52f
+    | 0x1d530 .. 0x1d53f
+    | 0x1d540 .. 0x1d54f
+    | 0x1d550 .. 0x1d55f
+    | 0x1d560 .. 0x1d56f
+    | 0x1d570 .. 0x1d57f
+    | 0x1d580 .. 0x1d58f
+    | 0x1d590 .. 0x1d59f
+    | 0x1d5a0 .. 0x1d5af
+    | 0x1d5b0 .. 0x1d5bf
+    | 0x1d5c0 .. 0x1d5cf
+    | 0x1d5d0 .. 0x1d5df
+    | 0x1d5e0 .. 0x1d5ef
+    | 0x1d5f0 .. 0x1d5ff
+    | 0x1d600 .. 0x1d60f
+    | 0x1d610 .. 0x1d61f
+    | 0x1d620 .. 0x1d62f
+    | 0x1d630 .. 0x1d63f
+    | 0x1d640 .. 0x1d64f
+    | 0x1d650 .. 0x1d65f
+    | 0x1d660 .. 0x1d66f
+    | 0x1d670 .. 0x1d67f
+    | 0x1d680 .. 0x1d68f
+    | 0x1d690 .. 0x1d69f
+    | 0x1d6a0 .. 0x1d6af
+    | 0x1d6b0 .. 0x1d6bf
+    | 0x1d6c0 .. 0x1d6cf
+    | 0x1d6d0 .. 0x1d6df
+    | 0x1d6e0 .. 0x1d6ef
+    | 0x1d6f0 .. 0x1d6ff
+    | 0x1d700 .. 0x1d70f
+    | 0x1d710 .. 0x1d71f
+    | 0x1d720 .. 0x1d72f
+    | 0x1d730 .. 0x1d73f
+    | 0x1d740 .. 0x1d74f
+    | 0x1d750 .. 0x1d75f
+    | 0x1d760 .. 0x1d76f
+    | 0x1d770 .. 0x1d77f
+    | 0x1d780 .. 0x1d78f
+    | 0x1d790 .. 0x1d79f
+    | 0x1d7a0 .. 0x1d7af
+    | 0x1d7b0 .. 0x1d7bf
+    | 0x1d7c0 .. 0x1d7cf
+    | 0x1d7d0 .. 0x1d7df
+    | 0x1d7e0 .. 0x1d7ef
+    | 0x1d7f0 .. 0x1d7ff )]
+
+let id_typ =
+  [%sedlex.regexp?
+    ( (id_first | math_symbol), Star (id_rest | math_symbol)
+    | '_', Plus (id_rest | math_symbol) )]
+
+let id_sub = [%sedlex.regexp? id_typ, Plus sub_digit]
 
 (* *)
 
@@ -130,6 +210,7 @@ let rec token_or_comment buffer =
       (LitString (Buffer.lexeme_utf_8 buffer |> FomCST.LitString.of_utf8_json))
   (* *)
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
+  | id_typ -> return (IdTyp (Buffer.lexeme_utf_8 buffer))
   | id_sub -> return (IdSub (Buffer.lexeme_utf_8 buffer))
   (* *)
   | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
@@ -195,6 +276,7 @@ let token_info_utf_8 input =
       | GreaterEqual -> operator
       | Id ("bool" | "int" | "string") -> builtin
       | Id _ -> variable
+      | IdTyp _ -> variable
       | IdSub _ -> variable
       | If -> keyword
       | Import -> keyword
@@ -253,6 +335,7 @@ let[@warning "-32"] to_string = function
   | Greater -> ">"
   | GreaterEqual -> "≥"
   | Id id -> id
+  | IdTyp id -> id
   | IdSub id -> id
   | If -> "if"
   | Import -> "import"

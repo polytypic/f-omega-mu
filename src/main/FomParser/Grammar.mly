@@ -3,6 +3,7 @@
 %token <FomCST.LitString.t> LitString
 
 %token <string> Id
+%token <string> IdTyp
 %token <string> IdSub
 %token <string> Comment
 
@@ -128,6 +129,7 @@ tick_lab_typ:
 
 typ_rid:
   | i=Id                                                {Typ.Id.of_string $loc i}
+  | i=IdTyp                                             {Typ.Id.of_string $loc i}
 
 typ_bid:
   | Underscore                                          {Typ.Id.of_string $loc "_"}
