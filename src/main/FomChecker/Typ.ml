@@ -523,95 +523,100 @@ let to_lazy e =
     : [ | ('a, 'k) FomAST.Typ.f] as 'a
     :> [('b, 'k) FomAST.Typ.f | `Lazy of ('r, 'e, 'b) Rea.t Lazy.t] as 'b)
 
-let join_of_norm at g =
-  let module GoalMap = Map.Make (Goal) in
-  let joins = ref GoalMap.empty in
-  let meets = ref GoalMap.empty in
-  let rec intersection op os = function
-    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
-      let c = Label.compare ll rl in
-      if c < 0 then
-        intersection op os (lls, rlls)
-      else if 0 < c then
-        intersection op os (llls, rls)
-      else
-        let* t = op (lt, rt) in
-        intersection op ((ll, t) :: os) (lls, rls)
-    | [], _ | _, [] -> return @@ List.rev os
-  in
-  let rec union op os = function
-    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
-      let c = Label.compare ll rl in
-      if c < 0 then
-        union op ((ll, to_lazy lt) :: os) (lls, rlls)
-      else if 0 < c then
-        union op ((rl, to_lazy rt) :: os) (llls, rls)
-      else
-        let* t = op (lt, rt) in
-        union op ((ll, t) :: os) (lls, rls)
-    | (ll, lt) :: lls, [] -> union op ((ll, to_lazy lt) :: os) (lls, [])
-    | [], (rl, rt) :: rls -> union op ((rl, to_lazy rt) :: os) ([], rls)
-    | [], [] -> return @@ List.rev os
-  in
-  let synth map fst snd upper lower intersection union ((l, r) as g) =
-    match GoalMap.find_opt g !map with
-    | Some result -> result
-    | None ->
-      let result =
-        let* g_is_sub = is_sub_of_norm g in
-        if g_is_sub then
-          return @@ to_lazy (snd g)
+let join_of_norm, meet_of_norm =
+  let make_join_and_meet at =
+    let module GoalMap = Map.Make (Goal) in
+    let joins = ref GoalMap.empty in
+    let meets = ref GoalMap.empty in
+    let rec intersection op os = function
+      | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
+        let c = Label.compare ll rl in
+        if c < 0 then
+          intersection op os (lls, rlls)
+        else if 0 < c then
+          intersection op os (llls, rls)
         else
-          let* swap_g_is_sub = is_sub_of_norm (Pair.swap g) in
-          if swap_g_is_sub then
-            return @@ to_lazy (fst g)
+          let* t = op (lt, rt) in
+          intersection op ((ll, t) :: os) (lls, rls)
+      | [], _ | _, [] -> return @@ List.rev os
+    in
+    let rec union op os = function
+      | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
+        let c = Label.compare ll rl in
+        if c < 0 then
+          union op ((ll, to_lazy lt) :: os) (lls, rlls)
+        else if 0 < c then
+          union op ((rl, to_lazy rt) :: os) (llls, rls)
+        else
+          let* t = op (lt, rt) in
+          union op ((ll, t) :: os) (lls, rls)
+      | (ll, lt) :: lls, [] -> union op ((ll, to_lazy lt) :: os) (lls, [])
+      | [], (rl, rt) :: rls -> union op ((rl, to_lazy rt) :: os) ([], rls)
+      | [], [] -> return @@ List.rev os
+    in
+    let synth map fst snd upper lower intersection union ((l, r) as g) =
+      match GoalMap.find_opt g !map with
+      | Some result -> result
+      | None ->
+        let result =
+          let* g_is_sub = is_sub_of_norm g in
+          if g_is_sub then
+            return @@ to_lazy (snd g)
           else
-            return
-            @@ `Lazy
-                 (lazy
-                   (match g with
-                   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-                     let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
-                     `Arrow (at, d, c)
-                   | `Product (_, lls), `Product (_, rls) ->
-                     let+ ls = intersection upper [] (lls, rls) in
-                     `Product (at, ls)
-                   | `Sum (_, lls), `Sum (_, rls) ->
-                     let+ ls = union upper [] (lls, rls) in
-                     `Sum (at, ls)
-                   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-                     Kind.unify at lk rk
-                     >>
-                     let i, goal = Goal.unify_vars li lt ri rt in
-                     let assoc = Goal.free_vars_to_regular_assoc goal in
-                     let+ t =
-                       goal
-                       |> Goal.map (Goal.to_subst assoc)
-                       |> upper >>= to_strict
-                       >>- Goal.to_subst (List.map Pair.swap assoc)
-                       >>- to_lazy
-                     in
-                     `Lam (at, i, lk, t)
-                   | `ForAll (_, lt), `ForAll (_, rt) ->
-                     let+ t = upper (lt, rt) in
-                     `ForAll (at, t)
-                   | `Exists (_, lt), `Exists (_, rt) ->
-                     let+ t = upper (lt, rt) in
-                     `Exists (at, t)
-                   | _ -> (
-                     match (unapp l, unapp r) with
-                     | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs)
-                       ->
-                       upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
-                     | ((`Mu (la, lf) as lmu), lxs), _ ->
-                       upper (unfold la lf lmu lxs, r)
-                     | _, ((`Mu (ra, rf) as rmu), rxs) ->
-                       upper (l, unfold ra rf rmu rxs)
-                     | _ -> fail @@ `Error_typ_mismatch (at, l, r))))
-      in
-      map := GoalMap.add g result !map;
-      result
+            let* swap_g_is_sub = is_sub_of_norm (Pair.swap g) in
+            if swap_g_is_sub then
+              return @@ to_lazy (fst g)
+            else
+              return
+              @@ `Lazy
+                   (lazy
+                     (match g with
+                     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+                       let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
+                       `Arrow (at, d, c)
+                     | `Product (_, lls), `Product (_, rls) ->
+                       let+ ls = intersection upper [] (lls, rls) in
+                       `Product (at, ls)
+                     | `Sum (_, lls), `Sum (_, rls) ->
+                       let+ ls = union upper [] (lls, rls) in
+                       `Sum (at, ls)
+                     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+                       Kind.unify at lk rk
+                       >>
+                       let i, goal = Goal.unify_vars li lt ri rt in
+                       let assoc = Goal.free_vars_to_regular_assoc goal in
+                       let+ t =
+                         goal
+                         |> Goal.map (Goal.to_subst assoc)
+                         |> upper >>= to_strict
+                         >>- Goal.to_subst (List.map Pair.swap assoc)
+                         >>- to_lazy
+                       in
+                       `Lam (at, i, lk, t)
+                     | `ForAll (_, lt), `ForAll (_, rt) ->
+                       let+ t = upper (lt, rt) in
+                       `ForAll (at, t)
+                     | `Exists (_, lt), `Exists (_, rt) ->
+                       let+ t = upper (lt, rt) in
+                       `Exists (at, t)
+                     | _ -> (
+                       match (unapp l, unapp r) with
+                       | ( ((`Mu (la, lf) as lmu), lxs),
+                           ((`Mu (ra, rf) as rmu), rxs) ) ->
+                         upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
+                       | ((`Mu (la, lf) as lmu), lxs), _ ->
+                         upper (unfold la lf lmu lxs, r)
+                       | _, ((`Mu (ra, rf) as rmu), rxs) ->
+                         upper (l, unfold ra rf rmu rxs)
+                       | _ -> fail @@ `Error_typ_mismatch (at, l, r))))
+        in
+        map := GoalMap.add g result !map;
+        result
+    in
+    let rec join g = synth joins fst snd join meet intersection union g
+    and meet g = synth meets snd fst meet join union intersection g in
+    (join, meet)
   in
-  let rec join g = synth joins fst snd join meet intersection union g
-  and meet g = synth meets snd fst meet join union intersection g in
-  join g >>= to_strict
+  let join at g = fst (make_join_and_meet at) g >>= to_strict
+  and meet at g = snd (make_join_and_meet at) g >>= to_strict in
+  (join, meet)
