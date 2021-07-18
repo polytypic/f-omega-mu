@@ -28,6 +28,15 @@ select {
   margin-bottom: 0.5em;
 }
 
+#depsSelect:not(:checked) ~ #depsDl,
+#jsSelect:not(:checked) ~ #jsDiv {
+  display: none;
+}
+
+#jsDiv .CodeMirror.cm-s-dracula {
+  margin-top: 1em;
+}
+
 #fomDiv .CodeMirror.cm-s-dracula:hover,
 #resultDiv .CodeMirror.cm-s-dracula:hover,
 #typDiv .CodeMirror.cm-s-dracula:hover,

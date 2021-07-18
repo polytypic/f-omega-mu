@@ -493,3 +493,12 @@ exampleSelect.onchange = () => {
     xhr.send()
   }
 }
+
+//
+
+jsSelect.onchange = () => jsCM.refresh()
+
+depsSelect.onchange = () => {
+  for (const div of depsDl.querySelectorAll('dd > div'))
+    div.CodeMirror.refresh()
+}

@@ -49,9 +49,9 @@
         <option value="" disabled selected>EXAMPLES</option>
       </select>
     </p>
-    <p>
-      <label>
-        <input id="replaceSymbolsInput" type="checkbox" checked="true" />
+    <div>
+      <input id="replaceSymbolsInput" type="checkbox" checked />
+      <label for="replaceSymbolsInput">
         Replace
         <a
           target="_blank"
@@ -60,11 +60,15 @@
         >
         on space
       </label>
-    </p>
-    <p>See transpiled JavaScript below:</p>
-    <div id="jsDiv"></div>
+    </div>
+    <div>
+      <input id="jsSelect" type="checkbox" checked />
+      <label for="jsSelect">Show transpiled JavaScript</label>
+      <div id="jsDiv"></div>
+    </div>
     <div id="depsDiv" style="display: none">
-      <p>See dependencies below:</p>
+      <input id="depsSelect" type="checkbox" checked />
+      <label for="depsSelect">Show dependencies</label>
       <dl id="depsDl"></dl>
     </div>
     <script
