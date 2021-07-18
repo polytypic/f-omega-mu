@@ -22,6 +22,7 @@ select {
   border: 2px #282a36 solid;
   border-radius: 5px;
   z-index: 1;
+  box-shadow: 3px 3px 10px #0d1117;
 }
 
 #depsDl dt {
@@ -55,7 +56,6 @@ select {
 #typDiv .CodeMirror {
   background: #30333e !important;
   border: 2px #30333e solid;
-  box-shadow: 3px 3px 10px #0d1117;
   position: fixed;
   top: 1em;
   right: 1em;
