@@ -38,84 +38,57 @@ module Annot = struct
       method annotations = Field.make annotations (fun v -> {<annotations = v>})
     end
 
-  let new_def def annot =
+  let make def uses annot =
     object
       method def = def
+      method uses = uses
       method annot = annot
-      method uses = LocSet.empty
     end
 
-  let add_use use o =
-    let annot = o#annot and def = o#def and uses = LocSet.add use o#uses in
-    object
-      method def = def
-      method annot = annot
-      method uses = uses
-    end
+  let add_def at annot =
+    let* locmap = get field in
+    MVar.mutate locmap @@ LocMap.update at
+    @@ function None -> Some (make at LocSet.empty annot) | some -> some
+
+  let add_use use def =
+    let* locmap = get field in
+    MVar.mutate locmap @@ LocMap.update def @@ Option.map
+    @@ fun o -> make o#def (LocSet.add use o#uses) o#annot
 
   module Label = struct
     open Label
 
     let def id typ =
-      let* annot = get field in
-      MVar.mutate annot @@ fun annot ->
-      let at = at id in
-      if
-        (not (is_fresh id))
-        && (not (is_numeric id))
-        && not (LocMap.mem at annot)
-      then
-        LocMap.add at (new_def at @@ `Label (id, typ)) annot
+      if is_fresh id || is_numeric id then
+        unit
       else
-        annot
+        add_def (at id) @@ `Label (id, typ)
 
     let use id def =
-      let* annot = get field in
-      MVar.mutate annot @@ fun annot ->
-      let at = at id in
-      if (not (is_fresh id)) && not (is_numeric id) then
-        LocMap.update def (Option.map (add_use at)) annot
+      if is_fresh id || is_numeric id then
+        unit
       else
-        annot
+        add_use (at id) def
   end
 
   module Exp = struct
     open Exp.Id
 
     let def id typ =
-      let* annot = get field in
-      MVar.mutate annot @@ fun annot ->
-      let at = at id in
-      if
-        (not (is_fresh id))
-        && (not (is_numeric id))
-        && not (LocMap.mem at annot)
-      then
-        LocMap.add at (new_def at @@ `ExpId (id, typ)) annot
+      if is_fresh id || is_numeric id then
+        unit
       else
-        annot
+        add_def (at id) @@ `ExpId (id, typ)
 
     let use id def =
-      let* annot = get field in
-      MVar.mutate annot @@ fun annot ->
-      let at = at id in
-      if (not (is_fresh id)) && not (is_numeric id) then
-        LocMap.update def (Option.map (add_use at)) annot
+      if is_fresh id || is_numeric id then
+        unit
       else
-        annot
+        add_use (at id) def
   end
 
   module Typ = struct
     open Typ.Id
-
-    let with_annot o annot =
-      let def = o#def in
-      let uses = o#uses in
-      object
-        method def = def
-        method annot = annot
-        method uses = uses
-      end
 
     let resolve resolve_kind =
       let* annot = get field in
@@ -125,25 +98,11 @@ module Annot = struct
              match v#annot with
              | `TypId (id, kind) ->
                let+ kind = resolve_kind kind in
-               (at, with_annot v @@ `TypId (id, kind))
+               (at, make v#def v#uses @@ `TypId (id, kind))
              | _ -> return (at, v))
       >>- (List.to_seq >>> LocMap.of_seq)
 
-    let def id kind =
-      let* annot = get field in
-      MVar.mutate annot @@ fun annot ->
-      let at = at id in
-      if not (LocMap.mem at annot) then
-        LocMap.add at (new_def at @@ `TypId (id, kind)) annot
-      else
-        annot
-
-    let use id def =
-      let* annot = get field in
-      MVar.mutate annot @@ fun annot ->
-      let at = at id in
-      match LocMap.find_opt def annot with
-      | None -> annot
-      | Some o -> LocMap.update def (Option.map (add_use at)) annot
+    let def id kind = add_def (at id) @@ `TypId (id, kind)
+    let use id = add_use @@ at id
   end
 end
