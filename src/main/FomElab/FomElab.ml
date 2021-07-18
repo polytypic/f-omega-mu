@@ -531,7 +531,6 @@ let rec elaborate = function
 
 (* *)
 
-let elaborate_defs x = elaborate_defs x |> Error.generalize
 let elaborate_typ x = elaborate_typ x |> Error.generalize
 
 (* *)

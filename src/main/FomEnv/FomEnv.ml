@@ -1,13 +1,9 @@
-open FomBasis
-open FomSource
-open FomAnnot
-
 module Env = struct
   let empty ?(fetch = FomElab.Fetch.dummy)
       ?(typ_includes = FomElab.TypIncludes.create ())
       ?(typ_imports = FomElab.TypImports.create ())
-      ?(exp_imports = FomElab.ExpImports.create ()) ?(annot = Annot.empty ()) ()
-      =
+      ?(exp_imports = FomElab.ExpImports.create ())
+      ?(annot = FomAnnot.Annot.empty ()) () =
     object
       inherit FomAnnot.Annot.con annot
       inherit FomChecker.Exp.Env.con

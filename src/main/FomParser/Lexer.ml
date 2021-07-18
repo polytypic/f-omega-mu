@@ -442,7 +442,7 @@ module Offside = struct
     get >>= fun tok ->
     if tok_of tok <> exp then error "unexpected" else emit tok
 
-  let new_line (t, (p : Lexing.position), _) =
+  let new_line (_, (p : Lexing.position), _) =
     Monad
       (fun _ _ last_pos is_typ tok_opt ->
         (Return (last_pos.pos_bol <> p.pos_bol), is_typ, tok_opt))
