@@ -548,17 +548,27 @@ let elaborate cst =
 (* *)
 
 let with_modules (prg, typ, ps) =
-  let* imports = env_as ExpImports.field in
-  let added = Hashtbl.create 100 in
-  let rec loop prg param =
-    if Hashtbl.mem added param then
-      return prg
-    else
-      let* id, ast, typ, ps = Hashtbl.find imports param |> IVar.get in
-      Hashtbl.replace added param ();
-      let at = Loc.dummy in
-      let prg = `App (at, `Lam (at, id, typ, prg), ast) in
-      ps |> MList.fold_left loop prg
+  let+ deps =
+    let* imports = env_as ExpImports.field in
+    let added = Hashtbl.create 100 in
+    let deps = ref [] in
+    let rec loop param =
+      if Hashtbl.mem added param then
+        unit
+      else
+        let* id, ast, typ, ps = Hashtbl.find imports param |> IVar.get in
+        ps |> MList.iter loop >>- fun () ->
+        if not (Hashtbl.mem added param) then (
+          Hashtbl.replace added param ();
+          deps := (id, ast, typ) :: !deps)
+    in
+    ps |> MList.iter loop |> Error.generalize >>- fun () -> !deps
   in
-  let+ prg = ps |> MList.fold_left loop prg |> Error.generalize in
+  let prg =
+    deps
+    |> List.fold_left
+         (fun prg (id, ast, typ) ->
+           `App (Exp.Id.at id, `Lam (Exp.Id.at id, id, typ, prg), ast))
+         prg
+  in
   (prg, typ)
