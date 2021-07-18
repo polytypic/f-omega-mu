@@ -276,16 +276,20 @@ let js_codemirror_mode =
       Js.to_string input
       |> Parser.parse_utf_8 Grammar.program Lexer.offside ~path
       >>= FomElab.elaborate
-      >>= (fun (_, t, _) ->
+      >>= (fun (_, t, deps) ->
             let+ t = pp_typ t in
-            utf8string "type:" ^^ t |> to_js_string ~max_width)
+            (utf8string "type:" ^^ t |> to_js_string ~max_width, deps))
       |> try_in
-           (fun typ ->
+           (fun (typ, deps) ->
              let* defUses = def_uses () in
              Cb.invoke on_result
              @@ object%js
                   val typ = typ
                   val defUses = defUses
+
+                  val dependencies =
+                    deps |> Array.of_list |> Array.map Js.string |> Js.array
+
                   val diagnostics = Js.array [||]
                 end)
            (fun error ->
@@ -310,6 +314,7 @@ let js_codemirror_mode =
                       |> to_js_string ~max_width
 
                   val defUses = defUses
+                  val dependencies = Js.array [||]
 
                   val diagnostics =
                     match diagnostics with

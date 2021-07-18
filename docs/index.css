@@ -24,15 +24,21 @@ select {
   z-index: 1;
 }
 
+#depsDl dt {
+  margin-bottom: 0.5em;
+}
+
 #fomDiv .CodeMirror.cm-s-dracula:hover,
 #resultDiv .CodeMirror.cm-s-dracula:hover,
 #typDiv .CodeMirror.cm-s-dracula:hover,
-#jsDiv .CodeMirror.cm-s-dracula:hover {
+#jsDiv .CodeMirror.cm-s-dracula:hover,
+#depsDl .CodeMirror.cm-s-dracula:hover {
   border: 2px #40464d solid;
 }
 
 #resultDiv .CodeMirror.cm-s-dracula,
-#jsDiv .CodeMirror.cm-s-dracula {
+#jsDiv .CodeMirror.cm-s-dracula,
+#depsDl .CodeMirror.cm-s-dracula {
   background: #282a36 !important;
   margin-bottom: 1em;
 }

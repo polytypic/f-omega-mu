@@ -127,7 +127,7 @@ fomCM.setOption('extraKeys', {
 
 //
 
-let result = {defUses: [], diagnostics: []}
+let result = {typ: '...', defUses: [], diagnostics: [], dependencies: []}
 
 //
 
@@ -203,11 +203,57 @@ const updateDefUses = throttled(100, () => {
     typCM.setValue(du.annot)
   } else {
     typDiv.className = result.diagnostics.length ? 'no-keywords' : ''
-    typCM.setValue(result.typ || '...')
+    typCM.setValue(result.typ)
   }
 })
 
 fomCM.on('cursorActivity', updateDefUses)
+
+//
+
+let currentDeps = ''
+
+const updateDeps = () => {
+  const newDeps = result.dependencies.join(',')
+  if (newDeps !== currentDeps) {
+    currentDeps = newDeps
+
+    while (depsDl.firstChild) depsDl.removeChild(depsDl.firstChild)
+
+    if (result.dependencies.length === 0) {
+      depsDiv.style.display = 'none'
+    } else {
+      depsDiv.style.display = 'block'
+
+      for (const dep of result.dependencies) {
+        const code = document.createElement('code')
+        code.innerText = dep
+        const dt = document.createElement('dt')
+        dt.appendChild(code)
+        depsDl.appendChild(dt)
+
+        const dd = document.createElement('dd')
+        depsDl.appendChild(dd)
+        const depCM = CodeMirror(dd, {
+          cursorBlinkRate: 0,
+          indentUnit: 2,
+          lineNumbers: true,
+          mode: 'fom',
+          readOnly: true,
+          tabSize: 2,
+          theme: theme,
+        })
+
+        const xhr = new XMLHttpRequest()
+        xhr.onload = () => {
+          depCM.setValue(xhr.responseText.trim())
+        }
+        xhr.open('GET', dep)
+        xhr.send()
+      }
+    }
+  }
+}
 
 //
 
@@ -319,6 +365,8 @@ const check = throttled(
 
       prepareDefUses()
       updateDefUses()
+
+      updateDeps()
     }
   )
 )
