@@ -348,16 +348,18 @@ const check = throttled(
         jsCM.setValue('')
 
         result.diagnostics.forEach(diagnostic => {
-          const css = fomCM.getAllMarks().length
-            ? 'text-shadow: 0px 0px 10px orange'
-            : 'text-shadow: 0px 0px 10px red'
-          diagnosticMarkers.push(
-            fomCM.markText(
-              posAsNative(fomCM, diagnostic.begins),
-              posAsNative(fomCM, diagnostic.ends),
-              {className: 'marker', css, title: diagnostic.message}
+          if (diagnostic.file === url) {
+            const css = fomCM.getAllMarks().length
+              ? 'text-shadow: 0px 0px 10px orange'
+              : 'text-shadow: 0px 0px 10px red'
+            diagnosticMarkers.push(
+              fomCM.markText(
+                posAsNative(fomCM, diagnostic.begins),
+                posAsNative(fomCM, diagnostic.ends),
+                {className: 'marker', css, title: diagnostic.message}
+              )
             )
-          )
+          }
         })
       } else {
         compile()
@@ -446,9 +448,9 @@ fomCM.on('keyup', (_, event) => {
       const selections = []
       let primary = 0
       const at = loc => {
-        const begins = posAsNative(fomCM, loc.begins)
-        const ends = posAsNative(fomCM, loc.ends)
         if (loc.file === url) {
+          const begins = posAsNative(fomCM, loc.begins)
+          const ends = posAsNative(fomCM, loc.ends)
           if (
             cursor.line === begins.line &&
             begins.ch <= cursor.ch &&
