@@ -258,7 +258,7 @@ let avoid at i inn =
      if exists then
        let i' = Typ.Id.freshen i in
        let v' = `Var (at, i') in
-       mapping TypAliases.field (TypAliases.add i' v') (inn i')
+       mapping TypAliases.field (TypAliases.add i v') (inn i')
      else
        inn i
 
