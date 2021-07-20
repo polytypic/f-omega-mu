@@ -1,5 +1,4 @@
 %token <Bigint.t> LitNat
-%token <bool> LitBool
 %token <FomCST.LitString.t> LitString
 
 %token <string> Id
@@ -202,14 +201,13 @@ exp_bid:
 
 exp_atom:
   | i=exp_rid                                           {`Var ($loc, i)}
-  | l=LitBool                                           {Exp.lit_bool $loc l}
   | l=LitNat                                            {`Const ($loc, `LitNat l)}
   | l=LitString                                         {`Const ($loc, `LitString l)}
   | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
   | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
   | e=exp_atom"."l=label                                {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom".""("i=exp")"                            {`Select ($loc, e, i)}
-  | "target""["t=typ"]"c=LitString                      {`Target ($loc, t, c)}
+  | "target""["t=typ"]"c=LitString                      {`Const ($loc, `Target (t, c))}
   | "import"p=LitString                                 {`Import ($loc, p)}
 
 exp_app:

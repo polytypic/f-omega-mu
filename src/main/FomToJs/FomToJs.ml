@@ -75,6 +75,33 @@ module Exp = struct
       | `OpLogicalAnd -> str "&&"
       | `OpLogicalNot -> str "!"
       | `OpLogicalOr -> str "||"
+      | `Keep _ -> str ""
+      | `Target (_, l) -> str "(" ^ str (LitString.to_utf8 l) ^ str ")"
+
+    let is_total = function
+      | `Keep _ -> false
+      | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
+      | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+      | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
+      | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `Target _ ->
+        true
+
+    let is_uop = function
+      | `OpArithPlus | `OpArithMinus | `OpLogicalNot | `Keep _ -> true
+      | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
+      | `OpArithMul | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq
+      | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _ | `OpLogicalAnd
+      | `OpLogicalOr | `Target _ ->
+        false
+
+    let is_bop = function
+      | `LitBool _ | `LitNat _ | `LitString _ | `Target _ | `OpArithMinus
+      | `OpArithPlus | `OpLogicalNot | `Keep _ ->
+        false
+      | `OpArithAdd | `OpArithDiv | `OpArithMul | `OpArithRem | `OpArithSub
+      | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
+      | `OpLogicalAnd | `OpLogicalOr ->
+        true
 
     let erase = function
       | `LitNat nat ->
@@ -90,14 +117,16 @@ module Exp = struct
       | ( `LitBool _ | `LitString _ | `OpArithAdd | `OpArithDiv | `OpArithMinus
         | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt
         | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
-        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr ) as other ->
+        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `Keep _ | `Target _ )
+        as other ->
         other
 
     let is_commutative = function
       | `OpArithAdd | `OpArithMul | `OpEq _ | `OpEqNot _ -> true
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithDiv | `OpArithMinus
       | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq
-      | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr ->
+      | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr
+      | `Keep _ | `Target _ ->
         false
 
     let simplify_uop = function
@@ -192,7 +221,6 @@ module Exp = struct
       | `Mu of t
       | `Product of (Label.t * t) list
       | `Select of t * t
-      | `Target of LitString.t
       | `Var of Id.t ]
 
     let index = function
@@ -205,8 +233,7 @@ module Exp = struct
       | `Mu _ -> 6
       | `Product _ -> 7
       | `Select _ -> 8
-      | `Target _ -> 9
-      | `Var _ -> 10
+      | `Var _ -> 9
 
     let rec compare l r =
       match (l, r) with
@@ -229,7 +256,6 @@ module Exp = struct
           (fun (ll, el) (lr, er) ->
             Label.compare ll lr <>? fun () -> compare el er)
           lls rls
-      | `Target l, `Target r -> LitString.compare l r
       | `Var l, `Var r -> Id.compare l r
       | _ -> index l - index r
 
@@ -255,9 +281,6 @@ module Exp = struct
         |> List.map (fun (l, t) -> [Label.pp l; equals; pp t] |> concat)
         |> separate comma_break_1 |> egyptian braces 2
       | `Select (t, l) -> [pp t; dot; pp l |> egyptian parens 2] |> concat
-      | `Target s ->
-        [utf8string "target"; space; LitString.to_utf8_json s |> utf8string]
-        |> concat |> egyptian parens 2
       | `Var v -> Id.pp v
   end
 
@@ -321,10 +344,9 @@ module Exp = struct
     | `Inject (_, l, e) -> `Inject (l, erase e)
     | `Case (_, cs) -> `Case (erase cs)
     | `Gen (_, _, _, e) | `Inst (_, e, _) | `Pack (_, _, e, _) -> erase e
-    | `Target (_, _, s) -> `Target s
 
   let rec bottomUp fn = function
-    | (`Target _ | `Const _ | `Var _) as e -> fn e
+    | (`Const _ | `Var _) as e -> fn e
     | `App (f, x) -> fn (`App (bottomUp fn f, bottomUp fn x))
     | `IfElse (c, t, e) ->
       fn (`IfElse (bottomUp fn c, bottomUp fn t, bottomUp fn e))
@@ -338,7 +360,7 @@ module Exp = struct
 
   let size =
     bottomUp @@ function
-    | `Target _ | `Const _ | `Var _ -> 1
+    | `Const _ | `Var _ -> 1
     | `App (f, x) -> f + x + 1
     | `IfElse (c, t, e) -> c + t + e + 1
     | `Product fs -> fs |> List.fold_left (fun s (_, e) -> s + e) 1
@@ -347,7 +369,7 @@ module Exp = struct
     | `Case cs -> cs + 1
 
   let rec is_free i' = function
-    | `Const _ | `Target _ -> false
+    | `Const _ -> false
     | `Var i -> Id.equal i' i
     | `Lam (i, e) -> (not (Id.equal i' i)) && is_free i' e
     | `App (f, x) -> is_free i' f || is_free i' x
@@ -358,7 +380,7 @@ module Exp = struct
 
   let rec subst i the inn =
     match inn with
-    | `Const _ | `Target _ -> inn
+    | `Const _ -> inn
     | `Var i' -> if Id.equal i' i then the else inn
     | `Lam (i', e) ->
       if Id.equal i' i || not (is_free i e) then
@@ -402,14 +424,17 @@ module Exp = struct
           | None -> return false
           | Some f -> is_total (`App (f, x)))
         | `App (`Lam (i, e), x) -> is_total x &&& (is_total e |> Env.adding i x)
-        | `App (`Const _, x) -> is_total x
-        | `App (`App (`Const _, x), y) -> is_total x &&& is_total y
+        | `App (`Const c, x) when Const.is_total c ->
+          (* TODO: extract app target *)
+          is_total x
+        | `App (`App (`Const c, x), y) when Const.is_total c ->
+          is_total x &&& is_total y
         | `App (`Case (`Product fs), s) ->
           is_total s
           &&& (fs
               |> MList.for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
         | `Case e -> is_total e
-        | `Mu _ | `Target _ | `App (_, _) -> return false)
+        | `Mu _ | `App (_, _) -> return false)
 
   let rec is_lam_or_case = function
     | `Lam _ -> true
@@ -452,7 +477,7 @@ module Exp = struct
       | `Case (`Product fs) -> `App (to_case inline_continuation k fs, x)
       | _ -> failwith "impossible")
     | ( `Const _ | `Var _ | `Lam _ | `Mu _ | `Product _ | `Select _ | `Inject _
-      | `App _ | `Case _ | `Target _ ) as e ->
+      | `App _ | `Case _ ) as e ->
       `App (k, e)
 
   let rec simplify e =
@@ -466,7 +491,7 @@ module Exp = struct
       >> mapping Seen.field (Seen.add e) (simplify_base e)
 
   and simplify_base = function
-    | (`Const _ | `Target _ | `Var _) as e -> return e
+    | (`Const _ | `Var _) as e -> return e
     | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
       when Id.equal i x && Id.equal j y && Const.is_commutative c ->
       return @@ `Const c
@@ -507,11 +532,11 @@ module Exp = struct
           | _ -> default ()
         else
           default ()
-      | `Const c, x -> (
+      | `Const c, x when Const.is_uop c -> (
         match Const.simplify_uop (c, x) with
         | Some e -> simplify e
         | None -> return @@ `App (`Const c, x))
-      | `App (`Const c, x), y -> (
+      | `App (`Const c, x), y when Const.is_bop c -> (
         match Const.simplify_bop (c, x, y) with
         | Some e -> simplify e
         | None -> return @@ `App (`App (`Const c, x), y))
@@ -646,15 +671,14 @@ module Exp = struct
     match exp with
     | `Const c -> (
       match Const.type_of Loc.dummy c |> Typ.arity_and_result with
-      | 2, result ->
+      | 2, result when Const.is_bop c ->
         return @@ parens @@ str "$1 => $2 => "
         ^ coerce_to_int_if (Typ.is_int result)
             (str "$1 " ^ Const.to_js c ^ str " $2")
-      | 1, result ->
+      | 1, result when Const.is_uop c ->
         return @@ parens @@ str "$ => "
         ^ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ str " $")
-      | 0, _ -> return @@ Const.to_js c
-      | n, _ -> failwithf "Unsupported arity %d" n)
+      | _, _ -> return @@ Const.to_js c)
     | `Var i -> return @@ Id.to_js i
     | `Lam (i, `Mu (`Var i')) when Id.equal i i' -> return @@ str "rec"
     | `Lam (i, e) ->
@@ -710,7 +734,7 @@ module Exp = struct
         f ^ str "(" ^ x ^ str ")"
       in
       match exp with
-      | `App (`App (`Const c, lhs), rhs) ->
+      | `App (`App (`Const c, lhs), rhs) when Const.is_bop c ->
         let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
         if n <> 2 then
           default ()
@@ -719,7 +743,7 @@ module Exp = struct
           parens
           @@ coerce_to_int_if (Typ.is_int result)
           @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs
-      | `App (`Const c, rhs) ->
+      | `App (`Const c, rhs) when Const.is_uop c ->
         let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
         if n <> 1 then
           default ()
@@ -727,7 +751,6 @@ module Exp = struct
           let+ rhs = to_js_expr rhs in
           parens @@ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ rhs)
       | _ -> default ())
-    | `Target lit -> return @@ parens @@ str @@ LitString.to_utf8 lit
 end
 
 let in_env () =

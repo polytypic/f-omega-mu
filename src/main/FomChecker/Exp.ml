@@ -182,7 +182,6 @@ let rec infer = function
       fail @@ `Error_typ_var_escapes (at', tid, e_typ)
     else
       return e_typ
-  | `Target (_, t, _) -> Typ.check_and_norm t
 
 let infer e =
   let* result = catch @@ infer e in

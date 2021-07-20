@@ -140,9 +140,6 @@ let string = [%sedlex.regexp? "\"", Star char, "\""]
 
 (* *)
 
-let lit_true = LitBool true
-let lit_false = LitBool false
-
 let rec token_or_comment buffer =
   let return = return_from buffer in
   match%sedlex buffer with
@@ -172,7 +169,6 @@ let rec token_or_comment buffer =
   | "case" -> return Case
   | "else" -> return Else
   | "exists" | exists -> return Exists
-  | "false" -> return lit_false
   | "forall" | for_all -> return ForAll
   | "if" -> return If
   | "import" -> return Import
@@ -181,7 +177,6 @@ let rec token_or_comment buffer =
   | "let" -> return Let
   | "target" -> return Target
   | "then" -> return Then
-  | "true" -> return lit_true
   | "type" -> return Type
   (* *)
   | arrow_right | "->" -> return ArrowRight
@@ -279,7 +274,8 @@ let token_info_utf_8 input =
       | ForAll -> tag
       | Greater -> operator
       | GreaterEqual -> operator
-      | Id ("bool" | "int" | "string") -> builtin
+      | Id ("bool" | "int" | "impure" | "string") -> builtin
+      | Id ("true" | "false") -> atom
       | Id _ -> variable
       | IdTyp _ -> variable
       | IdSub _ -> variable
@@ -292,7 +288,6 @@ let token_info_utf_8 input =
       | Less -> operator
       | LessEqual -> operator
       | Let -> keyword
-      | LitBool _ -> atom
       | LitNat _ -> number
       | LitString _ -> string
       | LogicalAnd -> operator
@@ -351,7 +346,6 @@ let[@warning "-32"] to_string = function
   | Less -> "<"
   | LessEqual -> "≤"
   | Let -> "let"
-  | LitBool b -> Bool.to_string b
   | LitNat n -> Bigint.to_string n
   | LitString s -> FomAST.LitString.to_utf8_json s
   | LogicalAnd -> "∧"

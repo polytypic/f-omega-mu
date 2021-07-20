@@ -2,15 +2,26 @@ include "array"
 
 type array = λα.∃array.array α
 
-let tabulate = target[∀α.(int → α) → int → array α]
-  "fn => n => {const a = new Array(n); for (let i=0; i<n; ++i) a[i] = fn(i); return a}"
+let tabulate = Λα.λf:int → α.λn:int.
+  target[(int → α) → int → impure (array α)]
+    "fn => n => {const a = new Array(n); for (let i=0; i<n; ++i) a[i] = fn(i); return a}"
+    f n
+  ▷ keep[array α]
 
-let length = target[∀α.array α → int] "a => a.length"
+let length =
+  # Can be considered pure as length cannot (currently) be changed
+  target[∀α.array α → int] "a => a.length"
 
-let sub = target[∀α.array α → int → α]
-  "a => i => { if (i < 0 || a.length <= i) throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`; return a[i] }"
+let sub = Λα.λxs:array α.λi:int.
+  target[array α → int → impure α]
+    "a => i => { if (i < 0 || a.length <= i) throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`; return a[i] }"
+    xs i
+  ▷ keep[α]
 
-let update = target[∀α.array α → int → α → ()]
-  "a => i => v => { if (i < 0 || a.length <= i) throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`; a[i] = v }"
+let update = Λα.λxs:array α.λi:int.λx:α.
+  target[array α → int → α → impure ()]
+    "a => i => v => { if (i < 0 || a.length <= i) throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`; a[i] = v }"
+    xs i x
+  ▷ keep[()]
 
 《array\{tabulate, length, sub, update}》: ∃(Array)

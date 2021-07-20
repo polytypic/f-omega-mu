@@ -408,9 +408,6 @@ let rec elaborate = function
     let+ c = c |> Exp.Const.traverse_typ elaborate_typ in
     `Const (at, c)
   | `Var _ as ast -> return ast
-  | `Target (at, t, s) ->
-    let+ t = elaborate_typ t in
-    `Target (at, t, s)
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
     let+ t = elaborate_typ t and+ e = elaborate e in
     `Lam (at, i, t, e)
@@ -513,7 +510,7 @@ let rec elaborate = function
         (let* ast =
            Fetch.fetch at' mod_path
            >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
-           >>= elaborate
+           >>= elaborate >>- FomAST.Exp.initial_exp
          in
          let id = FomAST.Exp.Id.fresh at' in
          let ast =
@@ -537,7 +534,7 @@ let elaborate_typ x = elaborate_typ x |> Error.generalize
 
 let elaborate cst =
   Elab.modularly
-    (let* ast = elaborate cst in
+    (let* ast = elaborate cst >>- FomAST.Exp.initial_exp in
      let* typ =
        Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
      in

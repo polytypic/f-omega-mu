@@ -2,8 +2,9 @@ include "ref"
 
 type ref = λα.∃ref.ref α
 
-let ref = target[∀α.α → ref α] "x => [x]"
-let get = target[∀α.ref α → α] "r => r[0]"
-let set = target[∀α.ref α → α → ()] "r => x => { r[0] = x }"
+let ref = Λα.λx:α.target[α → impure (ref α)] "x => [x]" x ▷ keep[ref α]
+let get = Λα.λr:ref α.target[ref α → impure α] "r => r[0]" r ▷ keep[α]
+let set = Λα.λr:ref α.λx:α.
+  target[ref α → α → impure ()] "r => x => { r[0] = x }" r x ▷ keep[()]
 
 《ref\{ref, get, set}》: ∃(Ref)

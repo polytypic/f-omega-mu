@@ -346,6 +346,13 @@ module Typ = struct
 
   module Env = Map.Make (Id)
 
+  let impure = Id.of_string Loc.dummy "impure"
+
+  let initial_env =
+    let star = `Star Loc.dummy in
+    let arrow d c = `Arrow (Loc.dummy, d, c) in
+    [(impure, (impure, arrow star star))] |> List.to_seq |> Env.of_seq
+
   let rec subst_rec env = function
     | `Mu (at, t) as inn ->
       let t' = subst_rec env t in
@@ -673,7 +680,9 @@ module Exp = struct
       | `OpEqNot of 't
       | `OpLogicalAnd
       | `OpLogicalNot
-      | `OpLogicalOr ]
+      | `OpLogicalOr
+      | `Keep of 't
+      | `Target of 't * LitString.t ]
 
     (* Typing *)
 
@@ -690,6 +699,8 @@ module Exp = struct
       | `OpLogicalAnd | `OpLogicalOr ->
         `Arrow (at, bool, `Arrow (at, bool, bool))
       | `OpLogicalNot -> `Arrow (at, bool, bool)
+      | `Keep t -> `Arrow (at, `App (at, `Var (at, Typ.impure), t), t)
+      | `Target (t, _) -> t
 
     (* Substitution *)
 
@@ -701,6 +712,8 @@ module Exp = struct
         c
       | `OpEq t -> `OpEq (tu t)
       | `OpEqNot t -> `OpEqNot (tu t)
+      | `Keep t -> `Keep (tu t)
+      | `Target (t, l) -> `Target (tu t, l)
 
     let traverse_typ tuM =
       let open Rea in
@@ -716,6 +729,12 @@ module Exp = struct
       | `OpEqNot t ->
         let+ t = tuM t in
         `OpEqNot t
+      | `Keep t ->
+        let+ t = tuM t in
+        `Keep t
+      | `Target (t, l) ->
+        let+ t = tuM t in
+        `Target (t, l)
 
     let collect_typ = function
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
@@ -723,8 +742,7 @@ module Exp = struct
       | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
       | `OpLogicalNot | `OpLogicalOr ->
         []
-      | `OpEq t -> [t]
-      | `OpEqNot t -> [t]
+      | `OpEq t | `OpEqNot t | `Keep t | `Target (t, _) -> [t]
 
     let lit_false = `LitBool false
     let lit_true = `LitBool true
@@ -751,6 +769,8 @@ module Exp = struct
       | `OpLogicalAnd -> 16
       | `OpLogicalNot -> 17
       | `OpLogicalOr -> 18
+      | `Keep _ -> 19
+      | `Target _ -> 20
 
     let compare' nat typ l r =
       match (l, r) with
@@ -773,6 +793,9 @@ module Exp = struct
       | `OpLogicalNot, `OpLogicalNot
       | `OpLogicalOr, `OpLogicalOr ->
         0
+      | `Keep tl, `Keep tr -> typ tl tr
+      | `Target (tl, ll), `Target (tr, lr) ->
+        typ tl tr <>? fun () -> LitString.compare ll lr
       | _ -> index l - index r
 
     (* Formatting *)
@@ -797,6 +820,9 @@ module Exp = struct
       | `OpLogicalAnd -> logical_and
       | `OpLogicalNot -> logical_not
       | `OpLogicalOr -> logical_or
+      | `Keep t -> keep' ^^ egyptian brackets 2 (typ t)
+      | `Target (t, l) ->
+        target' ^^ egyptian brackets 2 (typ t) ^^ space ^^ utf8string l
 
     let pp = pp' (Bigint.to_string >>> utf8string) Typ.pp
   end
@@ -820,8 +846,7 @@ module Exp = struct
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
-    | `Target of Loc.t * 't * LitString.t ]
+    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e ]
 
   type t = [ | (t, Typ.t, Kind.t) f]
 
@@ -843,4 +868,17 @@ module Exp = struct
     | `UnpackIn (at, _, _, _, _)
     | `Target (at, _, _) ->
       at
+
+  let builtins =
+    let at = Loc.dummy in
+    [
+      (Id.of_string at "true", `Const (at, `LitBool true));
+      (Id.of_string at "false", `Const (at, `LitBool false));
+      ( Id.of_string at "keep",
+        let t = Typ.Id.fresh at in
+        `Gen (at, t, `Star at, `Const (at, `Keep (`Var (at, t)))) );
+    ]
+
+  let initial_exp e =
+    builtins |> List.fold_left (fun e (i, v) -> `LetIn (Loc.dummy, i, v, e)) e
 end

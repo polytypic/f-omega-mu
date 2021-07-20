@@ -17,6 +17,7 @@ module Env = struct
 
   type t = (Id.t * Kind.t) Env.t
 
+  let empty = initial_env
   let field r = r#typ_env
   let adding i k = mapping field @@ Env.add i (i, k)
   let find_opt i = get_as field @@ Env.find_opt i
@@ -24,7 +25,7 @@ module Env = struct
 
   class con =
     object
-      val typ_env : t = Env.empty
+      val typ_env : t = empty
       method typ_env = Field.make typ_env (fun v -> {<typ_env = v>})
     end
 end

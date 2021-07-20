@@ -119,6 +119,13 @@ module Typ : sig
   module IdSet : Set.S with type elt = Id.t
   module Env : Map.S with type key = Id.t
 
+  (* *)
+
+  val impure : Id.t
+  val initial_env : (Id.t * Kind.t) Env.t
+
+  (* *)
+
   val free : t -> IdSet.t
   val is_free : Id.t -> t -> bool
   val subst : Id.t -> t -> t uop
@@ -157,7 +164,9 @@ module Exp : sig
       | `OpEqNot of 't
       | `OpLogicalAnd
       | `OpLogicalNot
-      | `OpLogicalOr ]
+      | `OpLogicalOr
+      | `Keep of 't
+      | `Target of 't * LitString.t ]
 
     (* Typing *)
 
@@ -206,10 +215,12 @@ module Exp : sig
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e
-    | `Target of Loc.t * 't * LitString.t ]
+    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e ]
 
   type t = [ | (t, Typ.t, Kind.t) f]
 
   val at : ('e, 't, 'k) f -> Loc.t
+
+  val initial_exp :
+    (('e, (('t, 'k) Typ.f as 't), ('k Kind.f as 'k)) f as 'e) -> 'e
 end
