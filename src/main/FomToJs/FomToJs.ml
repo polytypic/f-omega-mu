@@ -727,6 +727,8 @@ module Exp = struct
     | `Select (e, l) ->
       let+ e = to_js_expr e and+ l = to_js_expr l in
       e ^ str "[" ^ l ^ str "[0]]"
+    | `Inject (l, `Product []) ->
+      return @@ str "[" ^ Label.to_js_atom l ^ str "]"
     | `Inject (l, e) ->
       let+ e = to_js_expr e in
       str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
