@@ -702,6 +702,11 @@ module Exp = struct
       let+ e = to_js_stmts false (Ids.singleton x) e in
       parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {"
       ^ e ^ str "}"
+    | `Mu (`Lam (f, (`Case _ as e))) ->
+      let x = Id.fresh Loc.dummy in
+      let+ e = to_js_stmts false (Ids.singleton x) @@ `App (e, `Var x) in
+      parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {"
+      ^ e ^ str "}"
     | `Mu f ->
       let+ f = to_js_expr f in
       str "rec(" ^ f ^ str ")"
