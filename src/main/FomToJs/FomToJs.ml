@@ -627,8 +627,11 @@ module Exp = struct
 
   let rec to_js_stmts is_top ids exp =
     let default () =
-      let+ e = to_js_expr exp in
-      (if is_top then str "" else str "return ") ^ e ^ str ";"
+      match exp with
+      | `Product [] -> return @@ str ""
+      | exp ->
+        let+ e = to_js_expr exp in
+        if is_top then e ^ str ";" else str "return " ^ e ^ str ";"
     in
     match exp with
     | `App (`Lam (i, e), v) ->
