@@ -405,36 +405,47 @@ module Exp = struct
     let i = Id.fresh Loc.dummy in
     `Lam (i, fn @@ `Var i)
 
+  let unapp t =
+    let rec loop xs = function
+      | `App (f, x) -> loop (x :: xs) f
+      | f -> (f, xs)
+    in
+    loop [] t
+
+  let app f = List.fold_left (fun f x -> `App (f, x)) f
+
   let rec is_total e =
     let* seen = get Seen.field in
     if Seen.mem e seen then
       return false
     else
       mapping Seen.field (Seen.add e)
-        (match e with
-        | `Const _ | `Var _ | `Lam _ -> return true
-        | `IfElse (c, t, e) -> is_total c &&& is_total t &&& is_total e
-        | `Product fs -> fs |> MList.for_all (fun (_, e) -> is_total e)
-        | `Mu (`Lam (i, e)) -> is_total e |> Env.adding i e
-        | `Select (e, l) -> is_total e &&& is_total l
-        | `Inject (_, e) -> is_total e
-        | `App (`Var f, x) -> (
+        (match unapp e with
+        | (`Const _ | `Var _ | `Lam _), [] -> return true
+        | `IfElse (c, t, e), xs ->
+          is_total c &&& is_total (app t xs) &&& is_total (app e xs)
+        | `Product fs, _ -> fs |> MList.for_all (fun (_, e) -> is_total e)
+        | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> Env.adding i e
+        | `Select (e, l), [] -> is_total e &&& is_total l
+        | `Inject (_, e), _ -> is_total e
+        | `Var f, xs -> (
           let* f_opt = Env.find_opt f in
           match f_opt with
           | None -> return false
-          | Some f -> is_total (`App (f, x)))
-        | `App (`Lam (i, e), x) -> is_total x &&& (is_total e |> Env.adding i x)
-        | `App (`Const c, x) when Const.is_total c ->
-          (* TODO: extract app target *)
+          | Some f -> is_total (app f xs))
+        | `Lam (i, e), x :: xs ->
           is_total x
-        | `App (`App (`Const c, x), y) when Const.is_total c ->
-          is_total x &&& is_total y
-        | `App (`Case (`Product fs), s) ->
-          is_total s
+          &&& (is_total e |> Env.adding i x)
+          &&& (is_total (app e xs) |> Env.adding i x)
+        | `Const c, xs ->
+          return (Const.is_total c) &&& (xs |> MList.for_all is_total)
+        | `Case (`Product fs), x :: xs ->
+          is_total x
           &&& (fs
-              |> MList.for_all (fun (_, f) -> is_total (`App (f, dummy_var))))
-        | `Case e -> is_total e
-        | `Mu _ | `App (_, _) -> return false)
+              |> MList.for_all (fun (_, f) ->
+                     is_total (app f (dummy_var :: xs))))
+        | `Case e, [] -> is_total e
+        | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
 
   let rec is_lam_or_case = function
     | `Lam _ -> true
