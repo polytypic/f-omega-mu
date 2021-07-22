@@ -125,8 +125,7 @@ module Error = struct
           ]
           |> concat |> group ),
         [
-          ( Typ.at arg,
-            utf8string "Nested argument passed to μ type constructor" );
+          (Typ.at arg, utf8string "Nested argument passed to μ type constructor");
         ] )
     | `Error_mu_non_contractive (at, typ, arg) ->
       ( ( at,
@@ -137,9 +136,8 @@ module Error = struct
             utf8string "are not allowed";
           ]
           |> concat |> group ),
-        [
-          (Typ.at arg, utf8string "Non-contractive apply of μ type constructor");
-        ] )
+        [(Typ.at arg, utf8string "Non-contractive apply of μ type constructor")]
+      )
     | `Error_typ_var_unbound (at, id) ->
       ( (at, concat [utf8string "Unbound type variable "; Typ.Id.pp id]),
         [(Typ.Id.at id, utf8string "Unbound type variable")] )

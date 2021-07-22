@@ -16,8 +16,7 @@ let () =
   |> with_env (ignore >>> FomEnv.Env.empty)
   >>- FomAST.Typ.pp >>- FomPP.to_string
   |> try_in
-       (fun formatted ->
-         verify (formatted = "∀x.μxs.(x → x → x) → xs"))
+       (fun formatted -> verify (formatted = "∀x.μxs.(x → x → x) → xs"))
        (fun _ -> verify false)
 
 let () =

@@ -79,8 +79,7 @@ let egyptian (lhs, rhs) indent doc =
 
 (* *)
 
-let sub_digit =
-  [|"₀"; "₁"; "₂"; "₃"; "₄"; "₅"; "₆"; "₇"; "₈"; "₉"|]
+let sub_digit = [|"₀"; "₁"; "₂"; "₃"; "₄"; "₅"; "₆"; "₇"; "₈"; "₉"|]
 
 let subscript n =
   if n < 0 then failwith "subscript";
