@@ -46,6 +46,7 @@ exp
   | exp exp                                                    // Apply function
   | exp '◁' exp                                                // (R) Apply forward (*3)
   | exp '▷' exp                                                // (L) Apply backward (*3)
+  | exp '◇' exp                                                // (L) Apply (*3)
   | uop exp                                                    // Apply unary operator
   | exp bop exp                                                // Apply binary operator
   | 'type' tid (':' kind)? '=' typ 'in' exp                    // Type binding (*4)
@@ -90,7 +91,8 @@ bop
 2. The expression give to `case` must be a record of functions corresponding to
    the sum to be eliminated. The result of `case` is a sum eliminating function.
 
-3. `f ◁ x` and `x ▷ f` are special syntax for function application.
+3. `fₙ ◁ … ◁ f₁ ◁ x`, `x ▷ f₁ ▷ … ▷ fₙ`, and `f ◇ x₁ ◇ … ◇ xₙ` are special
+   syntax for function application.
 
 4. Bindings of types simply substitute the type into the body expression. System
    Fωμ does not have singleton kinds, for example.

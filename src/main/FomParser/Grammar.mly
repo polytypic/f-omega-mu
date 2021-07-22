@@ -26,6 +26,7 @@
 %token BracketRhs "]"
 %token Colon ":"
 %token Comma ","
+%token Diamond "◇"
 %token Dot "."
 %token DoubleAngleLhs "<<"
 %token DoubleAngleRhs ">>"
@@ -60,6 +61,7 @@
 
 %right "◁"
 %left "▷"
+%left "◇"
 %left "∨"
 %left "∧"
 %nonassoc "=" "≠" "]"
@@ -224,6 +226,7 @@ exp_inf:
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
   | f=exp_inf"◁"x=exp_inf                               {`AppR ($loc, f, x)}
   | x=exp_inf"▷"f=exp_inf                               {`AppL ($loc, x, f)}
+  | f=exp_inf"◇"x=exp_inf                               {`App ($loc, f, x)}
   | l=exp_inf o=bop r=exp_inf                           {`App ($loc, `App ($loc, o, l), r)}
 
 %inline uop:

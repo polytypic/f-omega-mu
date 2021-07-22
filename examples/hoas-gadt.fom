@@ -22,23 +22,21 @@ let match = Λρ.λcs:Cases ρ.Λα.λe:Expr α.e[ρ] cs
 
 let μeval:∀α.Expr α → α = match[λα.α] {
   Val = Λα.λx:α.x
-  Bin = Λα.Λβ.Λγ.λxyz:α → β → γ.λx:Expr α.λy:Expr β.xyz (eval[α] x) (eval[β] y)
+  Bin = Λα.Λβ.Λγ.λxyz:α → β → γ.λx:Expr α.λy:Expr β.xyz ◇ eval[α] x ◇ eval[β] y
   If  = Λα.λc:Expr bool.λt:Expr α.λe:Expr α.eval[α] if eval[bool] c then t else e
-  App = Λα.Λβ.λxy:Expr (α → β).λx:Expr α.eval[α → β] xy (eval[α] x)
-  Lam = Λα.Λβ.λf:Expr α → Expr β.λx:α.eval[β] (f (Val[α] x))
+  App = Λα.Λβ.λxy:Expr (α → β).λx:Expr α.eval[α → β] xy ◁ eval[α] x
+  Lam = Λα.Λβ.λf:Expr α → Expr β.λx:α.eval[β] ◁ f ◁ Val[α] x
   Fix = Λα.Λβ.λf:Expr ((α → β) → α → β).
     let f = eval[(α → β) → α → β] f in μg:α → β.λx:α.f g x
 }
 
-let Fact = Fix[int][int] (
-  Lam[int → int][int → int] λf:Expr (int → int). Lam[int][int] λx:Expr int.
-    If[int] (Bin[int][int][bool] (=[int]) x (Val[int] 0))
-      (Val[int] 1)
-      (Bin[int][int][int] (*)
-        x
-        (App[int][int] f (
-          Bin[int][int][int] (-)
-            x
-            (Val[int] 1)))))
+let Fact = Fix[int][int]
+  ◁ Lam[int → int][int → int] λf:Expr (int → int).Lam[int][int] λx:Expr int.
+      If[int] (Bin[int][int][bool] (=[int]) x ◁ Val[int] 0)
+        (Val[int] 1)
+        (Bin[int][int][int] (*)
+          x
+          ◁ App[int][int] f
+            ◁ Bin[int][int][int] (-) x ◇ Val[int] 1)
 
-eval[int] (App[int][int] Fact (Val[int] 5))
+eval[int] ◁ App[int][int] Fact ◁ Val[int] 5

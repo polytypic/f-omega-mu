@@ -24,6 +24,10 @@ let logical_not = [%sedlex.regexp? 0x00ac (* ¬ *)]
 let not_equal = [%sedlex.regexp? 0x2260 (* ≠ *)]
 let triangle_lhs = [%sedlex.regexp? 0x25c1 (* ◁ *)]
 let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
+let diamond = [%sedlex.regexp? 0x25c7 (* ◇ *)]
+
+(* *)
+
 let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
 let whitespace = [%sedlex.regexp? Plus (Chars " \t\n\r")]
 let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star (Opt '_', Plus '0' .. '9')]
@@ -193,6 +197,7 @@ let rec token_or_comment buffer =
   | not_equal | "!=" -> return NotEqual
   | triangle_lhs | "<|" -> return TriangleLhs
   | triangle_rhs | "|>" -> return TriangleRhs
+  | diamond | "<>" -> return Diamond
   (* *)
   | nat_10 ->
     return
@@ -264,6 +269,7 @@ let token_info_utf_8 input =
       | Colon -> punctuation
       | Comma -> punctuation
       | Comment _ -> comment
+      | Diamond -> punctuation
       | Dot -> punctuation
       | DoubleAngleLhs -> punctuation
       | DoubleAngleRhs -> punctuation
@@ -324,6 +330,7 @@ let[@warning "-32"] to_string = function
   | Colon -> ":"
   | Comma -> ","
   | Comment _ -> "# ..."
+  | Diamond -> "◇"
   | Dot -> "."
   | DoubleAngleLhs -> "《"
   | DoubleAngleRhs -> "》"

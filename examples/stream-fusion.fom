@@ -74,7 +74,7 @@ let《stream\Stream》=
 
 # Example usage
 let xs = List.iota 5
-Stream.append[int] (Stream.of_list[int] xs) (Stream.of_list[int] xs)
+Stream.append[int] ◇ Stream.of_list[int] xs ◇ Stream.of_list[int] xs
 ▷ Stream.map[int][int] λx:int.x + 1
 ▷ Stream.filter[int] λx:int.x % 2 =[int] 1
 ▷ Stream.map[int][int] λx:int.x * 2

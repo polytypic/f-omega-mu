@@ -5,7 +5,7 @@ type Functor = λφ.{map: ∀α.∀β.(α → β) → (φ α → φ β)}
 let μfold:∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
   Λφ.Λα.λF:Functor φ.
     λalgebra:φ α → α.
-      μfold:μ(φ) → α.λv:μ(φ).algebra (F.map[μ(φ)][α] fold v)
+      μfold:μ(φ) → α.λv:μ(φ).algebra ◁ F.map[μ(φ)][α] fold v
 
 # Option type
 type Opt = λα.'None | 'Some α

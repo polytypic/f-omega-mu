@@ -18,20 +18,20 @@ let Leibniz =
   let ofLeibniz = Λα.Λb.λab:Leibniz α b.ab
   let refl = Λα.Λφ.λx:φ α.x
   let symm = Λα.Λβ.λab:Leibniz α β.Λφ.ab[λβ.φ β → φ α] λx:φ α.x
-  let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ.λx:φ α.bc[φ] (ab[φ] x)
+  let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ.λx:φ α.bc[φ] ◁ ab[φ] x
   let to = Λα.Λβ.λab:Leibniz α β.ab[λx.x]
-  let from = Λα.Λβ.λab:Leibniz α β.to[β][α] (symm[α][β] ab)
+  let from = Λα.Λβ.λab:Leibniz α β.to[β][α] ◁ symm[α][β] ab
   《Leibniz\{ofFold, ofLeibniz, refl, symm, trans, to, from}》: ∃(Eq)
 
 let Fold =
   let ofFold = Λα.Λβ.λab:Fold α β.ab
-  let ofLeibniz = Λα.Λβ.λab:Leibniz α β.Λφ.λh:∀γ.φ γ γ.ab[φ α] (h[α])
+  let ofLeibniz = Λα.Λβ.λab:Leibniz α β.Λφ.λh:∀γ.φ γ γ.ab[φ α] ◁ h[α]
   let refl = Λα.Λφ.λf:∀γ.φ γ γ.f[α]
   let symm = Λα.Λβ.λab:Fold α β.Λφ.λf:∀γ.φ γ γ.ab[λα.λβ.φ β α] f
   let trans = Λα.Λβ.Λγ.λbc:Fold β γ.λab:Fold α β.Λϕ.
-    λf:∀γ.ϕ γ γ.bc[λγ.λδ.ϕ α γ → ϕ α δ] (Λγ.λx:ϕ α γ.x) (ab[ϕ] f)
+    λf:∀γ.ϕ γ γ.bc[λγ.λδ.ϕ α γ → ϕ α δ] (Λγ.λx:ϕ α γ.x) ◁ ab[ϕ] f
   let to = Λα.Λβ.λab:Fold α β.ab[λα.λβ.α → β] Λγ.λx:γ.x
-  let from = Λα.Λβ.λab:Fold α β.to[β][α] (symm[α][β] ab)
+  let from = Λα.Λβ.λab:Fold α β.to[β][α] ◁ symm[α][β] ab
   《Fold\{ofFold, ofLeibniz, refl, symm, trans, to, from}》: ∃(Eq)
 
 {Leibniz, Fold}
