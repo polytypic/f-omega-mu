@@ -1,0 +1,5 @@
+let Target = import "target"
+
+let to_string = Target.to_string[int]
+
+{to_string}
