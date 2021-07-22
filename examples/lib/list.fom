@@ -24,6 +24,8 @@ let filter = Λα.λp:α → bool.λxs:list α.
       'None
   ▷ rev[α]
 
+let reject = Λα.λp:α → bool.filter[α] λx:α.¬p x
+
 let concat = Λα.λxs:list α.λys:list α.rev[α] xs ▷ rev_to[α] ys
 
 let infinite_of = Λα.λx:α.μxs:list_of_inf α.'Some (x, xs)
@@ -42,4 +44,4 @@ let iota = λn:int.
     if i < n then 'Some (i, loop (i + 1)) else 'None
   loop 0
 
-{one, has, fold, rev_to, rev, filter, concat, infinite_of, take_n, iota}
+{one, has, fold, rev_to, rev, filter, reject, concat, infinite_of, take_n, iota}
