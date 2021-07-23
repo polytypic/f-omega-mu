@@ -6,7 +6,7 @@ let new_id =
   let counter = ref[int] 0
   λ().
     let id = get[int] counter
-    let _ = set[int] counter (id + 1)
+    let () = set[int] counter (id + 1)
     id
 
 let unsafe_cast = target[∀α.α → nothing] "x => x"
