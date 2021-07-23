@@ -254,6 +254,13 @@ module IVar : sig
   val put : ('e, 'a) t -> ('e, 'a) Res.t -> ('r, 'f, unit) Rea.t
 end
 
+module LVar : sig
+  type ('e, 'a) t
+
+  val create : ('r, 'e, 'a) Rea.t -> ('r, 'f, ('e, 'a) t) Rea.t
+  val get : ('e, 'a) t -> ('r, 'e, 'a) Rea.t
+end
+
 module MVar : sig
   type 'v t
 
