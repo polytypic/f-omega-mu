@@ -322,6 +322,7 @@ let js_codemirror_mode =
                       first :: rest |> Array.of_list
                       |> Array.map (fun ((begins, ends), msg) ->
                              object%js
+                               val file = Js.string begins.Lexing.pos_fname
                                val begins = js_pos begins
                                val ends = js_pos ends
                                val message = msg |> to_js_string ~max_width
