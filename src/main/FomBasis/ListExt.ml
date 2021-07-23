@@ -13,8 +13,8 @@ let equal_with equal xs ys =
 let rec compare_with compare xs ys =
   match (xs, ys) with
   | [], [] -> 0
-  | [], _ -> 1
-  | _, [] -> -1
+  | [], _ -> -1
+  | _, [] -> 1
   | x :: xs, y :: ys -> compare x y <>? fun () -> compare_with compare xs ys
 
 let rec map_phys_eq fn inn =
