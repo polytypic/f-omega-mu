@@ -5,17 +5,15 @@
 
 type Object = λM.λτ.(τ, M τ)
 
-# The methods form the interface to the object.  For example, counter
-# objects can be incremented and the current value can be fetched as
-# an integer:
+# The methods form the interface to the object.  For example, counter objects
+# can be incremented and the current value can be fetched as an integer:
 
 type CounterM = λτ.{
   inc: τ → τ
   get: τ → int
 }
 
-# A concrete counter class might, for example, simply store state as
-# integers:
+# A concrete counter class might, for example, simply store state as integers:
 
 let CounterClass = {
   inc = λx:int.x + 1
@@ -26,9 +24,8 @@ let CounterClass = {
 
 let aCounter =《int\(0, CounterClass)》: ∃(Object CounterM)
 
-# We can similarly specify a subtype of counters that can also be
-# reset and that keeps track of how many times the counter has been
-# reset:
+# We can similarly specify a subtype of counters that can also be reset and that
+# keeps track of how many times the counter has been reset:
 
 type ResetCounterM = λτ.{
   inc: τ → τ
@@ -48,9 +45,9 @@ let aResetCounter =《
   {count: int, resets: int} \ ({count = 0, resets = 0}, ResetCounterClass)
 》: ∃(Object ResetCounterM)
 
-# To encode bounded quantification of counters we can pass explicit
-# coercions, `B`, to access the methods.  Here are helpers to invoke
-# the methods `inc`, `get`, `reset`, and `reset_count`:
+# To encode bounded quantification of counters we can pass explicit coercions,
+# `B`, to access the methods.  Here are helpers to invoke the methods `inc`,
+# `get`, `reset`, and `reset_count`:
 
 let inc = ΛM.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
   let《τ\(x, M)》= c
@@ -72,14 +69,14 @@ let reset_count = ΛM.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
   let C = B[τ] M
   C.reset_count x
 
-# Thanks to simple width subtyping, the coercions can be just
-# identity functions:
+# Thanks to simple width subtyping, the coercions can be just identity
+# functions:
 
 let      CounterB = Λτ.λM:     CounterM τ.M
 let ResetCounterB = Λτ.λM:ResetCounterM τ.M
 
-# And to invoke methods we pass both the interface type and the
-# (bound) coercion:
+# And to invoke methods we pass both the interface type and the (bound)
+# coercion:
 
 let four =
   aCounter
