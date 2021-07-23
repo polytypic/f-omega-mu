@@ -486,43 +486,60 @@ let rec replace_closed_mus m = function
 
 (* *)
 
-let rec to_strict
-    (t : [('a, 'k) FomAST.Typ.f | `Lazy of ('r, 'e, 'a) Rea.t Lazy.t] as 'a) =
-  match t with
-  | `Mu (at, t) ->
-    let+ t = to_strict t in
-    `Mu (at, t)
-  | `Const _ as inn -> return inn
-  | `Var _ as inn -> return inn
-  | `Lam (at, i, k, t) ->
-    let+ t = to_strict t in
-    `Lam (at, i, k, t)
-  | `App (at, f, x) ->
-    let+ f = to_strict f and+ x = to_strict x in
-    `App (at, f, x)
-  | `ForAll (at, t) ->
-    let+ t = to_strict t in
-    `ForAll (at, t)
-  | `Exists (at, t) ->
-    let+ t = to_strict t in
-    `Exists (at, t)
-  | `Arrow (at, d, c) ->
-    let+ d = to_strict d and+ c = to_strict c in
-    `Arrow (at, d, c)
-  | `Product (at, ls) ->
-    let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
-    `Product (at, ls)
-  | `Sum (at, ls) ->
-    let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
-    `Sum (at, ls)
-  | `Lazy (lazy t) ->
-    let* t = t in
-    to_strict t
+let to_strict t =
+  let bound = ref [] in
+  let rec to_strict
+      (t : [('a, 'k) FomAST.Typ.f | `Lazy of ('e, 'a) LVar.t] as 'a) =
+    match t with
+    | `Mu (at, t) ->
+      let+ t = to_strict t in
+      `Mu (at, t)
+    | `Const _ as inn -> return inn
+    | `Var _ as inn -> return inn
+    | `Lam (at, i, k, t) ->
+      let+ t = to_strict t in
+      `Lam (at, i, k, t)
+    | `App (at, f, x) ->
+      let+ f = to_strict f and+ x = to_strict x in
+      `App (at, f, x)
+    | `ForAll (at, t) ->
+      let+ t = to_strict t in
+      `ForAll (at, t)
+    | `Exists (at, t) ->
+      let+ t = to_strict t in
+      `Exists (at, t)
+    | `Arrow (at, d, c) ->
+      let+ d = to_strict d and+ c = to_strict c in
+      `Arrow (at, d, c)
+    | `Product (at, ls) ->
+      let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
+      `Product (at, ls)
+    | `Sum (at, ls) ->
+      let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
+      `Sum (at, ls)
+    | `Lazy t -> (
+      match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
+      | None ->
+        let n = ref 0 in
+        let id = Id.fresh Loc.dummy in
+        bound := (t, id, n) :: !bound;
+        let* t = LVar.get t >>= to_strict in
+        bound := List.tl !bound;
+        if !n <> 0 then
+          let+ k = kind_of t in
+          `Mu (Loc.dummy, `Lam (Loc.dummy, id, k, t))
+        else
+          return t
+      | Some (_, id, n) ->
+        n := !n + 1;
+        return @@ `Var (Loc.dummy, id))
+  in
+  to_strict t
 
 let to_lazy e =
   (e
     : [ | ('a, 'k) FomAST.Typ.f] as 'a
-    :> [('b, 'k) FomAST.Typ.f | `Lazy of ('r, 'e, 'b) Rea.t Lazy.t] as 'b)
+    :> [('b, 'k) FomAST.Typ.f | `Lazy of ('e, 'b) LVar.t] as 'b)
 
 let join_of_norm, meet_of_norm =
   let make_join_and_meet at =
@@ -557,60 +574,57 @@ let join_of_norm, meet_of_norm =
     in
     let synth map fst snd upper lower intersection union ((l, r) as g) =
       match GoalMap.find_opt g !map with
-      | Some result -> result
+      | Some result -> return result
       | None ->
-        let result =
-          let* g_is_sub = is_sub_of_norm g in
-          if g_is_sub then
-            return @@ to_lazy (snd g)
-          else
-            let* swap_g_is_sub = is_sub_of_norm (Pair.swap g) in
-            if swap_g_is_sub then
-              return @@ to_lazy (fst g)
-            else
-              return
-              @@ `Lazy
-                   (lazy
-                     (match g with
-                     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-                       let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
-                       `Arrow (at, d, c)
-                     | `Product (_, lls), `Product (_, rls) ->
-                       let+ ls = intersection upper [] (lls, rls) in
-                       `Product (at, ls)
-                     | `Sum (_, lls), `Sum (_, rls) ->
-                       let+ ls = union upper [] (lls, rls) in
-                       `Sum (at, ls)
-                     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-                       Kind.unify at lk rk
-                       >>
-                       let i, goal = Goal.unify_vars li lt ri rt in
-                       let assoc = Goal.free_vars_to_regular_assoc goal in
-                       let+ t =
-                         goal
-                         |> Goal.map (Goal.to_subst assoc)
-                         |> upper >>= to_strict
-                         >>- Goal.to_subst (List.map Pair.swap assoc)
-                         >>- to_lazy
-                       in
-                       `Lam (at, i, lk, t)
-                     | `ForAll (_, lt), `ForAll (_, rt) ->
-                       let+ t = upper (lt, rt) in
-                       `ForAll (at, t)
-                     | `Exists (_, lt), `Exists (_, rt) ->
-                       let+ t = upper (lt, rt) in
-                       `Exists (at, t)
-                     | _ -> (
-                       match (unapp l, unapp r) with
-                       | ( ((`Mu (la, lf) as lmu), lxs),
-                           ((`Mu (ra, rf) as rmu), rxs) ) ->
-                         upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
-                       | ((`Mu (la, lf) as lmu), lxs), _ ->
-                         upper (unfold la lf lmu lxs, r)
-                       | _, ((`Mu (ra, rf) as rmu), rxs) ->
-                         upper (l, unfold ra rf rmu rxs)
-                       | _ -> fail @@ `Error_typ_mismatch (at, l, r))))
-        in
+        (let* g_is_sub = is_sub_of_norm g in
+         if g_is_sub then
+           return @@ to_lazy (snd g)
+         else
+           let* swap_g_is_sub = is_sub_of_norm (Pair.swap g) in
+           if swap_g_is_sub then
+             return @@ to_lazy (fst g)
+           else
+             match g with
+             | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+               let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
+               `Arrow (at, d, c)
+             | `Product (_, lls), `Product (_, rls) ->
+               let+ ls = intersection upper [] (lls, rls) in
+               `Product (at, ls)
+             | `Sum (_, lls), `Sum (_, rls) ->
+               let+ ls = union upper [] (lls, rls) in
+               `Sum (at, ls)
+             | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+               Kind.unify at lk rk
+               >>
+               let i, goal = Goal.unify_vars li lt ri rt in
+               let assoc = Goal.free_vars_to_regular_assoc goal in
+               let+ t =
+                 goal
+                 |> Goal.map (Goal.to_subst assoc)
+                 |> upper >>= to_strict
+                 >>- Goal.to_subst (List.map Pair.swap assoc)
+                 >>- to_lazy
+               in
+               `Lam (at, i, lk, t)
+             | `ForAll (_, lt), `ForAll (_, rt) ->
+               let+ t = upper (lt, rt) in
+               `ForAll (at, t)
+             | `Exists (_, lt), `Exists (_, rt) ->
+               let+ t = upper (lt, rt) in
+               `Exists (at, t)
+             | _ -> (
+               match (unapp l, unapp r) with
+               | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
+                 upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
+               | ((`Mu (la, lf) as lmu), lxs), _ ->
+                 upper (unfold la lf lmu lxs, r)
+               | _, ((`Mu (ra, rf) as rmu), rxs) ->
+                 upper (l, unfold ra rf rmu rxs)
+               | _ -> fail @@ `Error_typ_mismatch (at, l, r)))
+        |> LVar.create
+        >>- fun var ->
+        let result = `Lazy var in
         map := GoalMap.add g result !map;
         result
     in

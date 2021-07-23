@@ -217,6 +217,12 @@ let () =
     let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) λx:t a b.λn:a.f (x x) n
     let fact = λfact:int → int.λn:int.if n =[int] 0 then 1 else n*fact (n-1)
     fix[int][int] fact 5
+    |eof};
+  testInfersAs "μ join and meet" "bool → (μd.'B d) → μc.'A | 'B c | 'C"
+    {eof|
+    type μx = 'A | 'B x
+    type μy = 'B y | 'C
+    λb:bool.if b then λx:x.x else λy:y.y
     |eof}
 
 let testErrors name exp =
