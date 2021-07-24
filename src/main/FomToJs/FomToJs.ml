@@ -635,6 +635,15 @@ module Exp = struct
           return defaulted
       | `App (`Lam (x', `Lam (y', e)), x), y when not (is_free x' y) ->
         simplify @@ `App (`Lam (x', `App (`Lam (y', e), y)), x)
+      | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
+        let* c_is_total = is_total c in
+        if c_is_total then
+          let x' = Id.fresh Loc.dummy in
+          let xv = `Var x' in
+          simplify
+          @@ `App (`Lam (x', `IfElse (c, subst t' xv t, subst e' xv e)), x)
+        else
+          default ()
       | _ -> default ())
     | `Mu e -> (
       let+ e = simplify e in
