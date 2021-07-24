@@ -778,21 +778,6 @@ module Exp = struct
       | `LitNat l, `LitNat r -> nat l r
       | `LitString l, `LitString r -> LitString.compare l r
       | `OpEq l, `OpEq r | `OpEqNot l, `OpEqNot r -> typ l r
-      | `OpArithAdd, `OpArithAdd
-      | `OpArithDiv, `OpArithDiv
-      | `OpArithMinus, `OpArithMinus
-      | `OpArithMul, `OpArithMul
-      | `OpArithPlus, `OpArithPlus
-      | `OpArithRem, `OpArithRem
-      | `OpArithSub, `OpArithSub
-      | `OpCmpGt, `OpCmpGt
-      | `OpCmpGtEq, `OpCmpGtEq
-      | `OpCmpLt, `OpCmpLt
-      | `OpCmpLtEq, `OpCmpLtEq
-      | `OpLogicalAnd, `OpLogicalAnd
-      | `OpLogicalNot, `OpLogicalNot
-      | `OpLogicalOr, `OpLogicalOr ->
-        0
       | `Keep tl, `Keep tr -> typ tl tr
       | `Target (tl, ll), `Target (tr, lr) ->
         typ tl tr <>? fun () -> LitString.compare ll lr
