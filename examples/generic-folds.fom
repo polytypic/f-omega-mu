@@ -31,14 +31,12 @@ let List =
         None = λ().r
         Some = λ(x:α, r:ρ).rxr r x
       }
-  let rev_to = Λα.fold[List α][α] λxs:List α.λx:α.'Some (x, xs)
-  let rev = Λα.rev_to[α] 'None
   let filter = Λα.λp:α → bool.λxs:List α.
     xs
     ▷ fold[List α][α] (λxs:List α.λx:α.if p x then 'Some (x, xs) else xs) 'None
-    ▷ rev[α]
-  let concat = Λα.λxs:List α.λys:List α.rev[α] xs ▷ rev_to[α] ys
-  {one, has, fold, rev, filter, concat}
+  let concat = Λα.λxs:List α.λys:List α.
+    fold[List α][α] (λxs:List α.λx:α.'Some (x, xs)) ys xs
+  {one, has, fold, filter, concat}
 
 # Set ADT
 type Set = λelem.λset.{
