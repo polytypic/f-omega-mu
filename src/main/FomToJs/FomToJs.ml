@@ -449,6 +449,34 @@ module Exp = struct
         | `Case e, [] -> is_total e
         | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
 
+  let rec is_immediately_evaluated i' e =
+    match unapp e with
+    | `Var i, xs -> Id.equal i i' || [] <> xs
+    | `Const _, xs -> List.exists (is_immediately_evaluated i') xs
+    | `Lam _, [] -> false
+    | `Lam (i, e), x :: xs ->
+      is_immediately_evaluated i' x
+      || List.exists (is_immediately_evaluated i') xs
+      || ((not (Id.equal i i')) && is_immediately_evaluated i' (app e xs))
+    | `IfElse (c, t, e), xs ->
+      is_immediately_evaluated i' c
+      || List.exists (is_immediately_evaluated i') xs
+      ||
+      let xs = xs |> List.map (fun _ -> `Var (Id.fresh Loc.dummy)) in
+      is_immediately_evaluated i' (app t xs)
+      || is_immediately_evaluated i' (app e xs)
+    | `Product fs, _ -> fs |> List.exists (snd >>> is_immediately_evaluated i')
+    | `Select (e, l), [] ->
+      is_immediately_evaluated i' e || is_immediately_evaluated i' l
+    | `Inject (_, e), _ -> is_immediately_evaluated i' e
+    | `Case cs, [] -> is_immediately_evaluated i' cs
+    | `Case (`Product cs), (_ :: _ as xs) ->
+      List.exists (is_immediately_evaluated i') xs
+      ||
+      let xs = xs |> List.map (fun _ -> `Var (Id.fresh Loc.dummy)) in
+      cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (app f xs))
+    | _ -> true
+
   let rec occurs_once_in_total_position i' e =
     match unapp e with
     | `Var i, [] -> return @@ Id.equal i' i
@@ -663,9 +691,11 @@ module Exp = struct
       else
         let* v =
           match v with
-          | `Mu (`Lam (f, (`Lam (_, _) as l)))
-            when Id.equal i f || not (is_free i l) ->
-            to_js_expr (subst f (`Var i) l)
+          | `Mu (`Lam (f, b))
+            when (not (is_immediately_evaluated f b))
+                 && (not (is_free i v))
+                 && is_free i e ->
+            to_js_expr (subst f (`Var i) b)
           | _ -> to_js_expr v
         in
         let b =
@@ -700,6 +730,11 @@ module Exp = struct
       str "const " ^ Id.to_js i ^ str " = " ^ x ^ str "; "
       ^ (if is_top then str "" else str "return ")
       ^ cs ^ str "[" ^ Id.to_js i ^ str "[0]](" ^ Id.to_js i ^ str "[1])"
+    | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
+      let+ e = to_js_expr e in
+      str "const " ^ Id.to_js f ^ str " = " ^ e ^ str ";"
+      ^ (if is_top then str " " else str "return ")
+      ^ Id.to_js f
     | _ -> default ()
 
   and to_js_expr exp =
@@ -728,6 +763,10 @@ module Exp = struct
       let+ e = to_js_stmts false (Ids.singleton x) @@ `App (e, `Var x) in
       parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {"
       ^ e ^ str "}"
+    | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
+      let+ e = to_js_expr e in
+      str "(() => {const " ^ Id.to_js f ^ str " = " ^ e ^ str "; return "
+      ^ Id.to_js f ^ str "})()"
     | `Mu f ->
       let+ f = to_js_expr f in
       str "rec(" ^ f ^ str ")"
