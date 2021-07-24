@@ -657,6 +657,8 @@ module Exp = struct
     | `Mu e -> (
       let+ e = simplify e in
       match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
+    | `IfElse (`App (`Const `OpLogicalNot, c), t, e) ->
+      simplify @@ `IfElse (c, e, t)
     | `IfElse (c, t, e) -> (
       let* c = simplify c in
       match c with
