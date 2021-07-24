@@ -179,9 +179,7 @@ const duAt = (cm, cursor, offset) => {
       token &&
       token.start <= cursor.ch &&
       cursor.ch <= token.end &&
-      duMap[file] &&
-      duMap[file][cursor.line] &&
-      duMap[file][cursor.line][token.start]
+      duMap?.[file]?.[cursor.line]?.[token.start]
     )
   }
 }
