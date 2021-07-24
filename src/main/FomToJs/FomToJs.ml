@@ -447,6 +447,23 @@ module Exp = struct
         | `Case e, [] -> is_total e
         | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
 
+  let rec occurs_once_in_total_position i' e =
+    match unapp e with
+    | `Var i, [] -> return @@ Id.equal i' i
+    | `Const c, xs when Const.is_total c ->
+      occurs_once_in_total_position_of_list i' xs
+    | `Lam _, xs -> occurs_once_in_total_position_of_list i' xs
+    | _ -> return false
+
+  and occurs_once_in_total_position_of_list i' = function
+    | [] -> return false
+    | x :: xs ->
+      occurs_once_in_total_position i' x
+      &&& return (List.for_all (is_free i' >>> not) xs)
+      ||| (return (not (is_free i' x))
+          &&& is_total x
+          &&& occurs_once_in_total_position_of_list i' xs)
+
   let rec is_lam_or_case = function
     | `Lam _ -> true
     | `Case (`Product fs) -> List.for_all (snd >>> is_lam_or_case) fs
@@ -573,8 +590,8 @@ module Exp = struct
             setting Limit.field (Some new_limit) (simplify e)
           | Some _ -> simplify e
         in
-        let* x_is_total = is_total x in
-        if x_is_total then
+        let* may_subst = is_total x ||| occurs_once_in_total_position i e in
+        if may_subst then
           apply ()
           |> try_in
                (fun applied ->
