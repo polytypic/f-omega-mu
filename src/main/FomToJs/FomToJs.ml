@@ -633,8 +633,17 @@ module Exp = struct
                (fun (`Limit | `Seen) -> return defaulted)
         else
           return defaulted
-      | `App (`Lam (x', `Lam (y', e)), x), y when not (is_free x' y) ->
-        simplify @@ `App (`Lam (x', `App (`Lam (y', e), y)), x)
+      | `App (`Lam (x', `Lam (y', e)), x), y ->
+        let x'' = Id.freshen x' in
+        simplify
+        @@ `App (`Lam (x'', `App (`Lam (y', subst x' (`Var x'') e), y)), x)
+      | `App (`Lam (x', e), x), y ->
+        let* e_or_y_is_total = is_total e ||| is_total y in
+        if e_or_y_is_total then
+          let x'' = Id.freshen x' in
+          simplify @@ `App (`Lam (x'', `App (subst x' (`Var x'') e, y)), x)
+        else
+          default ()
       | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
         let* c_is_total = is_total c in
         if c_is_total then
