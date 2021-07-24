@@ -653,6 +653,8 @@ module Exp = struct
           @@ `App (`Lam (x', `IfElse (c, subst t' xv t, subst e' xv e)), x)
         else
           default ()
+      | `Var _, c when may_inline_continuation c ->
+        simplify @@ inline_continuation c f
       | _ -> default ())
     | `Mu e -> (
       let+ e = simplify e in
