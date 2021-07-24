@@ -165,6 +165,7 @@ module Exp : sig
       | `OpLogicalAnd
       | `OpLogicalNot
       | `OpLogicalOr
+      | `OpStringCat
       | `Keep of 't
       | `Target of 't * LitString.t ]
 

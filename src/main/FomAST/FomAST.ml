@@ -659,6 +659,7 @@ end
 module Exp = struct
   let bool = `Const (Loc.dummy, `Bool)
   let int = `Const (Loc.dummy, `Int)
+  let string = `Const (Loc.dummy, `String)
   let impure = `Var (Loc.dummy, Typ.impure)
 
   module Const = struct
@@ -682,6 +683,7 @@ module Exp = struct
       | `OpLogicalAnd
       | `OpLogicalNot
       | `OpLogicalOr
+      | `OpStringCat
       | `Keep of 't
       | `Target of 't * LitString.t ]
 
@@ -703,6 +705,7 @@ module Exp = struct
       | `OpLogicalAnd | `OpLogicalOr -> bop bool
       | `OpLogicalNot -> uop bool
       | `Keep t -> `Arrow (at, `App (at, impure, t), t)
+      | `OpStringCat -> bop string
       | `Target (t, _) -> t
 
     (* Substitution *)
@@ -711,7 +714,7 @@ module Exp = struct
       | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
         | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
         | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-        | `OpLogicalNot | `OpLogicalOr ) as c ->
+        | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
         c
       | `OpEq t -> `OpEq (tu t)
       | `OpEqNot t -> `OpEqNot (tu t)
@@ -724,7 +727,7 @@ module Exp = struct
       | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
         | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
         | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-        | `OpLogicalNot | `OpLogicalOr ) as c ->
+        | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
         return c
       | `OpEq t ->
         let+ t = tuM t in
@@ -743,7 +746,7 @@ module Exp = struct
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
       | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
       | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-      | `OpLogicalNot | `OpLogicalOr ->
+      | `OpLogicalNot | `OpLogicalOr | `OpStringCat ->
         []
       | `OpEq t | `OpEqNot t | `Keep t | `Target (t, _) -> [t]
 
@@ -772,8 +775,9 @@ module Exp = struct
       | `OpLogicalAnd -> 16
       | `OpLogicalNot -> 17
       | `OpLogicalOr -> 18
-      | `Keep _ -> 19
-      | `Target _ -> 20
+      | `OpStringCat -> 19
+      | `Keep _ -> 20
+      | `Target _ -> 21
 
     let compare' nat typ l r =
       match (l, r) with
@@ -808,6 +812,7 @@ module Exp = struct
       | `OpLogicalAnd -> logical_and
       | `OpLogicalNot -> logical_not
       | `OpLogicalOr -> logical_or
+      | `OpStringCat -> caret
       | `Keep t -> keep' ^^ egyptian brackets 2 (typ t)
       | `Target (t, l) ->
         target' ^^ egyptian brackets 2 (typ t) ^^ space ^^ utf8string l

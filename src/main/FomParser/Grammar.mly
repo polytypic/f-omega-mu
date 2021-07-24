@@ -24,6 +24,7 @@
 %token BraceRhs "}"
 %token BracketLhs "["
 %token BracketRhs "]"
+%token Caret "^"
 %token Colon ":"
 %token Comma ","
 %token Diamond "◇"
@@ -66,7 +67,7 @@
 %left "∧"
 %nonassoc "=" "≠" "]"
 %nonassoc "<" "≤" "≥" ">"
-%left "+" "-"
+%left "+" "-" "^"
 %left "*" "/" "%"
 
 %start <Exp.t> program
@@ -248,6 +249,7 @@ exp_inf:
 
   | "+"                                                 {`Const ($loc, `OpArithAdd)}
   | "-"                                                 {`Const ($loc, `OpArithSub)}
+  | "^"                                                 {`Const ($loc, `OpStringCat)}
 
   | "*"                                                 {`Const ($loc, `OpArithMul)}
   | "/"                                                 {`Const ($loc, `OpArithDiv)}

@@ -164,6 +164,7 @@ let rec token_or_comment buffer =
   | "[" -> return BracketLhs
   | "\\" -> return Backslash
   | "]" -> return BracketRhs
+  | "^" -> return Caret
   | "{" -> return BraceLhs
   | "|" -> return Pipe
   | "}" -> return BraceRhs
@@ -265,6 +266,7 @@ let token_info_utf_8 input =
       | BraceRhs -> punctuation
       | BracketLhs -> punctuation
       | BracketRhs -> punctuation
+      | Caret -> operator
       | Case -> keyword
       | Colon -> punctuation
       | Comma -> punctuation
@@ -326,6 +328,7 @@ let[@warning "-32"] to_string = function
   | BraceRhs -> "}"
   | BracketLhs -> "["
   | BracketRhs -> "]"
+  | Caret -> "^"
   | Case -> "case"
   | Colon -> ":"
   | Comma -> ","

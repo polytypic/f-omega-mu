@@ -75,6 +75,7 @@ module Exp = struct
       | `OpLogicalAnd -> str "&&"
       | `OpLogicalNot -> str "!"
       | `OpLogicalOr -> str "||"
+      | `OpStringCat -> str "+"
       | `Keep _ -> str ""
       | `Target (_, l) -> str "(" ^ str (LitString.to_utf8 l) ^ str ")"
 
@@ -83,7 +84,8 @@ module Exp = struct
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
       | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
       | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
-      | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `Target _ ->
+      | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat | `Target _
+        ->
         true
 
     let is_uop = function
@@ -91,7 +93,7 @@ module Exp = struct
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
       | `OpArithMul | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq
       | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _ | `OpLogicalAnd
-      | `OpLogicalOr | `Target _ ->
+      | `OpLogicalOr | `OpStringCat | `Target _ ->
         false
 
     let is_bop = function
@@ -100,7 +102,7 @@ module Exp = struct
         false
       | `OpArithAdd | `OpArithDiv | `OpArithMul | `OpArithRem | `OpArithSub
       | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
-      | `OpLogicalAnd | `OpLogicalOr ->
+      | `OpLogicalAnd | `OpLogicalOr | `OpStringCat ->
         true
 
     let erase = function
@@ -117,8 +119,8 @@ module Exp = struct
       | ( `LitBool _ | `LitString _ | `OpArithAdd | `OpArithDiv | `OpArithMinus
         | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt
         | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
-        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `Keep _ | `Target _ )
-        as other ->
+        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat | `Keep _
+        | `Target _ ) as other ->
         other
 
     let is_commutative = function
@@ -126,7 +128,7 @@ module Exp = struct
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithDiv | `OpArithMinus
       | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq
       | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr
-      | `Keep _ | `Target _ ->
+      | `OpStringCat | `Keep _ | `Target _ ->
         false
 
     let simplify_uop = function

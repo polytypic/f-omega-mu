@@ -1,7 +1,3 @@
 let to_literal = target[string → string] "JSON.stringify"
 
-let join = target[string → string → string] "x => y => x + y"
-
-let add = target[string → string → string] "x => y => y + x"
-
-{add, join, to_literal}
+{to_literal}
