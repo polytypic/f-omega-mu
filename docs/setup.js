@@ -10,9 +10,9 @@ const url = `${location.origin}${location.pathname}examples/*`
 
 const throttled = (ms, fn) => {
   let timeout = null
-  return () => {
+  return (...args) => {
     clearTimeout(timeout)
-    timeout = setTimeout(fn, ms)
+    timeout = setTimeout(fn, ms, ...args)
   }
 }
 
@@ -127,45 +127,61 @@ fomCM.setOption('extraKeys', {
 
 //
 
+const currentDeps = []
+
 let result = {typ: '...', defUses: [], diagnostics: [], dependencies: []}
 
 //
 
-const duMap = []
+const cmOf = targetFile => {
+  if (url === targetFile) return fomCM
+  for (const {file, cm} of currentDeps) if (file === targetFile) return cm
+  return null
+}
+
+const fileOf = targetCM => {
+  if (fomCM === targetCM) return url
+  for (const {file, cm} of currentDeps) if (cm === targetCM) return file
+  return null
+}
+
+//
+
+const duMap = {}
 
 const insertDU = (loc, du) => {
+  const file = duMap[loc.file] || (duMap[loc.file] = [])
   const begins = loc.begins
-  const line = duMap[begins.line] || (duMap[begins.line] = [])
+  const line = file[begins.line] || (file[begins.line] = [])
   line[begins.ch] = du
 }
 
 const prepareDefUses = () => {
-  duMap.length = 0
+  for (const file in duMap) {
+    delete duMap[file]
+  }
   result.defUses.forEach(du => {
-    du.uses.forEach(use => {
-      if (use.file === url) {
-        insertDU(use, du)
-      }
-    })
-    if (du.def.file === url) {
-      insertDU(du.def, du)
-    }
+    du.uses.forEach(use => insertDU(use, du))
+    insertDU(du.def, du)
   })
 }
 
 const duMarkers = []
 
-const duAt = (cursor, offset) => {
+const duAt = (cm, cursor, offset) => {
   if (undefined === offset) {
-    return duAt(cursor, 0) || duAt(cursor, 1)
+    return duAt(cm, cursor, 0) || duAt(cm, cursor, 1)
   } else {
-    const token = fomCM.getTokenAt({line: cursor.line, ch: cursor.ch + offset})
+    const token = cm.getTokenAt({line: cursor.line, ch: cursor.ch + offset})
+    const file = fileOf(cm)
     return (
+      file &&
       token &&
       token.start <= cursor.ch &&
       cursor.ch <= token.end &&
-      duMap[cursor.line] &&
-      duMap[cursor.line][token.start]
+      duMap[file] &&
+      duMap[file][cursor.line] &&
+      duMap[file][cursor.line][token.start]
     )
   }
 }
@@ -175,27 +191,27 @@ const posAsNative = (cm, {line, ch}) => {
   return {line, ch: fom.offset(input, ch)}
 }
 
-const updateDefUses = throttled(100, () => {
+const updateDefUses = throttled(100, cm => {
   clearMarkers(duMarkers)
-  const du = duAt(fomCM.getCursor())
+  const du = duAt(cm, cm.getCursor())
   if (du) {
-    if (du.def.file === url) {
+    const cm = cmOf(du.def.file)
+    if (cm) {
       duMarkers.push(
-        fomCM.markText(
-          posAsNative(fomCM, du.def.begins),
-          posAsNative(fomCM, du.def.ends),
+        cm.markText(
+          posAsNative(cm, du.def.begins),
+          posAsNative(cm, du.def.ends),
           {css: 'background: darkgreen'}
         )
       )
     }
     du.uses.forEach(use => {
-      if (use.file === url) {
+      const cm = cmOf(use.file)
+      if (cm) {
         duMarkers.push(
-          fomCM.markText(
-            posAsNative(fomCM, use.begins),
-            posAsNative(fomCM, use.ends),
-            {css: 'background: blue'}
-          )
+          cm.markText(posAsNative(cm, use.begins), posAsNative(cm, use.ends), {
+            css: 'background: blue',
+          })
         )
       }
     })
@@ -211,12 +227,11 @@ fomCM.on('cursorActivity', updateDefUses)
 
 //
 
-let currentDeps = ''
-
 const updateDeps = () => {
-  const newDeps = result.dependencies.join(',')
-  if (newDeps !== currentDeps) {
-    currentDeps = newDeps
+  if (
+    result.dependencies.join(',') !== currentDeps.map(dep => dep.file).join(',')
+  ) {
+    currentDeps.length = 0
 
     while (depsDl.firstChild) depsDl.removeChild(depsDl.firstChild)
 
@@ -244,12 +259,16 @@ const updateDeps = () => {
           theme: theme,
         })
 
+        depCM.on('cursorActivity', updateDefUses)
+
         const xhr = new XMLHttpRequest()
         xhr.onload = () => {
           depCM.setValue(xhr.responseText.trim())
         }
         xhr.open('GET', dep)
         xhr.send()
+
+        currentDeps.push({file: dep, cm: depCM})
       }
     }
   }
@@ -348,14 +367,15 @@ const check = throttled(
         jsCM.setValue('')
 
         result.diagnostics.forEach(diagnostic => {
-          if (diagnostic.file === url) {
-            const css = fomCM.getAllMarks().length
+          const cm = cmOf(diagnostic.file)
+          if (cm) {
+            const css = cm.getAllMarks().length
               ? 'text-shadow: 0px 0px 10px orange'
               : 'text-shadow: 0px 0px 10px red'
             diagnosticMarkers.push(
-              fomCM.markText(
-                posAsNative(fomCM, diagnostic.begins),
-                posAsNative(fomCM, diagnostic.ends),
+              cm.markText(
+                posAsNative(cm, diagnostic.begins),
+                posAsNative(cm, diagnostic.ends),
                 {className: 'marker', css, title: diagnostic.message}
               )
             )
@@ -366,7 +386,7 @@ const check = throttled(
       }
 
       prepareDefUses()
-      updateDefUses()
+      updateDefUses(fomCM)
 
       updateDeps()
     }
@@ -444,7 +464,7 @@ fomCM.on('keyup', (_, event) => {
     }
   } else if (event.key === 'F2') {
     const cursor = fomCM.getCursor()
-    const du = duAt(cursor)
+    const du = duAt(fomCM, cursor)
     if (du) {
       const selections = []
       let primary = 0
