@@ -1,16 +1,16 @@
 # Object-oriented integer set implementations
 
-# This is a direct translation of snippets from the essay
+# This is a translation of snippets from the essay
 #
 #   On Understanding Data Abstraction, Revisited
 #   by William R. Cook.
 
 type μISet = {
-  isEmpty: bool
-  contains: int → bool
-  insert: int → ISet
-  union: ISet → ISet
-}
+    isEmpty: bool
+    contains: int → bool
+    insert: int → ISet
+    union: ISet → ISet
+  }
 
 let μInsert: (ISet, int) → ISet = λ(s:ISet, n:int).
   if s.contains n then s else μthis:ISet.{
@@ -28,25 +28,25 @@ and μUnion: (ISet, ISet) → ISet = λ(s1:ISet, s2:ISet).
     union = λs:ISet.Union (this, s)
   }
 
-let Empty = μthis:ISet.{
+let μEmpty:ISet = {
     isEmpty = true
     contains = λ_:int.false
-    insert = λi:int.Insert (this, i)
+    insert = λi:int.Insert (Empty, i)
     union = λs:ISet.s
   }
 
-let Even = μthis:ISet.{
+let μEven:ISet = {
     isEmpty = false
     contains = λi:int.i % 2 =[int] 0
-    insert = λi:int.Insert (this, i)
-    union = λs:ISet.Union (this, s)
+    insert = λi:int.Insert (Even, i)
+    union = λs:ISet.Union (Even, s)
   }
 
-let Full = μthis:ISet.{
+let μFull:ISet = {
    isEmpty = false
-   contains = λi:int.true
-   insert = λi:int.this
-   union = λs:ISet.this
+   contains = λ_:int.true
+   insert = λ_:int.Full
+   union = λ_:ISet.Full
  }
 
 let Interval = λ(n:int, m:int).
