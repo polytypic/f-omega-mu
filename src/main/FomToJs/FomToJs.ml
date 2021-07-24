@@ -586,6 +586,8 @@ module Exp = struct
                (fun (`Limit | `Seen) -> return defaulted)
         else
           return defaulted
+      | `App (`Lam (x', `Lam (y', e)), x), y when not (is_free x' y) ->
+        simplify @@ `App (`Lam (x', `App (`Lam (y', e), y)), x)
       | _ -> default ())
     | `Mu e -> (
       let+ e = simplify e in
