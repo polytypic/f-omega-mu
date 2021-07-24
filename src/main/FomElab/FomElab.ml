@@ -486,7 +486,11 @@ let rec elaborate = function
     let+ e = elaborate e and+ t = elaborate_typ t in
     let x = Exp.Id.fresh at in
     `App (at, `Lam (at, x, t, `Var (at, x)), e)
-  | `AppL (at, x, f) | `AppR (at, f, x) ->
+  | `AppL (at, x, f) ->
+    let+ x = elaborate x and+ f = elaborate f in
+    let i = Exp.Id.fresh at in
+    `LetIn (at, i, x, `App (at, f, `Var (at, i)))
+  | `AppR (at, f, x) ->
     let+ x = elaborate x and+ f = elaborate f in
     `App (at, f, x)
   | `Import (at', p) ->
