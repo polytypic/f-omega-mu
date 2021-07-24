@@ -659,6 +659,7 @@ end
 module Exp = struct
   let bool = `Const (Loc.dummy, `Bool)
   let int = `Const (Loc.dummy, `Int)
+  let impure = `Var (Loc.dummy, Typ.impure)
 
   module Const = struct
     type ('nat, 't) t =
@@ -686,20 +687,22 @@ module Exp = struct
 
     (* Typing *)
 
-    let type_of at = function
+    let type_of at =
+      let bpr t = `Arrow (at, t, `Arrow (at, t, bool)) in
+      let uop t = `Arrow (at, t, t) in
+      let bop t = `Arrow (at, t, uop t) in
+      function
       | `LitBool _ -> `Const (at, `Bool)
       | `LitNat _ -> `Const (at, `Int)
       | `LitString _ -> `Const (at, `String)
       | `OpArithAdd | `OpArithSub | `OpArithMul | `OpArithDiv | `OpArithRem ->
-        `Arrow (at, int, `Arrow (at, int, int))
-      | `OpArithPlus | `OpArithMinus -> `Arrow (at, int, int)
-      | `OpCmpLt | `OpCmpLtEq | `OpCmpGt | `OpCmpGtEq ->
-        `Arrow (at, int, `Arrow (at, int, bool))
-      | `OpEq typ | `OpEqNot typ -> `Arrow (at, typ, `Arrow (at, typ, bool))
-      | `OpLogicalAnd | `OpLogicalOr ->
-        `Arrow (at, bool, `Arrow (at, bool, bool))
-      | `OpLogicalNot -> `Arrow (at, bool, bool)
-      | `Keep t -> `Arrow (at, `App (at, `Var (at, Typ.impure), t), t)
+        bop int
+      | `OpArithPlus | `OpArithMinus -> uop int
+      | `OpCmpLt | `OpCmpLtEq | `OpCmpGt | `OpCmpGtEq -> bpr int
+      | `OpEq typ | `OpEqNot typ -> bpr typ
+      | `OpLogicalAnd | `OpLogicalOr -> bop bool
+      | `OpLogicalNot -> uop bool
+      | `Keep t -> `Arrow (at, `App (at, impure, t), t)
       | `Target (t, _) -> t
 
     (* Substitution *)
