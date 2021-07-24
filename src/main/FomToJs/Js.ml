@@ -70,4 +70,6 @@ let illegal_id =
   ]
   |> List.fold_left StringSet.union StringSet.empty
 
-let is_illegal_id name = StringSet.mem name illegal_id
+let is_illegal_id name =
+  StringSet.mem name illegal_id
+  || match name.[0] with '0' .. '9' -> true | _ -> false

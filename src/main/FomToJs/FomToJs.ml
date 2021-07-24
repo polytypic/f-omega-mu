@@ -26,6 +26,8 @@ let to_string cstr =
 module Label = struct
   include Label
 
+  let to_id l = Exp.Id.of_name (Label.at l) (Label.name l)
+
   let is_numeric id =
     let it = to_string id in
     '0' <= it.[0] && it.[0] <= '9'
@@ -207,7 +209,7 @@ module Exp = struct
     let to_js id =
       let id = to_string id in
       if Js.is_illegal_id id then
-        str id ^ str "$"
+        str "$" ^ str id ^ str "$"
       else
         str id
   end
@@ -499,6 +501,8 @@ module Exp = struct
     | `Case (`Product fs) -> List.for_all (snd >>> is_lam_or_case) fs
     | _ -> false
 
+  let is_mu = function `Mu _ -> true | _ -> false
+
   let to_lam continue k i e =
     let i, e =
       if is_free i k then
@@ -609,7 +613,7 @@ module Exp = struct
         in
         simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
       | `Lam (i, `Var i'), x when Id.equal i i' -> return x
-      | `Lam (i, e), x ->
+      | `Lam (i, e), x -> (
         let* defaulted = default () in
         let apply () =
           let* limit = get Limit.field in
@@ -620,7 +624,11 @@ module Exp = struct
             setting Limit.field (Some new_limit) (simplify e)
           | Some _ -> simplify e
         in
-        let* may_subst = is_total x ||| occurs_once_in_total_position i e in
+        let* may_subst =
+          is_total x
+          &&& return ((not (is_mu x)) || not (is_free i e))
+          ||| occurs_once_in_total_position i e
+        in
         if may_subst then
           apply ()
           |> try_in
@@ -632,7 +640,24 @@ module Exp = struct
                      defaulted))
                (fun (`Limit | `Seen) -> return defaulted)
         else
-          return defaulted
+          match x with
+          | `Product fs ->
+            fs |> List.rev
+            |> List.fold_left
+                 (fun e (l, v) -> `App (`Lam (Label.to_id l, e), v))
+                 (`App
+                   ( `Lam (i, e),
+                     `Product
+                       (List.map (fun (l, _) -> (l, `Var (Label.to_id l))) fs)
+                   ))
+            |> simplify
+          | `Inject (l, v) ->
+            simplify
+            @@ `App
+                 ( `Lam
+                     (Label.to_id l, `App (f, `Inject (l, `Var (Label.to_id l)))),
+                   v )
+          | _ -> return defaulted)
       | `App (`Lam (x', `Lam (y', e)), x), y ->
         let x'' = Id.freshen x' in
         simplify
