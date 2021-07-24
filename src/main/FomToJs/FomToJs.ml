@@ -824,6 +824,17 @@ module Exp = struct
           parens
           @@ coerce_to_int_if (Typ.is_int result)
           @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs
+      | `App (`Const c, lhs) when Const.is_bop c ->
+        let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
+        let* lhs_is_total = is_total lhs in
+        if (not lhs_is_total) || n <> 2 then
+          default ()
+        else
+          let+ lhs = to_js_expr lhs in
+          let rhs = Id.fresh Loc.dummy in
+          parens @@ Id.to_js rhs ^ str " => "
+          ^ coerce_to_int_if (Typ.is_int result)
+          @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ Id.to_js rhs
       | `App (`Const c, rhs) when Const.is_uop c ->
         let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
         if n <> 1 then
