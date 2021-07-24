@@ -29,4 +29,4 @@ let μlookup:∀κ.∀ν.Trie κ ν → κ → opt ν = match[λκ.λν.κ → o
     }
 }
 
-()
+lookup
