@@ -58,6 +58,11 @@ module Exp = struct
       | `Product of Loc.t * (Label.t * [`Pat of t | `Ann of Typ.t]) list
       | `Pack of Loc.t * t * Typ.Id.t * Typ.t ]
 
+    let rec label_for = function
+      | `Id (_, i, _) -> Id.to_label i
+      | `Product (at, _) -> Label.fresh at
+      | `Pack (_, p, _, _) -> label_for p
+
     let at = function
       | `Id (at, _, _) | `Product (at, _) | `Pack (at, _, _, _) -> at
 

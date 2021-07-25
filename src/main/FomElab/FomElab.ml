@@ -464,9 +464,12 @@ let rec elaborate = function
     avoid at ti @@ fun ti ->
     let+ e = elaborate e |> Typ.Env.adding ti @@ `Var (at, Kind.Id.fresh at) in
     `UnpackIn (at, ti, ei, v, e)
+  | `LetPatRec (at, [(p, v)], e) ->
+    elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LetPatRec (at, pvs, e) ->
-    let p = pvs |> List.map fst |> FomCST.Exp.Pat.tuple at in
-    let v = pvs |> List.map snd |> FomCST.Exp.tuple at in
+    let ls = pvs |> List.map (fst >>> FomCST.Exp.Pat.label_for) in
+    let p = `Product (at, List.map2 (fun l (p, _) -> (l, `Pat p)) ls pvs) in
+    let v = `Product (at, List.map2 (fun l (_, v) -> (l, v)) ls pvs) in
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LamPat (at, p, e) ->
     let t = type_of_pat_lam p in
