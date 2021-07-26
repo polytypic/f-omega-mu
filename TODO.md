@@ -14,7 +14,8 @@
 ## General
 
 - separate compilation improvements
-  - check and optimize modules separately
+  - optimize modules separately
+- compilation server
   - keep checked and optimized modules in memory (only check if file changed)
 - parallel IO during elaboration
 - better parser and type checker error messages
@@ -67,36 +68,20 @@
 
   - inline elimination form continuations systematically to expose redexes
 
+  - common subexpression elimination
+
   - more comprehensive constant folding
 
     - systematically rewrite commutative and associative expression to expose
       constant foldable subexpressions
 
   - rewrite simplify to be closer to linear time
-  - specialize case analyzing function
-
-    ```
-    let f = fun x =>
-      x case { C1 = ..., ... }
-    ```
-
-    to a set of case analyzing functions
-
-    ```
-    let F1 = fun v1 => ... in
-    let ... in
-    let f = fun x =>
-      x case { C1 = F1, ... }
-    ```
-
-    to avoid allocating sum objects
 
 - code generation
 
   - [tail calls](https://stackoverflow.com/a/54721813)
   - hoist constant values (e.g. `rec`, `["nil": {}]}` -> `[nil, empty]`)
   - specialize recursive definitions
-    - mutually recursive function definitions
     - product types
     - sum types
   - use destructuring e.g. for `λl.l case r` when `l` is not free in `r`
