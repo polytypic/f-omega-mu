@@ -803,9 +803,9 @@ module Exp = struct
       | `OpArithPlus -> plus
       | `OpArithRem -> percent
       | `OpArithSub -> minus
-      | `OpCmpGt -> langle
+      | `OpCmpGt -> rangle
       | `OpCmpGtEq -> greater_equal
-      | `OpCmpLt -> rangle
+      | `OpCmpLt -> langle
       | `OpCmpLtEq -> less_equal
       | `OpEq t -> equals ^^ egyptian brackets 2 (typ t)
       | `OpEqNot t -> not_equal ^^ egyptian brackets 2 (typ t)
