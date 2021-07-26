@@ -544,14 +544,13 @@ module Exp = struct
     `Lam (i, continue e k)
 
   let rec to_case continue k fs =
-    `Case
-      (`Product
-        (fs
-        |> List.map
-             (Pair.map Fun.id @@ function
-              | `Lam (i, e) -> to_lam continue k i e
-              | `Case (`Product fs) -> to_case continue k fs
-              | _ -> failwith "impossible")))
+    fs
+    |> List.map
+         (Pair.map Fun.id @@ function
+          | `Lam (i, e) -> to_lam continue k i e
+          | `Case (`Product fs) -> to_case continue k fs
+          | _ -> failwith "impossible")
+    |> fun fs -> `Case (`Product fs)
 
   let may_inline_continuation = function
     | `IfElse _ -> true
@@ -662,11 +661,10 @@ module Exp = struct
           apply ()
           |> try_in
                (fun applied ->
-                 return
-                   (if size applied * 3 < size defaulted * 4 then
-                      applied
-                   else
-                     defaulted))
+                 if size applied * 3 < size defaulted * 4 then
+                   return applied
+                 else
+                   return defaulted)
                (fun (`Limit | `Seen) -> return defaulted)
         else
           match x with
@@ -674,18 +672,12 @@ module Exp = struct
             fs |> List.rev
             |> List.fold_left
                  (fun e (l, v) -> `App (`Lam (Label.to_id l, e), v))
-                 (`App
-                   ( `Lam (i, e),
-                     `Product
-                       (List.map (fun (l, _) -> (l, `Var (Label.to_id l))) fs)
-                   ))
+                 ( fs |> List.map (fun (l, _) -> (l, `Var (Label.to_id l)))
+                 |> fun fs -> `App (`Lam (i, e), `Product fs) )
             |> simplify
           | `Inject (l, v) ->
-            simplify
-            @@ `App
-                 ( `Lam
-                     (Label.to_id l, `App (f, `Inject (l, `Var (Label.to_id l)))),
-                   v )
+            let i = Label.to_id l in
+            `App (`Lam (i, `App (f, `Inject (l, `Var i))), v) |> simplify
           | _ -> return defaulted)
       | `App (`Lam (x', `Lam (y', e)), x), y ->
         let x'' = Id.freshen x' in
@@ -715,22 +707,11 @@ module Exp = struct
       let i = Id.fresh Loc.dummy in
       let unit = `Product [] in
       let fn =
-        `Case
-          (`Product
-            (fs
-            |> List.map @@ fun (l, _) -> (l, `Select (`Var i, `Inject (l, unit)))
-            ))
+        fs |> List.map (fun (l, _) -> (l, `Select (`Var i, `Inject (l, unit))))
+        |> fun fs -> `Case (`Product fs)
       in
-      simplify
-      @@ `App
-           ( `Lam (i, fn),
-             `Mu
-               (`Lam
-                 ( i,
-                   `Product
-                     (fs
-                     |> List.map @@ fun (l, v) -> (l, `App (`Lam (f, v), fn)))
-                 )) )
+      fs |> List.map (fun (l, v) -> (l, `App (`Lam (f, v), fn))) |> fun fs ->
+      `App (`Lam (i, fn), `Mu (`Lam (i, `Product fs))) |> simplify
     | `Mu e -> (
       let+ e = simplify e in
       match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
@@ -754,10 +735,10 @@ module Exp = struct
         let* fs_are_total =
           fs
           |> List.filter (fst >>> Label.equal l >>> not)
-          |> MList.for_all (fun (_, e) -> is_total e)
+          |> MList.for_all (snd >>> is_total)
         in
         if fs_are_total then
-          return @@ (fs |> List.find (fst >>> Label.equal l) |> snd)
+          fs |> List.find (fst >>> Label.equal l) |> snd |> return
         else
           default ()
       | _ -> default ())
