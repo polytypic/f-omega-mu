@@ -372,6 +372,18 @@ module Exp = struct
     | `Select (e, l) -> e + l + 1
     | `Case cs -> cs + 1
 
+  let rec always_selected i' = function
+    | `Const _ -> true
+    | `Var i -> not (Id.equal i i')
+    | `Lam (i, e) -> (not (Id.equal i' i)) || always_selected i' e
+    | `App (f, x) -> always_selected i' f && always_selected i' x
+    | `IfElse (c, t, e) ->
+      always_selected i' c || always_selected i' t || always_selected i' e
+    | `Product fs -> fs |> List.for_all (snd >>> always_selected i')
+    | `Mu e | `Inject (_, e) | `Case e -> always_selected i' e
+    | `Select (`Var i, l) when Id.equal i i' -> always_selected i' l
+    | `Select (e, l) -> always_selected i' e || always_selected i' l
+
   let rec is_free i' = function
     | `Const _ -> false
     | `Var i -> Id.equal i' i
@@ -730,26 +742,55 @@ module Exp = struct
         if is_top then e ^ str ";" else str "return " ^ e ^ str ";"
     in
     match exp with
-    | `App (`Lam (i, e), v) ->
+    | `App (`Lam (i, e), v) -> (
       if Ids.mem i ids then
         let i' = Id.freshen i in
         let vi' = `Var i' in
         to_js_stmts is_top ids @@ `App (`Lam (i', subst i vi' e), v)
       else
-        let* v =
-          match v with
-          | `Mu (`Lam (f, b))
-            when (not (is_immediately_evaluated f b))
-                 && (not (is_free i v))
-                 && is_free i e ->
-            to_js_expr (subst f (`Var i) b)
-          | _ -> to_js_expr v
+        let body v =
+          let b =
+            if is_free i e then
+              str "const " ^ Id.to_js i ^ str " = "
+            else
+              str ""
+          in
+          let+ e = to_js_stmts is_top (Ids.add i ids) e in
+          b ^ v ^ str "; " ^ e
         in
-        let b =
-          if is_free i e then str "const " ^ Id.to_js i ^ str " = " else str ""
-        in
-        let+ e = to_js_stmts is_top (Ids.add i ids) e in
-        b ^ v ^ str "; " ^ e
+        match v with
+        | `Mu (`Lam (f, (`Product fs as b)))
+          when fs |> List.for_all (snd >>> is_lam_or_case)
+               && always_selected f b
+               && (Id.equal i f || always_selected f e) ->
+          let is =
+            fs
+            |> List.map @@ fun (l, _) ->
+               let i = Id.of_name (Label.at l) (Label.name l) in
+               if Ids.mem i ids || is_free i exp then
+                 Id.freshen i
+               else
+                 i
+          in
+          let fs' = `Product (List.map2 (fun (l, _) i -> (l, `Var i)) fs is) in
+          let* e =
+            simplify (subst i fs' e)
+            >>= to_js_stmts is_top (Ids.union ids (Ids.of_list is))
+          in
+          let+ bs =
+            MList.fold_left2
+              (fun b i (_, v) ->
+                let+ v = simplify (subst f fs' v) >>= to_js_expr in
+                b ^ str "const " ^ Id.to_js i ^ str " = " ^ v ^ str "\n")
+              (str "") is fs
+          in
+          bs ^ e
+        | `Mu (`Lam (f, b))
+          when (not (is_immediately_evaluated f b))
+               && (not (is_free i v))
+               && is_free i e ->
+          to_js_expr (subst f (`Var i) b) >>= body
+        | _ -> to_js_expr v >>= body)
     | `IfElse (c, t, e) ->
       let+ c = to_js_expr c
       and+ t = to_js_stmts is_top Ids.empty t
