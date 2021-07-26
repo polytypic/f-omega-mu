@@ -384,6 +384,23 @@ module Exp = struct
     | `Select (`Var i, l) when Id.equal i i' -> always_selected i' l
     | `Select (e, l) -> always_selected i' e || always_selected i' l
 
+  let rec always_applied_to_inject i' = function
+    | `Const _ -> true
+    | `Var i -> not (Id.equal i' i)
+    | `Lam (i, e) -> Id.equal i' i || always_applied_to_inject i' e
+    | `App (`Var i, `Inject (_, e)) when Id.equal i' i ->
+      always_applied_to_inject i' e
+    | `App (f, x) ->
+      always_applied_to_inject i' f && always_applied_to_inject i' x
+    | `IfElse (c, t, e) ->
+      always_applied_to_inject i' c
+      && always_applied_to_inject i' t
+      && always_applied_to_inject i' e
+    | `Product fs -> fs |> List.for_all (snd >>> always_applied_to_inject i')
+    | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject i' e
+    | `Select (e, l) ->
+      always_applied_to_inject i' e && always_applied_to_inject i' l
+
   let rec is_free i' = function
     | `Const _ -> false
     | `Var i -> Id.equal i' i
@@ -693,6 +710,27 @@ module Exp = struct
       | `Var _, c when may_inline_continuation c ->
         simplify @@ inline_continuation c f
       | _ -> default ())
+    | `Mu (`Lam (f, `Case (`Product fs)))
+      when fs |> List.for_all (snd >>> always_applied_to_inject f) ->
+      let i = Id.fresh Loc.dummy in
+      let unit = `Product [] in
+      let fn =
+        `Case
+          (`Product
+            (fs
+            |> List.map @@ fun (l, _) -> (l, `Select (`Var i, `Inject (l, unit)))
+            ))
+      in
+      simplify
+      @@ `App
+           ( `Lam (i, fn),
+             `Mu
+               (`Lam
+                 ( i,
+                   `Product
+                     (fs
+                     |> List.map @@ fun (l, v) -> (l, `App (`Lam (f, v), fn)))
+                 )) )
     | `Mu e -> (
       let+ e = simplify e in
       match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
