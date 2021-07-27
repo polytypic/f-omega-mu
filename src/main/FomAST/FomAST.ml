@@ -542,7 +542,7 @@ module Typ = struct
           let v = `Var (Loc.dummy, Id.fresh Loc.dummy) in
           compare (subst lhs_id v lhs_typ) (subst rhs_id v rhs_typ)
       | `App (_, lhs_fn, lhs_arg), `App (_, rhs_fn, rhs_arg) ->
-        compare lhs_fn rhs_fn <>? fun () -> compare lhs_arg rhs_arg
+        compare lhs_arg rhs_arg <>? fun () -> compare lhs_fn rhs_fn
       | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs)
         ->
         compare lhs rhs
