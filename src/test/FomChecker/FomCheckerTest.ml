@@ -223,6 +223,17 @@ let () =
     type μx = 'A | 'B x
     type μy = 'B y | 'C
     λb:bool.if b then λx:x.x else λy:y.y
+    |eof};
+  testInfersAs "SKI combinators" "μL.L → L"
+    {eof|
+    type K = λx.λy.x in
+    type S = λx.λy.λz.x z (y z) in
+    type I = S K K in
+    type μL = L → L in
+    let K = λx:L.λy:L.x in
+    let S = λx:L.λy:L.λz:L.x z (x z) in
+    let I = S K K in
+    I
     |eof}
 
 let testErrors name exp =

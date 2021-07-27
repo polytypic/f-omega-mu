@@ -531,7 +531,8 @@ module Offside = struct
   and inside_body indent tok =
     let* is_typ = is_typ in
     match tok_of tok with
-    | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | Else | ParenRhs ->
+    | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | Else | In
+    | ParenRhs ->
       emit_before tok ParenRhs
     | (Dot | Equal) when is_typ -> emit_before tok ParenRhs
     | _ ->
