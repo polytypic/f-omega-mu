@@ -9,7 +9,8 @@ This Fωμ variant has
 - **structural sum and product types**
   ([\*](https://polytypic.github.io/f-omega-mu/#*examples/generic-folds.fom)),
 - **equirecursive types**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/first-order-and-higher-kinded-lists.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/first-order-and-higher-kinded-lists.fom),
+  [\*](https://polytypic.github.io/f-omega-mu/#*examples/polymorphic-container-without-pretense.fom)),
 - **higher-kinded types**
   ([\*](https://polytypic.github.io/f-omega-mu/#*examples/equality-witnesses.fom)),
   including **type level lambdas**

@@ -1,0 +1,24 @@
+# Polymorphic container without pretense
+
+# Inspired by
+#
+#   Getting around polymorphism restrictions using Category Theory and pretense
+#   by Oleg Kiselyov
+#   http://okmij.org/ftp/Computation/extra-polymorphism.html#irregular
+#
+# this shows that in Fωμ there is no need for pretense as the infinite expansion
+# of the type is still considered to have finitely many distinct subtrees.
+
+let Int = import "lib/int"
+
+type μcontainer = λα.{
+  get: α
+  map: ∀β.(α → β) → container β
+}
+
+let μcontainer:∀α.α → container α = Λα.λx:α.{
+  get = x
+  map = Λβ.λxy:α → β.container[β] (xy x)
+}
+
+(container[int] 101).map[string] Int.to_string
