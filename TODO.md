@@ -24,9 +24,11 @@
 
 ## Language
 
+- join and meet type expressions
 - bidirectional type checking to reduce and generalize annotations
 - equality
 - more flexible destructuring (placement of type annotations, partial patterns)
+- full pattern matching support
 - check recursive expressions for safety
 - more support for (JavaScript) primitives
   - bitwise operations on `int`
@@ -47,7 +49,8 @@
 
 - type based simplifier
 
-  - eliminate dead code when type is known to be uninhabited (e.g. empty sum)
+  - eliminate dead code when type is known to be uninhabited (e.g. empty sum) or
+    constant (e.g. Leibniz equality)
 
 - simplifier
 
