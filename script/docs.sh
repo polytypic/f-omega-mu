@@ -24,6 +24,7 @@ build-examples() {
     echo "  '$example'," >> $OUTPUT
   done
   cp -r examples/lib docs/examples/lib
+  cp -r examples/errors docs/examples/errors
   echo "]" >> $OUTPUT
 }
 

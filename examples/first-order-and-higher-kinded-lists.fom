@@ -1,0 +1,14 @@
+# Both first-order and higher-kinded recursive types are allowed
+
+type opt = λα.'None | 'Some α
+
+type list   = μlist.λα.opt (α, list α)
+type list_1 = λα.μlist_1.opt (α, list_1)
+
+let of_list   = Λα.λx:list   α.x
+let of_list_1 = Λα.λx:list_1 α.x
+
+let check = Λα.λlist: list α.λlist_1: list_1 α.
+  (of_list[α] list_1, of_list_1[α] list)
+
+check

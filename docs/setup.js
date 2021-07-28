@@ -114,8 +114,6 @@ const fomCM = CodeMirror(fomDiv, {
   mode: 'fom',
   tabSize: 2,
   theme: theme,
-  value:
-    LZString.decompressFromEncodedURIComponent(location.hash.slice(1)) || '',
 })
 
 fomCM.setOption('extraKeys', {
@@ -501,19 +499,7 @@ const exampleReset = () => {
   exampleSelect.value = ''
 }
 
-exampleSelect.onchange = () => {
-  const value = exampleSelect.value
-  if (value) {
-    const xhr = new XMLHttpRequest()
-    xhr.onload = () => {
-      fomCM.off('change', exampleReset)
-      fomCM.setValue(xhr.responseText.trim())
-      fomCM.on('change', exampleReset)
-    }
-    xhr.open('GET', value)
-    xhr.send()
-  }
-}
+exampleSelect.onchange = () => load(exampleSelect.value)
 
 //
 
@@ -523,3 +509,32 @@ depsSelect.onchange = () => {
   for (const div of depsDl.querySelectorAll('dd > div'))
     div.CodeMirror.refresh()
 }
+
+//
+
+const load = path => {
+  if (path) {
+    const xhr = new XMLHttpRequest()
+    xhr.onload = () => {
+      if (200 <= xhr.status && xhr.status < 300) {
+        fomCM.off('change', exampleReset)
+        fomCM.setValue(xhr.responseText.trim())
+        fomCM.on('change', exampleReset)
+      } else {
+        console.warn(`${xhr.statusText} when loading ${path}`)
+      }
+    }
+    xhr.open('GET', path)
+    xhr.send()
+  }
+}
+
+const interpretHash = hash => {
+  if (hash.startsWith('*')) {
+    load(hash.slice(1))
+  } else {
+    fomCM.setValue(LZString.decompressFromEncodedURIComponent(hash) || '')
+  }
+}
+
+interpretHash(location.hash.slice(1))
