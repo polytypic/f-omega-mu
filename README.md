@@ -1,4 +1,4 @@
-# Fωμ type checker &mdash; [![Build Status](https://travis-ci.org/polytypic/f-omega-mu.svg?branch=main)](https://travis-ci.org/polytypic/f-omega-mu)
+# Fωμ type checker
 
 A type checker for Fωμ _restricted to non-nested types_.
 
