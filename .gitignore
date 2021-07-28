@@ -1,3 +1,4 @@
 .merlin
 .vscode
 _build
+examples/*.fom.js

@@ -214,6 +214,54 @@ module Exp = struct
         str id
   end
 
+  let rec is_free i' = function
+    | `Const _ -> false
+    | `Var i -> Var.equal i' i
+    | `Lam (i, e) -> (not (Var.equal i' i)) && is_free i' e
+    | `App (f, x) -> is_free i' f || is_free i' x
+    | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
+    | `Product fs -> fs |> List.exists (snd >>> is_free i')
+    | `Mu e | `Inject (_, e) | `Case e -> is_free i' e
+    | `Select (e, l) -> is_free i' e || is_free i' l
+
+  let rec subst i the inn =
+    match inn with
+    | `Const _ -> inn
+    | `Var i' -> if Var.equal i' i then the else inn
+    | `Lam (i', e) ->
+      if Var.equal i' i || not (is_free i e) then
+        inn
+      else if is_free i' the then
+        let i'' = Var.freshen i' in
+        let vi'' = `Var i'' in
+        `Lam (i'', subst i the (subst i' vi'' e))
+      else
+        let e' = subst i the e in
+        if e == e' then inn else `Lam (i', e')
+    | `App (f, x) ->
+      let f' = subst i the f and x' = subst i the x in
+      if f == f' && x == x' then inn else `App (f', x')
+    | `Mu e ->
+      let e' = subst i the e in
+      if e == e' then inn else `Mu e'
+    | `IfElse (c, t, e) ->
+      let c' = subst i the c and t' = subst i the t and e' = subst i the e in
+      if c == c' && t == t' && e == e' then inn else `IfElse (c', t', e')
+    | `Product fs ->
+      let fs' =
+        fs |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id (subst i the)
+      in
+      if fs == fs' then inn else `Product fs'
+    | `Select (e, l) ->
+      let e' = subst i the e and l' = subst i the l in
+      if e == e' && l == l' then inn else `Select (e', l')
+    | `Inject (l, e) ->
+      let e' = subst i the e in
+      if e == e' then inn else `Inject (l, e')
+    | `Case cs ->
+      let cs' = subst i the cs in
+      if cs == cs' then inn else `Case cs'
+
   module Erased = struct
     type t =
       [ `App of t * t
@@ -240,28 +288,35 @@ module Exp = struct
       | `Var _ -> 9
 
     let rec compare l r =
-      match (l, r) with
-      | `App (fl, xl), `App (fr, xr) ->
-        compare fl fr <>? fun () -> compare xl xr
-      | `Case l, `Case r | `Mu l, `Mu r -> compare l r
-      | `Const l, `Const r ->
-        FomAST.Exp.Const.compare' Int32.compare Typ.compare l r
-      | `IfElse (cl, tl, el), `IfElse (cr, tr, er) ->
-        compare cl cr <>? fun () ->
-        compare tl tr <>? fun () -> compare el er
-      | `Select (el, ll), `Select (er, lr) ->
-        compare el er <>? fun () -> compare ll lr
-      | `Inject (ll, el), `Inject (lr, er) ->
-        Label.compare ll lr <>? fun () -> compare el er
-      | `Lam (vl, el), `Lam (vr, er) ->
-        Var.compare vl vr <>? fun () -> compare el er
-      | `Product lls, `Product rls ->
-        ListExt.compare_with
-          (fun (ll, el) (lr, er) ->
-            Label.compare ll lr <>? fun () -> compare el er)
-          lls rls
-      | `Var l, `Var r -> Var.compare l r
-      | _ -> index l - index r
+      if l == r then
+        0
+      else
+        match (l, r) with
+        | `App (fl, xl), `App (fr, xr) ->
+          compare xl xr <>? fun () -> compare fl fr
+        | `Case l, `Case r | `Mu l, `Mu r -> compare l r
+        | `Const l, `Const r ->
+          FomAST.Exp.Const.compare' Int32.compare Typ.compare l r
+        | `IfElse (cl, tl, el), `IfElse (cr, tr, er) ->
+          compare cl cr <>? fun () ->
+          compare tl tr <>? fun () -> compare el er
+        | `Select (el, ll), `Select (er, lr) ->
+          compare ll lr <>? fun () -> compare el er
+        | `Inject (ll, el), `Inject (lr, er) ->
+          Label.compare ll lr <>? fun () -> compare el er
+        | `Lam (vl, el), `Lam (vr, er) ->
+          if Var.equal vl vr then
+            compare el er
+          else
+            let v = `Var (Var.fresh Loc.dummy) in
+            compare (subst vl v el) (subst vr v er)
+        | `Product lls, `Product rls ->
+          ListExt.compare_with
+            (fun (ll, el) (lr, er) ->
+              Label.compare ll lr <>? fun () -> compare el er)
+            lls rls
+        | `Var l, `Var r -> Var.compare l r
+        | _ -> index l - index r
 
     let[@warning "-32"] rec pp : t -> document = function
       | `App (f, x) -> [pp f; space; pp x] |> concat |> egyptian parens 2
@@ -400,37 +455,6 @@ module Exp = struct
     | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject i' e
     | `Select (e, l) ->
       always_applied_to_inject i' e && always_applied_to_inject i' l
-
-  let rec is_free i' = function
-    | `Const _ -> false
-    | `Var i -> Var.equal i' i
-    | `Lam (i, e) -> (not (Var.equal i' i)) && is_free i' e
-    | `App (f, x) -> is_free i' f || is_free i' x
-    | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
-    | `Product fs -> fs |> List.exists (snd >>> is_free i')
-    | `Mu e | `Inject (_, e) | `Case e -> is_free i' e
-    | `Select (e, l) -> is_free i' e || is_free i' l
-
-  let rec subst i the inn =
-    match inn with
-    | `Const _ -> inn
-    | `Var i' -> if Var.equal i' i then the else inn
-    | `Lam (i', e) ->
-      if Var.equal i' i || not (is_free i e) then
-        inn
-      else if is_free i' the then
-        let i'' = Var.freshen i' in
-        let vi'' = `Var i'' in
-        `Lam (i'', subst i the (subst i' vi'' e))
-      else
-        `Lam (i', subst i the e)
-    | `App (f, x) -> `App (subst i the f, subst i the x)
-    | `Mu e -> `Mu (subst i the e)
-    | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
-    | `Product fs -> `Product (fs |> List.map (Pair.map Fun.id (subst i the)))
-    | `Select (e, l) -> `Select (subst i the e, subst i the l)
-    | `Inject (l, e) -> `Inject (l, subst i the e)
-    | `Case cs -> `Case (subst i the cs)
 
   let dummy_var = `Var (Var.fresh Loc.dummy)
 
@@ -752,6 +776,90 @@ module Exp = struct
   let simplify e =
     simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
 
+  module ErasedMap = Map.Make (Erased)
+
+  let move_constants_to_top inn =
+    let cs = ref ErasedMap.empty in
+    let add c =
+      match ErasedMap.find_opt c !cs with
+      | None ->
+        let i = Var.fresh Loc.dummy in
+        cs := ErasedMap.add c (i, ErasedMap.cardinal !cs, ref 1) !cs;
+        `Var i
+      | Some (i, _, n) ->
+        n := !n + 1;
+        `Var i
+    in
+    let rec analyze ~skip =
+      let consider ?(skip = skip) vs r =
+        match r with
+        | _ when skip -> (vs, r)
+        | `Const (`Keep _ | `LitBool _ | `LitNat _) | `Product [] | `Var _ ->
+          (vs, r)
+        | _ -> (vs, if VarSet.is_empty vs then add r else r)
+      in
+      function
+      | `Const _ as r -> r |> consider VarSet.empty
+      | `Var i as r -> r |> consider @@ VarSet.singleton i
+      | `App (`Lam (i, e), x) ->
+        let evs, e = analyze ~skip:false e and xvs, x = analyze ~skip:true x in
+        `App (`Lam (i, e), x)
+        |> consider ~skip:true @@ VarSet.union (VarSet.remove i evs) xvs
+      | `App (`App (`Const c, x), y) when Const.is_bop c && Const.is_total c ->
+        let xvs, x = analyze ~skip:false x and yvs, y = analyze ~skip:false y in
+        `App (`App (`Const c, x), y) |> consider @@ VarSet.union xvs yvs
+      | `App (`Const c, x) when Const.is_uop c && Const.is_total c ->
+        let vs, x = analyze ~skip:false x in
+        `App (`Const c, x) |> consider vs
+      | `App (f, x) ->
+        let fvs, f = analyze ~skip:false f and xvs, x = analyze ~skip:false x in
+        `App (f, x) |> consider @@ VarSet.union fvs xvs
+      | `IfElse (c, t, e) ->
+        let cvs, c = analyze ~skip:false c
+        and tvs, t = analyze ~skip:false t
+        and evs, e = analyze ~skip:false e in
+        `IfElse (c, t, e) |> consider @@ VarSet.union cvs (VarSet.union tvs evs)
+      | `Product fs ->
+        let vs, fs = analyze_product ~skip:false fs in
+        `Product fs |> consider vs
+      | `Mu (`Lam (f, e)) ->
+        let vs, e = analyze ~skip:true e in
+        `Mu (`Lam (f, e)) |> consider @@ VarSet.remove f vs
+      | `Mu (`Case (`Product fs)) ->
+        let vs, fs = analyze_product ~skip:true fs in
+        `Mu (`Case (`Product fs)) |> consider vs
+      | `Mu e ->
+        let vs, e = analyze ~skip:false e in
+        `Mu e |> consider vs
+      | `Lam (i, e) ->
+        let vs, e = analyze ~skip:false e in
+        `Lam (i, e) |> consider @@ VarSet.remove i vs
+      | `Inject (l, e) ->
+        let vs, e = analyze ~skip:false e in
+        `Inject (l, e) |> consider vs
+      | `Select (e, `Inject (l, `Product [])) ->
+        let vs, e = analyze ~skip:false e in
+        `Select (e, `Inject (l, `Product [])) |> consider vs
+      | `Select (e, l) ->
+        let evs, e = analyze ~skip:false e and lvs, l = analyze ~skip:false l in
+        `Select (e, l) |> consider @@ VarSet.union evs lvs
+      | `Case (`Product fs) ->
+        let vs, fs = analyze_product ~skip:true fs in
+        `Case (`Product fs) |> consider vs
+      | `Case cs ->
+        let vs, cs = analyze ~skip:false cs in
+        `Case cs |> consider vs
+    and analyze_product ~skip fs =
+      let fs = fs |> List.map @@ Pair.map Fun.id (analyze ~skip) in
+      ( fs
+        |> List.fold_left (fun s (_, (vs, _)) -> VarSet.union s vs) VarSet.empty,
+        fs |> List.map (fun (l, (_, e)) -> (l, e)) )
+    in
+    let _, e = analyze ~skip:true inn in
+    !cs |> ErasedMap.bindings
+    |> List.sort (fun (_, (_, l, _)) (_, (_, r, _)) -> Int.compare r l)
+    |> List.fold_left (fun e (v, (i, _, _)) -> `App (`Lam (i, e), v)) e
+
   let rec to_js_stmts is_top ids exp =
     let default () =
       match exp with
@@ -963,5 +1071,6 @@ let in_env () =
 let to_js exp =
   let exp = exp |> Exp.erase in
   let* exp = exp |> Exp.simplify |> in_env () in
+  let exp = Exp.move_constants_to_top exp in
   let+ js = Exp.to_js_stmts true Exp.VarSet.empty exp |> in_env () in
   to_string js
