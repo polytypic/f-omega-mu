@@ -13,7 +13,7 @@ This Fωμ variant has
   [\*](https://polytypic.github.io/f-omega-mu/#*examples/polymorphic-container-without-pretense.fom)),
 - **higher-kinded types**
   ([\*](https://polytypic.github.io/f-omega-mu/#*examples/equality-witnesses.fom)),
-  including **type level lambdas**
+  including **type level lambdas** and **kind inference**
   ([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-level-programming.fom)),
 - **impredicative universal and existential types**
   ([\*](https://polytypic.github.io/f-omega-mu/#*examples/stack-adt.fom)),
