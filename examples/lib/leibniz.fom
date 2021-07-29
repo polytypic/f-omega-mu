@@ -6,6 +6,6 @@ let refl = Λα.Λφ.λx:φ α.x
 let symm = Λα.Λβ.λab:Leibniz α β.Λφ.ab[λβ.φ β → φ α] λx:φ α.x
 let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ.λx:φ α.bc[φ] ◁ ab[φ] x
 let to = Λα.Λβ.λab:Leibniz α β.ab[λx.x]
-let from = Λα.Λβ.λab:Leibniz α β.to[β][α] ◁ symm[α][β] ab
+let from = Λα.Λβ.λab:Leibniz α β.ab[λβ.β → α] λx:α.x
 
 《Leibniz\{refl, symm, trans, to, from}》: ∃(Eq)
