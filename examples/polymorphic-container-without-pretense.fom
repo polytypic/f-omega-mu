@@ -7,7 +7,8 @@
 #   http://okmij.org/ftp/Computation/extra-polymorphism.html#irregular
 #
 # this shows that in Fωμ there is no need for pretense as the infinite expansion
-# of the type is still considered to have finitely many distinct subtrees.
+# of the type is still considered to have finitely many distinct subtrees.  In
+# Fωμ, regularity restriction is weakened to a non-nestedness restriction.
 
 let Int = import "lib/int"
 
