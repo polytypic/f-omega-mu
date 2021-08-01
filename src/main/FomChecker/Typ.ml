@@ -325,13 +325,11 @@ let check_sub_of_norm, check_equal_of_norm =
             sub (unfold la lf lmu lxs, unfold ra rf rmu rxs)
           | ((`Mu (la, lf) as lmu), lxs), _ -> sub (unfold la lf lmu lxs, r)
           | _, ((`Mu (ra, rf) as rmu), rxs) -> sub (l, unfold ra rf rmu rxs)
-          | (lf, lx :: lxs), (rf, rx :: rxs) ->
-            if List.length lxs <> List.length rxs then
-              fail @@ `Error_typ_mismatch (at, r, l)
-            else
-              eq (lf, rf)
-              >> eq (lx, rx)
-              >> MList.iter2 (fun l r -> eq (l, r)) lxs rxs
+          | (lf, lx :: lxs), (rf, rx :: rxs)
+            when List.length lxs = List.length rxs ->
+            eq (lf, rf)
+            >> eq (lx, rx)
+            >> MList.iter2 (fun l r -> eq (l, r)) lxs rxs
           | _ -> fail @@ `Error_typ_mismatch (at, r, l)))
       else
         unit
