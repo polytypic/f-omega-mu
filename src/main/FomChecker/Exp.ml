@@ -11,18 +11,18 @@ include FomAST.Exp
 
 (* *)
 
-module Env = struct
-  include Env
+module VarMap = struct
+  include VarMap
 
-  type t = (Id.t * Typ.t) Env.t
+  type t = (Var.t * Typ.t) VarMap.t
 
   let field r = r#exp_env
-  let adding v t = mapping field @@ Env.add v (v, t)
-  let find_opt i = get_as field @@ Env.find_opt i
+  let adding v t = mapping field @@ VarMap.add v (v, t)
+  let find_opt i = get_as field @@ VarMap.find_opt i
 
   class con =
     object
-      val exp_env : t = Env.empty
+      val exp_env : t = VarMap.empty
       method exp_env = Field.make exp_env (fun v -> {<exp_env = v>})
     end
 end
@@ -83,13 +83,13 @@ end
 let rec infer = function
   | `Const (at', c) -> Typ.check_and_norm (Const.type_of at' c)
   | `Var (at', x) -> (
-    let* x_typ_opt = Env.find_opt x in
+    let* x_typ_opt = VarMap.find_opt x in
     match x_typ_opt with
     | None -> fail @@ `Error_var_unbound (at', x)
-    | Some (def, x_typ) -> Annot.Exp.use x (Id.at def) >> return x_typ)
+    | Some (def, x_typ) -> Annot.Exp.use x (Var.at def) >> return x_typ)
   | `Lam (at', d, d_typ, r) ->
     let* d_typ = Typ.check_and_norm d_typ in
-    let+ r_typ = Annot.Exp.def d d_typ >> Env.adding d d_typ (infer r) in
+    let+ r_typ = Annot.Exp.def d d_typ >> VarMap.adding d d_typ (infer r) in
     `Arrow (at', d_typ, r_typ)
   | `App (_, f, x) ->
     let* f_typ = infer f in
@@ -97,7 +97,9 @@ let rec infer = function
     let* x_typ = infer x in
     Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
   | `Gen (at', d, d_kind, r) ->
-    let* r_typ = Annot.Typ.def d d_kind >> Typ.Env.adding d d_kind (infer r) in
+    let* r_typ =
+      Annot.Typ.def d d_kind >> Typ.VarMap.adding d d_kind (infer r)
+    in
     let* d_kind = Kind.resolve d_kind >>- Kind.ground in
     return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
   | `Inst (at', f, x_typ) ->
@@ -108,7 +110,7 @@ let rec infer = function
     >> return @@ Typ.norm @@ `App (at', f_con, x_typ)
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
-    Annot.Exp.def d x_typ >> Env.adding d x_typ (infer r)
+    Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r)
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
@@ -176,7 +178,7 @@ let rec infer = function
     let id_typ = Typ.norm (`App (at', v_con, `Var (at', tid))) in
     let* e_typ =
       Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
-      >> Env.adding id id_typ (Typ.Env.adding tid d_kind (infer e))
+      >> VarMap.adding id id_typ (Typ.VarMap.adding tid d_kind (infer e))
     in
     if Typ.is_free tid e_typ then
       fail @@ `Error_typ_var_escapes (at', tid, e_typ)

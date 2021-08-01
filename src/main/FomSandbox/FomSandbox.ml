@@ -82,7 +82,7 @@ let pp_typ t =
     | Some (sep, _) -> sep ^^ typ_doc
     | None -> break_1 ^^ typ_doc |> nest 2 |> group
   in
-  let m, _ = collect_mus_closed IdSet.empty t TypSet.empty in
+  let m, _ = collect_mus_closed VarSet.empty t TypSet.empty in
   let n = TypSet.cardinal m in
   let decon = function
     | `Mu (_, `Lam (_, i, _, t)) -> (i, t)
@@ -93,7 +93,7 @@ let pp_typ t =
     || n
        <> (m |> TypSet.to_seq
           |> Seq.map (decon >>> fst)
-          |> IdSet.of_seq |> IdSet.cardinal)
+          |> VarSet.of_seq |> VarSet.cardinal)
   then
     pp_typ t
   else
@@ -104,7 +104,7 @@ let pp_typ t =
       |> List.map @@ fun mu ->
          let i, t = decon mu in
          let t = replace_closed_mus m t in
-         Id.pp i ^^ space_equals ^^ pp_typ t
+         Var.pp i ^^ space_equals ^^ pp_typ t
     in
     nest 2 (pp_typ t)
     ^^ break_0
@@ -125,9 +125,10 @@ let js_use_def ?(max_width = 60) (def, o) =
       Label.pp id ^^ colon ^^ typ
     | `ExpId (id, typ) ->
       let+ typ = pp_typ typ in
-      Exp.Id.pp id ^^ colon ^^ typ
+      Exp.Var.pp id ^^ colon ^^ typ
     | `TypId (id, kind) ->
-      return @@ group (Typ.Id.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
+      return
+      @@ group (Typ.Var.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
     >>- to_js_string ~max_width
   in
   object%js

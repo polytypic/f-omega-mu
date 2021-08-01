@@ -6,9 +6,9 @@ module Env = struct
       ?(annot = FomAnnot.Annot.empty ()) () =
     object
       inherit FomAnnot.Annot.con annot
-      inherit FomChecker.Exp.Env.con
-      inherit FomChecker.Typ.Env.con
-      inherit FomChecker.Kind.Env.con
+      inherit FomChecker.Exp.VarMap.con
+      inherit FomChecker.Typ.VarMap.con
+      inherit FomChecker.Kind.UnkMap.con
       inherit FomElab.TypAliases.con
       inherit FomElab.Parameters.con
       inherit FomElab.Fetch.con fetch

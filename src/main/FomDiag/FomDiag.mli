@@ -31,7 +31,7 @@ module Error : sig
   type cyclic_kind = [`Error_cyclic_kind of Loc.t]
   type mu_nested = [`Error_mu_nested of Loc.t * Typ.t * Typ.t]
   type mu_non_contractive = [`Error_mu_non_contractive of Loc.t * Typ.t * Typ.t]
-  type typ_var_unbound = [`Error_typ_var_unbound of Loc.t * Typ.Id.t]
+  type typ_var_unbound = [`Error_typ_var_unbound of Loc.t * Typ.Var.t]
 
   type kind_errors =
     [ kind_mismatch
@@ -42,12 +42,12 @@ module Error : sig
 
   (* Type errors *)
 
-  type var_unbound = [`Error_var_unbound of Loc.t * Exp.Id.t]
+  type var_unbound = [`Error_var_unbound of Loc.t * Exp.Var.t]
   type typ_mismatch = [`Error_typ_mismatch of Loc.t * Typ.t * Typ.t]
   type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.t]
   type product_lacks = [`Error_product_lacks of Loc.t * Typ.t * Label.t]
   type label_missing = [`Error_label_missing of Loc.t * Label.t * Typ.t * Typ.t]
-  type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Id.t * Typ.t]
+  type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.t]
 
   type type_errors =
     [ var_unbound

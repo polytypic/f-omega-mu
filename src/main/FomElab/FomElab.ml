@@ -76,14 +76,14 @@ module Fetch = struct
 end
 
 module TypAliases = struct
-  include FomAST.Typ.Env
+  include FomAST.Typ.VarMap
 
   let empty =
     let at = Loc.of_path "prelude" in
     [
-      (Typ.Id.of_string Loc.dummy "bool", `Const (at, `Bool));
-      (Typ.Id.of_string Loc.dummy "int", `Const (at, `Int));
-      (Typ.Id.of_string Loc.dummy "string", `Const (at, `String));
+      (Typ.Var.of_string Loc.dummy "bool", `Const (at, `Bool));
+      (Typ.Var.of_string Loc.dummy "int", `Const (at, `Int));
+      (Typ.Var.of_string Loc.dummy "string", `Const (at, `String));
     ]
     |> List.to_seq |> of_seq
 
@@ -125,7 +125,7 @@ end
 module TypIncludes = struct
   type t =
     ( string,
-      (Error.t, FomAST.Typ.t FomAST.Typ.Env.t * Annot.map) IVar.t )
+      (Error.t, FomAST.Typ.t FomAST.Typ.VarMap.t * Annot.map) IVar.t )
     Hashtbl.t
 
   let create () = Hashtbl.create 100
@@ -159,7 +159,7 @@ module ExpImports = struct
   type t =
     ( string,
       ( Error.t,
-        FomAST.Exp.Id.t * FomAST.Exp.t * FomAST.Typ.t * string list )
+        FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
       IVar.t )
     Hashtbl.t
 
@@ -220,7 +220,7 @@ module Parameters = struct
     >>= MList.fold_left
           (fun ast filename ->
             let+ id, _, typ, _ = Hashtbl.find imports filename |> IVar.get in
-            `Lam (Exp.Id.at id, id, typ, ast))
+            `Lam (Exp.Var.at id, id, typ, ast))
           ast
 
   let result_without t =
@@ -243,7 +243,7 @@ module Elab = struct
   let modularly op =
     op
     |> TypAliases.setting TypAliases.empty
-    |> Typ.Env.resetting |> Kind.Env.resetting |> Parameters.resetting
+    |> Typ.VarMap.resetting |> Kind.UnkMap.resetting |> Parameters.resetting
     |> Annot.scoping
 end
 
@@ -256,7 +256,7 @@ let avoid at i inn =
          (TypAliases.exists (fun _ t' -> Typ.is_free i t'))
      in
      if exists then
-       let i' = Typ.Id.freshen i in
+       let i' = Typ.Var.freshen i in
        let v' = `Var (at, i') in
        mapping TypAliases.field (TypAliases.add i v') (inn i')
      else
@@ -279,7 +279,7 @@ let rec elaborate_pat p' e' = function
          (fun e' -> function
            | l, `Pat p ->
              let i =
-               Exp.Id.freshen (Exp.Id.of_name (Label.at l) (Label.name l))
+               Exp.Var.freshen (Exp.Var.of_name (Label.at l) (Label.name l))
              in
              `LetIn
                ( at,
@@ -289,18 +289,18 @@ let rec elaborate_pat p' e' = function
            | l, `Ann _ ->
              `LetIn
                ( at,
-                 Exp.Id.of_name (Label.at l) (Label.name l),
+                 Exp.Var.of_name (Label.at l) (Label.name l),
                  `Select (at, p', FomCST.Exp.atom l),
                  e' ))
          e'
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
   | `Pack (at, p, t, _) ->
-    let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
+    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
-    let at = Typ.Id.at i in
+    let at = Typ.Var.at i in
     let* t =
       `App (at, `Lam (at, i, k, `Var (at, i)), t)
       |> elaborate_typ >>= Typ.infer_and_resolve
@@ -310,7 +310,7 @@ let rec elaborate_def = function
     let* assoc =
       bs
       |> MList.traverse @@ fun (i, k, t) ->
-         let at = Typ.Id.at i in
+         let at = Typ.Var.at i in
          let t = `Mu (at, `Lam (at, i, k, t)) in
          let+ t = elaborate_typ t in
          (i, t)
@@ -356,7 +356,7 @@ and elaborate_typ = function
       Annot.Typ.use i (Typ.at t) >> return t)
   | `Lam (at', i, k, t) ->
     avoid at' i @@ fun i ->
-    let+ t = elaborate_typ t |> Typ.Env.adding i k in
+    let+ t = elaborate_typ t |> Typ.VarMap.adding i k in
     `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let+ f = elaborate_typ f and+ x = elaborate_typ x in
@@ -400,7 +400,7 @@ let maybe_annot e tO =
   | Some t ->
     let+ t = elaborate_typ t in
     let at = Typ.at t in
-    let i = Exp.Id.fresh at in
+    let i = Exp.Var.fresh at in
     `App (at, `Lam (at, i, t, `Var (at, i)), e)
 
 let rec elaborate = function
@@ -416,7 +416,7 @@ let rec elaborate = function
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid at i @@ fun i ->
-    let+ e = elaborate e |> Typ.Env.adding i k in
+    let+ e = elaborate e |> Typ.VarMap.adding i k in
     `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
@@ -456,13 +456,13 @@ let rec elaborate = function
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
     avoid at ti @@ fun ti ->
-    let+ e = elaborate e |> Typ.Env.adding ti @@ `Var (at, Kind.Id.fresh at) in
+    let+ e = elaborate e |> Typ.VarMap.adding ti @@ Kind.fresh at in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
     avoid at ti @@ fun ti ->
-    let+ e = elaborate e |> Typ.Env.adding ti @@ `Var (at, Kind.Id.fresh at) in
+    let+ e = elaborate e |> Typ.VarMap.adding ti @@ Kind.fresh at in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, [(p, v)], e) ->
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
@@ -474,24 +474,24 @@ let rec elaborate = function
   | `LamPat (at, p, e) ->
     let t = type_of_pat_lam p in
     let* t = elaborate_typ t in
-    let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
+    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
     let e = elaborate_pat (`Var (at, i)) e p in
     let+ e = elaborate e in
     `Lam (at, i, t, e)
   | `LetPat (at, p, tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    let i = Exp.Id.fresh (FomCST.Exp.Pat.at p) in
+    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
     let e = elaborate_pat (`Var (at, i)) e p in
     let+ e = elaborate e in
     `LetIn (at, i, v, e)
   | `Annot (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
-    let x = Exp.Id.fresh at in
+    let x = Exp.Var.fresh at in
     `App (at, `Lam (at, x, t, `Var (at, x)), e)
   | `AppL (at, x, f) ->
     let+ x = elaborate x and+ f = elaborate f in
-    let i = Exp.Id.fresh at in
+    let i = Exp.Var.fresh at in
     `LetIn (at, i, x, `App (at, f, `Var (at, i)))
   | `AppR (at, f, x) ->
     let+ x = elaborate x and+ f = elaborate f in
@@ -519,7 +519,7 @@ let rec elaborate = function
            >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
            >>= elaborate >>- FomAST.Exp.initial_exp
          in
-         let id = FomAST.Exp.Id.fresh at' in
+         let id = FomAST.Exp.Var.fresh at' in
          let ast =
            match typ_opt with
            | None -> ast
@@ -572,7 +572,7 @@ let with_modules (prg, typ, ps) =
     deps
     |> List.fold_left
          (fun prg (id, ast, typ) ->
-           `App (Exp.Id.at id, `Lam (Exp.Id.at id, id, typ, prg), ast))
+           `App (Exp.Var.at id, `Lam (Exp.Var.at id, id, typ, prg), ast))
          prg
   in
   (prg, typ)

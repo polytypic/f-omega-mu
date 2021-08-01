@@ -115,21 +115,23 @@ module LitString = struct
 end
 
 module Kind = struct
-  module Id = Id.Make ()
-  module Env = Map.Make (Id)
+  module Unk = Id.Make ()
+  module UnkMap = Map.Make (Unk)
 
-  type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Var of Loc.t * Id.t]
+  type 'k f =
+    [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Unk of Loc.t * Unk.t]
+
   type t = [ | t f]
 
-  let at = function `Star at -> at | `Arrow (at, _, _) | `Var (at, _) -> at
+  let at = function `Star at -> at | `Arrow (at, _, _) | `Unk (at, _) -> at
 
   (* *)
 
-  let fresh at = `Var (at, Id.fresh at)
+  let fresh at = `Unk (at, Unk.fresh at)
 
   (* Comparison *)
 
-  let index = function `Star _ -> 0 | `Arrow _ -> 1 | `Var _ -> 2
+  let index = function `Star _ -> 0 | `Arrow _ -> 1 | `Unk _ -> 2
 
   let rec compare lhs rhs =
     if lhs == rhs then
@@ -139,7 +141,7 @@ module Kind = struct
       | `Star _, `Star _ -> 0
       | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
         compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
-      | `Var (_, l), `Var (_, r) -> Id.compare l r
+      | `Unk (_, l), `Unk (_, r) -> Unk.compare l r
       | _ -> index lhs - index rhs
 
   (* *)
@@ -147,7 +149,7 @@ module Kind = struct
   let rec min_arity n = function
     | `Star _ -> n
     | `Arrow (_, _, c) -> min_arity (n + 1) c
-    | `Var _ -> 1
+    | `Unk _ -> 1
 
   let min_arity k = min_arity 0 k
 
@@ -159,11 +161,11 @@ module Kind = struct
       | `Arrow (at', d, c) as inn ->
         let d' = freshen d and c' = freshen c in
         if d == d' && c == c' then inn else `Arrow (at', d', c')
-      | `Var (at', i) -> (
-        match Env.find_opt i !env with
+      | `Unk (at', i) -> (
+        match UnkMap.find_opt i !env with
         | None ->
           let v' = fresh at' in
-          env := Env.add i v' !env;
+          env := UnkMap.add i v' !env;
           v'
         | Some k -> k)
     in
@@ -172,7 +174,7 @@ module Kind = struct
   (* Formatting *)
 
   module Numbering = struct
-    include Env
+    include UnkMap
 
     type nonrec t = int t ref
 
@@ -189,12 +191,12 @@ module Kind = struct
         let cod = pp false cod in
         dom ^^ space_arrow_right_break_1 ^^ cod
         |> if atomize then egyptian parens 2 else Fun.id
-      | `Var (_, i) ->
+      | `Unk (_, i) ->
         let n =
-          match Env.find_opt i !numbering with
+          match UnkMap.find_opt i !numbering with
           | None ->
-            let n = Env.cardinal !numbering in
-            numbering := Env.add i n !numbering;
+            let n = UnkMap.cardinal !numbering in
+            numbering := UnkMap.add i n !numbering;
             n
           | Some n -> n
         in
@@ -260,13 +262,13 @@ module Typ = struct
     let pp = function `Bool -> bool' | `Int -> int' | `String -> string'
   end
 
-  module Id = Id.Make ()
+  module Var = Id.Make ()
 
   type ('t, 'k) f =
     [ `Mu of Loc.t * 't
     | `Const of Loc.t * Const.t
-    | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * 'k * 't
+    | `Var of Loc.t * Var.t
+    | `Lam of Loc.t * Var.t * 'k * 't
     | `App of Loc.t * 't * 't
     | `ForAll of Loc.t * 't
     | `Exists of Loc.t * 't
@@ -332,26 +334,27 @@ module Typ = struct
 
   (* Substitution *)
 
-  module IdSet = Set.Make (Id)
+  module VarSet = Set.Make (Var)
 
   let rec free = function
-    | `Const _ -> IdSet.empty
-    | `Var (_, i) -> IdSet.singleton i
-    | `Lam (_, i, _, e) -> free e |> IdSet.remove i
-    | `App (_, f, x) -> IdSet.union (free f) (free x)
+    | `Const _ -> VarSet.empty
+    | `Var (_, i) -> VarSet.singleton i
+    | `Lam (_, i, _, e) -> free e |> VarSet.remove i
+    | `App (_, f, x) -> VarSet.union (free f) (free x)
     | `Mu (_, e) | `ForAll (_, e) | `Exists (_, e) -> free e
-    | `Arrow (_, d, c) -> IdSet.union (free d) (free c)
+    | `Arrow (_, d, c) -> VarSet.union (free d) (free c)
     | `Product (_, ls) | `Sum (_, ls) ->
-      ls |> List.fold_left (fun s (_, t) -> IdSet.union s (free t)) IdSet.empty
+      ls
+      |> List.fold_left (fun s (_, t) -> VarSet.union s (free t)) VarSet.empty
 
-  module Env = Map.Make (Id)
+  module VarMap = Map.Make (Var)
 
-  let impure = Id.of_string Loc.dummy "impure"
+  let impure = Var.of_string Loc.dummy "impure"
 
   let initial_env =
     let star = `Star Loc.dummy in
     let arrow d c = `Arrow (Loc.dummy, d, c) in
-    [(impure, (impure, arrow star star))] |> List.to_seq |> Env.of_seq
+    [(impure, (impure, arrow star star))] |> List.to_seq |> VarMap.of_seq
 
   let rec subst_rec env = function
     | `Mu (at, t) as inn ->
@@ -359,10 +362,10 @@ module Typ = struct
       if t == t' then inn else `Mu (at, t')
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
-      match Env.find_opt i env with None -> inn | Some t -> subst_rec env t)
+      match VarMap.find_opt i env with None -> inn | Some t -> subst_rec env t)
     | `Lam (at, i, k, t) as inn ->
-      let env = Env.remove i env in
-      if Env.is_empty env then
+      let env = VarMap.remove i env in
+      if VarMap.is_empty env then
         inn
       else
         let t' = subst_rec env t in
@@ -389,12 +392,12 @@ module Typ = struct
   and subst_rec_labeled env ls =
     ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
 
-  let subst_rec env t = if Env.is_empty env then t else subst_rec env t
+  let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
   let rec is_free id = function
     | `Const _ -> false
-    | `Var (_, id') -> Id.equal id id'
-    | `Lam (_, id', _, body) -> (not (Id.equal id id')) && is_free id body
+    | `Var (_, id') -> Var.equal id id'
+    | `Lam (_, id', _, body) -> (not (Var.equal id id')) && is_free id body
     | `App (_, fn, arg) -> is_free id fn || is_free id arg
     | `Mu (_, typ) | `ForAll (_, typ) | `Exists (_, typ) -> is_free id typ
     | `Arrow (_, d, c) -> is_free id d || is_free id c
@@ -407,15 +410,15 @@ module Typ = struct
       if t == t' then inn else `Mu (at, t')
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
-      match Env.find_opt i env with None -> inn | Some t -> t)
+      match VarMap.find_opt i env with None -> inn | Some t -> t)
     | `Lam (at, i, k, t) as inn ->
-      let env = Env.remove i env in
-      if Env.is_empty env then
+      let env = VarMap.remove i env in
+      if VarMap.is_empty env then
         inn
-      else if Env.exists (fun i' t' -> is_free i t' && is_free i' t) env then
-        let i' = Id.freshen i in
+      else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
+        let i' = Var.freshen i in
         let v' = `Var (at, i') in
-        let t' = subst_par (Env.add i v' env) t in
+        let t' = subst_par (VarMap.add i v' env) t in
         if t == t' then inn else `Lam (at, i', k, t')
       else
         let t' = subst_par env t in
@@ -442,8 +445,8 @@ module Typ = struct
   and subst_par_labeled env ls =
     ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env))
 
-  let subst i' t' t = subst_par (Env.add i' t' Env.empty) t
-  let subst_par env t = if Env.is_empty env then t else subst_par env t
+  let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
+  let subst_par env t = if VarMap.is_empty env then t else subst_par env t
 
   let rec norm = function
     | `Mu (at, t) as inn -> (
@@ -454,7 +457,7 @@ module Typ = struct
     | `Var _ as inn -> inn
     | `Lam (at, i, k, t) as inn -> (
       match norm t with
-      | `App (_, f, `Var (_, i')) when Id.equal i i' && not (is_free i f) -> f
+      | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
       | t' -> if t == t' then inn else `Lam (at, i, k, t'))
     | `App (at, f, x) as inn -> (
       let x' = norm x in
@@ -480,7 +483,7 @@ module Typ = struct
   (* Freshening *)
 
   let freshen t =
-    let env = ref Kind.Env.empty in
+    let env = ref Kind.UnkMap.empty in
     let rec freshen = function
       | `Mu (at, t) as inn ->
         let t' = freshen t in
@@ -532,14 +535,14 @@ module Typ = struct
       match (lhs, rhs) with
       | `Mu (_, lhs), `Mu (_, rhs) -> compare lhs rhs
       | `Const (_, lhs), `Const (_, rhs) -> Const.compare lhs rhs
-      | `Var (_, lhs), `Var (_, rhs) -> Id.compare lhs rhs
+      | `Var (_, lhs), `Var (_, rhs) -> Var.compare lhs rhs
       | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
         ->
         Kind.compare lhs_kind rhs_kind <>? fun () ->
-        if Id.equal lhs_id rhs_id then
+        if Var.equal lhs_id rhs_id then
           compare lhs_typ rhs_typ
         else
-          let v = `Var (Loc.dummy, Id.fresh Loc.dummy) in
+          let v = `Var (Loc.dummy, Var.fresh Loc.dummy) in
           compare (subst lhs_id v lhs_typ) (subst rhs_id v rhs_typ)
       | `App (_, lhs_fn, lhs_arg), `App (_, rhs_fn, rhs_arg) ->
         compare lhs_arg rhs_arg <>? fun () -> compare lhs_fn rhs_fn
@@ -576,7 +579,7 @@ module Typ = struct
     | _ -> None
 
   let rec binding pp_annot prec_outer head i k t =
-    (group (head ^^ Id.pp i ^^ pp_annot k ^^ dot |> nest 2)
+    (group (head ^^ Var.pp i ^^ pp_annot k ^^ dot |> nest 2)
     ^^
     match hanging t with
     | Some _ -> pp pp_annot prec_min t
@@ -593,7 +596,7 @@ module Typ = struct
     labels
     |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
     |> List.map (function
-         | l, `Var (_, i) when Id.name i = Label.name l -> Label.pp l
+         | l, `Var (_, i) when Var.name i = Label.name l -> Label.pp l
          | label, typ -> (
            Label.pp label ^^ colon
            ^^
@@ -623,7 +626,7 @@ module Typ = struct
   and pp pp_annot prec_outer (typ : t) =
     match typ with
     | `Const (_, const) -> Const.pp const
-    | `Var (_, id) -> Id.pp id
+    | `Var (_, id) -> Var.pp id
     | `Lam (_, id, kind, body) ->
       binding pp_annot prec_outer lambda_lower id kind body
     | `Mu (_, typ) -> quantifier pp_annot prec_outer FomPP.mu_lower typ
@@ -820,18 +823,18 @@ module Exp = struct
     let pp = pp' (Bigint.to_string >>> utf8string) Typ.pp
   end
 
-  module Id = Id.Make ()
-  module IdSet = Set.Make (Id)
-  module Env = Map.Make (Id)
+  module Var = Id.Make ()
+  module VarSet = Set.Make (Var)
+  module VarMap = Map.Make (Var)
 
   type ('e, 't, 'k) f =
     [ `Const of Loc.t * (Bigint.t, 't) Const.t
-    | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * 't * 'e
+    | `Var of Loc.t * Var.t
+    | `Lam of Loc.t * Var.t * 't * 'e
     | `App of Loc.t * 'e * 'e
-    | `Gen of Loc.t * Typ.Id.t * 'k * 'e
+    | `Gen of Loc.t * Typ.Var.t * 'k * 'e
     | `Inst of Loc.t * 'e * 't
-    | `LetIn of Loc.t * Id.t * 'e * 'e
+    | `LetIn of Loc.t * Var.t * 'e * 'e
     | `Mu of Loc.t * 'e
     | `IfElse of Loc.t * 'e * 'e * 'e
     | `Product of Loc.t * (Label.t * 'e) list
@@ -839,7 +842,7 @@ module Exp = struct
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e ]
+    | `UnpackIn of Loc.t * Typ.Var.t * Var.t * 'e * 'e ]
 
   type t = [ | (t, Typ.t, Kind.t) f]
 
@@ -865,10 +868,10 @@ module Exp = struct
   let builtins =
     let at = Loc.dummy in
     [
-      (Id.of_string at "true", `Const (at, `LitBool true));
-      (Id.of_string at "false", `Const (at, `LitBool false));
-      ( Id.of_string at "keep",
-        let t = Typ.Id.fresh at in
+      (Var.of_string at "true", `Const (at, `LitBool true));
+      (Var.of_string at "false", `Const (at, `LitBool false));
+      ( Var.of_string at "keep",
+        let t = Typ.Var.fresh at in
         `Gen (at, t, `Star at, `Const (at, `Keep (`Var (at, t)))) );
     ]
 

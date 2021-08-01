@@ -123,18 +123,18 @@ typ_mu_def:
 
 lab_typ:
   | l=label":"t=typ                                     {(l, t)}
-  | i=typ_rid                                           {(Typ.Id.to_label i, `Var ($loc, i))}
+  | i=typ_rid                                           {(Typ.Var.to_label i, `Var ($loc, i))}
 
 tick_lab_typ:
   | "'"l=label                                          {(l, Typ.product $loc [])}
   | "'"l=label t=typ_atom                               {(l, t)}
 
 typ_rid:
-  | i=Id                                                {Typ.Id.of_string $loc i}
-  | i=IdTyp                                             {Typ.Id.of_string $loc i}
+  | i=Id                                                {Typ.Var.of_string $loc i}
+  | i=IdTyp                                             {Typ.Var.of_string $loc i}
 
 typ_bid:
-  | Underscore                                          {Typ.Id.of_string $loc "_"}
+  | Underscore                                          {Typ.Var.of_string $loc "_"}
   | i=typ_rid                                           {i}
 
 typ_bind:
@@ -193,13 +193,13 @@ pat(annot):
 
 lab_exp:
   | l=label"="e=exp                                     {(l, e)}
-  | i=exp_rid                                           {(Exp.Id.to_label i, `Var ($loc, i))}
+  | i=exp_rid                                           {(Exp.Var.to_label i, `Var ($loc, i))}
 
 exp_rid:
-  | i=Id                                                {Exp.Id.of_string $loc i}
+  | i=Id                                                {Exp.Var.of_string $loc i}
 
 exp_bid:
-  | Underscore                                          {Exp.Id.of_string $loc "_"}
+  | Underscore                                          {Exp.Var.of_string $loc "_"}
   | i=exp_rid                                           {i}
 
 exp_atom:

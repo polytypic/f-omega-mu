@@ -26,7 +26,7 @@ let to_string cstr =
 module Label = struct
   include Label
 
-  let to_id l = Exp.Id.of_name (Label.at l) (Label.name l)
+  let to_var l = Exp.Var.of_name (Label.at l) (Label.name l)
 
   let is_numeric id =
     let it = to_string id in
@@ -166,7 +166,7 @@ module Exp = struct
       | `OpArithAdd, x, `Const (`LitNat 0l) -> Some x
       | `OpArithAdd, x, `App (`Const `OpArithMinus, y) ->
         Some (`App (`App (`Const `OpArithSub, x), y))
-      | `OpArithAdd, `Var i, `Var j when Id.equal i j ->
+      | `OpArithAdd, `Var i, `Var j when Var.equal i j ->
         Some (`App (`App (`Const `OpArithMul, `Const (`LitNat 2l)), `Var i))
       (* / *)
       | `OpArithDiv, _, `Const (`LitNat 0l)
@@ -190,7 +190,7 @@ module Exp = struct
       | `OpArithMul, `Const (`LitNat 0l), _ ->
         Some (`Const (`LitNat 0l))
       (* - *)
-      | `OpArithSub, `Var i, `Var j when Id.equal i j ->
+      | `OpArithSub, `Var i, `Var j when Var.equal i j ->
         Some (`Const (`LitNat 0l))
       | `OpArithSub, `Const (`LitNat x), `Const (`LitNat y) ->
         Some (`Const (`LitNat (Int32.sub x y)))
@@ -203,8 +203,8 @@ module Exp = struct
       | _ -> None
   end
 
-  module Id = struct
-    include Id
+  module Var = struct
+    include Var
 
     let to_js id =
       let id = to_string id in
@@ -221,11 +221,11 @@ module Exp = struct
       | `Const of (int32, Typ.t) Exp.Const.t
       | `IfElse of t * t * t
       | `Inject of Label.t * t
-      | `Lam of Id.t * t
+      | `Lam of Var.t * t
       | `Mu of t
       | `Product of (Label.t * t) list
       | `Select of t * t
-      | `Var of Id.t ]
+      | `Var of Var.t ]
 
     let index = function
       | `App _ -> 0
@@ -254,13 +254,13 @@ module Exp = struct
       | `Inject (ll, el), `Inject (lr, er) ->
         Label.compare ll lr <>? fun () -> compare el er
       | `Lam (vl, el), `Lam (vr, er) ->
-        Id.compare vl vr <>? fun () -> compare el er
+        Var.compare vl vr <>? fun () -> compare el er
       | `Product lls, `Product rls ->
         ListExt.compare_with
           (fun (ll, el) (lr, er) ->
             Label.compare ll lr <>? fun () -> compare el er)
           lls rls
-      | `Var l, `Var r -> Id.compare l r
+      | `Var l, `Var r -> Var.compare l r
       | _ -> index l - index r
 
     let[@warning "-32"] rec pp : t -> document = function
@@ -278,22 +278,22 @@ module Exp = struct
       | `Inject (l, t) ->
         [tick; Label.pp l; break_1; pp t] |> concat |> egyptian parens 2
       | `Lam (v, t) ->
-        [lambda_lower; Id.pp v; dot; pp t] |> concat |> egyptian parens 2
+        [lambda_lower; Var.pp v; dot; pp t] |> concat |> egyptian parens 2
       | `Mu t -> [mu_lower; pp t |> egyptian parens 2] |> concat
       | `Product ls ->
         ls
         |> List.map (fun (l, t) -> [Label.pp l; equals; pp t] |> concat)
         |> separate comma_break_1 |> egyptian braces 2
       | `Select (t, l) -> [pp t; dot; pp l |> egyptian parens 2] |> concat
-      | `Var v -> Id.pp v
+      | `Var v -> Var.pp v
   end
 
   let coerce_to_int exp = str "(" ^ exp ^ str ") | 0"
   let coerce_to_int_if bool exp = if bool then coerce_to_int exp else exp
   let parens exp = str "(" ^ exp ^ str ")"
 
-  module Env = struct
-    include Map.Make (Id)
+  module VarMap = struct
+    include Map.Make (Var)
 
     type nonrec t = Erased.t t
 
@@ -332,7 +332,7 @@ module Exp = struct
       end
   end
 
-  module Ids = Set.Make (Id)
+  module VarSet = Set.Make (Var)
 
   let rec erase = function
     | `Const (_, c) -> `Const (Const.erase c)
@@ -374,21 +374,21 @@ module Exp = struct
 
   let rec always_selected i' = function
     | `Const _ -> true
-    | `Var i -> not (Id.equal i i')
-    | `Lam (i, e) -> (not (Id.equal i' i)) || always_selected i' e
+    | `Var i -> not (Var.equal i i')
+    | `Lam (i, e) -> (not (Var.equal i' i)) || always_selected i' e
     | `App (f, x) -> always_selected i' f && always_selected i' x
     | `IfElse (c, t, e) ->
       always_selected i' c || always_selected i' t || always_selected i' e
     | `Product fs -> fs |> List.for_all (snd >>> always_selected i')
     | `Mu e | `Inject (_, e) | `Case e -> always_selected i' e
-    | `Select (`Var i, l) when Id.equal i i' -> always_selected i' l
+    | `Select (`Var i, l) when Var.equal i i' -> always_selected i' l
     | `Select (e, l) -> always_selected i' e || always_selected i' l
 
   let rec always_applied_to_inject i' = function
     | `Const _ -> true
-    | `Var i -> not (Id.equal i' i)
-    | `Lam (i, e) -> Id.equal i' i || always_applied_to_inject i' e
-    | `App (`Var i, `Inject (_, e)) when Id.equal i' i ->
+    | `Var i -> not (Var.equal i' i)
+    | `Lam (i, e) -> Var.equal i' i || always_applied_to_inject i' e
+    | `App (`Var i, `Inject (_, e)) when Var.equal i' i ->
       always_applied_to_inject i' e
     | `App (f, x) ->
       always_applied_to_inject i' f && always_applied_to_inject i' x
@@ -403,8 +403,8 @@ module Exp = struct
 
   let rec is_free i' = function
     | `Const _ -> false
-    | `Var i -> Id.equal i' i
-    | `Lam (i, e) -> (not (Id.equal i' i)) && is_free i' e
+    | `Var i -> Var.equal i' i
+    | `Lam (i, e) -> (not (Var.equal i' i)) && is_free i' e
     | `App (f, x) -> is_free i' f || is_free i' x
     | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
     | `Product fs -> fs |> List.exists (snd >>> is_free i')
@@ -414,12 +414,12 @@ module Exp = struct
   let rec subst i the inn =
     match inn with
     | `Const _ -> inn
-    | `Var i' -> if Id.equal i' i then the else inn
+    | `Var i' -> if Var.equal i' i then the else inn
     | `Lam (i', e) ->
-      if Id.equal i' i || not (is_free i e) then
+      if Var.equal i' i || not (is_free i e) then
         inn
       else if is_free i' the then
-        let i'' = Id.freshen i' in
+        let i'' = Var.freshen i' in
         let vi'' = `Var i'' in
         `Lam (i'', subst i the (subst i' vi'' e))
       else
@@ -432,10 +432,10 @@ module Exp = struct
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case cs -> `Case (subst i the cs)
 
-  let dummy_var = `Var (Id.fresh Loc.dummy)
+  let dummy_var = `Var (Var.fresh Loc.dummy)
 
   let lam fn =
-    let i = Id.fresh Loc.dummy in
+    let i = Var.fresh Loc.dummy in
     `Lam (i, fn @@ `Var i)
 
   let unapp t =
@@ -458,18 +458,18 @@ module Exp = struct
         | `IfElse (c, t, e), xs ->
           is_total c &&& is_total (app t xs) &&& is_total (app e xs)
         | `Product fs, _ -> fs |> MList.for_all (fun (_, e) -> is_total e)
-        | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> Env.adding i e
+        | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> VarMap.adding i e
         | `Select (e, l), [] -> is_total e &&& is_total l
         | `Inject (_, e), _ -> is_total e
         | `Var f, xs -> (
-          let* f_opt = Env.find_opt f in
+          let* f_opt = VarMap.find_opt f in
           match f_opt with
           | None -> return false
           | Some f -> is_total (app f xs))
         | `Lam (i, e), x :: xs ->
           is_total x
-          &&& (is_total e |> Env.adding i x)
-          &&& (is_total (app e xs) |> Env.adding i x)
+          &&& (is_total e |> VarMap.adding i x)
+          &&& (is_total (app e xs) |> VarMap.adding i x)
         | `Const c, xs ->
           return (Const.is_total c) &&& (xs |> MList.for_all is_total)
         | `Case (`Product fs), x :: xs ->
@@ -482,18 +482,18 @@ module Exp = struct
 
   let rec is_immediately_evaluated i' e =
     match unapp e with
-    | `Var i, xs -> Id.equal i i' || [] <> xs
+    | `Var i, xs -> Var.equal i i' || [] <> xs
     | `Const _, xs -> List.exists (is_immediately_evaluated i') xs
     | `Lam _, [] -> false
     | `Lam (i, e), x :: xs ->
       is_immediately_evaluated i' x
       || List.exists (is_immediately_evaluated i') xs
-      || ((not (Id.equal i i')) && is_immediately_evaluated i' (app e xs))
+      || ((not (Var.equal i i')) && is_immediately_evaluated i' (app e xs))
     | `IfElse (c, t, e), xs ->
       is_immediately_evaluated i' c
       || List.exists (is_immediately_evaluated i') xs
       ||
-      let xs = xs |> List.map (fun _ -> `Var (Id.fresh Loc.dummy)) in
+      let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
       is_immediately_evaluated i' (app t xs)
       || is_immediately_evaluated i' (app e xs)
     | `Product fs, _ -> fs |> List.exists (snd >>> is_immediately_evaluated i')
@@ -504,13 +504,13 @@ module Exp = struct
     | `Case (`Product cs), (_ :: _ as xs) ->
       List.exists (is_immediately_evaluated i') xs
       ||
-      let xs = xs |> List.map (fun _ -> `Var (Id.fresh Loc.dummy)) in
+      let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
       cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (app f xs))
     | _ -> true
 
   let rec occurs_once_in_total_position i' e =
     match unapp e with
-    | `Var i, [] -> return @@ Id.equal i' i
+    | `Var i, [] -> return @@ Var.equal i' i
     | `Const c, xs when Const.is_total c ->
       occurs_once_in_total_position_of_list i' xs
     | `Lam _, xs -> occurs_once_in_total_position_of_list i' xs
@@ -535,7 +535,7 @@ module Exp = struct
   let to_lam continue k i e =
     let i, e =
       if is_free i k then
-        let i' = Id.freshen i in
+        let i' = Var.freshen i in
         let vi' = `Var i' in
         (i', subst i vi' e)
       else
@@ -583,13 +583,13 @@ module Exp = struct
   and simplify_base = function
     | (`Const _ | `Var _) as e -> return e
     | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
-      when Id.equal i x && Id.equal j y && Const.is_commutative c ->
+      when Var.equal i x && Var.equal j y && Const.is_commutative c ->
       return @@ `Const c
     | `Lam (i, e) -> (
       let* e = simplify e in
       let default () = return @@ `Lam (i, e) in
       match e with
-      | `App (f, `Var i') when Id.equal i i' && not (is_free i f) ->
+      | `App (f, `Var i') when Var.equal i i' && not (is_free i f) ->
         let* f_is_total = is_total f in
         if f_is_total then return f else default ()
       | _ -> default ())
@@ -598,7 +598,7 @@ module Exp = struct
       let* f =
         match f with
         | `Lam (i, e) ->
-          let+ e = simplify e |> Env.adding i x in
+          let+ e = simplify e |> VarMap.adding i x in
           `Lam (i, e)
         | _ -> return f
       in
@@ -632,15 +632,15 @@ module Exp = struct
         | None -> return @@ `App (`App (`Const c, x), y))
       | `Lam (i, e), `App (`Lam (j, f), y) ->
         let j', f' =
-          if is_free j e || Id.equal i j then
-            let j' = Id.freshen j in
+          if is_free j e || Var.equal i j then
+            let j' = Var.freshen j in
             let vj' = `Var j' in
             (j', subst j vj' f)
           else
             (j, f)
         in
         simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
-      | `Lam (i, `Var i'), x when Id.equal i i' -> return x
+      | `Lam (i, `Var i'), x when Var.equal i i' -> return x
       | `Lam (i, e), x -> (
         let* defaulted = default () in
         let apply () =
@@ -671,29 +671,29 @@ module Exp = struct
           | `Product fs ->
             fs |> List.rev
             |> List.fold_left
-                 (fun e (l, v) -> `App (`Lam (Label.to_id l, e), v))
-                 ( fs |> List.map (fun (l, _) -> (l, `Var (Label.to_id l)))
+                 (fun e (l, v) -> `App (`Lam (Label.to_var l, e), v))
+                 ( fs |> List.map (fun (l, _) -> (l, `Var (Label.to_var l)))
                  |> fun fs -> `App (`Lam (i, e), `Product fs) )
             |> simplify
           | `Inject (l, v) ->
-            let i = Label.to_id l in
+            let i = Label.to_var l in
             `App (`Lam (i, `App (f, `Inject (l, `Var i))), v) |> simplify
           | _ -> return defaulted)
       | `App (`Lam (x', `Lam (y', e)), x), y ->
-        let x'' = Id.freshen x' in
+        let x'' = Var.freshen x' in
         simplify
         @@ `App (`Lam (x'', `App (`Lam (y', subst x' (`Var x'') e), y)), x)
       | `App (`Lam (x', e), x), y ->
         let* e_or_y_is_total = is_total e ||| is_total y in
         if e_or_y_is_total then
-          let x'' = Id.freshen x' in
+          let x'' = Var.freshen x' in
           simplify @@ `App (`Lam (x'', `App (subst x' (`Var x'') e, y)), x)
         else
           default ()
       | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
         let* c_is_total = is_total c in
         if c_is_total then
-          let x' = Id.fresh Loc.dummy in
+          let x' = Var.fresh Loc.dummy in
           let xv = `Var x' in
           simplify
           @@ `App (`Lam (x', `IfElse (c, subst t' xv t, subst e' xv e)), x)
@@ -704,7 +704,7 @@ module Exp = struct
       | _ -> default ())
     | `Mu (`Lam (f, `Case (`Product fs)))
       when fs |> List.for_all (snd >>> always_applied_to_inject f) ->
-      let i = Id.fresh Loc.dummy in
+      let i = Var.fresh Loc.dummy in
       let unit = `Product [] in
       let fn =
         fs |> List.map (fun (l, _) -> (l, `Select (`Var i, `Inject (l, unit))))
@@ -762,45 +762,45 @@ module Exp = struct
     in
     match exp with
     | `App (`Lam (i, e), v) -> (
-      if Ids.mem i ids then
-        let i' = Id.freshen i in
+      if VarSet.mem i ids then
+        let i' = Var.freshen i in
         let vi' = `Var i' in
         to_js_stmts is_top ids @@ `App (`Lam (i', subst i vi' e), v)
       else
         let body v =
           let b =
             if is_free i e then
-              str "const " ^ Id.to_js i ^ str " = "
+              str "const " ^ Var.to_js i ^ str " = "
             else
               str ""
           in
-          let+ e = to_js_stmts is_top (Ids.add i ids) e in
+          let+ e = to_js_stmts is_top (VarSet.add i ids) e in
           b ^ v ^ str "; " ^ e
         in
         match v with
         | `Mu (`Lam (f, (`Product fs as b)))
           when fs |> List.for_all (snd >>> is_lam_or_case)
                && always_selected f b
-               && (Id.equal i f || always_selected f e) ->
+               && (Var.equal i f || always_selected f e) ->
           let is =
             fs
             |> List.map @@ fun (l, _) ->
-               let i = Id.of_name (Label.at l) (Label.name l) in
-               if Ids.mem i ids || is_free i exp then
-                 Id.freshen i
+               let i = Var.of_name (Label.at l) (Label.name l) in
+               if VarSet.mem i ids || is_free i exp then
+                 Var.freshen i
                else
                  i
           in
           let fs' = `Product (List.map2 (fun (l, _) i -> (l, `Var i)) fs is) in
           let* e =
             simplify (subst i fs' e)
-            >>= to_js_stmts is_top (Ids.union ids (Ids.of_list is))
+            >>= to_js_stmts is_top (VarSet.union ids (VarSet.of_list is))
           in
           let+ bs =
             MList.fold_left2
               (fun b i (_, v) ->
                 let+ v = simplify (subst f fs' v) >>= to_js_expr in
-                b ^ str "const " ^ Id.to_js i ^ str " = " ^ v ^ str "\n")
+                b ^ str "const " ^ Var.to_js i ^ str " = " ^ v ^ str "\n")
               (str "") is fs
           in
           bs ^ e
@@ -812,36 +812,36 @@ module Exp = struct
         | _ -> to_js_expr v >>= body)
     | `IfElse (c, t, e) ->
       let+ c = to_js_expr c
-      and+ t = to_js_stmts is_top Ids.empty t
-      and+ e = to_js_stmts is_top Ids.empty e in
+      and+ t = to_js_stmts is_top VarSet.empty t
+      and+ e = to_js_stmts is_top VarSet.empty e in
       str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
     | `App (`Case (`Product fs), x) ->
-      let i0 = Id.fresh Loc.dummy in
-      let i1 = Id.fresh Loc.dummy in
+      let i0 = Var.fresh Loc.dummy in
+      let i1 = Var.fresh Loc.dummy in
       let v1 = `Var i1 in
       let+ x = to_js_expr x
       and+ fs =
         fs
         |> MList.traverse @@ fun (l, e) ->
            let* e = simplify @@ `App (e, v1) in
-           let+ e = to_js_stmts is_top Ids.empty e in
+           let+ e = to_js_stmts is_top VarSet.empty e in
            str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
       in
-      str "const [" ^ Id.to_js i0 ^ str ", " ^ Id.to_js i1 ^ str "] = " ^ x
-      ^ str "; switch (" ^ Id.to_js i0 ^ str ") "
+      str "const [" ^ Var.to_js i0 ^ str ", " ^ Var.to_js i1 ^ str "] = " ^ x
+      ^ str "; switch (" ^ Var.to_js i0 ^ str ") "
       ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
       ^ str "}"
     | `App (`Case cs, x) ->
-      let i = Id.fresh Loc.dummy in
+      let i = Var.fresh Loc.dummy in
       let+ x = to_js_expr x and+ cs = to_js_expr cs in
-      str "const " ^ Id.to_js i ^ str " = " ^ x ^ str "; "
+      str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; "
       ^ (if is_top then str "" else str "return ")
-      ^ cs ^ str "[" ^ Id.to_js i ^ str "[0]](" ^ Id.to_js i ^ str "[1])"
+      ^ cs ^ str "[" ^ Var.to_js i ^ str "[0]](" ^ Var.to_js i ^ str "[1])"
     | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
       let+ e = to_js_expr e in
-      str "const " ^ Id.to_js f ^ str " = " ^ e ^ str ";"
+      str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";"
       ^ (if is_top then str " " else str "return ")
-      ^ Id.to_js f
+      ^ Var.to_js f
     | _ -> default ()
 
   and to_js_expr exp =
@@ -856,24 +856,24 @@ module Exp = struct
         return @@ parens @@ str "$ => "
         ^ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ str " $")
       | _, _ -> return @@ Const.to_js c)
-    | `Var i -> return @@ Id.to_js i
-    | `Lam (i, `Mu (`Var i')) when Id.equal i i' -> return @@ str "rec"
+    | `Var i -> return @@ Var.to_js i
+    | `Lam (i, `Mu (`Var i')) when Var.equal i i' -> return @@ str "rec"
     | `Lam (i, e) ->
-      let+ e = to_js_stmts false (Ids.singleton i) e in
-      parens @@ Id.to_js i ^ str " => {" ^ e ^ str "}"
+      let+ e = to_js_stmts false (VarSet.singleton i) e in
+      parens @@ Var.to_js i ^ str " => {" ^ e ^ str "}"
     | `Mu (`Lam (f, `Lam (x, e))) ->
-      let+ e = to_js_stmts false (Ids.singleton x) e in
-      parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {"
-      ^ e ^ str "}"
+      let+ e = to_js_stmts false (VarSet.singleton x) e in
+      parens @@ str "function " ^ Var.to_js f ^ str "(" ^ Var.to_js x
+      ^ str ") {" ^ e ^ str "}"
     | `Mu (`Lam (f, (`Case _ as e))) ->
-      let x = Id.fresh Loc.dummy in
-      let+ e = to_js_stmts false (Ids.singleton x) @@ `App (e, `Var x) in
-      parens @@ str "function " ^ Id.to_js f ^ str "(" ^ Id.to_js x ^ str ") {"
-      ^ e ^ str "}"
+      let x = Var.fresh Loc.dummy in
+      let+ e = to_js_stmts false (VarSet.singleton x) @@ `App (e, `Var x) in
+      parens @@ str "function " ^ Var.to_js f ^ str "(" ^ Var.to_js x
+      ^ str ") {" ^ e ^ str "}"
     | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
       let+ e = to_js_expr e in
-      str "(() => {const " ^ Id.to_js f ^ str " = " ^ e ^ str "; return "
-      ^ Id.to_js f ^ str "})()"
+      str "(() => {const " ^ Var.to_js f ^ str " = " ^ e ^ str "; return "
+      ^ Var.to_js f ^ str "})()"
     | `Mu f ->
       let+ f = to_js_expr f in
       str "rec(" ^ f ^ str ")"
@@ -886,8 +886,8 @@ module Exp = struct
         fs
         |> MList.traverse @@ function
            | l, `Var i
-             when Label.to_string l = Id.to_string i
-                  && not (Js.is_illegal_id (Id.to_string i)) ->
+             when Label.to_string l = Var.to_string i
+                  && not (Js.is_illegal_id (Var.to_string i)) ->
              return @@ Label.to_js_label l
            | l, e ->
              let+ e = to_js_expr e in
@@ -908,13 +908,13 @@ module Exp = struct
       let+ e = to_js_expr e in
       str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
     | `App (`Lam (i, e), v) ->
-      let+ v = to_js_expr v and+ e = to_js_stmts false (Ids.singleton i) e in
-      str "(" ^ Id.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
+      let+ v = to_js_expr v and+ e = to_js_stmts false (VarSet.singleton i) e in
+      str "(" ^ Var.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
     | `App (`Case _, _) as e ->
-      let+ e = to_js_stmts false Ids.empty e in
+      let+ e = to_js_stmts false VarSet.empty e in
       str "(() => {" ^ e ^ str "})()"
     | `Case cs ->
-      let i = Id.fresh Loc.dummy in
+      let i = Var.fresh Loc.dummy in
       to_js_expr @@ `Lam (i, `App (`Case cs, `Var i))
     | `App (f, x) -> (
       let default () =
@@ -938,10 +938,10 @@ module Exp = struct
           default ()
         else
           let+ lhs = to_js_expr lhs in
-          let rhs = Id.fresh Loc.dummy in
-          parens @@ Id.to_js rhs ^ str " => "
+          let rhs = Var.fresh Loc.dummy in
+          parens @@ Var.to_js rhs ^ str " => "
           ^ coerce_to_int_if (Typ.is_int result)
-          @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ Id.to_js rhs
+          @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ Var.to_js rhs
       | `App (`Const c, rhs) when Const.is_uop c ->
         let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
         if n <> 1 then
@@ -955,7 +955,7 @@ end
 let in_env () =
   with_env @@ fun _ ->
   object
-    inherit Exp.Env.con
+    inherit Exp.VarMap.con
     inherit Exp.Limit.con
     inherit Exp.Seen.con
   end
@@ -963,5 +963,5 @@ let in_env () =
 let to_js exp =
   let exp = exp |> Exp.erase in
   let* exp = exp |> Exp.simplify |> in_env () in
-  let+ js = Exp.to_js_stmts true Exp.Ids.empty exp |> in_env () in
+  let+ js = Exp.to_js_stmts true Exp.VarSet.empty exp |> in_env () in
   to_string js

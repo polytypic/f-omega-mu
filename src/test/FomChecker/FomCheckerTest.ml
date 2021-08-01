@@ -24,18 +24,18 @@ let test_typ_parses_as name source check =
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_none" "μxs.int→xs"
   @@ fun typ ->
-  verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_none)
+  verify (Typ.find_opt_non_contractive Typ.VarSet.empty typ |> Option.is_none)
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [A]" "μxs.xs"
   @@ fun typ ->
-  verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_some)
+  verify (Typ.find_opt_non_contractive Typ.VarSet.empty typ |> Option.is_some)
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [B]"
     "(μf.λx.λy.f y x) int string"
   @@ fun typ ->
-  verify (Typ.find_opt_non_contractive Typ.IdSet.empty typ |> Option.is_some)
+  verify (Typ.find_opt_non_contractive Typ.VarSet.empty typ |> Option.is_some)
 
 (* *)
 

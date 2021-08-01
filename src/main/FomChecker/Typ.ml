@@ -12,15 +12,15 @@ include FomAST.Typ
 
 (* *)
 
-module Env = struct
-  include Env
+module VarMap = struct
+  include VarMap
 
-  type t = (Id.t * Kind.t) Env.t
+  type t = (Var.t * Kind.t) VarMap.t
 
   let empty = initial_env
   let field r = r#typ_env
-  let adding i k = mapping field @@ Env.add i (i, k)
-  let find_opt i = get_as field @@ Env.find_opt i
+  let adding i k = mapping field @@ VarMap.add i (i, k)
+  let find_opt i = get_as field @@ VarMap.find_opt i
   let resetting op = setting field empty op
 
   class con =
@@ -35,7 +35,7 @@ end
 let rec find_map_from_all_apps_of i' p = function
   | `Const _ -> None
   | `Lam (_, i, _, t) ->
-    if Id.equal i i' then None else find_map_from_all_apps_of i' p t
+    if Var.equal i i' then None else find_map_from_all_apps_of i' p t
   | `Mu (_, t) | `ForAll (_, t) | `Exists (_, t) ->
     find_map_from_all_apps_of i' p t
   | `Arrow (_, d, c) -> (
@@ -47,7 +47,7 @@ let rec find_map_from_all_apps_of i' p = function
   | (`App _ | `Var _) as t -> (
     match unapp t with
     | (`Var (_, i) as f), xs ->
-      if Id.equal i i' then
+      if Var.equal i i' then
         match p t f xs with
         | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
         | some -> some
@@ -62,9 +62,9 @@ let find_opt_nested_arg_mu at f arity =
   if arity <= 0 then
     None
   else
-    let i = Id.fresh at in
+    let i = Var.fresh at in
     let v = `Var (at, i) in
-    let is = List.init arity (fun _ -> Id.fresh at) in
+    let is = List.init arity (fun _ -> Var.fresh at) in
     let vs = is |> List.map (fun i -> `Var (at, i)) in
     app at (`App (at, f, v)) vs
     |> norm
@@ -84,19 +84,19 @@ let rec find_opt_non_contractive ids typ =
   match unapp typ with
   | `Mu (_, `Lam (_, id, _, f)), xs -> (
     match app Loc.dummy f xs |> norm |> unapp with
-    | (`Var (_, id') as mu), _ when Id.equal id' id || IdSet.mem id' ids ->
+    | (`Var (_, id') as mu), _ when Var.equal id' id || VarSet.mem id' ids ->
       Some mu
-    | typ, _ -> find_opt_non_contractive (IdSet.add id ids) typ)
+    | typ, _ -> find_opt_non_contractive (VarSet.add id ids) typ)
   | _ -> None
 
 let find_opt_non_contractive_mu at f arity =
   match f with
   | `Lam (_, id, _, f) -> (
-    let is = List.init arity (fun _ -> Id.fresh at) in
+    let is = List.init arity (fun _ -> Var.fresh at) in
     let xs = is |> List.map (fun i -> `Var (at, i)) in
     match app Loc.dummy f xs |> norm |> unapp with
-    | (`Var (_, id') as mu), _ when Id.equal id' id -> Some mu
-    | typ, _ -> find_opt_non_contractive (IdSet.singleton id) typ)
+    | (`Var (_, id') as mu), _ when Var.equal id' id -> Some mu
+    | typ, _ -> find_opt_non_contractive (VarSet.singleton id) typ)
   | _ -> None
 
 (* *)
@@ -168,7 +168,7 @@ let rec ground = function
 let rec infer = function
   | `Mu (at', f) as typ ->
     let* f_kind = infer f in
-    let kind = `Var (at', Kind.Id.fresh at') in
+    let kind = Kind.fresh at' in
     Kind.unify at' (`Arrow (at', kind, kind)) f_kind
     >> let* arity = Kind.resolve kind >>- Kind.min_arity in
        find_opt_nested_arg_mu at' f arity
@@ -182,16 +182,16 @@ let rec infer = function
        >> return kind
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (at', i) -> (
-    let* i_kind_opt = Env.find_opt i in
+    let* i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
     | None -> fail @@ `Error_typ_var_unbound (at', i)
-    | Some (def, i_kind) -> Annot.Typ.use i (Id.at def) >> return i_kind)
+    | Some (def, i_kind) -> Annot.Typ.use i (Var.at def) >> return i_kind)
   | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = Annot.Typ.def d d_kind >> Env.adding d d_kind (infer r) in
+    let+ r_kind = Annot.Typ.def d d_kind >> VarMap.adding d d_kind (infer r) in
     `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) ->
     let* f_kind = infer f and* d_kind = infer x in
-    let c_kind = `Var (at', Kind.Id.fresh at') in
+    let c_kind = Kind.fresh at' in
     Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
   | `ForAll (_, f) as typ -> infer_quantifier typ f
   | `Exists (_, f) as typ -> infer_quantifier typ f
@@ -205,7 +205,7 @@ let rec infer = function
 and infer_quantifier t f =
   let* f_kind = infer f in
   let at' = at t in
-  let d_kind = `Var (at', Kind.Id.fresh at') in
+  let d_kind = Kind.fresh at' in
   let c_kind = `Star at' in
   Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
 
@@ -225,12 +225,12 @@ let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
-    let+ i_kind_opt = Env.find_opt i in
+    let+ i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
     | None -> failwith "impossible"
     | Some (_, i_kind) -> i_kind)
   | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = Env.adding d d_kind (kind_of r) in
+    let+ r_kind = VarMap.adding d d_kind (kind_of r) in
     `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)
@@ -243,7 +243,7 @@ let rec kind_of = function
 and kind_of_cod checked_typ =
   let+ f_kind = kind_of checked_typ >>= Kind.resolve in
   match f_kind with
-  | `Star _ | `Var (_, _) -> failwith "impossible"
+  | `Star _ | `Unk (_, _) -> failwith "impossible"
   | `Arrow (_, _, c_kind) -> c_kind
 
 let kind_of t = kind_of t >>= Kind.resolve
@@ -265,24 +265,24 @@ module Goal = struct
   let map f = Pair.map f f
 
   let free_vars_to_regular_assoc (lhs, rhs) =
-    IdSet.union (free lhs) (free rhs)
-    |> IdSet.elements
+    VarSet.union (free lhs) (free rhs)
+    |> VarSet.elements
     |> List.mapi @@ fun i v ->
-       (v, Id.of_string (Id.at v) ("#" ^ string_of_int i))
+       (v, Var.of_string (Var.at v) ("#" ^ string_of_int i))
 
   let to_subst =
     List.to_seq
-    >>> Seq.map (Pair.map Fun.id @@ fun i -> `Var (Id.at i, i))
-    >>> Env.of_seq >>> subst_par
+    >>> Seq.map (Pair.map Fun.id @@ fun i -> `Var (Var.at i, i))
+    >>> VarMap.of_seq >>> subst_par
 
   let regularize_free_vars goal =
     map (goal |> free_vars_to_regular_assoc |> to_subst) goal
 
   let unify_vars li lt ri rt =
-    if Id.equal li ri then
+    if Var.equal li ri then
       (li, (lt, rt))
     else
-      let i = Id.fresh Loc.dummy in
+      let i = Var.fresh Loc.dummy in
       let v = `Var (Loc.dummy, i) in
       (i, (subst li v lt, subst ri v rt))
 end
@@ -418,32 +418,32 @@ let contract t = contract t >>- snd
 let rec collect_mus_closed bvs t mus =
   match t with
   | `Mu (_, `Lam (_, i, _, e)) as t ->
-    let mus, e_vs = collect_mus_closed (IdSet.add i bvs) e mus in
-    let e_vs = IdSet.remove i e_vs in
-    let mus = if IdSet.disjoint bvs e_vs then TypSet.add t mus else mus in
+    let mus, e_vs = collect_mus_closed (VarSet.add i bvs) e mus in
+    let e_vs = VarSet.remove i e_vs in
+    let mus = if VarSet.disjoint bvs e_vs then TypSet.add t mus else mus in
     (mus, e_vs)
   | `Mu (_, e) -> collect_mus_closed bvs e mus
-  | `Const _ -> (mus, IdSet.empty)
-  | `Var (_, i) -> (mus, IdSet.singleton i)
+  | `Const _ -> (mus, VarSet.empty)
+  | `Var (_, i) -> (mus, VarSet.singleton i)
   | `App (_, f, x) ->
     let mus, f_vs = collect_mus_closed bvs f mus in
     let mus, x_vs = collect_mus_closed bvs x mus in
-    (mus, IdSet.union f_vs x_vs)
+    (mus, VarSet.union f_vs x_vs)
   | `Lam (_, i, _, e) ->
-    let mus, vs = collect_mus_closed (IdSet.add i bvs) e mus in
-    (mus, IdSet.remove i vs)
+    let mus, vs = collect_mus_closed (VarSet.add i bvs) e mus in
+    (mus, VarSet.remove i vs)
   | `ForAll (_, e) | `Exists (_, e) -> collect_mus_closed bvs e mus
   | `Arrow (_, d, c) ->
     let mus, d_vs = collect_mus_closed bvs d mus in
     let mus, c_vs = collect_mus_closed bvs c mus in
-    (mus, IdSet.union d_vs c_vs)
+    (mus, VarSet.union d_vs c_vs)
   | `Product (_, ls) | `Sum (_, ls) ->
     ls
     |> List.fold_left
          (fun (mus, vs) (_, t) ->
            let mus, t_vs = collect_mus_closed bvs t mus in
-           (mus, IdSet.union vs t_vs))
-         (mus, IdSet.empty)
+           (mus, VarSet.union vs t_vs))
+         (mus, VarSet.empty)
 
 let rec replace_closed_mus m = function
   | `Mu (at'', `Lam (at', i, k, e)) as t ->
@@ -519,7 +519,7 @@ let to_strict t =
       match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
       | None ->
         let n = ref 0 in
-        let id = Id.fresh Loc.dummy in
+        let id = Var.fresh Loc.dummy in
         bound := (t, id, n) :: !bound;
         let* t = LVar.get t >>= to_strict in
         bound := List.tl !bound;

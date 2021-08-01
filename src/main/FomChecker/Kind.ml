@@ -4,8 +4,8 @@ open FomBasis
 include FomAST.Kind
 open Rea
 
-module Env = struct
-  include Env
+module UnkMap = struct
+  include UnkMap
 
   type nonrec t = FomAST.Kind.t t MVar.t
 
@@ -15,11 +15,11 @@ module Env = struct
 
   let find_opt i =
     let+ env = get field >>= MVar.get in
-    Env.find_opt i env
+    UnkMap.find_opt i env
 
   let add i k =
     let* env = get field in
-    MVar.mutate env @@ Env.add i k
+    MVar.mutate env @@ UnkMap.add i k
 
   class con =
     object
@@ -33,8 +33,8 @@ let rec resolve = function
   | `Arrow (at', d, c) as k ->
     let+ d' = resolve d and+ c' = resolve c in
     if d == d' && c == c' then k else `Arrow (at', d', c')
-  | `Var (_, v) as k -> (
-    let* k_opt = Env.find_opt v in
+  | `Unk (_, v) as k -> (
+    let* k_opt = UnkMap.find_opt v in
     match k_opt with
     | None -> return k
     | Some k ->
@@ -42,20 +42,20 @@ let rec resolve = function
       if k == k' then
         return k
       else
-        Env.add v k' >> return k')
+        UnkMap.add v k' >> return k')
 
 let rec ground = function
   | `Star _ as k -> k
   | `Arrow (at', d, c) as k ->
     let d' = ground d and c' = ground c in
     if d == d' && c == c' then k else `Arrow (at', d', c')
-  | `Var (at', _) -> `Star at'
+  | `Unk (at', _) -> `Star at'
 
 let rec occurs_check at' v = function
   | `Star _ -> unit
   | `Arrow (_, d, c) -> occurs_check at' v d >> occurs_check at' v c
-  | `Var (_, v') ->
-    if Id.equal v v' then fail @@ `Error_cyclic_kind at' else unit
+  | `Unk (_, v') ->
+    if Unk.equal v v' then fail @@ `Error_cyclic_kind at' else unit
 
 let rec unify at' lhs rhs =
   match (lhs, rhs) with
@@ -64,8 +64,8 @@ let rec unify at' lhs rhs =
     unify at' ld rd
     >> let* lc = resolve lc and* rc = resolve rc in
        unify at' lc rc
-  | `Var (_, l), `Var (_, r) when Id.equal l r -> unit
-  | `Var (_, v), t | t, `Var (_, v) -> occurs_check at' v t >> Env.add v t
+  | `Unk (_, l), `Unk (_, r) when Unk.equal l r -> unit
+  | `Unk (_, v), t | t, `Unk (_, v) -> occurs_check at' v t >> UnkMap.add v t
   | _ -> fail @@ `Error_kind_mismatch (at', lhs, rhs)
 
 let unify at' lhs rhs =

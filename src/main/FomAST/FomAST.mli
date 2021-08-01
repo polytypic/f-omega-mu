@@ -15,10 +15,12 @@ module LitString : sig
 end
 
 module Kind : sig
-  module Id : Id.S
-  module Env : Map.S with type key = Id.t
+  module Unk : Id.S
+  module UnkMap : Map.S with type key = Unk.t
 
-  type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Var of Loc.t * Id.t]
+  type 'k f =
+    [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Unk of Loc.t * Unk.t]
+
   type t = [ | t f]
 
   val at : t -> Loc.t
@@ -71,13 +73,13 @@ module Typ : sig
     val pp : t -> document
   end
 
-  module Id : Id.S
+  module Var : Id.S
 
   type ('t, 'k) f =
     [ `Mu of Loc.t * 't
     | `Const of Loc.t * Const.t
-    | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * 'k * 't
+    | `Var of Loc.t * Var.t
+    | `Lam of Loc.t * Var.t * 'k * 't
     | `App of Loc.t * 't * 't
     | `ForAll of Loc.t * 't
     | `Exists of Loc.t * 't
@@ -116,21 +118,21 @@ module Typ : sig
 
   (* Substitution *)
 
-  module IdSet : Set.S with type elt = Id.t
-  module Env : Map.S with type key = Id.t
+  module VarSet : Set.S with type elt = Var.t
+  module VarMap : Map.S with type key = Var.t
 
   (* *)
 
-  val impure : Id.t
-  val initial_env : (Id.t * Kind.t) Env.t
+  val impure : Var.t
+  val initial_env : (Var.t * Kind.t) VarMap.t
 
   (* *)
 
-  val free : t -> IdSet.t
-  val is_free : Id.t -> t -> bool
-  val subst : Id.t -> t -> t uop
-  val subst_par : t Env.t -> t uop
-  val subst_rec : t Env.t -> t uop
+  val free : t -> VarSet.t
+  val is_free : Var.t -> t -> bool
+  val subst : Var.t -> t -> t uop
+  val subst_par : t VarMap.t -> t uop
+  val subst_rec : t VarMap.t -> t uop
   val norm : t -> t
 
   (* Freshening *)
@@ -197,18 +199,18 @@ module Exp : sig
     val pp : (Bigint.t, Typ.t) t -> document
   end
 
-  module Id : Id.S
-  module IdSet : Set.S with type elt = Id.t
-  module Env : Map.S with type key = Id.t
+  module Var : Id.S
+  module VarSet : Set.S with type elt = Var.t
+  module VarMap : Map.S with type key = Var.t
 
   type ('e, 't, 'k) f =
     [ `Const of Loc.t * (Bigint.t, 't) Const.t
-    | `Var of Loc.t * Id.t
-    | `Lam of Loc.t * Id.t * 't * 'e
+    | `Var of Loc.t * Var.t
+    | `Lam of Loc.t * Var.t * 't * 'e
     | `App of Loc.t * 'e * 'e
-    | `Gen of Loc.t * Typ.Id.t * 'k * 'e
+    | `Gen of Loc.t * Typ.Var.t * 'k * 'e
     | `Inst of Loc.t * 'e * 't
-    | `LetIn of Loc.t * Id.t * 'e * 'e
+    | `LetIn of Loc.t * Var.t * 'e * 'e
     | `Mu of Loc.t * 'e
     | `IfElse of Loc.t * 'e * 'e * 'e
     | `Product of Loc.t * (Label.t * 'e) list
@@ -216,7 +218,7 @@ module Exp : sig
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Id.t * Id.t * 'e * 'e ]
+    | `UnpackIn of Loc.t * Typ.Var.t * Var.t * 'e * 'e ]
 
   type t = [ | (t, Typ.t, Kind.t) f]
 

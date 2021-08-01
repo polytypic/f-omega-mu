@@ -16,16 +16,16 @@ end
 module Typ = struct
   include Typ
 
-  module Id = struct
-    include Typ.Id
+  module Var = struct
+    include Typ.Var
 
     let to_label i = Label.of_name (at i) (name i)
   end
 
   module Def = struct
     type 't f =
-      [ `Typ of Loc.t * Id.t * Kind.t * 't
-      | `TypRec of Loc.t * (Id.t * Kind.t * 't) list
+      [ `Typ of Loc.t * Var.t * Kind.t * 't
+      | `TypRec of Loc.t * (Var.t * Kind.t * 't) list
       | `Include of Loc.t * LitString.t ]
   end
 
@@ -46,20 +46,20 @@ end
 module Exp = struct
   include Exp
 
-  module Id = struct
-    include Exp.Id
+  module Var = struct
+    include Exp.Var
 
     let to_label i = Label.of_name (at i) (name i)
   end
 
   module Pat = struct
     type t =
-      [ `Id of Loc.t * Id.t * Typ.t
+      [ `Id of Loc.t * Var.t * Typ.t
       | `Product of Loc.t * (Label.t * [`Pat of t | `Ann of Typ.t]) list
-      | `Pack of Loc.t * t * Typ.Id.t * Typ.t ]
+      | `Pack of Loc.t * t * Typ.Var.t * Typ.t ]
 
     let rec label_for = function
-      | `Id (_, i, _) -> Id.to_label i
+      | `Id (_, i, _) -> Var.to_label i
       | `Product (at, _) -> Label.fresh at
       | `Pack (_, p, _, _) -> label_for p
 

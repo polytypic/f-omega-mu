@@ -31,7 +31,7 @@ module Error = struct
   type cyclic_kind = [`Error_cyclic_kind of Loc.t]
   type mu_nested = [`Error_mu_nested of Loc.t * Typ.t * Typ.t]
   type mu_non_contractive = [`Error_mu_non_contractive of Loc.t * Typ.t * Typ.t]
-  type typ_var_unbound = [`Error_typ_var_unbound of Loc.t * Typ.Id.t]
+  type typ_var_unbound = [`Error_typ_var_unbound of Loc.t * Typ.Var.t]
 
   type kind_errors =
     [ kind_mismatch
@@ -42,12 +42,12 @@ module Error = struct
 
   (* Type errors *)
 
-  type var_unbound = [`Error_var_unbound of Loc.t * Exp.Id.t]
+  type var_unbound = [`Error_var_unbound of Loc.t * Exp.Var.t]
   type typ_mismatch = [`Error_typ_mismatch of Loc.t * Typ.t * Typ.t]
   type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.t]
   type product_lacks = [`Error_product_lacks of Loc.t * Typ.t * Label.t]
   type label_missing = [`Error_label_missing of Loc.t * Label.t * Typ.t * Typ.t]
-  type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Id.t * Typ.t]
+  type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.t]
 
   type type_errors =
     [ var_unbound
@@ -139,12 +139,12 @@ module Error = struct
         [(Typ.at arg, utf8string "Non-contractive apply of μ type constructor")]
       )
     | `Error_typ_var_unbound (at, id) ->
-      ( (at, concat [utf8string "Unbound type variable "; Typ.Id.pp id]),
-        [(Typ.Id.at id, utf8string "Unbound type variable")] )
+      ( (at, concat [utf8string "Unbound type variable "; Typ.Var.pp id]),
+        [(Typ.Var.at id, utf8string "Unbound type variable")] )
     (* Type errors *)
     | `Error_var_unbound (at, id) ->
-      ( (at, concat [utf8string "Unbound variable "; Exp.Id.pp id]),
-        [(Exp.Id.at id, FomPP.utf8string "Unbound variable")] )
+      ( (at, concat [utf8string "Unbound variable "; Exp.Var.pp id]),
+        [(Exp.Var.at id, FomPP.utf8string "Unbound variable")] )
     | `Error_typ_mismatch (at, expected_typ, actual_typ) ->
       ( ( at,
           [
@@ -197,7 +197,7 @@ module Error = struct
       ( ( at,
           [
             utf8string "The ∃ type variable";
-            [break_1; Typ.Id.pp i] |> concat |> nest 2;
+            [break_1; Typ.Var.pp i] |> concat |> nest 2;
             break_1;
             utf8string "escapes as part of the type";
             [break_1; Typ.pp t] |> concat |> nest 2;
@@ -205,5 +205,5 @@ module Error = struct
             utf8string "of the expression";
           ]
           |> concat |> group ),
-        [(Typ.Id.at i, utf8string "∃ type variable")] )
+        [(Typ.Var.at i, utf8string "∃ type variable")] )
 end

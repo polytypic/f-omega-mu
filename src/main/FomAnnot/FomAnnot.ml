@@ -13,8 +13,8 @@ module Annot = struct
   type map =
     < annot :
         [ `Label of Label.t * Typ.t
-        | `ExpId of Exp.Id.t * Typ.t
-        | `TypId of Typ.Id.t * Kind.t ]
+        | `ExpId of Exp.Var.t * Typ.t
+        | `TypId of Typ.Var.t * Kind.t ]
     ; def : Loc.t
     ; uses : LocSet.t >
     LocMap.t
@@ -72,7 +72,7 @@ module Annot = struct
   end
 
   module Exp = struct
-    open Exp.Id
+    open Exp.Var
 
     let def id typ =
       if is_fresh id || is_numeric id then
@@ -88,7 +88,7 @@ module Annot = struct
   end
 
   module Typ = struct
-    open Typ.Id
+    open Typ.Var
 
     let resolve resolve_kind =
       let* annot = get field in
