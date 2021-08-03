@@ -532,12 +532,18 @@ module Exp = struct
       cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (app f xs))
     | _ -> true
 
+  let rec is_lam_or_case = function
+    | `Lam _ -> true
+    | `Case (`Product fs) -> List.for_all (snd >>> is_lam_or_case) fs
+    | _ -> false
+
   let rec occurs_once_in_total_position i' e =
     match unapp e with
     | `Var i, [] -> return @@ Var.equal i' i
     | `Const c, xs when Const.is_total c ->
       occurs_once_in_total_position_of_list i' xs
-    | `Lam _, xs -> occurs_once_in_total_position_of_list i' xs
+    | f, xs when is_lam_or_case f && not (is_free i' f) ->
+      occurs_once_in_total_position_of_list i' xs
     | _ -> return false
 
   and occurs_once_in_total_position_of_list i' = function
@@ -548,11 +554,6 @@ module Exp = struct
       ||| (return (not (is_free i' x))
           &&& is_total x
           &&& occurs_once_in_total_position_of_list i' xs)
-
-  let rec is_lam_or_case = function
-    | `Lam _ -> true
-    | `Case (`Product fs) -> List.for_all (snd >>> is_lam_or_case) fs
-    | _ -> false
 
   let is_mu = function `Mu _ -> true | _ -> false
 
