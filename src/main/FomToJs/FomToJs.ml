@@ -619,13 +619,13 @@ module Exp = struct
         if f_is_total then return f else default ()
       | _ -> default ())
     | `App (f, x) -> (
-      let* f = simplify f and* x = simplify x in
+      let* x = simplify x in
       let* f =
         match f with
         | `Lam (i, e) ->
           let+ e = simplify e |> VarMap.adding i x in
           `Lam (i, e)
-        | _ -> return f
+        | _ -> simplify f
       in
       let default () = return @@ `App (f, x) in
       match (f, x) with
