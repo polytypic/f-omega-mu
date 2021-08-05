@@ -779,6 +779,13 @@ module Exp = struct
   let simplify e =
     simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
 
+  let rec simplify_to_fixed_point e =
+    let* e' = simplify e in
+    if Erased.compare e e' = 0 then
+      return e'
+    else
+      simplify_to_fixed_point e'
+
   module ErasedMap = Map.Make (Erased)
 
   let move_constants_to_top inn =
@@ -1073,7 +1080,7 @@ let in_env () =
 
 let to_js exp =
   let exp = exp |> Exp.erase in
-  let* exp = exp |> Exp.simplify |> in_env () in
+  let* exp = exp |> Exp.simplify_to_fixed_point |> in_env () in
   let exp = Exp.move_constants_to_top exp in
   let+ js = Exp.to_js_stmts true Exp.VarSet.empty exp |> in_env () in
   to_string js
