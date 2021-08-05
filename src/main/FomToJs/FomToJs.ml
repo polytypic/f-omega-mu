@@ -339,6 +339,8 @@ module Exp = struct
         ls
         |> List.map (fun (l, t) -> [Label.pp l; equals; pp t] |> concat)
         |> separate comma_break_1 |> egyptian braces 2
+      | `Select (t, `Inject (l, `Product [])) ->
+        [pp t; dot; Label.pp l] |> concat
       | `Select (t, l) -> [pp t; dot; pp l |> egyptian parens 2] |> concat
       | `Var v -> Var.pp v
   end
