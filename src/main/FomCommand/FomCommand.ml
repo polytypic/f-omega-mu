@@ -3,6 +3,10 @@ open FomDiag
 
 (* *)
 
+open Rea
+
+(* *)
+
 let () = Hashtbl.randomize ()
 
 (* *)
@@ -17,13 +21,14 @@ end
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
-  Rea.of_async @@ fun r on_error on_ok ->
+  of_async @@ fun r on_error on_ok ->
   match try Ok (op r) with e -> Error e with
   | Ok p -> Lwt.on_any p on_ok on_error
   | Error e -> on_error e
 
+let error_io at exn = fail @@ `Error_io (at, exn)
+
 let fetch at filename =
-  let open Rea in
   if FomElab.Path.is_http filename then
     of_lwt (fun _ ->
         let open Lwt.Syntax in
@@ -49,25 +54,41 @@ let fetch at filename =
     |> try_in return @@ function
        | Unix.Unix_error (Unix.ENOENT, _, _) ->
          fail @@ `Error_file_doesnt_exist (at, filename)
-       | exn -> fail @@ `Error_io (at, exn)
+       | exn -> error_io at exn
 
 (* *)
 
-let run_process_with_input command input =
-  (* TODO: Use Lwt *)
-  let out = Unix.open_process_out command in
-  input |> List.iter (output_string out);
-  flush out;
-  match Unix.close_process_out out with
-  | Unix.WEXITED exit_code when exit_code = 0 -> ()
-  | _ -> failwith "Sub process didn't exit successfully"
+let run_process_with_input at command input =
+  of_lwt (fun _ ->
+      Lwt_process.with_process_out command @@ fun out ->
+      let open Lwt.Syntax in
+      let rec write_input = function
+        | [] ->
+          let* () = Lwt_io.flush out#stdin in
+          Lwt_io.close out#stdin
+        | line :: lines ->
+          let* () = Lwt_io.write out#stdin line in
+          write_input lines
+      in
+      let* () = write_input input in
+      out#status)
+  |> try_in
+       (function
+         | Unix.WEXITED 0 -> unit
+         | Unix.WEXITED c ->
+           error_io at @@ Failure ("Process exited with code " ^ Int.to_string c)
+         | Unix.WSIGNALED s ->
+           error_io at @@ Failure ("Process killed by signal " ^ Int.to_string s)
+         | Unix.WSTOPPED s ->
+           error_io at
+           @@ Failure ("Process stopped by signal " ^ Int.to_string s))
+       (error_io at)
 
 let typ_includes = FomElab.TypIncludes.create ()
 let typ_imports = FomElab.TypImports.create ()
 let exp_imports = FomElab.ExpImports.create ()
 
 let process filename =
-  let open Rea in
   let at = FomSource.Loc.of_path (Sys.getcwd () ^ "/.") in
   let p = FomCST.LitString.of_utf8 filename in
   let cst = `Import (at, p) in
@@ -90,8 +111,7 @@ let process filename =
       else
         unit)
       >> let* prelude = fetch at "docs/prelude.js" in
-         run_process_with_input "node" [prelude; ";\n"; js];
-         unit)
+         run_process_with_input at ("node", [|"-"|]) [prelude; ";\n"; js])
   |> try_in return @@ function
      | `Stop -> unit
      | #Error.t as error ->
@@ -145,7 +165,6 @@ let () =
     (fun file -> files := file :: !files)
     (Filename.basename Sys.executable_name ^ " <file.fom>");
   let p, r = Lwt.wait () in
-  let open Rea in
   !files |> List.rev |> MList.iter process
   >>- (fun () -> Lwt.wakeup r ())
   |> start ();
