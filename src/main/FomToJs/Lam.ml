@@ -1,4 +1,5 @@
 open FomBasis
+open FomAST
 open FomSource
 
 (* *)
@@ -151,3 +152,39 @@ let rec is_immediately_evaluated i' e =
     let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
     cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (apps f xs))
   | _ -> true
+
+(* *)
+
+let rec replace sub wth inn =
+  if compare sub inn = 0 then
+    wth
+  else
+    match inn with
+    | `Const _ -> inn
+    | `Var _ -> inn
+    | `Lam (i, e) ->
+      let e' = replace sub wth e in
+      if e == e' then inn else `Lam (i, e')
+    | `App (f, x) ->
+      let f' = replace sub wth f and x' = replace sub wth x in
+      if f == f' && x == x' then inn else `App (f', x')
+    | `Mu e ->
+      let e' = replace sub wth e in
+      if e == e' then inn else `Mu e'
+    | `IfElse (c, t, e) ->
+      let c' = replace sub wth c
+      and t' = replace sub wth t
+      and e' = replace sub wth e in
+      if c == c' && t == t' && e == e' then inn else `IfElse (c', t', e')
+    | `Product fs ->
+      let fs' = Row.map_phys_eq (replace sub wth) fs in
+      if fs == fs' then inn else `Product fs'
+    | `Select (e, l) ->
+      let e' = replace sub wth e and l' = replace sub wth l in
+      if e == e' && l == l' then inn else `Select (e', l')
+    | `Inject (l, e) ->
+      let e' = replace sub wth e in
+      if e == e' then inn else `Inject (l, e')
+    | `Case cs ->
+      let cs' = replace sub wth cs in
+      if cs == cs' then inn else `Case cs'
