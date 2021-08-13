@@ -70,7 +70,7 @@ bop
   : '∨' | '∧'                                                  // (L) Logical connectives (*9)
   | ('=' | '≠') '[' typ ']'                                    // (-) Polymorphic equality
   | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
-  | '+' | '-'                                                  // (L) Additive
+  | '+' | '-' | '^'                                            // (L) Additive
   | '*' | '/' | '%'                                            // (L) Multiplicative
 ```
 
