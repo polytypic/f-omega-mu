@@ -32,7 +32,7 @@ such as JavaScript.
 
 The implementation also supports dividing a program into multiple files via an
 `import` mechanism for types and values and an `include` mechanism for type
-defitions allowing references to HTTP URLs and files.
+definitions allowing references to HTTP URLs and files.
 
 Please note that this is a hobby project and still very much Work-in-Progress
 with tons of missing features and probably more bugs than one could imagine.
