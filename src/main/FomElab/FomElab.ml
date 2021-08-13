@@ -101,6 +101,12 @@ module TypAliases = struct
 end
 
 module VarTbl = struct
+  let get field key =
+    let* hashtbl = env_as field in
+    match Hashtbl.find_opt hashtbl key with
+    | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
+    | Some var -> IVar.get var
+
   let get_or_put field key compute =
     let* hashtbl = env_as field in
     match Hashtbl.find_opt hashtbl key with
@@ -168,6 +174,8 @@ module ExpImports = struct
 
   let get_or_put path compute =
     VarTbl.get_or_put field path compute |> Error.generalize
+
+  let get path = VarTbl.get field path |> Error.generalize
 
   class con (exp_imports : t) =
     object
@@ -553,14 +561,13 @@ let elaborate cst =
 
 let with_modules (prg, typ, ps) =
   let+ deps =
-    let* imports = env_as ExpImports.field in
     let added = Hashtbl.create 100 in
     let deps = ref [] in
     let rec loop param =
       if Hashtbl.mem added param then
         unit
       else
-        let* id, ast, typ, ps = Hashtbl.find imports param |> IVar.get in
+        let* id, ast, typ, ps = ExpImports.get param in
         ps |> MList.iter loop >>- fun () ->
         if not (Hashtbl.mem added param) then (
           Hashtbl.replace added param ();
