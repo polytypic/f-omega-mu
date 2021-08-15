@@ -6,22 +6,7 @@ open FomAST
 (* *)
 
 open Rea
-
-type cstr = Str of string | Join of cstr * cstr
-
-let str lit = Str lit
-let ( ^ ) lhs rhs = Join (lhs, rhs)
-
-let to_string cstr =
-  let buffer = Buffer.create 1000 in
-  let rec doit = function
-    | Str str -> Buffer.add_string buffer str
-    | Join (lhs, rhs) ->
-      doit lhs;
-      doit rhs
-  in
-  doit cstr;
-  Buffer.contents buffer
+open Cats
 
 module Label = struct
   include Label
@@ -43,6 +28,20 @@ module Label = struct
 
   let to_js_atom l =
     if is_numeric l then to_str l else str "\"" ^ to_str l ^ str "\""
+end
+
+module Erased = struct
+  type t =
+    [ `App of t * t
+    | `Case of t
+    | `Const of (int32, Typ.t) Exp.Const.t
+    | `IfElse of t * t * t
+    | `Inject of Label.t * t
+    | `Lam of Exp.Var.t * t
+    | `Mu of t
+    | `Product of (Label.t * t) list
+    | `Select of t * t
+    | `Var of Exp.Var.t ]
 end
 
 module Exp = struct
@@ -263,17 +262,7 @@ module Exp = struct
       if cs == cs' then inn else `Case cs'
 
   module Erased = struct
-    type t =
-      [ `App of t * t
-      | `Case of t
-      | `Const of (int32, Typ.t) Exp.Const.t
-      | `IfElse of t * t * t
-      | `Inject of Label.t * t
-      | `Lam of Var.t * t
-      | `Mu of t
-      | `Product of (Label.t * t) list
-      | `Select of t * t
-      | `Var of Var.t ]
+    include Erased
 
     let index = function
       | `App _ -> 0
@@ -870,20 +859,32 @@ module Exp = struct
     |> List.sort (fun (_, (_, l, _)) (_, (_, r, _)) -> Int.compare r l)
     |> List.fold_left (fun e (v, (i, _, _)) -> `App (`Lam (i, e), v)) e
 
-  let rec to_js_stmts is_top ids exp =
+  let is_const = function `Const _ -> true | _ -> false
+
+  let to_return = function
+    | `Return -> str "return "
+    | `Top -> str " "
+    | `Const _ -> failwith "bug"
+
+  let rec to_js_stmts finish ids exp =
     let default () =
       match exp with
-      | `Product [] -> return @@ str ""
-      | exp ->
+      | `Product [] -> (
+        match finish with
+        | `Top | `Return -> return @@ str ""
+        | `Const i -> return @@ str "const " ^ Var.to_js i ^ str " = void 0;")
+      | exp -> (
         let+ e = to_js_expr exp in
-        if is_top then e ^ str ";" else str "return " ^ e ^ str ";"
+        match finish with
+        | `Const i -> str "const " ^ Var.to_js i ^ str " = " ^ e ^ str ";"
+        | _ -> to_return finish ^ e ^ str ";")
     in
     match exp with
     | `App (`Lam (i, e), v) -> (
       if VarSet.mem i ids then
         let i' = Var.freshen i in
         let vi' = `Var i' in
-        to_js_stmts is_top ids @@ `App (`Lam (i', subst i vi' e), v)
+        to_js_stmts finish ids @@ `App (`Lam (i', subst i vi' e), v)
       else
         let body v =
           let b =
@@ -892,7 +893,7 @@ module Exp = struct
             else
               str ""
           in
-          let+ e = to_js_stmts is_top (VarSet.add i ids) e in
+          let+ e = to_js_stmts finish (VarSet.add i ids) e in
           b ^ v ^ str "; " ^ e
         in
         match v with
@@ -912,7 +913,7 @@ module Exp = struct
           let fs' = `Product (List.map2 (fun (l, _) i -> (l, `Var i)) fs is) in
           let* e =
             simplify (subst i fs' e)
-            >>= to_js_stmts is_top (VarSet.union ids (VarSet.of_list is))
+            >>= to_js_stmts finish (VarSet.union ids (VarSet.of_list is))
           in
           let+ bs =
             MList.fold_left2
@@ -928,12 +929,12 @@ module Exp = struct
                && is_free i e ->
           to_js_expr (subst f (`Var i) b) >>= body
         | _ -> to_js_expr v >>= body)
-    | `IfElse (c, t, e) ->
+    | `IfElse (c, t, e) when not (is_const finish) ->
       let+ c = to_js_expr c
-      and+ t = to_js_stmts is_top VarSet.empty t
-      and+ e = to_js_stmts is_top VarSet.empty e in
+      and+ t = to_js_stmts finish VarSet.empty t
+      and+ e = to_js_stmts finish VarSet.empty e in
       str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
-    | `App (`Case (`Product fs), x) ->
+    | `App (`Case (`Product fs), x) when not (is_const finish) ->
       let i0 = Var.fresh Loc.dummy in
       let i1 = Var.fresh Loc.dummy in
       let v1 = `Var i1 in
@@ -942,23 +943,22 @@ module Exp = struct
         fs
         |> MList.traverse @@ fun (l, e) ->
            let* e = simplify @@ `App (e, v1) in
-           let+ e = to_js_stmts is_top VarSet.empty e in
+           let+ e = to_js_stmts finish VarSet.empty e in
            str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
       in
       str "const [" ^ Var.to_js i0 ^ str ", " ^ Var.to_js i1 ^ str "] = " ^ x
       ^ str "; switch (" ^ Var.to_js i0 ^ str ") "
       ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
       ^ str "}"
-    | `App (`Case cs, x) ->
+    | `App (`Case cs, x) when not (is_const finish) ->
       let i = Var.fresh Loc.dummy in
       let+ x = to_js_expr x and+ cs = to_js_expr cs in
-      str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; "
-      ^ (if is_top then str "" else str "return ")
+      str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; " ^ to_return finish
       ^ cs ^ str "[" ^ Var.to_js i ^ str "[0]](" ^ Var.to_js i ^ str "[1])"
-    | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
+    | `Mu (`Lam (f, e))
+      when (not (is_const finish)) && not (is_immediately_evaluated f e) ->
       let+ e = to_js_expr e in
-      str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";"
-      ^ (if is_top then str " " else str "return ")
+      str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";" ^ to_return finish
       ^ Var.to_js f
     | _ -> default ()
 
@@ -977,15 +977,15 @@ module Exp = struct
     | `Var i -> return @@ Var.to_js i
     | `Lam (i, `Mu (`Var i')) when Var.equal i i' -> return @@ str "rec"
     | `Lam (i, e) ->
-      let+ e = to_js_stmts false (VarSet.singleton i) e in
+      let+ e = to_js_stmts `Return (VarSet.singleton i) e in
       parens @@ Var.to_js i ^ str " => {" ^ e ^ str "}"
     | `Mu (`Lam (f, `Lam (x, e))) ->
-      let+ e = to_js_stmts false (VarSet.singleton x) e in
+      let+ e = to_js_stmts `Return (VarSet.singleton x) e in
       parens @@ str "function " ^ Var.to_js f ^ str "(" ^ Var.to_js x
       ^ str ") {" ^ e ^ str "}"
     | `Mu (`Lam (f, (`Case _ as e))) ->
       let x = Var.fresh Loc.dummy in
-      let+ e = to_js_stmts false (VarSet.singleton x) @@ `App (e, `Var x) in
+      let+ e = to_js_stmts `Return (VarSet.singleton x) @@ `App (e, `Var x) in
       parens @@ str "function " ^ Var.to_js f ^ str "(" ^ Var.to_js x
       ^ str ") {" ^ e ^ str "}"
     | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
@@ -998,7 +998,7 @@ module Exp = struct
     | `IfElse (c, t, e) ->
       let+ c = to_js_expr c and+ t = to_js_expr t and+ e = to_js_expr e in
       parens @@ c ^ str " ? " ^ t ^ str " : " ^ e
-    | `Product [] -> return @@ str "undefined"
+    | `Product [] -> return @@ str "void 0"
     | `Product fs ->
       let+ fs =
         fs
@@ -1026,10 +1026,11 @@ module Exp = struct
       let+ e = to_js_expr e in
       str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
     | `App (`Lam (i, e), v) ->
-      let+ v = to_js_expr v and+ e = to_js_stmts false (VarSet.singleton i) e in
+      let+ v = to_js_expr v
+      and+ e = to_js_stmts `Return (VarSet.singleton i) e in
       str "(" ^ Var.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
     | `App (`Case _, _) as e ->
-      let+ e = to_js_stmts false VarSet.empty e in
+      let+ e = to_js_stmts `Return VarSet.empty e in
       str "(() => {" ^ e ^ str "})()"
     | `Case cs ->
       let i = Var.fresh Loc.dummy in
@@ -1078,9 +1079,11 @@ let in_env () =
     inherit Exp.Seen.con
   end
 
-let to_js exp =
-  let exp = exp |> Exp.erase in
-  let* exp = exp |> Exp.simplify_to_fixed_point |> in_env () in
-  let exp = Exp.move_constants_to_top exp in
-  let+ js = Exp.to_js_stmts true Exp.VarSet.empty exp |> in_env () in
-  to_string js
+let erase = Exp.erase
+
+let simplify exp =
+  let+ exp = exp |> Exp.simplify_to_fixed_point |> in_env () in
+  Exp.move_constants_to_top exp
+
+let to_js ?(top = `Top) exp =
+  Exp.to_js_stmts top Exp.VarSet.empty exp |> in_env ()

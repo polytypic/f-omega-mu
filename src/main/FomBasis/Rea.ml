@@ -81,6 +81,9 @@ let map_error ef xM r =
       (fun k ->
         on @@ function `Ok _ as a -> k a | `Error e -> k @@ `Error (ef e))
 
+let generalize_error (xM : ('r, Zero.t, 'a) t) =
+  map_error (fun _ -> failwith "impossible") xM
+
 (* *)
 
 let try_in xyM eyM xM r =
@@ -103,6 +106,7 @@ let catch xM r =
 
 let env_as ra r = `Ok (ra r)
 let with_env rs xM r = xM (rs r)
+let replace_env r = with_env (Fun.const r)
 
 (* *)
 

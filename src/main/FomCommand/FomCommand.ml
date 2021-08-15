@@ -13,6 +13,7 @@ let () = Hashtbl.randomize ()
 
 module Options = struct
   let max_width = ref 80
+  let whole = ref true
   let stop : [`Typ | `Js | `Run] ref = ref `Run
 end
 
@@ -84,27 +85,26 @@ let run_process_with_input at command input =
            @@ Failure ("Process stopped by signal " ^ Int.to_string s))
        (error_io at)
 
-let typ_includes = FomElab.TypIncludes.create ()
-let typ_imports = FomElab.TypImports.create ()
-let exp_imports = FomElab.ExpImports.create ()
-
 let process filename =
   let at = FomSource.Loc.of_path (Sys.getcwd () ^ "/.") in
   let p = FomCST.LitString.of_utf8 filename in
+  let env = FomToJsC.Env.empty ~fetch () in
   let cst = `Import (at, p) in
   let max_width = !Options.max_width in
-  (let* ast, typ =
-     cst |> FomElab.elaborate >>= FomElab.with_modules
-     |> with_env
-          (ignore
-          >>> FomEnv.Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports)
-   in
+  (let* ast, typ, paths = FomElab.elaborate cst |> replace_env env in
    (if !Options.stop = `Typ then (
       typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
       fail `Stop)
    else
      unit)
-   >> let* js = ast |> FomToJs.to_js in
+   >> let* js =
+        (if !Options.whole then
+           FomToJsC.whole_program_to_js
+        else
+          FomToJsC.modules_to_js)
+          ast paths
+        |> replace_env env
+      in
       (if !Options.stop = `Js then (
          js |> Printf.printf "%s\n";
          fail `Stop)
@@ -143,6 +143,8 @@ let process filename =
        Printf.printf "%s\n" message;
        exit 1
 
+let doc msg default = "    (default: " ^ default ^ ")\n\n    " ^ msg ^ "\n"
+
 let () =
   let files = ref [] in
   Arg.parse
@@ -152,7 +154,7 @@ let () =
           (fun w ->
             if 20 <= w && w <= 200 then
               Options.max_width := w),
-        "\tSet maximum width for various outputs" );
+        doc "Set maximum width for various outputs." "80" );
       ( "-stop",
         Arg.Symbol
           ( ["type"; "js"; "run"],
@@ -160,10 +162,15 @@ let () =
             | "type" -> Options.stop := `Typ
             | "js" -> Options.stop := `Js
             | _ -> Options.stop := `Run ),
-        "\tStop after specified IL/output has been computed and output it" );
+        doc "Stop after specified IL/output has been computed and output it."
+          "run" );
+      ( "-whole",
+        Arg.Bool (( := ) Options.whole),
+        doc "Whole program compilation." "true" );
     ]
     (fun file -> files := file :: !files)
-    (Filename.basename Sys.executable_name ^ " <file.fom>");
+    (Filename.basename Sys.executable_name
+    ^ " [options] <file.fom>\n\nOptions:\n");
   let p, r = Lwt.wait () in
   !files |> List.rev |> MList.iter process
   >>- (fun () -> Lwt.wakeup r ())

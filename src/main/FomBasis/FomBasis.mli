@@ -11,6 +11,14 @@ module Zero : sig
   type t = |
 end
 
+module Cats : sig
+  type t
+
+  val str : string -> t
+  val ( ^ ) : t -> t -> t
+  val to_string : t -> string
+end
+
 module Compare : sig
   val ( <>? ) : int -> (unit -> int) -> int
   (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
@@ -228,11 +236,13 @@ module Rea : sig
   (* *)
 
   val map_error : ('e -> 'f) -> ('r, 'e, 'a) t -> ('r, 'f, 'a) t
+  val generalize_error : ('r, Zero.t, 'a) t -> ('r, 'e, 'a) t
 
   (* *)
 
   val env_as : ('r -> 'a) -> ('r, 'e, 'a) t
   val with_env : ('r -> 's) -> ('s, 'e, 'a) t -> ('r, 'e, 'a) t
+  val replace_env : 's -> ('s, 'e, 'a) t -> ('r, 'e, 'a) t
 
   (* *)
 

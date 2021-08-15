@@ -302,10 +302,15 @@ const compile = onWorker(
     importScripts('https://unpkg.com/prettier@2.3.0/standalone.js')
     importScripts('https://unpkg.com/prettier@2.3.0/parser-babel.js')
   },
-  () => ({url, exp: fomCM.getValue(), width: getWidth(fomCM)}),
+  () => ({
+    url,
+    whole: wholeSelect.checked,
+    exp: fomCM.getValue(),
+    width: getWidth(fomCM),
+  }),
   (params, onResult) => {
     const start = timingStart()
-    fom.compile(params.url, params.exp, js => {
+    fom.compile(params.whole, params.url, params.exp, js => {
       timingEnd('compile', start)
       try {
         onResult(
@@ -392,6 +397,7 @@ const check = throttled(
 check()
 
 fomCM.on('change', check)
+wholeSelect.onclick = check
 
 let lastWidth = getWidth(fomCM)
 window.onresize = () => {

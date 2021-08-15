@@ -556,30 +556,3 @@ let elaborate cst =
      let+ parameters = Parameters.get () in
      (ast, typ, parameters))
   |> Error.generalize
-
-(* *)
-
-let with_modules (prg, typ, ps) =
-  let+ deps =
-    let added = Hashtbl.create 100 in
-    let deps = ref [] in
-    let rec loop param =
-      if Hashtbl.mem added param then
-        unit
-      else
-        let* id, ast, typ, ps = ExpImports.get param in
-        ps |> MList.iter loop >>- fun () ->
-        if not (Hashtbl.mem added param) then (
-          Hashtbl.replace added param ();
-          deps := (id, ast, typ) :: !deps)
-    in
-    ps |> MList.iter loop |> Error.generalize >>- fun () -> !deps
-  in
-  let prg =
-    deps
-    |> List.fold_left
-         (fun prg (id, ast, typ) ->
-           `App (Exp.Var.at id, `Lam (Exp.Var.at id, id, typ, prg), ast))
-         prg
-  in
-  (prg, typ)

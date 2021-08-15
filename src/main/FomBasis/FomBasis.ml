@@ -3,6 +3,7 @@ type 'a bop = 'a -> 'a -> 'a
 type 'a bpr = 'a -> 'a -> bool
 type 'a cmp = 'a -> 'a -> int
 
+module Cats = Cats
 module Compare = Compare
 module Exn = Exn
 module Field = Field

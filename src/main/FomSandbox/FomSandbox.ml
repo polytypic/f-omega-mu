@@ -6,9 +6,6 @@ open FomAnnot
 open FomAST
 open FomDiag
 open FomParser
-open FomChecker
-open FomEnv
-open FomToJs
 
 (* *)
 
@@ -171,10 +168,6 @@ module JsHashtbl = Hashtbl.Make (struct
   let hash = Hashtbl.hash
 end)
 
-let typ_includes = FomElab.TypIncludes.create ()
-let typ_imports = FomElab.TypImports.create ()
-let exp_imports = FomElab.ExpImports.create ()
-
 let js_codemirror_mode =
   object%js
     method format (value : unit Js.t) max_width =
@@ -268,13 +261,13 @@ let js_codemirror_mode =
 
     method check path input max_width (on_result : _ Cb.t) =
       let path = Js.to_string path in
-      let env = Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports () in
+      let env = FomToJsC.Env.empty ~fetch () in
       let def_uses () =
         Field.get Annot.field env |> MVar.get >>- Annot.LocMap.bindings
         >>= MList.traverse (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in
-      Js.to_string input
+      input |> Js.to_string
       |> Parser.parse_utf_8 Grammar.program Lexer.offside ~path
       >>= FomElab.elaborate
       >>= (fun (_, t, deps) ->
@@ -332,15 +325,21 @@ let js_codemirror_mode =
                 end)
       |> start env
 
-    method compile path input (on_result : _ Cb.t) =
+    method compile whole path input (on_result : _ Cb.t) =
+      let path = Js.to_string path in
       input |> Js.to_string
-      |> Parser.parse_utf_8 Grammar.program Lexer.offside
-           ~path:(Js.to_string path)
-      >>= FomElab.elaborate >>= FomElab.with_modules >>- fst >>= to_js
+      |> Parser.parse_utf_8 Grammar.program Lexer.offside ~path
+      >>= FomElab.elaborate
+      >>= (fun (ast, _, paths) ->
+            (if whole then
+               FomToJsC.whole_program_to_js
+            else
+              FomToJsC.modules_to_js)
+              ast paths)
       >>- Js.string
       |> try_in (Cb.invoke on_result) (fun _ ->
              Cb.invoke on_result @@ Js.string "")
-      |> start (Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports ())
+      |> start (FomToJsC.Env.empty ~fetch ())
 
     method token input =
       try

@@ -48,6 +48,8 @@ module Error : sig
     | Error.source_errors
     | Error.kind_errors
     | Error.type_errors ]
+
+  val generalize : ('r, [< t], 'a) Rea.t -> ('r, [> t], 'a) Rea.t
 end
 
 module Parameters : sig
@@ -87,6 +89,13 @@ module ExpImports : sig
   type t
 
   val create : unit -> t
+
+  val get :
+    string ->
+    ( < exp_imports : t ; .. >,
+      [> Error.t],
+      FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
+    Rea.t
 
   class con :
     t
@@ -140,11 +149,4 @@ val elaborate :
      'r),
     [> Error.t],
     FomAST.Exp.t * FomAST.Typ.t * string list )
-  Rea.t
-
-val with_modules :
-  FomAST.Exp.t * FomAST.Typ.t * string list ->
-  ( (< exp_imports : ExpImports.t ; .. > as 'r),
-    [> Error.t],
-    FomAST.Exp.t * FomAST.Typ.t )
   Rea.t
