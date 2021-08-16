@@ -33,7 +33,8 @@ such as JavaScript.
 
 The implementation also supports dividing a program into multiple files via an
 `import` mechanism for types and values and an `include` mechanism for type
-definitions allowing references to HTTP URLs and files.
+definitions. Value `import`s can be separately compiled. HTTPS URLs and relative
+paths are allowed as references.
 
 Please note that this is a hobby project and still very much Work-in-Progress
 with tons of missing features and probably more bugs than one could imagine.
