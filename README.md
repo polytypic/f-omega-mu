@@ -44,7 +44,7 @@ with tons of missing features and probably more bugs than one could imagine.
 - Try examples in the
   [online playground](https://polytypic.github.io/f-omega-mu/#*examples/fact.fom).
 - See the [syntax summary](SYNTAX.md).
-- See project [TODO](TODO.md) list.
+- See [project board](https://github.com/polytypic/f-omega-mu/projects/1).
 
 ## Background
 
