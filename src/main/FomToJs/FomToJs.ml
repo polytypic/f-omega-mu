@@ -951,13 +951,21 @@ module Exp = struct
       let+ x = to_js_expr x
       and+ fs =
         fs |> ErasedMap.bindings
+        |> List.sort (Compare.the (snd >>> List.length >>> ( ~- )) Int.compare)
+        |> (function (e, _) :: cs -> List.rev_append cs [(e, [])] | [] -> [])
         |> MList.traverse @@ fun (e, ls) ->
            let* e = simplify @@ `App (e, v1) in
            let+ e = to_js_stmts finish VarSet.empty e in
-           ls
-           |> List.fold_left
-                (fun s l -> str "case " ^ Label.to_js_atom l ^ str ": " ^ s)
-                (str " {" ^ e ^ str "}")
+           let cs =
+             match ls with
+             | [] -> str "default: {"
+             | ls ->
+               ls
+               |> List.fold_left
+                    (fun s l -> str "case " ^ Label.to_js_atom l ^ str ": " ^ s)
+                    (str " {")
+           in
+           cs ^ e ^ str "}"
       in
       str "const [" ^ Var.to_js i0 ^ str ", " ^ Var.to_js i1 ^ str "] = " ^ x
       ^ str "; switch (" ^ Var.to_js i0 ^ str ") "
