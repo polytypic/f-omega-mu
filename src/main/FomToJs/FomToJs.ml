@@ -938,13 +938,26 @@ module Exp = struct
       let i0 = Var.fresh Loc.dummy in
       let i1 = Var.fresh Loc.dummy in
       let v1 = `Var i1 in
+      let fs =
+        fs
+        |> List.fold_left
+             (fun cs (l, e) ->
+               cs
+               |> ErasedMap.update e @@ function
+                  | None -> Some [l]
+                  | Some ls -> Some (l :: ls))
+             ErasedMap.empty
+      in
       let+ x = to_js_expr x
       and+ fs =
-        fs
-        |> MList.traverse @@ fun (l, e) ->
+        fs |> ErasedMap.bindings
+        |> MList.traverse @@ fun (e, ls) ->
            let* e = simplify @@ `App (e, v1) in
            let+ e = to_js_stmts finish VarSet.empty e in
-           str "case " ^ Label.to_js_atom l ^ str ": {" ^ e ^ str "}"
+           ls
+           |> List.fold_left
+                (fun s l -> str "case " ^ Label.to_js_atom l ^ str ": " ^ s)
+                (str " {" ^ e ^ str "}")
       in
       str "const [" ^ Var.to_js i0 ^ str ", " ^ Var.to_js i1 ^ str "] = " ^ x
       ^ str "; switch (" ^ Var.to_js i0 ^ str ") "
