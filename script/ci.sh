@@ -18,18 +18,6 @@ if [ "$TRAVIS" = true ]; then
     opam init -y
 
   eval "$(opam env)"
-
-  folded "Installing packages" \
-    opam install -y \
-      bignum \
-      cohttp-lwt-jsoo \
-      cohttp-lwt-unix \
-      dune \
-      lwt_ssl \
-      menhir \
-      pprint \
-      sedlex \
-      uutf
 else
   folded() {
     echo
@@ -39,11 +27,25 @@ else
   }
 fi
 
+if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
+  folded "Installing packages" \
+    opam install --no-checksums -y \
+      bignum \
+      cohttp-lwt-jsoo \
+      cohttp-lwt-unix \
+      dune \
+      lwt_ssl \
+      menhir \
+      pprint \
+      sedlex \
+      uutf
+fi
+
 folded "Build" \
-  dune build --root=. --profile release
+  opam exec -- dune build --root=. --profile release
 
 folded "Test" \
-  dune test --root=. --profile release
+  opam exec -- dune test --root=. --profile release
 
 folded "Run examples" \
   _build/default/src/main/FomCommand/FomCommand.exe examples/*.fom
