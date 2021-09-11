@@ -1,5 +1,9 @@
 # Types of lists of various lengths
 
+# This example explores the idea that with equirecursive structural types it is
+# possible to encode some properties of the length of a list, such as that a
+# list is non-empty, without using number parameterized types.
+
 # An ordinary recursive list type
 type μlist_of_0_to_n = λα.'Nil | 'Cons (α, list_of_0_to_n α)
 
