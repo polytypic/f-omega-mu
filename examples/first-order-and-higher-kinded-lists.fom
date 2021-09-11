@@ -1,5 +1,9 @@
 # Both first-order and higher-kinded recursive types are allowed
 
+# This example shows that a polymorphic list type can be expressed both as the
+# fixed point of a first-order `list_1` type and as the fixed point of a
+# higher-order `list` type.  Furthermore, the types are considered equivalent.
+
 type opt = λα.'None | 'Some α
 
 type list   = μlist.λα.opt (α, list α)
