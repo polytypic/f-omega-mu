@@ -41,6 +41,10 @@ module Typ = struct
     | #Typ.f as ast -> Typ.at ast
 
   let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
+
+  let atom l =
+    let at' = Label.at l in
+    sum at' [(l, tuple at' [])]
 end
 
 module Exp = struct

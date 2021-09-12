@@ -127,7 +127,7 @@ lab_typ:
 
 tick_lab_typ:
   | "'"l=label                                          {(l, Typ.product $loc [])}
-  | "'"l=label t=typ_atom                               {(l, t)}
+  | "'"l=label t=lab_typ_atom                           {(l, t)}
 
 typ_rid:
   | i=Id                                                {Typ.Var.of_string $loc i}
@@ -150,9 +150,13 @@ typ_atom:
   | "∀""("t=typ")"                                      {`ForAll ($loc, t)}
   | "import"p=LitString                                 {`Import ($loc, p)}
 
+lab_typ_atom:
+  | t=typ_atom                                          {t}
+  | "'"l=label                                          {Typ.atom l}
+
 typ_app:
   | t=typ_atom                                          {t}
-  | f=typ_app x=typ_atom                                {`App ($loc, f, x)}
+  | f=typ_app x=lab_typ_atom                            {`App ($loc, f, x)}
 
 typ_inf:
   | t=typ_app                                           {t}
@@ -213,16 +217,19 @@ exp_atom:
   | "target""["t=typ"]"c=LitString                      {`Const ($loc, `Target (t, c))}
   | "import"p=LitString                                 {`Import ($loc, p)}
 
+lab_exp_atom:
+  | e=exp_atom                                          {e}
+  | "'"l=label                                          {Exp.atom l}
+
 exp_app:
   | e=exp_atom                                          {e}
-  | f=exp_app x=exp_atom                                {`App ($loc, f, x)}
-  | f=exp_app "'"l=label                                {`App ($loc, f, Exp.atom l)}
+  | f=exp_app x=lab_exp_atom                            {`App ($loc, f, x)}
   | f=exp_app"["x=typ"]"                                {`Inst ($loc, f, x)}
   | "case"cs=exp_atom                                   {`Case ($loc, cs)}
 
 exp_inf:
   | "'"l=label                                          {Exp.atom l}
-  | "'"l=label e=exp_atom                               {`Inject ($loc, l, e)}
+  | "'"l=label e=lab_exp_atom                           {`Inject ($loc, l, e)}
   | e=exp_app                                           {e}
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
   | f=exp_inf"◁"x=exp_inf                               {`AppR ($loc, f, x)}

@@ -644,6 +644,7 @@ module Typ = struct
         tuple pp_annot labels |> egyptian parens 2
       else
         labeled pp_annot labels |> egyptian braces 2
+    | `Sum (_, [(l, `Product (_, []))]) -> tick ^^ Label.pp l
     | `Sum (_, labels) ->
       ticked pp_annot labels
       |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
