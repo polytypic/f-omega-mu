@@ -1,3 +1,7 @@
+type id = λα.α
+
+type ord = 'Less | 'Equal | 'Greater
+
 type opt = λα.'None | 'Some α
 
 type res = λω.λα.'Error ω | 'Ok α

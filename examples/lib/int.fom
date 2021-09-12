@@ -1,5 +1,13 @@
 let Target = import "target"
 
+let compare = λl:int.λr:int.
+  if l < r then
+    'Less
+  else if l =[int] r then
+    'Equal
+  else
+    'Greater
+
 let to_string = Target.to_string[int]
 
-{to_string}
+{compare, to_string}

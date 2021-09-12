@@ -461,6 +461,8 @@ module Offside = struct
     let* was = is_typ in
     set_is_typ true >> op >>= fun res -> set_is_typ was >> return res
 
+  let with_indent rule = get >>= fun tok -> rule (col_of tok) tok
+
   (* *)
 
   let rec initial tok = match tok_of tok with _ -> nest tok >>= initial
@@ -510,10 +512,8 @@ module Offside = struct
   and inside_binder tok =
     match tok_of tok with
     | Colon ->
-      emit tok
-      >> as_typ (get >>= fun tok -> inside_annot (col_of tok) tok)
-      >> get >>= inside_binder
-    | Dot -> emit tok >> get >>= fun tok -> inside_body (col_of tok) tok
+      emit tok >> as_typ (with_indent inside_annot) >> get >>= inside_binder
+    | Dot -> emit tok >> with_indent inside_body
     | _ -> nest tok >>= inside_binder
 
   and inside_annot indent tok =
@@ -544,12 +544,12 @@ module Offside = struct
 
   and inside_if indent tok =
     match tok_of tok with
-    | Then -> emit tok >> get >>= inside_then indent
+    | Then -> emit tok >> with_indent inside_then
     | _ -> nest tok >>= inside_if indent
 
   and inside_then indent tok =
     match tok_of tok with
-    | Else -> emit tok >> get >>= inside_else indent
+    | Else -> emit tok >> with_indent inside_else
     | _ -> nest tok >>= inside_then indent
 
   and inside_else indent tok =
@@ -558,7 +558,7 @@ module Offside = struct
       emit_before tok ParenRhs
     | _ ->
       let* new_line = new_line tok in
-      if new_line && col_of tok <= indent then
+      if new_line && col_of tok < indent then
         emit_before tok ParenRhs
       else
         nest tok >>= inside_else indent
@@ -572,7 +572,7 @@ module Offside = struct
     | _ -> unit)
     >> emit tok
     >> (match tok_of tok with
-       | BraceLhs -> get >>= fun tok -> inside_braces false (col_of tok) tok
+       | BraceLhs -> with_indent (inside_braces false)
        | ParenLhs -> get >>= inside_parens ParenRhs
        | DoubleAngleLhs -> get >>= inside_parens DoubleAngleRhs
        | BracketLhs -> as_typ (get >>= inside_parens BracketRhs)
@@ -591,7 +591,7 @@ module Offside = struct
            emit tok >> get >>= insert_in indent
          else
            insert_in indent tok
-       | Colon -> as_typ (get >>= fun tok -> inside_annot (col_of tok) tok)
+       | Colon -> as_typ (with_indent inside_annot)
        | LambdaLower | LambdaUpper -> get >>= inside_binder
        | ForAll | Exists | MuLower ->
          get >>= fun tok ->
@@ -599,7 +599,7 @@ module Offside = struct
            inside_binder tok
          else
            unget tok
-       | If -> get >>= inside_if (col_of tok)
+       | If -> with_indent inside_if
        | _ -> unit)
     >> get
 
