@@ -484,12 +484,6 @@ module Offside = struct
         emit_if (new_line && col_of tok = indent && insert) (set Comma tok)
         >> nest tok >>= inside_braces true indent
 
-  and inside_parens closing tok =
-    if tok_of tok = closing then
-      emit tok
-    else
-      nest tok >>= inside_parens closing
-
   and insert_in indent tok =
     match tok_of tok with
     | EOF -> emit tok
@@ -534,7 +528,7 @@ module Offside = struct
     | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | Else | In
     | ParenRhs ->
       emit_before tok ParenRhs
-    | (Dot | Equal) when is_typ -> emit_before tok ParenRhs
+    | (Dot | Equal | Backslash) when is_typ -> emit_before tok ParenRhs
     | _ ->
       let* new_line = new_line tok in
       if new_line && col_of tok < indent then
@@ -563,19 +557,32 @@ module Offside = struct
       else
         nest tok >>= inside_else indent
 
+  and nest_until closing tok =
+    if tok_of tok = closing then
+      emit tok
+    else
+      nest tok >>= nest_until closing
+
   and nest tok =
     (match tok_of tok with
     | ForAll | Exists | MuLower ->
       get >>= fun tok ->
       if tok_of tok <> ParenLhs then emit_before tok ParenLhs else unget tok
-    | If | LambdaLower | LambdaUpper -> emit (set ParenLhs tok)
+    | If | LambdaLower | LambdaUpper | DoubleAngleLhs -> emit (set ParenLhs tok)
     | _ -> unit)
     >> emit tok
     >> (match tok_of tok with
        | BraceLhs -> with_indent (inside_braces false)
-       | ParenLhs -> get >>= inside_parens ParenRhs
-       | DoubleAngleLhs -> get >>= inside_parens DoubleAngleRhs
-       | BracketLhs -> as_typ (get >>= inside_parens BracketRhs)
+       | ParenLhs -> get >>= nest_until ParenRhs
+       | DoubleAngleLhs ->
+         as_typ (get >>= nest_until Backslash)
+         >> get >>= nest_until DoubleAngleRhs >> get
+         >>= fun tok ->
+         if tok_of tok = Colon then
+           nest tok >>= fun tok -> emit_before tok ParenRhs
+         else
+           emit_before tok ParenRhs
+       | BracketLhs -> as_typ (get >>= nest_until BracketRhs)
        | Include -> get >>= insert_in (col_of tok)
        | Type ->
          let indent = col_of tok in

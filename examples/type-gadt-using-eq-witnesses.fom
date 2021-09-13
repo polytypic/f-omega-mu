@@ -22,11 +22,11 @@ let bool = 'Bool (Eq.refl[bool])
 let int = 'Int (Eq.refl[int])
 let string = 'String (Eq.refl[string])
 let alt = Λa.Λb.λa:Type a.λb:Type b.
-  'Alt (《a\《b\(Eq.refl[alt a b], a, b)》: ∃(Alt (alt a b) a)》: ∃α.∃β.Alt (alt a b) α β)
+  'Alt《a\《b\(Eq.refl[alt a b], a, b)》: ∃(Alt (alt a b) a)》: ∃α.∃β.Alt (alt a b) α β
 let pair = Λa.Λb.λa:Type a.λb:Type b.
-  'Pair (《a\《b\(Eq.refl[(a, b)], a, b)》: ∃(Pair (a, b) a)》: ∃α.∃β.Pair (a, b) α β)
+  'Pair《a\《b\(Eq.refl[(a, b)], a, b)》: ∃(Pair (a, b) a)》: ∃α.∃β.Pair (a, b) α β
 let iso = Λa.Λb.λaIb:iso a b.λb:Type b.
-  'Iso (《a\《b\(Eq.refl[a], aIb, b)》: ∃(Iso a a)》: ∃α.∃β.Iso a α β)
+  'Iso《a\《b\(Eq.refl[a], aIb, b)》: ∃(Iso a a)》: ∃α.∃β.Iso a α β
 
 let String = import "lib/string"
 let Int = import "lib/int"
