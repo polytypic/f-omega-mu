@@ -1,25 +1,35 @@
-# Natural number GADT
+# Natural number GADT using Scott encoding
 
-type Z = λ_.λz.z
-type S = λn.λs.λz.s (n s z)
+type μNat = λn.∀r.Cases r → r n
 
-type μCases = λr.{
-  Zero:            r Z
-  Succ: ∀n.Nat n → r (S n)
+and μCases = λr.{
+  Zero:            r 'Z
+  Succ: ∀n.Nat n → r ('S n)
 }
-
-and μNat = λn.∀r.Cases r → r n
 
 let Zero =             Λr.λcs:Cases r.cs.Zero
 let Succ = Λn.λn:Nat n.Λr.λcs:Cases r.cs.Succ[n] n
 
-type ℕ = ∃(Nat)
+let from = λn:int.
+  if n < 0 then
+    'None
+  else
+    let μloop:∀n.Nat n → int → ∃(Nat) = Λn.λn:Nat n.λi:int.
+      if i ≤ 0 then
+        《n\n》: ∃(Nat)
+      else
+        loop['S n] (Succ[n] n) (i-1)
+    'Some (loop['Z] Zero n)
 
-let μto_int:∀n.Nat n → int = Λn.λn:Nat n.
-  n[λ_.int] {
-    Zero = 0
-    Succ = Λn.λn:Nat n.to_int[n] n + 1
-  }
+let to = λ《n\n》: ∃(Nat).
+  let μloop:∀n.Nat n → int → int = Λn.λn:Nat n.λi:int.
+    n[λ_.int] {
+      Zero = i
+      Succ = Λn.λn:Nat n.loop[n] n (i + 1)
+    }
+  loop[n] n 0
 
-let《n\n》=《S (S Z)\Succ[S Z] (Succ[Z] Zero)》: ℕ
-to_int[n] n
+from 10 ▷ case {
+  None = λ().0
+  Some = to
+}
