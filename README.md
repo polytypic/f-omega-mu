@@ -93,11 +93,11 @@ Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type
 equivalence decidable.
 
-In addition, this variation also has kind inference and basic structural
-subtyping with joins (and meets) and without bounded quantification. The
-motivation for providing subtyping is to allow one to better exploit untyped
-compilation targets such as JavaScript without having to e.g. perform
-unnecessary coercions.
+In addition to higher-kinded equirecursive types, this variation also has kind
+inference and basic structural subtyping with joins (and meets) and without
+bounded quantification. The motivation for providing subtyping is to allow one
+to better exploit untyped compilation targets such as JavaScript without having
+to e.g. perform unnecessary coercions.
 
 ## Why?
 
