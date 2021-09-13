@@ -93,6 +93,40 @@ Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type
 equivalence decidable.
 
+Fortunately, as conjectured in
+
+<blockquote>
+  <dl>
+    <dt><a href="https://www.cis.upenn.edu/~plclub/blog/2020-12-04-nested-datatypes/">Do we need nested datatypes?</a></dt>
+    <dd>by Stephanie Weirich<dd>
+  </dl>
+</blockquote>
+
+many uses of nested datatypes can also be encoded using e.g. GADTs and Fωμ is
+powerful enough to encode many GADTs. Consider, however, the higher-kinded
+nested type
+
+```
+λf.μloop.λx.(x, loop (f x))
+```
+
+that, when given an `f` and an `x`, would expand to the infinite tree
+
+```
+(x,
+ (f x,
+  (f (f x),
+   (f (f (f x)),
+    ...))))
+```
+
+illustrating a process of unbounded computation where `x` could be higher-rank
+and encode arbitrary data. It would seem that this kind of recursion pattern
+would allow simulating arbitrary computations, which would seem to make type
+equality undecidable. Thus, it would seem that disallowing nested types is not
+only sufficient, but also necessary to keep type equivalence decidable in the
+general case.
+
 In addition to higher-kinded equirecursive types, this variation also has kind
 inference and basic structural subtyping with joins (and meets) and without
 bounded quantification. The motivation for providing subtyping is to allow one
