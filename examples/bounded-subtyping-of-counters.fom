@@ -1,7 +1,7 @@
 # Bounded subtyping of counters with identity coercions
 
-# Similarly to TAPL, section 32.4, an object has state `τ` and methods
-# operating on said state `M τ`:
+# Similarly to the example in the book Types and Programming Languages, section
+# 32.4, an object has state `τ` and methods operating on said state `M τ`:
 
 type Object = λM.λτ.(τ, M τ)
 
