@@ -3,8 +3,8 @@
 let《eq\Eq》= import "lib/leibniz"
 
 type μNat = λn.
-  | 'Zero   (Zero n)
-  | 'Succ ∃m.Succ n m
+  | 'Zero  (Zero n)
+  | 'Succ ∃(Succ n)
 and μZero = λn.    eq  'Z    n
 and μSucc = λn.λm.(eq ('S m) n, Nat m)
 
