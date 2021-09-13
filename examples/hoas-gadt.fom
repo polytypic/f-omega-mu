@@ -1,4 +1,4 @@
-# Encoding of a HOAS GADT
+# HOAS GADT using Scott encoding
 
 type μExpr = λα.∀ρ.Cases ρ → ρ α
 
