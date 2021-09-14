@@ -512,7 +512,7 @@ module Offside = struct
 
   and inside_annot indent tok =
     match tok_of tok with
-    | Dot | Equal | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs
+    | BraceRhs | BracketRhs | Comma | Dot | DoubleAngleRhs | EOF | Equal | In
     | ParenRhs ->
       unget tok
     | _ ->
@@ -525,7 +525,7 @@ module Offside = struct
   and inside_body indent tok =
     let* is_typ = is_typ in
     match tok_of tok with
-    | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | Else | In
+    | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | EOF | Else | In
     | ParenRhs ->
       emit_before tok ParenRhs
     | (Dot | Equal | Backslash) when is_typ -> emit_before tok ParenRhs
@@ -548,7 +548,7 @@ module Offside = struct
 
   and inside_else indent tok =
     match tok_of tok with
-    | EOF | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | ParenRhs ->
+    | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | EOF | ParenRhs ->
       emit_before tok ParenRhs
     | _ ->
       let* new_line = new_line tok in

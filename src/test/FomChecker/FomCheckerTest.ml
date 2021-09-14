@@ -234,7 +234,9 @@ let () =
     let S = λx:L.λy:L.λz:L.x z (x z) in
     let I = S K K in
     I
-    |eof}
+    |eof};
+  testInfersAs "offside in 《 \\ 》" "()"
+    "let《t\\v》=《λx.x\\λx:int.x》: ∃t.t (int → int) in ()"
 
 let testErrors name exp =
   test name @@ fun () ->
