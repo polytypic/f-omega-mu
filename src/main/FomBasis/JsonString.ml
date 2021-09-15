@@ -32,11 +32,22 @@ let of_utf8 str =
            let c = Uchar.to_int u in
            if (0x0000 <= c && c <= 0x001f) || (0x007f <= c && c <= 0x009f) then (
              encode @@ Uchar.of_char '\\';
-             encode @@ Uchar.of_char 'u';
-             encode @@ to_hex ((c lsr 12) land 0xf);
-             encode @@ to_hex ((c lsr 8) land 0xf);
-             encode @@ to_hex ((c lsr 4) land 0xf);
-             encode @@ to_hex ((c lsr 0) land 0xf))
+             if u = Uchar.of_char '\b' then
+               encode @@ Uchar.of_char 'b'
+             else if u = Uchar.of_int 0x0c then
+               encode @@ Uchar.of_char 'f'
+             else if u = Uchar.of_char '\n' then
+               encode @@ Uchar.of_char 'n'
+             else if u = Uchar.of_char '\r' then
+               encode @@ Uchar.of_char 'r'
+             else if u = Uchar.of_char '\t' then
+               encode @@ Uchar.of_char 't'
+             else (
+               encode @@ Uchar.of_char 'u';
+               encode @@ to_hex ((c lsr 12) land 0xf);
+               encode @@ to_hex ((c lsr 8) land 0xf);
+               encode @@ to_hex ((c lsr 4) land 0xf);
+               encode @@ to_hex ((c lsr 0) land 0xf)))
            else if Uchar.of_char '"' = u || Uchar.of_char '\\' = u then (
              encode @@ Uchar.of_char '\\';
              encode u)
