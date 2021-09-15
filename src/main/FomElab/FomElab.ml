@@ -45,7 +45,7 @@ module Path = struct
     StringExt.is_prefix "https://" path || StringExt.is_prefix "http://" path
 
   let resolve loc lit =
-    let path = LitString.to_utf8 lit in
+    let path = JsonString.to_utf8 lit in
     (if is_http path then
        path |> split_to_origin_and_path
     else

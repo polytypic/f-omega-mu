@@ -59,7 +59,7 @@ module Exp = struct
     let to_js = function
       | `LitBool bool -> Bool.to_string bool |> str
       | `LitNat nat -> Int32.to_string nat |> str
-      | `LitString lit -> str @@ LitString.to_utf8_json lit
+      | `LitString lit -> str @@ JsonString.to_utf8_json lit
       | `OpArithAdd -> str "+"
       | `OpArithDiv -> str "/"
       | `OpArithMinus -> str "-"
@@ -78,7 +78,7 @@ module Exp = struct
       | `OpLogicalOr -> str "||"
       | `OpStringCat -> str "+"
       | `Keep _ -> str ""
-      | `Target (_, l) -> str "(" ^ str (LitString.to_utf8 l) ^ str ")"
+      | `Target (_, l) -> str "(" ^ str (JsonString.to_utf8 l) ^ str ")"
 
     let is_total = function
       | `Keep _ -> false

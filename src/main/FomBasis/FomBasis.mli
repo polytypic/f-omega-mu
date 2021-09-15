@@ -47,6 +47,18 @@ module FilenameExt : sig
   val canonic : string -> string
 end
 
+module JsonString : sig
+  include Map.OrderedType
+
+  val of_utf8_json : string -> t
+  val to_utf8_json : t -> string
+
+  (* *)
+
+  val of_utf8 : string -> t
+  val to_utf8 : t -> string
+end
+
 module ListExt : sig
   val for_alli : (int -> 'a -> bool) -> 'a list -> bool
   val equal_with : 'a bpr -> 'a list bpr

@@ -87,7 +87,7 @@ let run_process_with_input at command input =
 
 let process filename =
   let at = FomSource.Loc.of_path (Sys.getcwd () ^ "/.") in
-  let p = FomCST.LitString.of_utf8 filename in
+  let p = JsonString.of_utf8 filename in
   let env = FomToJsC.Env.empty ~fetch () in
   let cst = `Import (at, p) in
   let max_width = !Options.max_width in

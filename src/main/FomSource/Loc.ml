@@ -24,7 +24,8 @@ let pp ((lhs, rhs) : t) =
     if lhs.pos_fname = "" then
       "On"
     else
-      Printf.sprintf "In file \"%s\", on" lhs.pos_fname
+      Printf.sprintf "In file %s, on"
+        (lhs.pos_fname |> JsonString.of_utf8 |> JsonString.to_utf8_json)
   in
   FomPP.utf8format "%s line%s, column%s" file_info
     (format_range lhs.pos_lnum rhs.pos_lnum)

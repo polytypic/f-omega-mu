@@ -157,7 +157,7 @@ let rec token_or_comment buffer =
   | line_directive ->
     Scanf.sscanf (Buffer.lexeme_utf_8 buffer) "#line %d %[^\n\r]"
     @@ fun line filename_literal ->
-    let open FomAST.LitString in
+    let open JsonString in
     let filename = filename_literal |> of_utf8_json |> to_utf8 in
     let _, pos = Sedlexing.lexing_positions buffer in
     Sedlexing.set_filename buffer filename;
@@ -225,8 +225,7 @@ let rec token_or_comment buffer =
          |> String.of_seq |> Bigint.of_string))
   (* *)
   | string ->
-    return
-      (LitString (Buffer.lexeme_utf_8 buffer |> FomCST.LitString.of_utf8_json))
+    return (LitString (Buffer.lexeme_utf_8 buffer |> JsonString.of_utf8_json))
   (* *)
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
   | id_typ -> return (IdTyp (Buffer.lexeme_utf_8 buffer))
@@ -374,7 +373,7 @@ let[@warning "-32"] to_string = function
   | LessEqual -> "≤"
   | Let -> "let"
   | LitNat n -> Bigint.to_string n
-  | LitString s -> FomAST.LitString.to_utf8_json s
+  | LitString s -> JsonString.to_utf8_json s
   | LogicalAnd -> "∧"
   | LogicalNot -> "∨"
   | LogicalOr -> "¬"

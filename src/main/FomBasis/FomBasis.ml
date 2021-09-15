@@ -9,6 +9,7 @@ module Exn = Exn
 module Field = Field
 module FilenameExt = FilenameExt
 module IVar = IVar
+module JsonString = JsonString
 module LVar = LVar
 module ListExt = ListExt
 module MapExt = MapExt

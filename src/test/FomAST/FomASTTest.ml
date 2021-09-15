@@ -20,7 +20,7 @@ let () =
        (fun _ -> verify false)
 
 let () =
-  let open FomAST.LitString in
+  let open JsonString in
   test "LitString" @@ fun () ->
   verify
     (to_utf8 @@ of_utf8 "foo\tbar\n"

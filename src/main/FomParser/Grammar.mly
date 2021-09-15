@@ -1,5 +1,5 @@
 %token <Bigint.t> LitNat
-%token <FomCST.LitString.t> LitString
+%token <FomBasis.JsonString.t> LitString
 
 %token <string> Id
 %token <string> IdTyp

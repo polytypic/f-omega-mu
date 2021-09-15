@@ -20,7 +20,7 @@ let () =
   ]
   |> MList.iter @@ fun (loc, path, expected) ->
      let actual =
-       FomElab.Path.resolve (Loc.of_path loc) (LitString.of_utf8 path)
+       FomElab.Path.resolve (Loc.of_path loc) (JsonString.of_utf8 path)
      in
      if actual <> expected then (
        Printf.printf "Expected: %s\nActual:   %s\n" expected actual;

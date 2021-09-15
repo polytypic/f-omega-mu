@@ -4,7 +4,6 @@ open FomSource
 
 (* *)
 
-module LitString = LitString
 module Kind = Kind
 module Label = Label
 
@@ -26,13 +25,13 @@ module Typ = struct
     type 't f =
       [ `Typ of Loc.t * Var.t * Kind.t * 't
       | `TypRec of Loc.t * (Var.t * Kind.t * 't) list
-      | `Include of Loc.t * LitString.t ]
+      | `Include of Loc.t * JsonString.t ]
   end
 
   type 't f =
     [ ('t, Kind.t) Typ.f
     | `LetDefIn of Loc.t * 't Def.f * 't
-    | `Import of Loc.t * LitString.t ]
+    | `Import of Loc.t * JsonString.t ]
 
   type t = [ | t f]
 
@@ -84,7 +83,7 @@ module Exp = struct
     | `AppL of Loc.t * 'e * 'e
     | `AppR of Loc.t * 'e * 'e
     | `LetDefIn of Loc.t * Typ.t Typ.Def.f * 'e
-    | `Import of Loc.t * LitString.t
+    | `Import of Loc.t * JsonString.t
     | `LetPat of Loc.t * Pat.t * Typ.t option * 'e * 'e
     | `LetPatRec of Loc.t * (Pat.t * 'e) list * 'e
     | `LamPat of Loc.t * Pat.t * 'e

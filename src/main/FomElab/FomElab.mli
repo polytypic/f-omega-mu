@@ -16,7 +16,7 @@ module Path : sig
   (* *)
 
   val is_http : string -> bool
-  val resolve : Loc.t -> FomAST.LitString.t -> string
+  val resolve : Loc.t -> JsonString.t -> string
 end
 
 module Fetch : sig
