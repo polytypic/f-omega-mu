@@ -2,6 +2,8 @@
 
 set -eo pipefail
 
+export TIMEFORMAT="CPU: %Us, Real: %Es"
+
 if [ "$TRAVIS" = true ]; then
   folded() {
     FOLD=$((FOLD+1))
@@ -23,7 +25,7 @@ else
     echo
     echo "RUNNING: $1"
     shift
-    "$@"
+    time "$@"
   }
 fi
 
