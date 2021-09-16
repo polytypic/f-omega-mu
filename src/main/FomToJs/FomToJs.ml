@@ -599,7 +599,7 @@ module Exp = struct
       get Limit.field
       >>= MOption.iter (fun limit ->
               if limit < size e then fail `Limit else unit)
-      >> mapping Seen.field (Seen.add e) (simplify_base e)
+      >> mapping Seen.field (Seen.add e) (simplify_base e >>- keep_phys_eq' e)
 
   and simplify_base = function
     | (`Const _ | `Var _) as e -> return e
@@ -620,7 +620,7 @@ module Exp = struct
         match f with
         | `Lam (i, e) ->
           let+ e = simplify e |> VarMap.adding i x in
-          `Lam (i, e)
+          keep_phys_eq' f @@ `Lam (i, e)
         | _ -> simplify f
       in
       let default () = return @@ `App (f, x) in
@@ -646,11 +646,11 @@ module Exp = struct
       | `Const c, x when Const.is_uop c -> (
         match Const.simplify_uop (c, x) with
         | Some e -> simplify e
-        | None -> return @@ `App (`Const c, x))
+        | None -> default ())
       | `App (`Const c, x), y when Const.is_bop c -> (
         match Const.simplify_bop (c, x, y) with
         | Some e -> simplify e
-        | None -> return @@ `App (`App (`Const c, x), y))
+        | None -> default ())
       | `Lam (i, e), `App (`Lam (j, f), y) ->
         let j', f' =
           if is_free j e || Var.equal i j then
@@ -746,7 +746,9 @@ module Exp = struct
         let+ t = simplify t and+ e = simplify e in
         `IfElse (c, t, e))
     | `Product fs ->
-      let+ fs = fs |> MList.traverse @@ MPair.traverse return simplify in
+      let+ fs =
+        fs |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return simplify
+      in
       `Product fs
     | `Select (e, l) -> (
       let* e = simplify e and* l = simplify l in
@@ -775,7 +777,7 @@ module Exp = struct
 
   let rec simplify_to_fixed_point e =
     let* e' = simplify e in
-    if Erased.compare e e' = 0 then
+    if e == e' then
       return e'
     else
       simplify_to_fixed_point e'
