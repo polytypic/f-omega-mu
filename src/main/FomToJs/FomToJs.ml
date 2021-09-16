@@ -223,11 +223,32 @@ module Exp = struct
     | `Mu e | `Inject (_, e) | `Case e -> is_free i' e
     | `Select (e, l) -> is_free i' e || is_free i' l
 
-  let rec subst i the inn =
-    match inn with
-    | `Const _ -> inn
-    | `Var i' -> if Var.equal i' i then the else inn
-    | `Lam (i', e) ->
+  let keep_phys_eq' e e' =
+    let are_phys_eq =
+      e == e'
+      ||
+      match (e, e') with
+      | `App (f, x), `App (f', x') -> f == f' && x == x'
+      | `Case e, `Case e' -> e == e'
+      | `Const c, `Const c' -> c == c'
+      | `IfElse (c, t, e), `IfElse (c', t', e') -> c == c' && t == t' && e == e'
+      | `Inject (l, e), `Inject (l', e') -> l == l' && e == e'
+      | `Lam (i, e), `Lam (i', e') -> i == i' && e == e'
+      | `Mu e, `Mu e' -> e == e'
+      | `Product ls, `Product ls' -> ls == ls'
+      | `Select (r, l), `Select (r', l') -> r == r' && l == l'
+      | `Var i, `Var i' -> i == i'
+      | _ -> false
+    in
+    if are_phys_eq then e else e'
+
+  let keep_phys_eq fn e = keep_phys_eq' e (fn e)
+
+  let rec subst i the =
+    keep_phys_eq @@ function
+    | `Const _ as inn -> inn
+    | `Var i' as inn -> if Var.equal i' i then the else inn
+    | `Lam (i', e) as inn ->
       if Var.equal i' i || not (is_free i e) then
         inn
       else if is_free i' the then
@@ -235,31 +256,15 @@ module Exp = struct
         let vi'' = `Var i'' in
         `Lam (i'', subst i the (subst i' vi'' e))
       else
-        let e' = subst i the e in
-        if e == e' then inn else `Lam (i', e')
-    | `App (f, x) ->
-      let f' = subst i the f and x' = subst i the x in
-      if f == f' && x == x' then inn else `App (f', x')
-    | `Mu e ->
-      let e' = subst i the e in
-      if e == e' then inn else `Mu e'
-    | `IfElse (c, t, e) ->
-      let c' = subst i the c and t' = subst i the t and e' = subst i the e in
-      if c == c' && t == t' && e == e' then inn else `IfElse (c', t', e')
+        `Lam (i', subst i the e)
+    | `App (f, x) -> `App (subst i the f, subst i the x)
+    | `Mu e -> `Mu (subst i the e)
+    | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
     | `Product fs ->
-      let fs' =
-        fs |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id (subst i the)
-      in
-      if fs == fs' then inn else `Product fs'
-    | `Select (e, l) ->
-      let e' = subst i the e and l' = subst i the l in
-      if e == e' && l == l' then inn else `Select (e', l')
-    | `Inject (l, e) ->
-      let e' = subst i the e in
-      if e == e' then inn else `Inject (l, e')
-    | `Case cs ->
-      let cs' = subst i the cs in
-      if cs == cs' then inn else `Case cs'
+      `Product (ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst i the)) fs)
+    | `Select (e, l) -> `Select (subst i the e, subst i the l)
+    | `Inject (l, e) -> `Inject (l, subst i the e)
+    | `Case cs -> `Case (subst i the cs)
 
   module Erased = struct
     include Erased

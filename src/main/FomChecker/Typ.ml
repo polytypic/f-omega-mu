@@ -101,67 +101,60 @@ let find_opt_non_contractive_mu at f arity =
 
 (* *)
 
-let rec resolve = function
-  | `Mu (at', f) as t ->
-    let+ f' = resolve f in
-    if f == f' then t else `Mu (at', f')
-  | `Const (_, _) as t -> return t
-  | `Var (_, _) as t -> return t
-  | `Lam (at', d, d_kind, r) as t ->
-    let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
-    if d_kind == d_kind' && r == r' then t else `Lam (at', d, d_kind', r')
-  | `App (at', f, x) as t ->
-    let+ f' = resolve f and+ x' = resolve x in
-    if f == f' && x = x' then t else `App (at', f', x')
-  | `ForAll (at', f) as t ->
-    let+ f' = resolve f in
-    if f == f' then t else `ForAll (at', f')
-  | `Exists (at', f) as t ->
-    let+ f' = resolve f in
-    if f == f' then t else `Exists (at', f')
-  | `Arrow (at', d, c) as t ->
-    let+ d' = resolve d and+ c' = resolve c in
-    if d == d' && c == c' then t else `Arrow (at', d', c')
-  | `Product (at', ls) as t ->
-    let+ ls' =
-      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-    in
-    if ls == ls' then t else `Product (at', ls')
-  | `Sum (at', ls) as t ->
-    let+ ls' =
-      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-    in
-    if ls == ls' then t else `Sum (at', ls')
+let rec resolve t =
+  let+ t' =
+    match t with
+    | `Mu (at', f) ->
+      let+ f' = resolve f in
+      `Mu (at', f')
+    | `Const (_, _) as t -> return t
+    | `Var (_, _) as t -> return t
+    | `Lam (at', d, d_kind, r) ->
+      let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
+      `Lam (at', d, d_kind', r')
+    | `App (at', f, x) ->
+      let+ f' = resolve f and+ x' = resolve x in
+      `App (at', f', x')
+    | `ForAll (at', f) ->
+      let+ f' = resolve f in
+      `ForAll (at', f')
+    | `Exists (at', f) ->
+      let+ f' = resolve f in
+      `Exists (at', f')
+    | `Arrow (at', d, c) ->
+      let+ d' = resolve d and+ c' = resolve c in
+      `Arrow (at', d', c')
+    | `Product (at', ls) ->
+      let+ ls' =
+        ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+      in
+      `Product (at', ls')
+    | `Sum (at', ls) ->
+      let+ ls' =
+        ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+      in
+      `Sum (at', ls')
+  in
+  keep_phys_eq' t t'
 
 (* *)
 
-let rec ground = function
-  | `Mu (at', f) as t ->
-    let f' = ground f in
-    if f == f' then t else `Mu (at', f')
-  | `Const (_, _) as t -> t
-  | `Var (_, _) as t -> t
-  | `Lam (at', d, d_kind, r) as t ->
-    let d_kind' = Kind.ground d_kind and r' = ground r in
-    if d_kind == d_kind' && r == r' then t else `Lam (at', d, d_kind', r')
-  | `App (at', f, x) as t ->
-    let f' = ground f and x' = ground x in
-    if f == f' && x = x' then t else `App (at', f', x')
-  | `ForAll (at', f) as t ->
-    let f' = ground f in
-    if f == f' then t else `ForAll (at', f')
-  | `Exists (at', f) as t ->
-    let f' = ground f in
-    if f == f' then t else `Exists (at', f')
-  | `Arrow (at', d, c) as t ->
-    let d' = ground d and c' = ground c in
-    if d == d' && c == c' then t else `Arrow (at', d', c')
-  | `Product (at', ls) as t ->
-    let ls' = ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground in
-    if ls == ls' then t else `Product (at', ls')
-  | `Sum (at', ls) as t ->
-    let ls' = ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground in
-    if ls == ls' then t else `Sum (at', ls')
+let rec ground t =
+  t
+  |> keep_phys_eq @@ function
+     | `Mu (at', f) -> `Mu (at', ground f)
+     | `Const (_, _) as t -> t
+     | `Var (_, _) as t -> t
+     | `Lam (at', d, d_kind, r) -> `Lam (at', d, Kind.ground d_kind, ground r)
+     | `App (at', f, x) -> `App (at', ground f, ground x)
+     | `ForAll (at', f) -> `ForAll (at', ground f)
+     | `Exists (at', f) -> `Exists (at', ground f)
+     | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
+     | `Product (at', ls) ->
+       `Product
+         (at', ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground)
+     | `Sum (at', ls) ->
+       `Sum (at', ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground)
 
 (* *)
 
@@ -368,33 +361,36 @@ let rec contract t =
   | `Lam (_, i, _, _) -> (s |> TypSet.filter (not <<< is_free i), u)
   | _ -> (s, u)
 
-and contract_base = function
-  | `Mu (at', e) as t ->
-    let+ s, e' = contract e in
-    (s, if e == e' then t else `Mu (at', e'))
-  | (`Const (_, _) | `Var (_, _)) as t -> return (TypSet.empty, t)
-  | `Lam (at', x, k, e) as t ->
-    let+ s, e' = contract e in
-    (s, if e == e' then t else `Lam (at', x, k, e'))
-  | `App (at', f, x) as t ->
-    let+ fs, f' = contract f and+ xs, x' = contract x in
-    let s = TypSet.union fs xs in
-    (s, if f == f' && x == x' then t else `App (at', f', x'))
-  | `ForAll (at', e) as t ->
-    let+ s, e' = contract e in
-    (s, if e == e' then t else `ForAll (at', e'))
-  | `Exists (at', e) as t ->
-    let+ s, e' = contract e in
-    (s, if e == e' then t else `Exists (at', e'))
-  | `Arrow (at', d, c) as t ->
-    let+ ds, d' = contract d and+ cs, c' = contract c in
-    (TypSet.union ds cs, if d == d' && c == c' then t else `Arrow (at', d', c'))
-  | `Product (at', ls) as t ->
-    let+ s, ls' = contract_labels ls in
-    (s, if ls == ls' then t else `Product (at', ls'))
-  | `Sum (at', ls) as t ->
-    let+ s, ls' = contract_labels ls in
-    (s, if ls == ls' then t else `Sum (at', ls'))
+and contract_base t =
+  let+ s, t' =
+    match t with
+    | `Mu (at', e) ->
+      let+ s, e' = contract e in
+      (s, `Mu (at', e'))
+    | (`Const (_, _) | `Var (_, _)) as t -> return (TypSet.empty, t)
+    | `Lam (at', x, k, e) ->
+      let+ s, e' = contract e in
+      (s, `Lam (at', x, k, e'))
+    | `App (at', f, x) ->
+      let+ fs, f' = contract f and+ xs, x' = contract x in
+      (TypSet.union fs xs, `App (at', f', x'))
+    | `ForAll (at', e) ->
+      let+ s, e' = contract e in
+      (s, `ForAll (at', e'))
+    | `Exists (at', e) ->
+      let+ s, e' = contract e in
+      (s, `Exists (at', e'))
+    | `Arrow (at', d, c) ->
+      let+ ds, d' = contract d and+ cs, c' = contract c in
+      (TypSet.union ds cs, `Arrow (at', d', c'))
+    | `Product (at', ls) ->
+      let+ s, ls' = contract_labels ls in
+      (s, `Product (at', ls'))
+    | `Sum (at', ls) ->
+      let+ s, ls' = contract_labels ls in
+      (s, `Sum (at', ls'))
+  in
+  (s, keep_phys_eq' t t')
 
 and contract_labels ls =
   let+ sls' = ls |> MList.traverse @@ MPair.traverse return contract in
@@ -445,42 +441,32 @@ let rec collect_mus_closed bvs t mus =
            (mus, VarSet.union vs t_vs))
          (mus, VarSet.empty)
 
-let rec replace_closed_mus m = function
+let rec replace_closed_mus m =
+  keep_phys_eq @@ function
   | `Mu (at'', `Lam (at', i, k, e)) as t ->
     if TypSet.mem t m then
       `Var (at', i)
     else
-      let e' = replace_closed_mus m e in
-      if e == e' then t else `Mu (at'', `Lam (at', i, k, e'))
-  | `Mu (at', e) as t ->
-    let e' = replace_closed_mus m e in
-    if e == e' then t else `Mu (at', e')
+      `Mu (at'', `Lam (at', i, k, replace_closed_mus m e))
+  | `Mu (at', e) -> `Mu (at', replace_closed_mus m e)
   | (`Const (_, _) | `Var (_, _)) as t -> t
-  | `App (at', f, x) as t ->
-    let f' = replace_closed_mus m f and x' = replace_closed_mus m x in
-    if f == f' && x == x' then t else `App (at', f', x')
-  | `Lam (at', i, k, e) as t ->
-    let e' = replace_closed_mus m e in
-    if e == e' then t else `Lam (at', i, k, e')
-  | `ForAll (at', e) as t ->
-    let e' = replace_closed_mus m e in
-    if e == e' then t else `ForAll (at', e')
-  | `Exists (at', e) as t ->
-    let e' = replace_closed_mus m e in
-    if e == e' then t else `Exists (at', e')
-  | `Arrow (at', d, c) as t ->
-    let d' = replace_closed_mus m d and c' = replace_closed_mus m c in
-    if d == d' && c == c' then t else `Arrow (at', d', c')
-  | `Product (at', ls) as t ->
-    let ls' =
-      ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m))
-    in
-    if ls == ls' then t else `Product (at', ls')
-  | `Sum (at', ls) as t ->
-    let ls' =
-      ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m))
-    in
-    if ls == ls' then t else `Sum (at', ls')
+  | `App (at', f, x) ->
+    `App (at', replace_closed_mus m f, replace_closed_mus m x)
+  | `Lam (at', i, k, e) -> `Lam (at', i, k, replace_closed_mus m e)
+  | `ForAll (at', e) -> `ForAll (at', replace_closed_mus m e)
+  | `Exists (at', e) -> `Exists (at', replace_closed_mus m e)
+  | `Arrow (at', d, c) ->
+    `Arrow (at', replace_closed_mus m d, replace_closed_mus m c)
+  | `Product (at', ls) ->
+    `Product
+      ( at',
+        ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m)) ls
+      )
+  | `Sum (at', ls) ->
+    `Sum
+      ( at',
+        ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m)) ls
+      )
 
 (* *)
 

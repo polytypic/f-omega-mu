@@ -43,21 +43,34 @@ module Kind = struct
 
   (* *)
 
-  let freshen env k =
-    let rec freshen = function
-      | `Star _ as inn -> inn
-      | `Arrow (at', d, c) as inn ->
-        let d' = freshen d and c' = freshen c in
-        if d == d' && c == c' then inn else `Arrow (at', d', c')
-      | `Unk (at', i) -> (
-        match UnkMap.find_opt i !env with
-        | None ->
-          let v' = fresh at' in
-          env := UnkMap.add i v' !env;
-          v'
-        | Some k -> k)
+  let keep_phys_eq' k k' =
+    let are_phys_eq =
+      k == k'
+      ||
+      match (k, k') with
+      | `Star at, `Star at' -> at == at'
+      | `Arrow (at, d, c), `Arrow (at', d', c') ->
+        at == at' && d == d' && c == c'
+      | `Unk (at, i), `Unk (at', i') -> at == at' && i == i'
+      | _ -> false
     in
-    freshen k
+    if are_phys_eq then k else k'
+
+  let keep_phys_eq fn k = keep_phys_eq' k (fn k)
+
+  (* *)
+
+  let rec freshen env =
+    keep_phys_eq @@ function
+    | `Star _ as inn -> inn
+    | `Arrow (at', d, c) -> `Arrow (at', freshen env d, freshen env c)
+    | `Unk (at', i) -> (
+      match UnkMap.find_opt i !env with
+      | None ->
+        let v' = fresh at' in
+        env := UnkMap.add i v' !env;
+        v'
+      | Some k -> k)
 
   (* Formatting *)
 
@@ -220,6 +233,31 @@ module Typ = struct
     in
     loop 0 t
 
+  (* *)
+
+  let keep_phys_eq' t t' =
+    let are_phys_eq =
+      t == t'
+      ||
+      match (t, t') with
+      | `Mu (at, t), `Mu (at', t') -> at == at' && t == t'
+      | `Const (at, c), `Const (at', c') -> c == c'
+      | `Var (at, i), `Var (at', i') -> at == at' && i == i'
+      | `Lam (at, i, k, t), `Lam (at', i', k', t') ->
+        at == at' && i == i' && k == k' && t == t'
+      | `App (at, f, x), `App (at', f', x') -> at == at' && f == f' && x == x'
+      | `ForAll (at, t), `ForAll (at', t') -> at == at' && t == t'
+      | `Exists (at, t), `Exists (at', t') -> at == at' && t == t'
+      | `Arrow (at, d, c), `Arrow (at', d', c') ->
+        at == at' && d == d' && c == c'
+      | `Product (at, ls), `Product (at', ls') -> at == at' && ls == ls'
+      | `Sum (at, ls), `Sum (at', ls') -> at == at' && ls == ls'
+      | _ -> false
+    in
+    if are_phys_eq then t else t'
+
+  let keep_phys_eq fn t = keep_phys_eq' t (fn t)
+
   (* Substitution *)
 
   module VarSet = Set.Make (Var)
@@ -244,41 +282,24 @@ module Typ = struct
     let arrow d c = `Arrow (Loc.dummy, d, c) in
     [(impure, (impure, arrow star star))] |> List.to_seq |> VarMap.of_seq
 
-  let rec subst_rec env = function
-    | `Mu (at, t) as inn ->
-      let t' = subst_rec env t in
-      if t == t' then inn else `Mu (at, t')
+  let rec subst_rec env =
+    keep_phys_eq @@ function
+    | `Mu (at, t) -> `Mu (at, subst_rec env t)
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
       match VarMap.find_opt i env with None -> inn | Some t -> subst_rec env t)
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
-      if VarMap.is_empty env then
-        inn
-      else
-        let t' = subst_rec env t in
-        if t == t' then inn else `Lam (at, i, k, t')
-    | `App (at, f, x) as inn ->
-      let f' = subst_rec env f and x' = subst_rec env x in
-      if f == f' && x == x' then inn else `App (at, f', x')
-    | `ForAll (at, t) as inn ->
-      let t' = subst_rec env t in
-      if t == t' then inn else `ForAll (at, t')
-    | `Exists (at, t) as inn ->
-      let t' = subst_rec env t in
-      if t == t' then inn else `Exists (at, t')
-    | `Arrow (at, d, c) as inn ->
-      let d' = subst_rec env d and c' = subst_rec env c in
-      if d == d' && c == c' then inn else `Arrow (at, d', c')
-    | `Product (at, ls) as inn ->
-      let ls' = subst_rec_labeled env ls in
-      if ls == ls' then inn else `Product (at, ls')
-    | `Sum (at, ls) as inn ->
-      let ls' = subst_rec_labeled env ls in
-      if ls == ls' then inn else `Sum (at, ls')
+      if VarMap.is_empty env then inn else `Lam (at, i, k, subst_rec env t)
+    | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
+    | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
+    | `Exists (at, t) -> `Exists (at, subst_rec env t)
+    | `Arrow (at, d, c) -> `Arrow (at, subst_rec env d, subst_rec env c)
+    | `Product (at, ls) -> `Product (at, subst_rec_labeled env ls)
+    | `Sum (at, ls) -> `Sum (at, subst_rec_labeled env ls)
 
-  and subst_rec_labeled env ls =
-    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
+  and subst_rec_labeled env =
+    ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
@@ -292,10 +313,9 @@ module Typ = struct
     | `Product (_, ls) | `Sum (_, ls) ->
       ls |> List.exists @@ fun (_, t) -> is_free id t
 
-  let rec subst_par env = function
-    | `Mu (at, t) as inn ->
-      let t' = subst_par env t in
-      if t == t' then inn else `Mu (at, t')
+  let rec subst_par env =
+    keep_phys_eq @@ function
+    | `Mu (at, t) -> `Mu (at, subst_par env t)
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
       match VarMap.find_opt i env with None -> inn | Some t -> t)
@@ -307,28 +327,15 @@ module Typ = struct
         let i' = Var.freshen i in
         let v' = `Var (at, i') in
         let t' = subst_par (VarMap.add i v' env) t in
-        if t == t' then inn else `Lam (at, i', k, t')
+        `Lam (at, i', k, t')
       else
-        let t' = subst_par env t in
-        if t == t' then inn else `Lam (at, i, k, t')
-    | `App (at, f, x) as inn ->
-      let f' = subst_par env f and x' = subst_par env x in
-      if f == f' && x == x' then inn else `App (at, f', x')
-    | `ForAll (at, t) as inn ->
-      let t' = subst_par env t in
-      if t == t' then inn else `ForAll (at, t')
-    | `Exists (at, t) as inn ->
-      let t' = subst_par env t in
-      if t == t' then inn else `Exists (at, t')
-    | `Arrow (at, d, c) as inn ->
-      let d' = subst_par env d and c' = subst_par env c in
-      if d == d' && c == c' then inn else `Arrow (at, d', c')
-    | `Product (at, ls) as inn ->
-      let ls' = subst_par_labeled env ls in
-      if ls == ls' then inn else `Product (at, ls')
-    | `Sum (at, ls) as inn ->
-      let ls' = subst_par_labeled env ls in
-      if ls == ls' then inn else `Sum (at, ls')
+        `Lam (at, i, k, subst_par env t)
+    | `App (at, f, x) -> `App (at, subst_par env f, subst_par env x)
+    | `ForAll (at, t) -> `ForAll (at, subst_par env t)
+    | `Exists (at, t) -> `Exists (at, subst_par env t)
+    | `Arrow (at, d, c) -> `Arrow (at, subst_par env d, subst_par env c)
+    | `Product (at, ls) -> `Product (at, subst_par_labeled env ls)
+    | `Sum (at, ls) -> `Sum (at, subst_par_labeled env ls)
 
   and subst_par_labeled env ls =
     ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env))
@@ -336,69 +343,53 @@ module Typ = struct
   let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
   let subst_par env t = if VarMap.is_empty env then t else subst_par env t
 
-  let rec norm = function
-    | `Mu (at, t) as inn -> (
-      match norm t with
-      | `Lam (_, i, _, t) when not (is_free i t) -> t
-      | t' -> if t == t' then inn else `Mu (at, t'))
-    | `Const _ as inn -> inn
-    | `Var _ as inn -> inn
-    | `Lam (at, i, k, t) as inn -> (
-      match norm t with
-      | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
-      | t' -> if t == t' then inn else `Lam (at, i, k, t'))
-    | `App (at, f, x) as inn -> (
-      let x' = norm x in
-      match norm f with
-      | `Lam (_, i, _, t) -> norm (subst i x' t)
-      | f' -> if f == f' && x == x' then inn else `App (at, f', x'))
-    | `ForAll (at, t) as inn ->
-      let t' = norm t in
-      if t == t' then inn else `ForAll (at, t')
-    | `Exists (at, t) as inn ->
-      let t' = norm t in
-      if t == t' then inn else `Exists (at, t')
-    | `Arrow (at, d, c) as inn ->
-      let d' = norm d and c' = norm c in
-      if d == d' && c == c' then inn else `Arrow (at, d', c')
-    | `Product (at, ls) as inn ->
-      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm) in
-      if ls == ls' then inn else `Product (at, ls')
-    | `Sum (at, ls) as inn ->
-      let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm) in
-      if ls == ls' then inn else `Sum (at, ls')
+  let rec norm t =
+    t
+    |> keep_phys_eq @@ function
+       | `Mu (at, t) -> (
+         match norm t with
+         | `Lam (_, i, _, t) when not (is_free i t) -> t
+         | t' -> `Mu (at, t'))
+       | `Const _ as inn -> inn
+       | `Var _ as inn -> inn
+       | `Lam (at, i, k, t) -> (
+         match norm t with
+         | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) ->
+           f
+         | t' -> `Lam (at, i, k, t'))
+       | `App (at, f, x) -> (
+         let x' = norm x in
+         match norm f with
+         | `Lam (_, i, _, t) -> norm (subst i x' t)
+         | f' -> `App (at, f', x'))
+       | `ForAll (at, t) -> `ForAll (at, norm t)
+       | `Exists (at, t) -> `Exists (at, norm t)
+       | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
+       | `Product (at, ls) ->
+         `Product (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+       | `Sum (at, ls) ->
+         `Sum (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
 
   (* Freshening *)
 
   let freshen t =
     let env = ref Kind.UnkMap.empty in
-    let rec freshen = function
-      | `Mu (at, t) as inn ->
-        let t' = freshen t in
-        if t == t' then inn else `Mu (at, t')
-      | `Const _ as inn -> inn
-      | `Var _ as inn -> inn
-      | `Lam (at, i, k, t) as inn ->
-        let k' = Kind.freshen env k and t' = freshen t in
-        if k == k' && t == t' then inn else `Lam (at, i, k', t')
-      | `App (at, f, x) as inn ->
-        let f' = freshen f and x' = freshen x in
-        if f == f' && x == x' then inn else `App (at, f', x')
-      | `ForAll (at, t) as inn ->
-        let t' = freshen t in
-        if t == t' then inn else `ForAll (at, t')
-      | `Exists (at, t) as inn ->
-        let t' = freshen t in
-        if t == t' then inn else `Exists (at, t')
-      | `Arrow (at, d, c) as inn ->
-        let d' = freshen d and c' = freshen c in
-        if d == d' && c == c' then inn else `Arrow (at, d', c')
-      | `Product (at, ls) as inn ->
-        let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
-        if ls == ls' then inn else `Product (at, ls')
-      | `Sum (at, ls) as inn ->
-        let ls' = ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen) in
-        if ls == ls' then inn else `Sum (at, ls')
+    let rec freshen t =
+      t
+      |> keep_phys_eq @@ function
+         | `Mu (at, t) -> `Mu (at, freshen t)
+         | `Const _ as inn -> inn
+         | `Var _ as inn -> inn
+         | `Lam (at, i, k, t) -> `Lam (at, i, Kind.freshen env k, freshen t)
+         | `App (at, f, x) -> `App (at, freshen f, freshen x)
+         | `ForAll (at, t) -> `ForAll (at, freshen t)
+         | `Exists (at, t) -> `Exists (at, freshen t)
+         | `Arrow (at, d, c) -> `Arrow (at, freshen d, freshen c)
+         | `Product (at, ls) ->
+           `Product
+             (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
+         | `Sum (at, ls) ->
+           `Sum (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
     in
     freshen t
 

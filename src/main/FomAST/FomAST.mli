@@ -25,6 +25,11 @@ module Kind : sig
 
   val min_arity : t -> int
 
+  (* *)
+
+  val keep_phys_eq' : t -> t -> t
+  val keep_phys_eq : (t -> t) -> t -> t
+
   (* Formatting *)
 
   module Numbering : sig
@@ -103,6 +108,11 @@ module Typ : sig
   val app : Loc.t -> t -> t list -> t
   val unapp : t -> t * t list
   val arity_and_result : t -> int * t
+
+  (* *)
+
+  val keep_phys_eq' : t -> t -> t
+  val keep_phys_eq : (t -> t) -> t -> t
 
   (* Substitution *)
 

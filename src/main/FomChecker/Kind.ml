@@ -28,28 +28,32 @@ module UnkMap = struct
     end
 end
 
-let rec resolve = function
-  | `Star _ as k -> return k
-  | `Arrow (at', d, c) as k ->
-    let+ d' = resolve d and+ c' = resolve c in
-    if d == d' && c == c' then k else `Arrow (at', d', c')
-  | `Unk (_, v) as k -> (
-    let* k_opt = UnkMap.find_opt v in
-    match k_opt with
-    | None -> return k
-    | Some k ->
-      let* k' = resolve k in
-      if k == k' then
-        return k
-      else
-        UnkMap.add v k' >> return k')
+let rec resolve k =
+  let+ k' =
+    match k with
+    | `Star _ as k -> return k
+    | `Arrow (at', d, c) ->
+      let+ d' = resolve d and+ c' = resolve c in
+      `Arrow (at', d', c')
+    | `Unk (_, v) as k -> (
+      let* k_opt = UnkMap.find_opt v in
+      match k_opt with
+      | None -> return k
+      | Some k ->
+        let* k' = resolve k in
+        if k == k' then
+          return k
+        else
+          UnkMap.add v k' >> return k')
+  in
+  keep_phys_eq' k k'
 
-let rec ground = function
-  | `Star _ as k -> k
-  | `Arrow (at', d, c) as k ->
-    let d' = ground d and c' = ground c in
-    if d == d' && c == c' then k else `Arrow (at', d', c')
-  | `Unk (at', _) -> `Star at'
+let rec ground k =
+  k
+  |> keep_phys_eq @@ function
+     | `Star _ as k -> k
+     | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
+     | `Unk (at', _) -> `Star at'
 
 let rec occurs_check at' v = function
   | `Star _ -> unit
