@@ -104,36 +104,25 @@ let find_opt_non_contractive_mu at f arity =
 let rec resolve t =
   let+ t' =
     match t with
-    | `Mu (at', f) ->
-      let+ f' = resolve f in
-      `Mu (at', f')
-    | `Const (_, _) as t -> return t
-    | `Var (_, _) as t -> return t
+    | `Mu (at', f) -> resolve f >>- fun f' -> `Mu (at', f')
+    | (`Const (_, _) | `Var (_, _)) as t -> return t
     | `Lam (at', d, d_kind, r) ->
       let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
       `Lam (at', d, d_kind', r')
     | `App (at', f, x) ->
       let+ f' = resolve f and+ x' = resolve x in
       `App (at', f', x')
-    | `ForAll (at', f) ->
-      let+ f' = resolve f in
-      `ForAll (at', f')
-    | `Exists (at', f) ->
-      let+ f' = resolve f in
-      `Exists (at', f')
+    | `ForAll (at', f) -> resolve f >>- fun f' -> `ForAll (at', f')
+    | `Exists (at', f) -> resolve f >>- fun f' -> `Exists (at', f')
     | `Arrow (at', d, c) ->
       let+ d' = resolve d and+ c' = resolve c in
       `Arrow (at', d', c')
     | `Product (at', ls) ->
-      let+ ls' =
-        ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-      in
-      `Product (at', ls')
+      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+      >>- fun ls' -> `Product (at', ls')
     | `Sum (at', ls) ->
-      let+ ls' =
-        ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-      in
-      `Sum (at', ls')
+      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
+      >>- fun ls' -> `Sum (at', ls')
   in
   keep_phys_eq' t t'
 
@@ -143,18 +132,16 @@ let rec ground t =
   t
   |> keep_phys_eq @@ function
      | `Mu (at', f) -> `Mu (at', ground f)
-     | `Const (_, _) as t -> t
-     | `Var (_, _) as t -> t
+     | (`Const (_, _) | `Var (_, _)) as t -> t
      | `Lam (at', d, d_kind, r) -> `Lam (at', d, Kind.ground d_kind, ground r)
      | `App (at', f, x) -> `App (at', ground f, ground x)
      | `ForAll (at', f) -> `ForAll (at', ground f)
      | `Exists (at', f) -> `Exists (at', ground f)
      | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
      | `Product (at', ls) ->
-       `Product
-         (at', ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground)
+       `Product (at', ListExt.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
      | `Sum (at', ls) ->
-       `Sum (at', ls |> ListExt.map_phys_eq @@ Pair.map_phys_eq Fun.id ground)
+       `Sum (at', ListExt.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
 
 (* *)
 
@@ -186,8 +173,7 @@ let rec infer = function
     let* f_kind = infer f and* d_kind = infer x in
     let c_kind = Kind.fresh at' in
     Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
-  | `ForAll (_, f) as typ -> infer_quantifier typ f
-  | `Exists (_, f) as typ -> infer_quantifier typ f
+  | (`ForAll (_, f) | `Exists (_, f)) as typ -> infer_quantifier typ f
   | `Arrow (at', d, c) ->
     let star = `Star at' in
     check star d >> check star c >> return star
@@ -364,31 +350,22 @@ let rec contract t =
 and contract_base t =
   let+ s, t' =
     match t with
-    | `Mu (at', e) ->
-      let+ s, e' = contract e in
-      (s, `Mu (at', e'))
+    | `Mu (at', e) -> contract e >>- fun (s, e') -> (s, `Mu (at', e'))
     | (`Const (_, _) | `Var (_, _)) as t -> return (TypSet.empty, t)
     | `Lam (at', x, k, e) ->
-      let+ s, e' = contract e in
-      (s, `Lam (at', x, k, e'))
+      contract e >>- fun (s, e') -> (s, `Lam (at', x, k, e'))
     | `App (at', f, x) ->
       let+ fs, f' = contract f and+ xs, x' = contract x in
       (TypSet.union fs xs, `App (at', f', x'))
-    | `ForAll (at', e) ->
-      let+ s, e' = contract e in
-      (s, `ForAll (at', e'))
-    | `Exists (at', e) ->
-      let+ s, e' = contract e in
-      (s, `Exists (at', e'))
+    | `ForAll (at', e) -> contract e >>- fun (s, e') -> (s, `ForAll (at', e'))
+    | `Exists (at', e) -> contract e >>- fun (s, e') -> (s, `Exists (at', e'))
     | `Arrow (at', d, c) ->
       let+ ds, d' = contract d and+ cs, c' = contract c in
       (TypSet.union ds cs, `Arrow (at', d', c'))
     | `Product (at', ls) ->
-      let+ s, ls' = contract_labels ls in
-      (s, `Product (at', ls'))
+      contract_labels ls >>- fun (s, ls') -> (s, `Product (at', ls'))
     | `Sum (at', ls) ->
-      let+ s, ls' = contract_labels ls in
-      (s, `Sum (at', ls'))
+      contract_labels ls >>- fun (s, ls') -> (s, `Sum (at', ls'))
   in
   (s, keep_phys_eq' t t')
 
@@ -475,23 +452,14 @@ let to_strict t =
   let rec to_strict
       (t : [('a, 'k) FomAST.Typ.f | `Lazy of ('e, 'a) LVar.t] as 'a) =
     match t with
-    | `Mu (at, t) ->
-      let+ t = to_strict t in
-      `Mu (at, t)
-    | `Const _ as inn -> return inn
-    | `Var _ as inn -> return inn
-    | `Lam (at, i, k, t) ->
-      let+ t = to_strict t in
-      `Lam (at, i, k, t)
+    | `Mu (at, t) -> to_strict t >>- fun t -> `Mu (at, t)
+    | (`Const _ | `Var _) as inn -> return inn
+    | `Lam (at, i, k, t) -> to_strict t >>- fun t -> `Lam (at, i, k, t)
     | `App (at, f, x) ->
       let+ f = to_strict f and+ x = to_strict x in
       `App (at, f, x)
-    | `ForAll (at, t) ->
-      let+ t = to_strict t in
-      `ForAll (at, t)
-    | `Exists (at, t) ->
-      let+ t = to_strict t in
-      `Exists (at, t)
+    | `ForAll (at, t) -> to_strict t >>- fun t -> `ForAll (at, t)
+    | `Exists (at, t) -> to_strict t >>- fun t -> `Exists (at, t)
     | `Arrow (at, d, c) ->
       let+ d = to_strict d and+ c = to_strict c in
       `Arrow (at, d, c)
@@ -538,8 +506,7 @@ let join_of_norm, meet_of_norm =
         else if 0 < c then
           intersection op os (llls, rls)
         else
-          let* t = op (lt, rt) in
-          intersection op ((ll, t) :: os) (lls, rls)
+          op (lt, rt) >>= fun t -> intersection op ((ll, t) :: os) (lls, rls)
       | [], _ | _, [] -> return @@ List.rev os
     in
     let rec union op os = function
@@ -550,8 +517,7 @@ let join_of_norm, meet_of_norm =
         else if 0 < c then
           union op ((rl, to_lazy rt) :: os) (llls, rls)
         else
-          let* t = op (lt, rt) in
-          union op ((ll, t) :: os) (lls, rls)
+          op (lt, rt) >>= fun t -> union op ((ll, t) :: os) (lls, rls)
       | (ll, lt) :: lls, [] -> union op ((ll, to_lazy lt) :: os) (lls, [])
       | [], (rl, rt) :: rls -> union op ((rl, to_lazy rt) :: os) ([], rls)
       | [], [] -> return @@ List.rev os
@@ -573,11 +539,9 @@ let join_of_norm, meet_of_norm =
                let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
                `Arrow (at, d, c)
              | `Product (_, lls), `Product (_, rls) ->
-               let+ ls = intersection upper [] (lls, rls) in
-               `Product (at, ls)
+               intersection upper [] (lls, rls) >>- fun ls -> `Product (at, ls)
              | `Sum (_, lls), `Sum (_, rls) ->
-               let+ ls = union upper [] (lls, rls) in
-               `Sum (at, ls)
+               union upper [] (lls, rls) >>- fun ls -> `Sum (at, ls)
              | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
                Kind.unify at lk rk
                >>
@@ -592,11 +556,9 @@ let join_of_norm, meet_of_norm =
                in
                `Lam (at, i, lk, t)
              | `ForAll (_, lt), `ForAll (_, rt) ->
-               let+ t = upper (lt, rt) in
-               `ForAll (at, t)
+               upper (lt, rt) >>- fun t -> `ForAll (at, t)
              | `Exists (_, lt), `Exists (_, rt) ->
-               let+ t = upper (lt, rt) in
-               `Exists (at, t)
+               upper (lt, rt) >>- fun t -> `Exists (at, t)
              | _ -> (
                match (unapp l, unapp r) with
                | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->

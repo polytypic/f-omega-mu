@@ -270,8 +270,7 @@ module Typ = struct
     | `Mu (_, e) | `ForAll (_, e) | `Exists (_, e) -> free e
     | `Arrow (_, d, c) -> VarSet.union (free d) (free c)
     | `Product (_, ls) | `Sum (_, ls) ->
-      ls
-      |> List.fold_left (fun s (_, t) -> VarSet.union s (free t)) VarSet.empty
+      List.fold_left (fun s (_, t) -> VarSet.union s (free t)) VarSet.empty ls
 
   module VarMap = Map.Make (Var)
 
@@ -350,8 +349,7 @@ module Typ = struct
          match norm t with
          | `Lam (_, i, _, t) when not (is_free i t) -> t
          | t' -> `Mu (at, t'))
-       | `Const _ as inn -> inn
-       | `Var _ as inn -> inn
+       | (`Const _ | `Var _) as inn -> inn
        | `Lam (at, i, k, t) -> (
          match norm t with
          | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) ->
@@ -378,8 +376,7 @@ module Typ = struct
       t
       |> keep_phys_eq @@ function
          | `Mu (at, t) -> `Mu (at, freshen t)
-         | `Const _ as inn -> inn
-         | `Var _ as inn -> inn
+         | (`Const _ | `Var _) as inn -> inn
          | `Lam (at, i, k, t) -> `Lam (at, i, Kind.freshen env k, freshen t)
          | `App (at, f, x) -> `App (at, freshen f, freshen x)
          | `ForAll (at, t) -> `ForAll (at, freshen t)
@@ -612,18 +609,10 @@ module Exp = struct
         | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
         | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
         return c
-      | `OpEq t ->
-        let+ t = tuM t in
-        `OpEq t
-      | `OpEqNot t ->
-        let+ t = tuM t in
-        `OpEqNot t
-      | `Keep t ->
-        let+ t = tuM t in
-        `Keep t
-      | `Target (t, l) ->
-        let+ t = tuM t in
-        `Target (t, l)
+      | `OpEq t -> tuM t >>- fun t -> `OpEq t
+      | `OpEqNot t -> tuM t >>- fun t -> `OpEqNot t
+      | `Keep t -> tuM t >>- fun t -> `Keep t
+      | `Target (t, l) -> tuM t >>- fun t -> `Target (t, l)
 
     let collect_typ = function
       | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
