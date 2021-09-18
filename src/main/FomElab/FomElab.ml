@@ -342,18 +342,15 @@ let rec elaborate_def = function
            >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
            >>= elaborate_defs
          in
-         Annot.Typ.resolve Kind.resolve
-         >> let+ annot = get Annot.field >>= MVar.get in
-            (env, annot))
+         Annot.Typ.resolve Kind.resolve >> get Annot.field >>= MVar.get
+         >>- fun annot -> (env, annot))
     in
     let* annot = get Annot.field in
     MVar.mutate annot (Annot.LocMap.merge MapExt.prefer_lhs newer)
     >> get_as TypAliases.field @@ TypAliases.merge MapExt.prefer_lhs env
 
 and elaborate_typ = function
-  | `Mu (at', t) ->
-    let+ t = elaborate_typ t in
-    `Mu (at', t)
+  | `Mu (at', t) -> elaborate_typ t >>- fun t -> `Mu (at', t)
   | `Const (_, _) as inn -> return inn
   | `Var (_, i) as inn -> (
     let* t_opt = TypAliases.find_opt i in
@@ -364,25 +361,20 @@ and elaborate_typ = function
       Annot.Typ.use i (Typ.at t) >> return t)
   | `Lam (at', i, k, t) ->
     avoid at' i @@ fun i ->
-    let+ t = elaborate_typ t |> Typ.VarMap.adding i k in
-    `Lam (at', i, k, t)
+    elaborate_typ t |> Typ.VarMap.adding i k >>- fun t -> `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let+ f = elaborate_typ f and+ x = elaborate_typ x in
     `App (at', f, x)
-  | `ForAll (at', t) ->
-    let+ t = elaborate_typ t in
-    `ForAll (at', t)
-  | `Exists (at', t) ->
-    let+ t = elaborate_typ t in
-    `Exists (at', t)
+  | `ForAll (at', t) -> elaborate_typ t >>- fun t -> `ForAll (at', t)
+  | `Exists (at', t) -> elaborate_typ t >>- fun t -> `Exists (at', t)
   | `Arrow (at', d, c) ->
     let+ d = elaborate_typ d and+ c = elaborate_typ c in
     `Arrow (at', d, c)
   | `Product (at', ls) ->
-    let+ ls = ls |> MList.traverse @@ MPair.traverse return elaborate_typ in
+    MList.traverse (MPair.traverse return elaborate_typ) ls >>- fun ls ->
     `Product (at', ls)
   | `Sum (at', ls) ->
-    let+ ls = ls |> MList.traverse @@ MPair.traverse return elaborate_typ in
+    MList.traverse (MPair.traverse return elaborate_typ) ls >>- fun ls ->
     `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
@@ -413,8 +405,7 @@ let maybe_annot e tO =
 
 let rec elaborate = function
   | `Const (at, c) ->
-    let+ c = c |> Exp.Const.traverse_typ elaborate_typ in
-    `Const (at, c)
+    Exp.Const.traverse_typ elaborate_typ c >>- fun c -> `Const (at, c)
   | `Var _ as ast -> return ast
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
     let+ t = elaborate_typ t and+ e = elaborate e in
@@ -424,8 +415,7 @@ let rec elaborate = function
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid at i @@ fun i ->
-    let+ e = elaborate e |> Typ.VarMap.adding i k in
-    `Gen (at, i, k, e)
+    elaborate e |> Typ.VarMap.adding i k >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
     `Inst (at, e, t)
@@ -440,24 +430,18 @@ let rec elaborate = function
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     TypAliases.setting typ_aliases (elaborate e)
-  | `Mu (at, e) ->
-    let+ e = elaborate e in
-    `Mu (at, e)
+  | `Mu (at, e) -> elaborate e >>- fun e -> `Mu (at, e)
   | `IfElse (at, c, t, e) ->
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
     `IfElse (at, c, t, e)
   | `Product (at, fs) ->
-    let+ fs = fs |> MList.traverse @@ MPair.traverse return elaborate in
+    MList.traverse (MPair.traverse return elaborate) fs >>- fun fs ->
     `Product (at, fs)
   | `Select (at, e, l) ->
     let+ e = elaborate e and+ l = elaborate l in
     `Select (at, e, l)
-  | `Inject (at, l, e) ->
-    let+ e = elaborate e in
-    `Inject (at, l, e)
-  | `Case (at, cs) ->
-    let+ cs = elaborate cs in
-    `Case (at, cs)
+  | `Inject (at, l, e) -> elaborate e >>- fun e -> `Inject (at, l, e)
+  | `Case (at, cs) -> elaborate cs >>- fun cs -> `Case (at, cs)
   | `Pack (at, t, e, x) ->
     let+ t = elaborate_typ t and+ e = elaborate e and+ x = elaborate_typ x in
     `Pack (at, t, e, x)
