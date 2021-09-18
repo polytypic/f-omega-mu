@@ -479,7 +479,7 @@ module Typ = struct
            match hanging typ with
            | Some (lhs, _) -> lhs ^^ pp pp_annot prec_min typ
            | None -> break_1 ^^ pp pp_annot prec_min typ |> nest 2 |> group))
-    |> separate comma_break_1
+    |> separate comma_break_1_or_break_0
 
   and ticked pp_annot labels =
     match

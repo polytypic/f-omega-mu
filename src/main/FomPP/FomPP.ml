@@ -65,6 +65,7 @@ let break_1 = break 1
 let pipe_space = pipe ^^ space
 let break_1_pipe_space = break_1 ^^ pipe_space
 let comma_break_1 = comma ^^ break_1
+let comma_break_1_or_break_0 = ifflat comma_break_1 break_0
 let let_space = let' ^^ space
 let space_arrow_right = space ^^ arrow_right
 let space_arrow_right_break_1 = space_arrow_right ^^ break_1
