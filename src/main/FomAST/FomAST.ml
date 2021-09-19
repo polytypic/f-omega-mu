@@ -344,31 +344,30 @@ module Typ = struct
   let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
   let subst_par env t = if VarMap.is_empty env then t else subst_par env t
 
-  let rec norm t =
-    t
-    |> keep_phys_eq @@ function
-       | `Mu (at, t) -> (
-         match norm t with
-         | `Lam (_, i, _, t) when not (is_free i t) -> t
-         | t' -> `Mu (at, t'))
-       | (`Const _ | `Var _) as inn -> inn
-       | `Lam (at, i, k, t) -> (
-         match norm t with
-         | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) ->
-           f
-         | t' -> `Lam (at, i, k, t'))
-       | `App (at, f, x) -> (
-         let x' = norm x in
-         match norm f with
-         | `Lam (_, i, _, t) -> norm (subst i x' t)
-         | f' -> `App (at, f', x'))
-       | `ForAll (at, t) -> `ForAll (at, norm t)
-       | `Exists (at, t) -> `Exists (at, norm t)
-       | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
-       | `Product (at, ls) ->
-         `Product (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
-       | `Sum (at, ls) ->
-         `Sum (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+  let norm' norm subst is_free = function
+    | `Mu (at, t) -> (
+      match norm t with
+      | `Lam (_, i, _, t) when not (is_free i t) -> t
+      | t' -> `Mu (at, t'))
+    | (`Const _ | `Var _) as inn -> inn
+    | `Lam (at, i, k, t) -> (
+      match norm t with
+      | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
+      | t' -> `Lam (at, i, k, t'))
+    | `App (at, f, x) -> (
+      let x' = norm x in
+      match norm f with
+      | `Lam (_, i, _, t) -> norm (subst i x' t)
+      | f' -> `App (at, f', x'))
+    | `ForAll (at, t) -> `ForAll (at, norm t)
+    | `Exists (at, t) -> `Exists (at, norm t)
+    | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
+    | `Product (at, ls) ->
+      `Product (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+    | `Sum (at, ls) ->
+      `Sum (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+
+  let rec norm t = t |> keep_phys_eq @@ norm' norm subst is_free
 
   (* Freshening *)
 

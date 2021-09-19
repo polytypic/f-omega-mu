@@ -142,6 +142,13 @@ module Typ : sig
     ('t, 'k) f ->
     't
 
+  val norm' :
+    ([> ('t, 'k) f] as 't) uop ->
+    (Var.t -> 't -> 't -> 't) ->
+    (Var.t -> 't -> bool) ->
+    ('t, 'k) f ->
+    't
+
   (* *)
 
   val free : t -> VarSet.t
