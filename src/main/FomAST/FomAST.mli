@@ -97,6 +97,13 @@ module Typ : sig
 
   (* Comparison *)
 
+  val compare' :
+    't cmp ->
+    (Var.t -> [> `Var of Loc.t * Var.t] -> 't -> 't) ->
+    ('t, Kind.t) f ->
+    ('t, Kind.t) f ->
+    int
+
   val compare : t cmp
 
   (* Type predicates *)
@@ -123,6 +130,17 @@ module Typ : sig
 
   val impure : Var.t
   val initial_env : (Var.t * Kind.t) VarMap.t
+
+  (* *)
+
+  val is_free' : (Var.t -> 't -> bool) -> Var.t -> ('t, 'k) f -> bool
+
+  val subst_par' :
+    (([> ('t, 'k) f] as 't) VarMap.t -> 't uop) ->
+    (Var.t -> 't -> bool) ->
+    't VarMap.t ->
+    ('t, 'k) f ->
+    't
 
   (* *)
 

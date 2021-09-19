@@ -302,7 +302,7 @@ module Typ = struct
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
-  let rec is_free id = function
+  let is_free' is_free id = function
     | `Const _ -> false
     | `Var (_, id') -> Var.equal id id'
     | `Lam (_, id', _, body) -> (not (Var.equal id id')) && is_free id body
@@ -312,8 +312,9 @@ module Typ = struct
     | `Product (_, ls) | `Sum (_, ls) ->
       ls |> List.exists @@ fun (_, t) -> is_free id t
 
-  let rec subst_par env =
-    keep_phys_eq @@ function
+  let rec is_free id = is_free' is_free id
+
+  let subst_par' subst_par is_free env = function
     | `Mu (at, t) -> `Mu (at, subst_par env t)
     | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
@@ -333,12 +334,13 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst_par env t)
     | `Exists (at, t) -> `Exists (at, subst_par env t)
     | `Arrow (at, d, c) -> `Arrow (at, subst_par env d, subst_par env c)
-    | `Product (at, ls) -> `Product (at, subst_par_labeled env ls)
-    | `Sum (at, ls) -> `Sum (at, subst_par_labeled env ls)
+    | `Product (at, ls) ->
+      `Product
+        (at, ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
+    | `Sum (at, ls) ->
+      `Sum (at, ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
 
-  and subst_par_labeled env ls =
-    ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env))
-
+  let rec subst_par env = keep_phys_eq @@ subst_par' subst_par is_free env
   let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
   let subst_par env t = if VarMap.is_empty env then t else subst_par env t
 
@@ -404,7 +406,7 @@ module Typ = struct
     | `Product _ -> 8
     | `Sum _ -> 9
 
-  let rec compare lhs rhs =
+  let compare' compare subst lhs rhs =
     if lhs == rhs then
       0
     else
@@ -434,6 +436,8 @@ module Typ = struct
             Label.compare lhs_l rhs_l <>? fun () -> compare lhs_t rhs_t)
           lhs_ls rhs_ls
       | _ -> index lhs - index rhs
+
+  let rec compare lhs rhs = compare' compare subst lhs rhs
 
   (* Formatting *)
 
