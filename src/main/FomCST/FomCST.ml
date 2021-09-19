@@ -33,7 +33,7 @@ module Typ = struct
     | `LetDefIn of Loc.t * 't Def.f * 't
     | `Import of Loc.t * JsonString.t ]
 
-  type t = [ | t f]
+  type t = t f
 
   let at = function
     | `LetDefIn (at, _, _) | `Import (at, _) -> at
@@ -89,7 +89,7 @@ module Exp = struct
     | `LamPat of Loc.t * Pat.t * 'e
     | `Annot of Loc.t * 'e * Typ.t ]
 
-  type t = [ | t f]
+  type t = t f
 
   let at = function
     | `AppL (at, _, _)

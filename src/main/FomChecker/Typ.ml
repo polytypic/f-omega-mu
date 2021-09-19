@@ -449,8 +449,7 @@ let rec replace_closed_mus m =
 
 let to_strict t =
   let bound = ref [] in
-  let rec to_strict
-      (t : [('a, 'k) FomAST.Typ.f | `Lazy of ('e, 'a) LVar.t] as 'a) =
+  let rec to_strict (t : [('a, 'k) f | `Lazy of ('e, 'a) LVar.t] as 'a) =
     match t with
     | `Mu (at, t) -> to_strict t >>- fun t -> `Mu (at, t)
     | (`Const _ | `Var _) as inn -> return inn
@@ -489,9 +488,7 @@ let to_strict t =
   to_strict t
 
 let to_lazy e =
-  (e
-    : [ | ('a, 'k) FomAST.Typ.f] as 'a
-    :> [('b, 'k) FomAST.Typ.f | `Lazy of ('e, 'b) LVar.t] as 'b)
+  (e : ('a, 'k) f as 'a :> [('b, 'k) f | `Lazy of ('e, 'b) LVar.t] as 'b)
 
 let join_of_norm, meet_of_norm =
   let make_join_and_meet at =

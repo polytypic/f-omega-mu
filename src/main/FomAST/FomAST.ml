@@ -9,7 +9,7 @@ module Kind = struct
   type 'k f =
     [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Unk of Loc.t * Unk.t]
 
-  type t = [ | t f]
+  type t = t f
 
   let at = function `Star at -> at | `Arrow (at, _, _) | `Unk (at, _) -> at
 
@@ -177,7 +177,7 @@ module Typ = struct
     | `Product of Loc.t * (Label.t * 't) list
     | `Sum of Loc.t * (Label.t * 't) list ]
 
-  type t = [ | (t, Kind.t) f]
+  type t = (t, Kind.t) f
 
   let at = function
     | `Mu (at, _)
@@ -715,7 +715,7 @@ module Exp = struct
     | `Pack of Loc.t * 't * 'e * 't
     | `UnpackIn of Loc.t * Typ.Var.t * Var.t * 'e * 'e ]
 
-  type t = [ | (t, Typ.t, Kind.t) f]
+  type t = (t, Typ.t, Kind.t) f
 
   let at = function
     | `Const (at, _)

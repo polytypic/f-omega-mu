@@ -9,7 +9,7 @@ module Kind : sig
   type 'k f =
     [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Unk of Loc.t * Unk.t]
 
-  type t = [ | t f]
+  type t = t f
 
   val at : t -> Loc.t
 
@@ -80,7 +80,7 @@ module Typ : sig
     | `Product of Loc.t * (Label.t * 't) list
     | `Sum of Loc.t * (Label.t * 't) list ]
 
-  type t = [ | (t, Kind.t) f]
+  type t = (t, Kind.t) f
 
   val at : ('t, 'k) f -> Loc.t
   val set_at : Loc.t -> ('t, 'k) f uop
@@ -218,7 +218,7 @@ module Exp : sig
     | `Pack of Loc.t * 't * 'e * 't
     | `UnpackIn of Loc.t * Typ.Var.t * Var.t * 'e * 'e ]
 
-  type t = [ | (t, Typ.t, Kind.t) f]
+  type t = (t, Typ.t, Kind.t) f
 
   val at : ('e, 't, 'k) f -> Loc.t
 
