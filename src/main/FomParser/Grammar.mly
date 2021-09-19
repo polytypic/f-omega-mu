@@ -159,16 +159,19 @@ typ_app:
   | f=typ_app x=lab_typ_atom                            {`App ($loc, f, x)}
 
 typ_inf:
+  | option("|") s=list_1(tick_lab_typ, "|")             {Typ.sum $loc s}
+  | "|"                                                 {Typ.sum $loc []}
   | t=typ_app                                           {t}
-  | d=typ_app"→"c=typ                                   {`Arrow ($loc, d, c)}
+
+typ_arr:
+  | t=typ_inf                                           {t}
+  | d=typ_inf"→"c=typ                                   {`Arrow ($loc, d, c)}
 
 typ_lam(head):
   | head b=typ_bind"."t=typ                             {`Lam ($loc, fst b, snd b, t)}
 
 typ:
-  | option("|") s=list_1(tick_lab_typ, "|")             {Typ.sum $loc s}
-  | "|"                                                 {Typ.sum $loc []}
-  | t=typ_inf                                           {t}
+  | t=typ_arr                                           {t}
   | t=typ_lam("μ")                                      {`Mu ($loc, t)}
   | t=typ_lam("∃")                                      {`Exists ($loc, t)}
   | t=typ_lam("∀")                                      {`ForAll ($loc, t)}
