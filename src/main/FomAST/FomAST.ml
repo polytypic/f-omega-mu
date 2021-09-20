@@ -263,7 +263,7 @@ module Typ = struct
 
   module VarSet = Set.Make (Var)
 
-  let rec free = function
+  let free' free = function
     | `Const _ -> VarSet.empty
     | `Var (_, i) -> VarSet.singleton i
     | `Lam (_, i, _, e) -> free e |> VarSet.remove i
@@ -272,6 +272,8 @@ module Typ = struct
     | `Arrow (_, d, c) -> VarSet.union (free d) (free c)
     | `Product (_, ls) | `Sum (_, ls) ->
       List.fold_left (fun s (_, t) -> VarSet.union s (free t)) VarSet.empty ls
+
+  let rec free t = free' free t
 
   module VarMap = Map.Make (Var)
 

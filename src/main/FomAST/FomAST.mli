@@ -135,6 +135,7 @@ module Typ : sig
 
   (* *)
 
+  val free' : ('t -> VarSet.t) -> ('t, 'k) f -> VarSet.t
   val is_free' : (Var.t -> 't -> bool) -> Var.t -> ('t, 'k) f -> bool
 
   val subst_par' :
