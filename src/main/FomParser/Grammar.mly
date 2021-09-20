@@ -123,7 +123,7 @@ typ_mu_def:
 
 lab_typ:
   | l=label":"t=typ                                     {(l, t)}
-  | i=typ_rid                                           {(Typ.Var.to_label i, `Var ($loc, i))}
+  | i=typ_rid                                           {(Typ.Var.to_label i, Typ.var i)}
 
 tick_lab_typ:
   | "'"l=label                                          {(l, Typ.product $loc [])}
@@ -142,7 +142,7 @@ typ_bind:
   | i=typ_bid":"k=kind                                  {(i, k)}
 
 typ_atom:
-  | i=typ_rid                                           {`Var ($loc, i)}
+  | i=typ_rid                                           {Typ.var i}
   | "("ts=list_n(typ,",")")"                            {Typ.tuple $loc ts}
   | "{"fs=lab_list(lab_typ)"}"                          {Typ.product $loc fs}
   | "μ""("t=typ")"                                      {`Mu ($loc, t)}

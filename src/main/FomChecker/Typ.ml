@@ -63,9 +63,9 @@ let find_opt_nested_arg_mu at f arity =
     None
   else
     let i = Var.fresh at in
-    let v = `Var (at, i) in
-    let is = List.init arity (fun _ -> Var.fresh at) in
-    let vs = is |> List.map (fun i -> `Var (at, i)) in
+    let v = var i in
+    let is = List.init arity @@ fun _ -> Var.fresh at in
+    let vs = is |> List.map var in
     app at (`App (at, f, v)) vs
     |> norm
     |> find_map_from_all_apps_of i @@ fun _ _ xs ->
@@ -92,8 +92,8 @@ let rec find_opt_non_contractive ids typ =
 let find_opt_non_contractive_mu at f arity =
   match f with
   | `Lam (_, id, _, f) -> (
-    let is = List.init arity (fun _ -> Var.fresh at) in
-    let xs = is |> List.map (fun i -> `Var (at, i)) in
+    let is = List.init arity @@ fun _ -> Var.fresh at in
+    let xs = is |> List.map var in
     match app Loc.dummy f xs |> norm |> unapp with
     | (`Var (_, id') as mu), _ when Var.equal id' id -> Some mu
     | typ, _ -> find_opt_non_contractive (VarSet.singleton id) typ)
@@ -251,7 +251,7 @@ module Goal = struct
 
   let to_subst =
     List.to_seq
-    >>> Seq.map (Pair.map Fun.id @@ fun i -> `Var (Var.at i, i))
+    >>> Seq.map (Pair.map Fun.id var)
     >>> VarMap.of_seq >>> subst_par
 
   let regularize_free_vars goal =
@@ -483,7 +483,7 @@ let to_strict t =
           return t
       | Some (_, id, n) ->
         n := !n + 1;
-        return @@ `Var (Loc.dummy, id))
+        return @@ var id)
   in
   to_strict t
 

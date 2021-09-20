@@ -206,6 +206,7 @@ module Typ = struct
 
   (* Macros *)
 
+  let var v = `Var (Var.at v, v)
   let sort labels = List.sort (Compare.the fst Label.compare) labels
   let product at fs = `Product (at, sort fs)
   let sum at cs = `Sum (at, sort cs)
@@ -419,7 +420,7 @@ module Typ = struct
         if Var.equal lhs_id rhs_id then
           compare lhs_typ rhs_typ
         else
-          let v = `Var (Loc.dummy, Var.fresh Loc.dummy) in
+          let v = var @@ Var.fresh Loc.dummy in
           compare (subst lhs_id v lhs_typ) (subst rhs_id v rhs_typ)
       | `App (_, lhs_fn, lhs_arg), `App (_, rhs_fn, rhs_arg) ->
         compare lhs_arg rhs_arg <>? fun () -> compare lhs_fn rhs_fn
@@ -746,7 +747,7 @@ module Exp = struct
       (Var.of_string at "false", `Const (at, `LitBool false));
       ( Var.of_string at "keep",
         let t = Typ.Var.fresh at in
-        `Gen (at, t, `Star at, `Const (at, `Keep (`Var (at, t)))) );
+        `Gen (at, t, `Star at, `Const (at, `Keep (Typ.var t))) );
     ]
 
   let initial_exp e =

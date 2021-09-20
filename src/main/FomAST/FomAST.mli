@@ -87,6 +87,8 @@ module Typ : sig
 
   (* Macros *)
 
+  val var : Var.t -> [> `Var of Loc.t * Var.t]
+
   val product :
     Loc.t -> (Label.t * 't) list -> [> `Product of Loc.t * (Label.t * 't) list]
 
