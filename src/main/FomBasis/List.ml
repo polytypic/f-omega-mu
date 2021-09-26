@@ -1,5 +1,9 @@
 open Compare
 
+(* *)
+
+include Stdlib.List
+
 let for_alli p =
   let rec loop i = function
     | [] -> true
@@ -8,7 +12,7 @@ let for_alli p =
   loop 0
 
 let equal_with equal xs ys =
-  try List.for_all2 equal xs ys with Invalid_argument _ -> false
+  try for_all2 equal xs ys with Invalid_argument _ -> false
 
 let rec compare_with compare xs ys =
   match (xs, ys) with
@@ -32,4 +36,4 @@ let rec share_phys_eq share_phys_eq_elem original changed =
     let cs = share_phys_eq share_phys_eq_elem os cs in
     let c = share_phys_eq_elem o c in
     if os == cs && o == c then original else c :: cs
-  | _ -> raise @@ Invalid_argument "ListExt.share_phys_eq"
+  | _ -> raise @@ Invalid_argument "List.share_phys_eq"

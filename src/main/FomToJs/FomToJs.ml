@@ -261,7 +261,7 @@ module Exp = struct
     | `Mu e -> `Mu (subst i the e)
     | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
     | `Product fs ->
-      `Product (ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst i the)) fs)
+      `Product (List.map_phys_eq (Pair.map_phys_eq Fun.id (subst i the)) fs)
     | `Select (e, l) -> `Select (subst i the e, subst i the l)
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case cs -> `Case (subst i the cs)
@@ -305,7 +305,7 @@ module Exp = struct
             let v = `Var (Var.fresh Loc.dummy) in
             compare (subst vl v el) (subst vr v er)
         | `Product lls, `Product rls ->
-          ListExt.compare_with
+          List.compare_with
             (fun (ll, el) (lr, er) ->
               Label.compare ll lr <>? fun () -> compare el er)
             lls rls

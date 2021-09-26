@@ -1,3 +1,5 @@
+include Stdlib.Map
+
 let prefer_lhs _ l r =
   match (l, r) with Some l, _ -> Some l | _, Some r -> Some r | _, _ -> None
 

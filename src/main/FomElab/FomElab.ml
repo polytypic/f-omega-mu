@@ -17,7 +17,7 @@ module Path = struct
 
   (* *)
 
-  let is_absolute path = StringExt.is_prefix "/" path
+  let is_absolute path = String.is_prefix "/" path
 
   let ensure_ext ext path =
     if Filename.extension path = ext then path else path ^ ext
@@ -42,7 +42,7 @@ module Path = struct
   (* *)
 
   let is_http path =
-    StringExt.is_prefix "https://" path || StringExt.is_prefix "http://" path
+    String.is_prefix "https://" path || String.is_prefix "http://" path
 
   let resolve loc lit =
     let path = JsonString.to_utf8 lit in
@@ -55,7 +55,7 @@ module Path = struct
            path
          else
            parent_dir ^ "/" ^ path)
-    |> Pair.map Fun.id FilenameExt.canonic
+    |> Pair.map Fun.id Filename.canonic
     |> join_origin_and_path
 end
 
@@ -346,8 +346,8 @@ let rec elaborate_def = function
          >>- fun annot -> (env, annot))
     in
     let* annot = get Annot.field in
-    MVar.mutate annot (Annot.LocMap.merge MapExt.prefer_lhs newer)
-    >> get_as TypAliases.field @@ TypAliases.merge MapExt.prefer_lhs env
+    MVar.mutate annot (Annot.LocMap.merge Map.prefer_lhs newer)
+    >> get_as TypAliases.field @@ TypAliases.merge Map.prefer_lhs env
 
 and elaborate_typ = function
   | `Mu (at', t) -> elaborate_typ t >>- fun t -> `Mu (at', t)

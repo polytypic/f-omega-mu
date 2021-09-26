@@ -43,7 +43,9 @@ module Field : sig
   val set : ('r -> ('a, 'r) t) -> 'a -> 'r uop
 end
 
-module FilenameExt : sig
+module Filename : sig
+  include module type of Stdlib.Filename
+
   val canonic : string -> string
 end
 
@@ -59,7 +61,9 @@ module JsonString : sig
   val to_utf8 : t -> string
 end
 
-module ListExt : sig
+module List : sig
+  include module type of Stdlib.List
+
   val for_alli : (int -> 'a -> bool) -> 'a list -> bool
   val equal_with : 'a bpr -> 'a list bpr
   val compare_with : 'a cmp -> 'a list cmp
@@ -67,7 +71,9 @@ module ListExt : sig
   val share_phys_eq : 'a bop -> 'a list bop
 end
 
-module MapExt : sig
+module Map : sig
+  include module type of Stdlib.Map
+
   val prefer_lhs : 'k -> 'v option -> 'v option -> 'v option
   val prefer_rhs : 'k -> 'v option -> 'v option -> 'v option
 end
@@ -293,7 +299,9 @@ module MVar : sig
   val try_modify : 'v t -> ('v -> ('r, 'e, 'v * 'a) Rea.t) -> ('r, 'e, 'a) Rea.t
 end
 
-module StringExt : sig
+module String : sig
+  include module type of Stdlib.String
+
   val is_prefix : string bpr
   val is_suffix : string bpr
   val drop : int -> string uop

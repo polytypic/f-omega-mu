@@ -139,9 +139,9 @@ let rec ground t =
      | `Exists (at', f) -> `Exists (at', ground f)
      | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
      | `Product (at', ls) ->
-       `Product (at', ListExt.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
+       `Product (at', List.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
      | `Sum (at', ls) ->
-       `Sum (at', ListExt.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
+       `Sum (at', List.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
 
 (* *)
 
@@ -374,9 +374,7 @@ and contract_labels ls =
   let ls' =
     sls'
     |> List.map (fun (l, (_, t)) -> (l, t))
-    |> ListExt.share_phys_eq
-         (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x))
-         ls
+    |> List.share_phys_eq (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x)) ls
   in
   let s =
     sls'
@@ -436,14 +434,10 @@ let rec replace_closed_mus m =
     `Arrow (at', replace_closed_mus m d, replace_closed_mus m c)
   | `Product (at', ls) ->
     `Product
-      ( at',
-        ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m)) ls
-      )
+      (at', List.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m)) ls)
   | `Sum (at', ls) ->
     `Sum
-      ( at',
-        ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m)) ls
-      )
+      (at', List.map_phys_eq (Pair.map_phys_eq Fun.id (replace_closed_mus m)) ls)
 
 (* *)
 

@@ -1,3 +1,5 @@
+include Stdlib.Filename
+
 let canonic path =
   let rec loop p s =
     match (p, s) with

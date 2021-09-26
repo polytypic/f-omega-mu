@@ -29,8 +29,8 @@ module Annot = struct
     setting field (empty ())
       ( op >>= fun result ->
         let* newer = get field >>= MVar.get in
-        MVar.mutate current (LocMap.merge MapExt.prefer_lhs newer)
-        >> return result )
+        MVar.mutate current (LocMap.merge Map.prefer_lhs newer) >> return result
+      )
 
   class con (annotations : t) =
     object

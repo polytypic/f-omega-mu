@@ -127,8 +127,7 @@ end
 module Tuple = struct
   let is_tuple labels =
     labels
-    |> ListExt.for_alli @@ fun i (l, _) ->
-       Label.to_string l = Int.to_string (i + 1)
+    |> List.for_alli @@ fun i (l, _) -> Label.to_string l = Int.to_string (i + 1)
 end
 
 module Typ = struct
@@ -301,7 +300,7 @@ module Typ = struct
     | `Sum (at, ls) -> `Sum (at, subst_rec_labeled env ls)
 
   and subst_rec_labeled env =
-    ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
+    List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
@@ -339,9 +338,9 @@ module Typ = struct
     | `Arrow (at, d, c) -> `Arrow (at, subst_par env d, subst_par env c)
     | `Product (at, ls) ->
       `Product
-        (at, ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
+        (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
     | `Sum (at, ls) ->
-      `Sum (at, ListExt.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
+      `Sum (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
 
   let rec subst_par env = keep_phys_eq @@ subst_par' subst_par is_free env
   let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
@@ -366,9 +365,9 @@ module Typ = struct
     | `Exists (at, t) -> `Exists (at, norm t)
     | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
     | `Product (at, ls) ->
-      `Product (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+      `Product (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id norm))
     | `Sum (at, ls) ->
-      `Sum (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+      `Sum (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id norm))
 
   let rec norm t = t |> keep_phys_eq @@ norm' norm subst is_free
 
@@ -388,9 +387,9 @@ module Typ = struct
          | `Arrow (at, d, c) -> `Arrow (at, freshen d, freshen c)
          | `Product (at, ls) ->
            `Product
-             (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
+             (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
          | `Sum (at, ls) ->
-           `Sum (at, ls |> ListExt.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
+           `Sum (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
     in
     freshen t
 
@@ -433,7 +432,7 @@ module Typ = struct
         compare lhs_d rhs_d <>? fun () -> compare lhs_c rhs_c
       | `Product (_, lhs_ls), `Product (_, rhs_ls)
       | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-        ListExt.compare_with
+        List.compare_with
           (fun (lhs_l, lhs_t) (rhs_l, rhs_t) ->
             Label.compare lhs_l rhs_l <>? fun () -> compare lhs_t rhs_t)
           lhs_ls rhs_ls
