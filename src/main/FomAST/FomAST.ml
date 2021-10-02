@@ -359,7 +359,9 @@ module Typ = struct
     | `App (at, f, x) -> (
       let x' = norm x in
       match norm f with
-      | `Lam (_, i, _, t) -> norm (subst i x' t)
+      | `Lam (_, i, _, t) -> (
+        let t' = subst i x' t in
+        match x' with `Lam _ -> norm t' | _ -> t')
       | f' -> `App (at, f', x'))
     | `ForAll (at, t) -> `ForAll (at, norm t)
     | `Exists (at, t) -> `Exists (at, norm t)
