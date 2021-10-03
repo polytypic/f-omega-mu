@@ -127,20 +127,17 @@ module Typ : sig
 
   (* *)
 
+  val subst_rec : t VarMap.t -> t uop
+
+  (* *)
+
   val free' : ('t -> VarSet.t) -> ('t, 'k) f -> VarSet.t
   val is_free' : (Var.t -> 't -> bool) -> Var.t -> ('t, 'k) f -> bool
 
-  val subst_par' :
+  val subst_of_norm' :
     (([> ('t, 'k) f] as 't) VarMap.t -> 't uop) ->
     (Var.t -> 't -> bool) ->
     't VarMap.t ->
-    ('t, 'k) f ->
-    't
-
-  val norm' :
-    ([> ('t, 'k) f] as 't) uop ->
-    (Var.t -> 't -> 't -> 't) ->
-    (Var.t -> 't -> bool) ->
     ('t, 'k) f ->
     't
 
@@ -148,10 +145,7 @@ module Typ : sig
 
   val free : t -> VarSet.t
   val is_free : Var.t -> t -> bool
-  val subst : Var.t -> t -> t uop
-  val subst_par : t VarMap.t -> t uop
-  val subst_rec : t VarMap.t -> t uop
-  val norm : t -> t
+  val subst_of_norm : t VarMap.t -> t uop
   val mu_of_norm : Loc.t -> t uop
   val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t uop
   val app_of_norm : Loc.t -> t bop

@@ -316,38 +316,6 @@ module Typ = struct
   let rec is_free id = is_free' is_free id
   let is_free = Profiling.Counter.wrap'2 "is_free" is_free
 
-  let subst_par' subst_par is_free env = function
-    | `Mu (at, t) -> `Mu (at, subst_par env t)
-    | `Const _ as inn -> inn
-    | `Var (_, i) as inn -> (
-      match VarMap.find_opt i env with None -> inn | Some t -> t)
-    | `Lam (at, i, k, t) as inn ->
-      let env = VarMap.remove i env in
-      if VarMap.is_empty env then
-        inn
-      else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
-        let i' = Var.freshen i in
-        let v' = `Var (at, i') in
-        let t' = subst_par (VarMap.add i v' env) t in
-        `Lam (at, i', k, t')
-      else
-        `Lam (at, i, k, subst_par env t)
-    | `App (at, f, x) -> `App (at, subst_par env f, subst_par env x)
-    | `ForAll (at, t) -> `ForAll (at, subst_par env t)
-    | `Exists (at, t) -> `Exists (at, subst_par env t)
-    | `Arrow (at, d, c) -> `Arrow (at, subst_par env d, subst_par env c)
-    | `Product (at, ls) ->
-      `Product
-        (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
-    | `Sum (at, ls) ->
-      `Sum (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_par env)) ls)
-
-  let rec subst_par env = keep_phys_eq @@ subst_par' subst_par is_free env
-  let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
-  let subst = Profiling.Counter.wrap'3 "subst" subst
-  let subst_par env t = if VarMap.is_empty env then t else subst_par env t
-  let subst_par = Profiling.Counter.wrap'2 "subst_par" subst_par
-
   let mu_of_norm' is_free at = function
     | `Lam (_, i, _, t) when not (is_free i t) -> t
     | t' -> `Mu (at, t')
@@ -356,31 +324,49 @@ module Typ = struct
     | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
     | t' -> `Lam (at, i, k, t')
 
-  let app_of_norm' norm subst at f' x' =
+  let app_of_norm' subst_of_norm at f' x' =
     match f' with
-    | `Lam (_, i, _, t) -> (
-      let t' = subst i x' t in
-      match x' with `Lam _ -> norm t' | _ -> t')
+    | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
     | f' -> `App (at, f', x')
 
-  let norm' norm subst is_free = function
-    | `Mu (at, t) -> mu_of_norm' is_free at (norm t)
-    | (`Const _ | `Var _) as inn -> inn
-    | `Lam (at, i, k, t) -> lam_of_norm' is_free at i k (norm t)
-    | `App (at, f, x) -> app_of_norm' norm subst at (norm f) (norm x)
-    | `ForAll (at, t) -> `ForAll (at, norm t)
-    | `Exists (at, t) -> `Exists (at, norm t)
-    | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
+  let subst_of_norm' subst_of_norm is_free env = function
+    | `Var (_, i) as inn -> (
+      match VarMap.find_opt i env with None -> inn | Some t -> t)
+    | `Mu (at, t) -> mu_of_norm' is_free at (subst_of_norm env t)
+    | `Lam (at, i, k, t) as inn ->
+      let env = VarMap.remove i env in
+      if VarMap.is_empty env then
+        inn
+      else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
+        let i' = Var.freshen i in
+        let v' = `Var (at, i') in
+        let t' = subst_of_norm (VarMap.add i v' env) t in
+        lam_of_norm' is_free at i' k t'
+      else
+        lam_of_norm' is_free at i k (subst_of_norm env t)
+    | `App (at, f, x) ->
+      app_of_norm' subst_of_norm at (subst_of_norm env f) (subst_of_norm env x)
+    | `Const _ as inn -> inn
+    | `ForAll (at, t) -> `ForAll (at, subst_of_norm env t)
+    | `Exists (at, t) -> `Exists (at, subst_of_norm env t)
+    | `Arrow (at, d, c) -> `Arrow (at, subst_of_norm env d, subst_of_norm env c)
     | `Product (at, ls) ->
-      `Product (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+      `Product
+        (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_of_norm env)) ls)
     | `Sum (at, ls) ->
-      `Sum (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id norm))
+      `Sum
+        (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_of_norm env)) ls)
 
-  let rec norm t = t |> keep_phys_eq @@ norm' norm subst is_free
-  let norm = Profiling.Counter.wrap'1 "norm" norm
+  let rec subst_of_norm env =
+    keep_phys_eq @@ subst_of_norm' subst_of_norm is_free env
+
+  let subst_of_norm env t =
+    if VarMap.is_empty env then t else subst_of_norm env t
+
+  let subst_of_norm = Profiling.Counter.wrap'2 "subst_of_norm" subst_of_norm
   let mu_of_norm at = mu_of_norm' is_free at
   let lam_of_norm at = lam_of_norm' is_free at
-  let app_of_norm at = app_of_norm' norm subst at
+  let app_of_norm at = app_of_norm' subst_of_norm at
   let apps_of_norm at = List.fold_left @@ app_of_norm at
 
   (* Freshening *)

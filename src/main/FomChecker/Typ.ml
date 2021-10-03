@@ -265,7 +265,7 @@ module Goal = struct
   let to_subst =
     List.to_seq
     >>> Seq.map (Pair.map Fun.id var)
-    >>> VarMap.of_seq >>> subst_par
+    >>> VarMap.of_seq >>> subst_of_norm
 
   let regularize_free_vars goal =
     map (goal |> free_vars_to_regular_assoc |> to_subst) goal
@@ -276,7 +276,9 @@ module Goal = struct
     else
       let i = Var.fresh Loc.dummy in
       let v = `Var (Loc.dummy, i) in
-      (i, (subst li v lt, subst ri v rt))
+      ( i,
+        ( subst_of_norm (VarMap.singleton li v) lt,
+          subst_of_norm (VarMap.singleton ri v) rt ) )
 end
 
 (* *)

@@ -39,19 +39,26 @@ let () =
 
 (* *)
 
+let norm typ =
+  Typ.infer typ >>- fst
+  |> with_env (ignore >>> Env.empty)
+  |> try_in return @@ fun _ -> fail (Failure "norm")
+
 let test_typs_parse_as name source1 source2 check =
   test name @@ fun () ->
   parse_typ source1 @@ fun typ1 -> parse_typ source2 (check typ1)
 
 let test_equal_typs source1 source2 =
   test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
-  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2)
+  let* typ1 = norm typ1 and* typ2 = norm typ2 in
+  Typ.is_equal_of_norm (typ1, typ2)
   |> with_env (ignore >>> Env.empty)
   >>= verify
 
 let test_not_equal_typs source1 source2 =
   test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
-  Typ.is_equal_of_norm (Typ.norm typ1, Typ.norm typ2)
+  let* typ1 = norm typ1 and* typ2 = norm typ2 in
+  Typ.is_equal_of_norm (typ1, typ2)
   |> with_env (ignore >>> Env.empty)
   >>- not >>= verify
 
@@ -61,7 +68,7 @@ let () =
   test_equal_typs "λx.x" "λy.μys.y";
   test_equal_typs "∀x.x→x" "∀y.y→y";
   test_equal_typs "λf:*→*.f" "λf.λy.(λx.f x) y";
-  test_equal_typs "μx.x" "μx.μy.y";
+  test_equal_typs "μx.{x}" "μx.μy.{x:y}";
   test_not_equal_typs "∀x.∀y.x→y" "∀y.∀x.x→y";
   test_not_equal_typs "∀x.x→x" "∀y.y→y→y";
   test_not_equal_typs "λx.μxs.x→xs" "λy.y→y"
@@ -72,15 +79,15 @@ let parse_exp source and_then =
   source
   |> Parser.parse_utf_8 Grammar.program Lexer.offside
   >>= elaborate
-  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> with_env (ignore >>> Env.empty)
   |> try_in and_then @@ fun _ -> verify false
 
 let testInfersAs name typ exp =
   test name @@ fun () ->
   parse_typ typ @@ fun expected ->
-  let expected = Typ.norm expected in
+  let* expected = norm expected in
   parse_exp exp @@ fun (_, actual, _) ->
-  let actual = Typ.norm actual in
+  let* actual = norm actual in
   Typ.is_equal_of_norm (expected, actual) |> with_env (ignore >>> Env.empty)
   >>= fun are_equal ->
   if not are_equal then (
