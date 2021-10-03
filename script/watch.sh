@@ -12,13 +12,13 @@ tmux select-pane -t 0
 tmux splitw -h
 
 tmux select-pane -t 0
-tmux send-keys "npx livereload docs --wait 100" C-m
+tmux send-keys "npx livereload docs --wait 250" C-m
 
 tmux select-pane -t 1
 tmux send-keys "npx serve docs" C-m
 
 tmux select-pane -t 2
-tmux send-keys "watchexec -i docs -- \"(\
+tmux send-keys "watchexec -d 250 -i docs -- \"(\
   echo $'<<< <<< <<<' && \
   dune build --profile release && \
   ./script/docs.sh && \
