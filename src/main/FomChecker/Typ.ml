@@ -74,10 +74,7 @@ let find_opt_nested_arg_mu at f arity =
           | t ->
             is |> List.find_map @@ fun i -> if is_free i t then Some t else None
 
-let find_opt_nested_arg t =
-  match unapp t with
-  | `Mu (at, f), xs -> find_opt_nested_arg_mu at f (List.length xs)
-  | _ -> None
+(* *)
 
 let rec find_opt_non_contractive ids typ =
   match unapp typ with
