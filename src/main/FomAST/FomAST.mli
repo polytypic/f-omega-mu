@@ -67,6 +67,8 @@ module Typ : sig
   end
 
   module Var : Id.S
+  module VarSet : Set.S with type elt = Var.t
+  module VarMap : Map.S with type key = Var.t
 
   type ('t, 'k) f =
     [ `Mu of Loc.t * 't
@@ -100,11 +102,7 @@ module Typ : sig
   (* Comparison *)
 
   val compare' :
-    't cmp ->
-    (Var.t -> [> `Var of Loc.t * Var.t] -> 't -> 't) ->
-    ('t, Kind.t) f ->
-    ('t, Kind.t) f ->
-    int
+    (Var.t VarMap.t -> 't cmp) -> Var.t VarMap.t -> ('t, Kind.t) f cmp
 
   val compare : t cmp
 
@@ -122,11 +120,6 @@ module Typ : sig
 
   val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
   val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
-
-  (* Substitution *)
-
-  module VarSet : Set.S with type elt = Var.t
-  module VarMap : Map.S with type key = Var.t
 
   (* *)
 
