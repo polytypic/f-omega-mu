@@ -112,7 +112,6 @@ module Typ : sig
 
   (* Type applications *)
 
-  val app : Loc.t -> t -> t list -> t
   val unapp : t -> t * t list
   val arity_and_result : t -> int * t
 
@@ -153,6 +152,10 @@ module Typ : sig
   val subst_par : t VarMap.t -> t uop
   val subst_rec : t VarMap.t -> t uop
   val norm : t -> t
+  val mu_of_norm : Loc.t -> t uop
+  val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t uop
+  val app_of_norm : Loc.t -> t bop
+  val apps_of_norm : Loc.t -> t -> t list -> t
 
   (* Freshening *)
 

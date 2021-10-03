@@ -32,7 +32,9 @@ end
 module Typ = struct
   include Typ
 
-  let check_and_norm typ = check (`Star (at typ)) typ >> resolve typ >>- norm
+  let check_and_norm typ =
+    let* typ = check (`Star (at typ)) typ in
+    resolve typ
 
   let check_arrow at typ =
     match unfold_of_norm typ with
@@ -101,13 +103,12 @@ let rec infer = function
       Annot.Typ.def d d_kind >> Typ.VarMap.adding d d_kind (infer r)
     in
     let* d_kind = Kind.resolve d_kind >>- Kind.ground in
-    return @@ `ForAll (at', Typ.norm (`Lam (at', d, d_kind, r_typ)))
+    return @@ `ForAll (at', Typ.lam_of_norm at' d d_kind r_typ)
   | `Inst (at', f, x_typ) ->
     let* f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
-    let* x_kind = Typ.infer x_typ in
-    Kind.unify at' d_kind x_kind
-    >> return @@ Typ.norm @@ `App (at', f_con, x_typ)
+    let* x_typ, x_kind = Typ.infer x_typ in
+    Kind.unify at' d_kind x_kind >> return @@ Typ.app_of_norm at' f_con x_typ
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
     Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r)
@@ -165,17 +166,17 @@ let rec infer = function
     `Arrow (at', d_typ, c_typ)
   | `Pack (at', t, e, et) ->
     let* e_typ = infer e
-    and* t_kind = Typ.infer t
+    and* t, t_kind = Typ.infer t
     and* et = Typ.check_and_norm et in
     let* et_con, d_kind = Typ.check_exists at' et in
     Kind.unify at' d_kind t_kind
     >>
-    let et_t = Typ.norm (`App (at', et_con, t)) in
+    let et_t = Typ.app_of_norm at' et_con t in
     Typ.check_sub_of_norm (at e) (e_typ, et_t) >> return et
   | `UnpackIn (at', tid, id, v, e) ->
     let* v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
-    let id_typ = Typ.norm (`App (at', v_con, `Var (at', tid))) in
+    let id_typ = Typ.app_of_norm at' v_con @@ `Var (at', tid) in
     let* e_typ =
       Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
       >> VarMap.adding id id_typ (Typ.VarMap.adding tid d_kind (infer e))

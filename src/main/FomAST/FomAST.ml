@@ -217,8 +217,6 @@ module Typ = struct
 
   (* Type applications *)
 
-  let app at = List.fold_left @@ fun f x -> `App (at, f, x)
-
   let unapp t =
     let rec loop xs = function
       | `App (_, f, x) -> loop (x :: xs) f
@@ -350,23 +348,26 @@ module Typ = struct
   let subst_par env t = if VarMap.is_empty env then t else subst_par env t
   let subst_par = Profiling.Counter.wrap'2 "subst_par" subst_par
 
+  let mu_of_norm' is_free at = function
+    | `Lam (_, i, _, t) when not (is_free i t) -> t
+    | t' -> `Mu (at, t')
+
+  let lam_of_norm' is_free at i k = function
+    | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
+    | t' -> `Lam (at, i, k, t')
+
+  let app_of_norm' norm subst at f' x' =
+    match f' with
+    | `Lam (_, i, _, t) -> (
+      let t' = subst i x' t in
+      match x' with `Lam _ -> norm t' | _ -> t')
+    | f' -> `App (at, f', x')
+
   let norm' norm subst is_free = function
-    | `Mu (at, t) -> (
-      match norm t with
-      | `Lam (_, i, _, t) when not (is_free i t) -> t
-      | t' -> `Mu (at, t'))
+    | `Mu (at, t) -> mu_of_norm' is_free at (norm t)
     | (`Const _ | `Var _) as inn -> inn
-    | `Lam (at, i, k, t) -> (
-      match norm t with
-      | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
-      | t' -> `Lam (at, i, k, t'))
-    | `App (at, f, x) -> (
-      let x' = norm x in
-      match norm f with
-      | `Lam (_, i, _, t) -> (
-        let t' = subst i x' t in
-        match x' with `Lam _ -> norm t' | _ -> t')
-      | f' -> `App (at, f', x'))
+    | `Lam (at, i, k, t) -> lam_of_norm' is_free at i k (norm t)
+    | `App (at, f, x) -> app_of_norm' norm subst at (norm f) (norm x)
     | `ForAll (at, t) -> `ForAll (at, norm t)
     | `Exists (at, t) -> `Exists (at, norm t)
     | `Arrow (at, d, c) -> `Arrow (at, norm d, norm c)
@@ -377,6 +378,10 @@ module Typ = struct
 
   let rec norm t = t |> keep_phys_eq @@ norm' norm subst is_free
   let norm = Profiling.Counter.wrap'1 "norm" norm
+  let mu_of_norm at = mu_of_norm' is_free at
+  let lam_of_norm at = lam_of_norm' is_free at
+  let app_of_norm at = app_of_norm' norm subst at
+  let apps_of_norm at = List.fold_left @@ app_of_norm at
 
   (* Freshening *)
 

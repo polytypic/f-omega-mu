@@ -66,8 +66,7 @@ let find_opt_nested_arg_mu at f arity =
     let v = var i in
     let is = List.init arity @@ fun _ -> Var.fresh at in
     let vs = is |> List.map var in
-    app at (`App (at, f, v)) vs
-    |> norm
+    apps_of_norm at (app_of_norm at f v) vs
     |> find_map_from_all_apps_of i @@ fun _ _ xs ->
        xs
        |> List.find_map @@ function
@@ -83,7 +82,7 @@ let find_opt_nested_arg t =
 let rec find_opt_non_contractive ids typ =
   match unapp typ with
   | `Mu (_, `Lam (_, id, _, f)), xs -> (
-    match app Loc.dummy f xs |> norm |> unapp with
+    match apps_of_norm Loc.dummy f xs |> unapp with
     | (`Var (_, id') as mu), _ when Var.equal id' id || VarSet.mem id' ids ->
       Some mu
     | typ, _ -> find_opt_non_contractive (VarSet.add id ids) typ)
@@ -94,7 +93,7 @@ let find_opt_non_contractive_mu at f arity =
   | `Lam (_, id, _, f) -> (
     let is = List.init arity @@ fun _ -> Var.fresh at in
     let xs = is |> List.map var in
-    match app Loc.dummy f xs |> norm |> unapp with
+    match apps_of_norm Loc.dummy f xs |> unapp with
     | (`Var (_, id') as mu), _ when Var.equal id' id -> Some mu
     | typ, _ -> find_opt_non_contractive (VarSet.singleton id) typ)
   | _ -> None
@@ -155,7 +154,7 @@ let ground = Profiling.Counter.wrap'1 "ground" ground
 
 let rec infer = function
   | `Mu (at', f) as typ ->
-    let* f_kind = infer f in
+    let* f, f_kind = infer f in
     let kind = Kind.fresh at' in
     Kind.unify at' (`Arrow (at', kind, kind)) f_kind
     >> let* arity = Kind.resolve kind >>- Kind.min_arity in
@@ -167,38 +166,47 @@ let rec infer = function
           |> MOption.iter (fun typ' ->
                  let* typ = resolve typ and* typ' = resolve typ' in
                  fail @@ `Error_mu_non_contractive (at', typ, typ')))
-       >> return kind
-  | `Const (at', c) -> return @@ Const.kind_of at' c
-  | `Var (at', i) -> (
+       >> return (mu_of_norm at' f, kind)
+  | `Const (at', c) as t -> return @@ (t, Const.kind_of at' c)
+  | `Var (at', i) as t -> (
     let* i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
     | None -> fail @@ `Error_typ_var_unbound (at', i)
-    | Some (def, i_kind) -> Annot.Typ.use i (Var.at def) >> return i_kind)
+    | Some (def, i_kind) -> Annot.Typ.use i (Var.at def) >> return (t, i_kind))
   | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = Annot.Typ.def d d_kind >> VarMap.adding d d_kind (infer r) in
-    `Arrow (at', d_kind, r_kind)
+    let+ r, r_kind =
+      Annot.Typ.def d d_kind >> VarMap.adding d d_kind (infer r)
+    in
+    (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
   | `App (at', f, x) ->
-    let* f_kind = infer f and* d_kind = infer x in
+    let* f, f_kind = infer f and* x, d_kind = infer x in
     let c_kind = Kind.fresh at' in
-    Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
-  | (`ForAll (_, f) | `Exists (_, f)) as typ -> infer_quantifier typ f
+    Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
+    >> return (app_of_norm at' f x, c_kind)
+  | `ForAll (at', f) -> infer_quantifier at' f @@ fun at' f -> `ForAll (at', f)
+  | `Exists (at', f) -> infer_quantifier at' f @@ fun at' f -> `Exists (at', f)
   | `Arrow (at', d, c) ->
     let star = `Star at' in
-    check star d >> check star c >> return star
-  | `Product (at', ls) | `Sum (at', ls) ->
-    let star = `Star at' in
-    ls |> MList.iter (snd >>> check star) >> return star
+    let+ d = check star d and+ c = check star c in
+    (`Arrow (at', d, c), star)
+  | `Product (at', ls) -> infer_row at' ls @@ fun at' ls -> `Product (at', ls)
+  | `Sum (at', ls) -> infer_row at' ls @@ fun at' ls -> `Sum (at', ls)
 
-and infer_quantifier t f =
-  let* f_kind = infer f in
-  let at' = at t in
+and infer_row at' ls con =
+  let star = `Star at' in
+  let+ ls = MList.traverse (MPair.traverse return (check star)) ls in
+  (con at' ls, star)
+
+and infer_quantifier at' f con =
+  let* f, f_kind = infer f in
   let d_kind = Kind.fresh at' in
   let c_kind = `Star at' in
-  Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind >> return c_kind
+  Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
+  >> return (con at' f, c_kind)
 
 and check expected t =
-  let* actual = infer t in
-  Kind.unify (at t) expected actual
+  let* t, actual = infer t in
+  Kind.unify (at t) expected actual >> return t
 
 (* *)
 
@@ -237,7 +245,7 @@ let kind_of t = kind_of t >>= Kind.resolve
 
 (* *)
 
-let unfold at f mu xs = FomAST.Typ.app at (`App (at, f, mu)) xs |> norm
+let unfold at f mu xs = apps_of_norm at (app_of_norm at f mu) xs
 
 let rec unfold_of_norm typ =
   match unapp typ with
