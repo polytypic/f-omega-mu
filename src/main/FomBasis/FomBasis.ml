@@ -16,6 +16,7 @@ module Map = Map
 module Monad = Monad
 module MVar = MVar
 module Pair = Pair
+module Profiling = Profiling
 module Rea = Rea
 module Res = Res
 module String = String

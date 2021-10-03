@@ -126,6 +126,12 @@ let rec resolve t =
   in
   keep_phys_eq' t t'
 
+let resolve_counter = Profiling.Counter.register "resolve"
+
+let resolve t =
+  Profiling.Counter.inc resolve_counter;
+  resolve t
+
 (* *)
 
 let rec ground t =
@@ -142,6 +148,8 @@ let rec ground t =
        `Product (at', List.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
      | `Sum (at', ls) ->
        `Sum (at', List.map_phys_eq (Pair.map_phys_eq Fun.id ground) ls)
+
+let ground = Profiling.Counter.wrap'1 "ground" ground
 
 (* *)
 

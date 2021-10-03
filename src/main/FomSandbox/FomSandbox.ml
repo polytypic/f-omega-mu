@@ -260,6 +260,7 @@ let js_codemirror_mode =
     method offset input i = Lexer.offset_as_utf_16 (Js.to_string input) i
 
     method check path input max_width (on_result : _ Cb.t) =
+      Profiling.Counter.reset_all ();
       let path = Js.to_string path in
       let env = FomToJsC.Env.empty ~fetch () in
       let def_uses () =
@@ -275,6 +276,7 @@ let js_codemirror_mode =
             (utf8string "type:" ^^ t |> to_js_string ~max_width, deps))
       |> try_in
            (fun (typ, deps) ->
+             Profiling.Counter.dump_all ();
              let* defUses = def_uses () in
              Cb.invoke on_result
              @@ object%js
@@ -287,6 +289,7 @@ let js_codemirror_mode =
                   val diagnostics = Js.array [||]
                 end)
            (fun error ->
+             Profiling.Counter.dump_all ();
              let* defUses = def_uses () in
              let diagnostics = Error.to_diagnostics error in
              Cb.invoke on_result

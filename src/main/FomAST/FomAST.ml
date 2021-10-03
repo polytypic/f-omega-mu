@@ -273,6 +273,7 @@ module Typ = struct
       List.fold_left (fun s (_, t) -> VarSet.union s (free t)) VarSet.empty ls
 
   let rec free t = free' free t
+  let free = Profiling.Counter.wrap'1 "free" free
 
   module VarMap = Map.Make (Var)
 
@@ -315,6 +316,7 @@ module Typ = struct
       ls |> List.exists @@ fun (_, t) -> is_free id t
 
   let rec is_free id = is_free' is_free id
+  let is_free = Profiling.Counter.wrap'2 "is_free" is_free
 
   let subst_par' subst_par is_free env = function
     | `Mu (at, t) -> `Mu (at, subst_par env t)
@@ -344,7 +346,9 @@ module Typ = struct
 
   let rec subst_par env = keep_phys_eq @@ subst_par' subst_par is_free env
   let subst i' t' t = subst_par (VarMap.add i' t' VarMap.empty) t
+  let subst = Profiling.Counter.wrap'3 "subst" subst
   let subst_par env t = if VarMap.is_empty env then t else subst_par env t
+  let subst_par = Profiling.Counter.wrap'2 "subst_par" subst_par
 
   let norm' norm subst is_free = function
     | `Mu (at, t) -> (
@@ -372,10 +376,11 @@ module Typ = struct
       `Sum (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id norm))
 
   let rec norm t = t |> keep_phys_eq @@ norm' norm subst is_free
+  let norm = Profiling.Counter.wrap'1 "norm" norm
 
   (* Freshening *)
 
-  let freshen t =
+  let freshen (t : t) : t =
     let env = ref Kind.UnkMap.empty in
     let rec freshen t =
       t
@@ -394,6 +399,8 @@ module Typ = struct
            `Sum (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
     in
     freshen t
+
+  let freshen = Profiling.Counter.wrap'1 "freshen" freshen
 
   (* Comparison *)
 
@@ -441,6 +448,7 @@ module Typ = struct
       | _ -> index lhs - index rhs
 
   let rec compare lhs rhs = compare' compare subst lhs rhs
+  let compare = Profiling.Counter.wrap'2 "compare" compare
 
   (* Formatting *)
 

@@ -299,6 +299,23 @@ module MVar : sig
   val try_modify : 'v t -> ('v -> ('r, 'e, 'v * 'a) Rea.t) -> ('r, 'e, 'a) Rea.t
 end
 
+module Profiling : sig
+  module Counter : sig
+    type t
+
+    val register : string -> t
+    val inc : t -> unit
+    val reset_all : unit -> unit
+    val dump_all : unit -> unit
+
+    (* *)
+
+    val wrap'1 : string -> ('a -> 'b) -> 'a -> 'b
+    val wrap'2 : string -> ('a -> 'b -> 'c) -> 'a -> 'b -> 'c
+    val wrap'3 : string -> ('a -> 'b -> 'c -> 'd) -> 'a -> 'b -> 'c -> 'd
+  end
+end
+
 module String : sig
   include module type of Stdlib.String
 
