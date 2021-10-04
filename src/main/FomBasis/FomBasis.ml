@@ -8,6 +8,7 @@ module Compare = Compare
 module Exn = Exn
 module Field = Field
 module Filename = Filename
+module Fun = Fun
 module IVar = IVar
 module JsonString = JsonString
 module LVar = LVar
@@ -40,5 +41,5 @@ let ( <>? ) = Compare.( <>? )
 
 (* *)
 
-let ( >>> ) ab bc a = bc (ab a)
-let ( <<< ) bc ab a = bc (ab a)
+let ( >>> ) = Fun.( >>> )
+let ( <<< ) = Fun.( <<< )

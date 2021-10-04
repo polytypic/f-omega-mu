@@ -49,6 +49,13 @@ module Filename : sig
   val canonic : string -> string
 end
 
+module Fun : sig
+  include module type of Stdlib.Fun
+
+  val ( >>> ) : ('a -> 'b) -> ('b -> 'c) -> 'a -> 'c
+  val ( <<< ) : ('b -> 'c) -> ('a -> 'b) -> 'a -> 'c
+end
+
 module JsonString : sig
   include Map.OrderedType
 
