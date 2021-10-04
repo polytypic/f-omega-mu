@@ -43,11 +43,21 @@ if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
       uutf
 fi
 
-folded "Build" \
-  opam exec -- dune build --root=. --profile release
+in_profile() {
+  PROFILE="$1"
 
-folded "Test" \
-  opam exec -- dune test --root=. --profile release
+  folded "Build in $PROFILE" \
+    opam exec -- dune build --root=. --profile "$PROFILE"
 
-folded "Run examples" \
-  _build/default/src/main/FomCommand/FomCommand.exe examples/*.fom
+  folded "Test in $PROFILE" \
+    opam exec -- dune test --root=. --profile "$PROFILE"
+
+  folded "Run examples in $PROFILE" \
+    _build/default/src/main/FomCommand/FomCommand.exe examples/*.fom
+}
+
+if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
+  in_profile debug
+fi
+
+in_profile release
