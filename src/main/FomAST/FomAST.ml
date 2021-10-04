@@ -395,43 +395,42 @@ module Typ = struct
     | `Product _ -> 8
     | `Sum _ -> 9
 
-  let compare' compare env lhs rhs =
-    if lhs == rhs then
-      0
-    else
-      match (lhs, rhs) with
-      | `Mu (_, lhs), `Mu (_, rhs) -> compare env lhs rhs
-      | `Const (_, lhs), `Const (_, rhs) -> Const.compare lhs rhs
-      | `Var (_, lhs), `Var (_, rhs) ->
-        let lhs = VarMap.find_opt lhs env |> Option.value ~default:lhs in
-        let rhs = VarMap.find_opt rhs env |> Option.value ~default:rhs in
-        Var.compare lhs rhs
-      | `Lam (_, lhs_id, lhs_kind, lhs_typ), `Lam (_, rhs_id, rhs_kind, rhs_typ)
-        ->
-        Kind.compare lhs_kind rhs_kind <>? fun () ->
-        if Var.equal lhs_id rhs_id then
-          compare env lhs_typ rhs_typ
-        else
-          let v = Var.fresh Loc.dummy in
-          let env = env |> VarMap.add lhs_id v |> VarMap.add rhs_id v in
-          compare env lhs_typ rhs_typ
-      | `App (_, lhs_fn, lhs_arg), `App (_, rhs_fn, rhs_arg) ->
-        compare env lhs_arg rhs_arg <>? fun () -> compare env lhs_fn rhs_fn
-      | `ForAll (_, lhs), `ForAll (_, rhs) | `Exists (_, lhs), `Exists (_, rhs)
-        ->
-        compare env lhs rhs
-      | `Arrow (_, lhs_d, lhs_c), `Arrow (_, rhs_d, rhs_c) ->
-        compare env lhs_d rhs_d <>? fun () -> compare env lhs_c rhs_c
-      | `Product (_, lhs_ls), `Product (_, rhs_ls)
-      | `Sum (_, lhs_ls), `Sum (_, rhs_ls) ->
-        List.compare_with
-          (fun (lhs_l, lhs_t) (rhs_l, rhs_t) ->
-            Label.compare lhs_l rhs_l <>? fun () -> compare env lhs_t rhs_t)
-          lhs_ls rhs_ls
-      | _ -> index lhs - index rhs
+  let compare' compare l_env r_env l r =
+    match (l, r) with
+    | `Mu (_, l), `Mu (_, r) -> compare l_env r_env l r
+    | `Const (_, l), `Const (_, r) -> Const.compare l r
+    | `Var (_, l), `Var (_, r) ->
+      let l = VarMap.find_opt l l_env |> Option.value ~default:l in
+      let r = VarMap.find_opt r r_env |> Option.value ~default:r in
+      Var.compare l r
+    | `Lam (_, l_i, l_k, l_t), `Lam (_, r_i, r_k, r_t) ->
+      Kind.compare l_k r_k <>? fun () ->
+      if Var.equal l_i r_i then
+        compare (VarMap.remove l_i l_env) (VarMap.remove r_i r_env) l_t r_t
+      else
+        let v = Var.fresh Loc.dummy in
+        compare (VarMap.add l_i v l_env) (VarMap.add r_i v r_env) l_t r_t
+    | `App (_, l_f, l_x), `App (_, r_f, r_x) ->
+      compare l_env r_env l_x r_x <>? fun () -> compare l_env r_env l_f r_f
+    | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
+      compare l_env r_env l r
+    | `Arrow (_, l_d, l_c), `Arrow (_, r_d, r_c) ->
+      compare l_env r_env l_d r_d <>? fun () -> compare l_env r_env l_c r_c
+    | `Product (_, l_ls), `Product (_, r_ls) | `Sum (_, l_ls), `Sum (_, r_ls) ->
+      List.compare_with
+        (fun (l_l, l_t) (r_l, r_t) ->
+          Label.compare l_l r_l <>? fun () -> compare l_env r_env l_t r_t)
+        l_ls r_ls
+    | _ -> index l - index r
 
-  let rec compare env lhs rhs = compare' compare env lhs rhs
-  let compare = Profiling.Counter.wrap'2 "compare" (compare VarMap.empty)
+  let rec compare_in_env l_env r_env l r =
+    compare' compare_in_env l_env r_env l r
+
+  let compare =
+    Profiling.Counter.wrap'2 "compare"
+      (compare_in_env VarMap.empty VarMap.empty)
+
+  let compare_in_env = Profiling.Counter.wrap'4 "compare_in_env" compare_in_env
 
   (* Formatting *)
 

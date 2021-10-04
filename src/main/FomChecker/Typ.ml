@@ -249,96 +249,82 @@ let rec unfold_of_norm typ =
 
 (* *)
 
-module Goal = struct
-  include Compare.Tuple'2 (FomAST.Typ) (FomAST.Typ)
+module Rename = FomAST.Typ.VarMap
 
-  let map f = Pair.map f f
+module GoalSet = Set.Make (struct
+  type nonrec t = Var.t Rename.t * Var.t Rename.t * t * t
 
-  let free_vars_to_regular_assoc (lhs, rhs) =
-    VarSet.union (free lhs) (free rhs)
-    |> VarSet.elements
-    |> List.mapi @@ fun i v ->
-       (v, Var.of_string (Var.at v) ("#" ^ string_of_int i))
-
-  let to_subst =
-    List.to_seq
-    >>> Seq.map (Pair.map Fun.id var)
-    >>> VarMap.of_seq >>> subst_of_norm
-
-  let regularize_free_vars goal =
-    map (goal |> free_vars_to_regular_assoc |> to_subst) goal
-
-  let unify_vars li lt ri rt =
-    if Var.equal li ri then
-      (li, (lt, rt))
-    else
-      let i = Var.fresh Loc.dummy in
-      let v = `Var (Loc.dummy, i) in
-      ( i,
-        ( subst_of_norm (VarMap.singleton li v) lt,
-          subst_of_norm (VarMap.singleton ri v) rt ) )
-end
-
-(* *)
+  let compare (l_env1, r_env1, l1, r1) (l_env2, r_env2, l2, r2) =
+    compare_in_env l_env1 l_env2 l1 l2 <>? fun () ->
+    compare_in_env r_env1 r_env2 r1 r2
+end)
 
 let check_sub_of_norm, check_equal_of_norm =
   let make_sub_and_eq at =
-    let module GoalSet = Set.Make (Goal) in
     let goals = ref GoalSet.empty in
-    let rec sub ((l, r) as g) =
-      if 0 <> FomAST.Typ.compare l r && not (GoalSet.mem g !goals) then (
+    let rec sub l_env r_env l r =
+      let g = (l_env, r_env, l, r) in
+      if 0 <> compare_in_env l_env r_env l r && not (GoalSet.mem g !goals) then (
         goals := GoalSet.add g !goals;
-        let rec subset op ls ms =
+        let rec subset swap ls ms =
           match (ls, ms) with
           | [], _ -> unit
           | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
           | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
             let c = Label.compare ll ml in
             if c = 0 then
-              op (mt, lt) >> subset op ls ms
+              (if swap then sub l_env r_env lt mt else sub l_env r_env mt lt)
+              >> subset swap ls ms
             else if 0 < c then
-              subset op lls ms
+              subset swap lls ms
             else
               fail @@ `Error_label_missing (at, ll, l, r)
         in
-        match g with
-        | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub (rd, ld) >> sub (lc, rc)
-        | `Product (_, lls), `Product (_, rls) -> subset sub rls lls
-        | `Sum (_, lls), `Sum (_, rls) -> subset (Pair.swap >>> sub) lls rls
+        match (l, r) with
+        | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+          sub r_env l_env rd ld >> sub l_env r_env lc rc
+        | `Product (_, lls), `Product (_, rls) -> subset false rls lls
+        | `Sum (_, lls), `Sum (_, rls) -> subset true lls rls
         | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
-          sub (l, r)
+          sub l_env r_env l r
         | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-          Kind.unify at lk rk
-          >> sub
-               (Goal.unify_vars li lt ri rt |> snd |> Goal.regularize_free_vars)
+          let l_env, r_env =
+            if Var.equal li ri then
+              (l_env |> Rename.remove li, r_env |> Rename.remove ri)
+            else
+              let v = Var.fresh Loc.dummy in
+              (l_env |> Rename.add li v, r_env |> Rename.add ri v)
+          in
+          Kind.unify at lk rk >> sub l_env r_env lt rt
         | _ -> (
           match (unapp l, unapp r) with
           | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
-            sub (unfold la lf lmu lxs, unfold ra rf rmu rxs)
-          | ((`Mu (la, lf) as lmu), lxs), _ -> sub (unfold la lf lmu lxs, r)
-          | _, ((`Mu (ra, rf) as rmu), rxs) -> sub (l, unfold ra rf rmu rxs)
+            sub l_env r_env (unfold la lf lmu lxs) (unfold ra rf rmu rxs)
+          | ((`Mu (la, lf) as lmu), lxs), _ ->
+            sub l_env r_env (unfold la lf lmu lxs) r
+          | _, ((`Mu (ra, rf) as rmu), rxs) ->
+            sub l_env r_env l (unfold ra rf rmu rxs)
           | (lf, lx :: lxs), (rf, rx :: rxs)
             when List.length lxs = List.length rxs ->
-            eq (lf, rf)
-            >> eq (lx, rx)
-            >> MList.iter2 (fun l r -> eq (l, r)) lxs rxs
+            eq l_env r_env lf rf >> eq l_env r_env lx rx
+            >> MList.iter2 (eq l_env r_env) lxs rxs
           | _ -> fail @@ `Error_typ_mismatch (at, r, l)))
       else
         unit
-    and eq g = sub g >> sub (Pair.swap g) in
+    and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
     (sub, eq)
   in
-  let sub at g = g |> Goal.regularize_free_vars |> fst (make_sub_and_eq at) in
-  let eq at g = g |> Goal.regularize_free_vars |> snd (make_sub_and_eq at) in
+  let sub at l r = fst (make_sub_and_eq at) Rename.empty Rename.empty l r in
+  let eq at l r = snd (make_sub_and_eq at) Rename.empty Rename.empty l r in
   (sub, eq)
 
 let is_sub_of_norm, is_equal_of_norm =
-  let as_predicate check g =
-    check Loc.dummy g
+  let as_predicate check l r =
+    check Loc.dummy l r
     |> try_in (Fun.const @@ return true) (Fun.const @@ return false)
   in
-  let sub g = as_predicate check_sub_of_norm g in
-  let eq g = as_predicate check_equal_of_norm g in
+  let sub l r = as_predicate check_sub_of_norm l r in
+  let eq l r = as_predicate check_equal_of_norm l r in
   (sub, eq)
 
 (* *)
@@ -348,7 +334,7 @@ module TypSet = Set.Make (FomAST.Typ)
 let rec contract t =
   let* s, t = contract_base t in
   let+ t_opt =
-    s |> TypSet.elements |> MList.find_opt (fun mu -> is_equal_of_norm (t, mu))
+    s |> TypSet.elements |> MList.find_opt (fun mu -> is_equal_of_norm t mu)
   in
   let s, u =
     match t_opt with
@@ -494,6 +480,36 @@ let to_strict t =
 let to_lazy e =
   (e : ('a, 'k) f as 'a :> [('b, 'k) f | `Lazy of ('e, 'b) LVar.t] as 'b)
 
+module Goal = struct
+  include Compare.Tuple'2 (FomAST.Typ) (FomAST.Typ)
+
+  let map f = Pair.map f f
+
+  let free_vars_to_regular_assoc (lhs, rhs) =
+    VarSet.union (free lhs) (free rhs)
+    |> VarSet.elements
+    |> List.mapi @@ fun i v ->
+       (v, Var.of_string (Var.at v) ("#" ^ string_of_int i))
+
+  let to_subst =
+    List.to_seq
+    >>> Seq.map (Pair.map Fun.id var)
+    >>> VarMap.of_seq >>> subst_of_norm
+
+  let regularize_free_vars goal =
+    map (goal |> free_vars_to_regular_assoc |> to_subst) goal
+
+  let unify_vars li lt ri rt =
+    if Var.equal li ri then
+      (li, (lt, rt))
+    else
+      let i = Var.fresh Loc.dummy in
+      let v = `Var (Loc.dummy, i) in
+      ( i,
+        ( subst_of_norm (VarMap.singleton li v) lt,
+          subst_of_norm (VarMap.singleton ri v) rt ) )
+end
+
 let join_of_norm, meet_of_norm =
   let make_join_and_meet at =
     let module GoalMap = Map.Make (Goal) in
@@ -527,11 +543,11 @@ let join_of_norm, meet_of_norm =
       match GoalMap.find_opt g !map with
       | Some result -> return result
       | None ->
-        (let* g_is_sub = is_sub_of_norm g in
+        (let* g_is_sub = is_sub_of_norm l r in
          if g_is_sub then
            return @@ to_lazy (snd g)
          else
-           let* swap_g_is_sub = is_sub_of_norm (Pair.swap g) in
+           let* swap_g_is_sub = is_sub_of_norm r l in
            if swap_g_is_sub then
              return @@ to_lazy (fst g)
            else

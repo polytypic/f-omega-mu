@@ -101,9 +101,13 @@ module Typ : sig
   (* Comparison *)
 
   val compare' :
-    (Var.t VarMap.t -> 't cmp) -> Var.t VarMap.t -> ('t, Kind.t) f cmp
+    (Var.t VarMap.t -> Var.t VarMap.t -> 't cmp) ->
+    Var.t VarMap.t ->
+    Var.t VarMap.t ->
+    ('t, Kind.t) f cmp
 
   val compare : t cmp
+  val compare_in_env : Var.t VarMap.t -> Var.t VarMap.t -> t cmp
 
   (* Type predicates *)
 

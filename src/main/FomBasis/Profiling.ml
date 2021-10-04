@@ -38,4 +38,10 @@ module Counter = struct
     fun x y z ->
       inc counter;
       fn x y z
+
+  let wrap'4 name fn =
+    let counter = register name in
+    fun x y z w ->
+      inc counter;
+      fn x y z w
 end

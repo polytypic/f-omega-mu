@@ -329,9 +329,10 @@ module Profiling : sig
 
     (* *)
 
-    val wrap'1 : string -> ('a -> 'b) -> 'a -> 'b
-    val wrap'2 : string -> ('a -> 'b -> 'c) -> 'a -> 'b -> 'c
-    val wrap'3 : string -> ('a -> 'b -> 'c -> 'd) -> 'a -> 'b -> 'c -> 'd
+    val wrap'1 : string -> ('a -> 'b) uop
+    val wrap'2 : string -> ('a -> 'b -> 'c) uop
+    val wrap'3 : string -> ('a -> 'b -> 'c -> 'd) uop
+    val wrap'4 : string -> ('a -> 'b -> 'c -> 'd -> 'e) uop
   end
 end
 

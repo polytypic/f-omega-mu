@@ -97,7 +97,7 @@ let rec infer = function
     let* f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
     let* x_typ = infer x in
-    Typ.check_sub_of_norm (at x) (x_typ, d_typ) >> return c_typ
+    Typ.check_sub_of_norm (at x) x_typ d_typ >> return c_typ
   | `Gen (at', d, d_kind, r) ->
     let* r_typ =
       Annot.Typ.def d d_kind >> Typ.VarMap.adding d d_kind (infer r)
@@ -115,10 +115,10 @@ let rec infer = function
   | `Mu (at', f) ->
     let* f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
-    Typ.check_sub_of_norm at' (c_typ, d_typ) >> return c_typ
+    Typ.check_sub_of_norm at' c_typ d_typ >> return c_typ
   | `IfElse (_, c, t, e) ->
     let* c_typ = infer c in
-    Typ.check_sub_of_norm (at c) (c_typ, `Const (at c, `Bool))
+    Typ.check_sub_of_norm (at c) c_typ @@ `Const (at c, `Bool)
     >> let* t_typ = infer t and* e_typ = infer e in
        Typ.join_of_norm (at e) (t_typ, e_typ)
   | `Product (at', fs) ->
@@ -172,7 +172,7 @@ let rec infer = function
     Kind.unify at' d_kind t_kind
     >>
     let et_t = Typ.app_of_norm at' et_con t in
-    Typ.check_sub_of_norm (at e) (e_typ, et_t) >> return et
+    Typ.check_sub_of_norm (at e) e_typ et_t >> return et
   | `UnpackIn (at', tid, id, v, e) ->
     let* v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in

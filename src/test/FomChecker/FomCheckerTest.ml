@@ -51,14 +51,12 @@ let test_typs_parse_as name source1 source2 check =
 let test_equal_typs source1 source2 =
   test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
-  Typ.is_equal_of_norm (typ1, typ2)
-  |> with_env (ignore >>> Env.empty)
-  >>= verify
+  Typ.is_equal_of_norm typ1 typ2 |> with_env (ignore >>> Env.empty) >>= verify
 
 let test_not_equal_typs source1 source2 =
   test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
-  Typ.is_equal_of_norm (typ1, typ2)
+  Typ.is_equal_of_norm typ1 typ2
   |> with_env (ignore >>> Env.empty)
   >>- not >>= verify
 
@@ -88,7 +86,7 @@ let testInfersAs name typ exp =
   let* expected = norm expected in
   parse_exp exp @@ fun (_, actual, _) ->
   let* actual = norm actual in
-  Typ.is_equal_of_norm (expected, actual) |> with_env (ignore >>> Env.empty)
+  Typ.is_equal_of_norm expected actual |> with_env (ignore >>> Env.empty)
   >>= fun are_equal ->
   if not are_equal then (
     let open FomPP in
