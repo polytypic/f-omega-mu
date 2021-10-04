@@ -354,3 +354,9 @@ val ( <>? ) : int -> (unit -> int) -> int
 
 val ( >>> ) : ('a -> 'b) -> ('b -> 'c) -> 'a -> 'c
 val ( <<< ) : ('b -> 'c) -> ('a -> 'b) -> 'a -> 'c
+
+(* *)
+
+val eq'2 : ('a * 'b) bpr
+val eq'3 : ('a * 'b * 'c) bpr
+val eq'4 : ('a * 'b * 'c * 'd) bpr

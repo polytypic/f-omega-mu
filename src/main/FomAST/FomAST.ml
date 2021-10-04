@@ -43,19 +43,16 @@ module Kind = struct
 
   (* *)
 
-  let keep_phys_eq' k k' =
-    let are_phys_eq =
-      k == k'
-      ||
-      match (k, k') with
-      | `Star at, `Star at' -> at == at'
-      | `Arrow (at, d, c), `Arrow (at', d', c') ->
-        at == at' && d == d' && c == c'
-      | `Unk (at, i), `Unk (at', i') -> at == at' && i == i'
-      | _ -> false
-    in
-    if are_phys_eq then k else k'
+  let eq l r =
+    match (l, r) with
+    | `Star l, `Star r -> l == r
+    | `Arrow l, `Arrow r -> eq'3 l r
+    | `Unk l, `Unk r -> eq'2 l r
+    | _ -> false
 
+  (* *)
+
+  let keep_phys_eq' k k' = if k == k' || eq k k' then k else k'
   let keep_phys_eq fn k = keep_phys_eq' k (fn k)
 
   (* *)
@@ -233,27 +230,23 @@ module Typ = struct
 
   (* *)
 
-  let keep_phys_eq' t t' =
-    let are_phys_eq =
-      t == t'
-      ||
-      match (t, t') with
-      | `Mu (at, t), `Mu (at', t') -> at == at' && t == t'
-      | `Const (at, c), `Const (at', c') -> c == c'
-      | `Var (at, i), `Var (at', i') -> at == at' && i == i'
-      | `Lam (at, i, k, t), `Lam (at', i', k', t') ->
-        at == at' && i == i' && k == k' && t == t'
-      | `App (at, f, x), `App (at', f', x') -> at == at' && f == f' && x == x'
-      | `ForAll (at, t), `ForAll (at', t') -> at == at' && t == t'
-      | `Exists (at, t), `Exists (at', t') -> at == at' && t == t'
-      | `Arrow (at, d, c), `Arrow (at', d', c') ->
-        at == at' && d == d' && c == c'
-      | `Product (at, ls), `Product (at', ls') -> at == at' && ls == ls'
-      | `Sum (at, ls), `Sum (at', ls') -> at == at' && ls == ls'
-      | _ -> false
-    in
-    if are_phys_eq then t else t'
+  let eq l r =
+    match (l, r) with
+    | `Mu l, `Mu r -> eq'2 l r
+    | `Const l, `Const r -> eq'2 l r
+    | `Var l, `Var r -> eq'2 l r
+    | `Lam l, `Lam r -> eq'4 l r
+    | `App l, `App r -> eq'3 l r
+    | `ForAll l, `ForAll r -> eq'2 l r
+    | `Exists l, `Exists r -> eq'2 l r
+    | `Arrow l, `Arrow r -> eq'3 l r
+    | `Product l, `Product r -> eq'2 l r
+    | `Sum l, `Sum r -> eq'2 l r
+    | _ -> false
 
+  (* *)
+
+  let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
   let keep_phys_eq fn t = keep_phys_eq' t (fn t)
 
   (* Substitution *)

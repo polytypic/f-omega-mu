@@ -223,25 +223,21 @@ module Exp = struct
     | `Mu e | `Inject (_, e) | `Case e -> is_free i' e
     | `Select (e, l) -> is_free i' e || is_free i' l
 
-  let keep_phys_eq' e e' =
-    let are_phys_eq =
-      e == e'
-      ||
-      match (e, e') with
-      | `App (f, x), `App (f', x') -> f == f' && x == x'
-      | `Case e, `Case e' -> e == e'
-      | `Const c, `Const c' -> c == c'
-      | `IfElse (c, t, e), `IfElse (c', t', e') -> c == c' && t == t' && e == e'
-      | `Inject (l, e), `Inject (l', e') -> l == l' && e == e'
-      | `Lam (i, e), `Lam (i', e') -> i == i' && e == e'
-      | `Mu e, `Mu e' -> e == e'
-      | `Product ls, `Product ls' -> ls == ls'
-      | `Select (r, l), `Select (r', l') -> r == r' && l == l'
-      | `Var i, `Var i' -> i == i'
-      | _ -> false
-    in
-    if are_phys_eq then e else e'
+  let eq l r =
+    match (l, r) with
+    | `App l, `App r -> eq'2 l r
+    | `Case l, `Case r -> l == r
+    | `Const l, `Const r -> l == r
+    | `IfElse l, `IfElse r -> eq'3 l r
+    | `Inject l, `Inject r -> eq'2 l r
+    | `Lam l, `Lam r -> eq'2 l r
+    | `Mu l, `Mu r -> l == r
+    | `Product l, `Product r -> l == r
+    | `Select l, `Select r -> eq'2 l r
+    | `Var l, `Var r -> l == r
+    | _ -> false
 
+  let keep_phys_eq' e e' = if e == e' || eq e e' then e else e'
   let keep_phys_eq fn e = keep_phys_eq' e (fn e)
 
   let rec subst i the =
