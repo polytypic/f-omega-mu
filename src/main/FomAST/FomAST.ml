@@ -121,10 +121,15 @@ module Label = struct
       with Failure _ -> String.compare lhs rhs
 end
 
-module Tuple = struct
+module Row = struct
+  type 't t = (Label.t * 't) list
+
   let is_tuple labels =
     labels
     |> List.for_alli @@ fun i (l, _) -> Label.to_string l = Int.to_string (i + 1)
+
+  let map fn = List.map (Pair.map Fun.id fn)
+  let map_phys_eq fn = List.map_phys_eq (Pair.map_phys_eq Fun.id fn)
 end
 
 module Typ = struct
@@ -170,8 +175,8 @@ module Typ = struct
     | `ForAll of Loc.t * 't
     | `Exists of Loc.t * 't
     | `Arrow of Loc.t * 't * 't
-    | `Product of Loc.t * (Label.t * 't) list
-    | `Sum of Loc.t * (Label.t * 't) list ]
+    | `Product of Loc.t * 't Row.t
+    | `Sum of Loc.t * 't Row.t ]
 
   type t = (t, Kind.t) f
 
@@ -288,11 +293,8 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
     | `Exists (at, t) -> `Exists (at, subst_rec env t)
     | `Arrow (at, d, c) -> `Arrow (at, subst_rec env d, subst_rec env c)
-    | `Product (at, ls) -> `Product (at, subst_rec_labeled env ls)
-    | `Sum (at, ls) -> `Sum (at, subst_rec_labeled env ls)
-
-  and subst_rec_labeled env =
-    List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_rec env))
+    | `Product (at, ls) -> `Product (at, Row.map_phys_eq (subst_rec env) ls)
+    | `Sum (at, ls) -> `Sum (at, Row.map_phys_eq (subst_rec env) ls)
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
@@ -343,12 +345,8 @@ module Typ = struct
     | `ForAll (at, t) -> `ForAll (at, subst_of_norm env t)
     | `Exists (at, t) -> `Exists (at, subst_of_norm env t)
     | `Arrow (at, d, c) -> `Arrow (at, subst_of_norm env d, subst_of_norm env c)
-    | `Product (at, ls) ->
-      `Product
-        (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_of_norm env)) ls)
-    | `Sum (at, ls) ->
-      `Sum
-        (at, List.map_phys_eq (Pair.map_phys_eq Fun.id (subst_of_norm env)) ls)
+    | `Product (at, ls) -> `Product (at, Row.map_phys_eq (subst_of_norm env) ls)
+    | `Sum (at, ls) -> `Sum (at, Row.map_phys_eq (subst_of_norm env) ls)
 
   let rec subst_of_norm env =
     keep_phys_eq @@ subst_of_norm' subst_of_norm is_free env
@@ -376,11 +374,8 @@ module Typ = struct
          | `ForAll (at, t) -> `ForAll (at, freshen t)
          | `Exists (at, t) -> `Exists (at, freshen t)
          | `Arrow (at, d, c) -> `Arrow (at, freshen d, freshen c)
-         | `Product (at, ls) ->
-           `Product
-             (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
-         | `Sum (at, ls) ->
-           `Sum (at, ls |> List.map_phys_eq (Pair.map_phys_eq Fun.id freshen))
+         | `Product (at, ls) -> `Product (at, Row.map_phys_eq freshen ls)
+         | `Sum (at, ls) -> `Sum (at, Row.map_phys_eq freshen ls)
     in
     freshen t
 
@@ -519,7 +514,7 @@ module Typ = struct
       ^^ pp pp_annot (prec_arrow - 1) cod
       |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
     | `Product (_, labels) ->
-      if Tuple.is_tuple labels then
+      if Row.is_tuple labels then
         tuple pp_annot labels |> egyptian parens 2
       else
         labeled pp_annot labels |> egyptian braces 2
@@ -711,7 +706,7 @@ module Exp = struct
     | `LetIn of Loc.t * Var.t * 'e * 'e
     | `Mu of Loc.t * 'e
     | `IfElse of Loc.t * 'e * 'e * 'e
-    | `Product of Loc.t * (Label.t * 'e) list
+    | `Product of Loc.t * 'e Row.t
     | `Select of Loc.t * 'e * 'e
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e

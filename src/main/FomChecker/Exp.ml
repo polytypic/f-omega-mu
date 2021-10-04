@@ -162,7 +162,7 @@ let rec infer = function
       | t :: ts ->
         ts |> MList.fold_left (fun a t -> Typ.join_of_norm (at cs) (a, t)) t
     in
-    let d_typ = `Sum (at cs, cs_arrows |> List.map (Pair.map Fun.id fst)) in
+    let d_typ = `Sum (at cs, cs_arrows |> FomAST.Row.map fst) in
     `Arrow (at', d_typ, c_typ)
   | `Pack (at', t, e, et) ->
     let* e_typ = infer e

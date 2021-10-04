@@ -44,8 +44,12 @@ end
 
 module Label : Id.S
 
-module Tuple : sig
-  val is_tuple : (Label.t * 'a) list -> bool
+module Row : sig
+  type 't t = (Label.t * 't) list
+
+  val is_tuple : 'a t -> bool
+  val map : ('t -> 'u) -> 't t -> 'u t
+  val map_phys_eq : 't uop -> 't t -> 't t
 end
 
 module Typ : sig
@@ -79,8 +83,8 @@ module Typ : sig
     | `ForAll of Loc.t * 't
     | `Exists of Loc.t * 't
     | `Arrow of Loc.t * 't * 't
-    | `Product of Loc.t * (Label.t * 't) list
-    | `Sum of Loc.t * (Label.t * 't) list ]
+    | `Product of Loc.t * 't Row.t
+    | `Sum of Loc.t * 't Row.t ]
 
   type t = (t, Kind.t) f
 
@@ -90,14 +94,9 @@ module Typ : sig
   (* Macros *)
 
   val var : Var.t -> [> `Var of Loc.t * Var.t]
-
-  val product :
-    Loc.t -> (Label.t * 't) list -> [> `Product of Loc.t * (Label.t * 't) list]
-
-  val sum :
-    Loc.t -> (Label.t * 't) list -> [> `Sum of Loc.t * (Label.t * 't) list]
-
-  val zero : Loc.t -> [> `Sum of Loc.t * (Label.t * 't) list]
+  val product : Loc.t -> 't Row.t -> [> `Product of Loc.t * 't Row.t]
+  val sum : Loc.t -> 't Row.t -> [> `Sum of Loc.t * 't Row.t]
+  val zero : Loc.t -> [> `Sum of Loc.t * 't Row.t]
 
   (* Comparison *)
 
@@ -229,7 +228,7 @@ module Exp : sig
     | `LetIn of Loc.t * Var.t * 'e * 'e
     | `Mu of Loc.t * 'e
     | `IfElse of Loc.t * 'e * 'e * 'e
-    | `Product of Loc.t * (Label.t * 'e) list
+    | `Product of Loc.t * 'e Row.t
     | `Select of Loc.t * 'e * 'e
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e

@@ -185,7 +185,7 @@ let js_codemirror_mode =
           keys
           |> List.map (fun s ->
                  (Js.to_string s |> Label.of_string Loc.dummy, ()))
-          |> Tuple.is_tuple
+          |> Row.is_tuple
         then
           keys
           |> List.map (Js.Unsafe.get obj >>> format ~atomize:false)

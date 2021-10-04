@@ -256,8 +256,7 @@ module Exp = struct
     | `App (f, x) -> `App (subst i the f, subst i the x)
     | `Mu e -> `Mu (subst i the e)
     | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
-    | `Product fs ->
-      `Product (List.map_phys_eq (Pair.map_phys_eq Fun.id (subst i the)) fs)
+    | `Product fs -> `Product (Row.map_phys_eq (subst i the) fs)
     | `Select (e, l) -> `Select (subst i the e, subst i the l)
     | `Inject (l, e) -> `Inject (l, subst i the e)
     | `Case cs -> `Case (subst i the cs)
@@ -390,7 +389,7 @@ module Exp = struct
       `App (`Lam (i, erase e), erase v)
     | `Mu (_, e) -> `Mu (erase e)
     | `IfElse (_, c, t, e) -> `IfElse (erase c, erase t, erase e)
-    | `Product (_, fs) -> `Product (fs |> List.map (Pair.map Fun.id erase))
+    | `Product (_, fs) -> `Product (fs |> Row.map erase)
     | `Select (_, e, l) -> `Select (erase e, erase l)
     | `Inject (_, l, e) -> `Inject (l, erase e)
     | `Case (_, cs) -> `Case (erase cs)
@@ -401,8 +400,7 @@ module Exp = struct
     | `App (f, x) -> fn (`App (bottomUp fn f, bottomUp fn x))
     | `IfElse (c, t, e) ->
       fn (`IfElse (bottomUp fn c, bottomUp fn t, bottomUp fn e))
-    | `Product fs ->
-      fn (`Product (fs |> List.map (Pair.map Fun.id (bottomUp fn))))
+    | `Product fs -> fn (`Product (fs |> Row.map (bottomUp fn)))
     | `Mu e -> fn (`Mu (bottomUp fn e))
     | `Lam (i, e) -> fn (`Lam (i, bottomUp fn e))
     | `Inject (l, e) -> fn (`Inject (l, bottomUp fn e))
@@ -562,11 +560,10 @@ module Exp = struct
 
   let rec to_case continue k fs =
     fs
-    |> List.map
-         (Pair.map Fun.id @@ function
-          | `Lam (i, e) -> to_lam continue k i e
-          | `Case (`Product fs) -> to_case continue k fs
-          | _ -> failwith "impossible")
+    |> Row.map (function
+         | `Lam (i, e) -> to_lam continue k i e
+         | `Case (`Product fs) -> to_case continue k fs
+         | _ -> failwith "impossible")
     |> fun fs -> `Case (`Product fs)
 
   let may_inline_continuation = function
@@ -727,7 +724,7 @@ module Exp = struct
         fs |> List.map (fun (l, _) -> (l, `Select (`Var i, `Inject (l, unit))))
         |> fun fs -> `Case (`Product fs)
       in
-      fs |> List.map (fun (l, v) -> (l, `App (`Lam (f, v), fn))) |> fun fs ->
+      fs |> Row.map (fun v -> `App (`Lam (f, v), fn)) |> fun fs ->
       `App (`Lam (i, fn), `Mu (`Lam (i, `Product fs))) |> simplify
     | `Mu e -> (
       let+ e = simplify e in
@@ -852,10 +849,10 @@ module Exp = struct
         let vs, cs = analyze ~skip:false cs in
         `Case cs |> consider vs
     and analyze_product ~skip fs =
-      let fs = fs |> List.map @@ Pair.map Fun.id (analyze ~skip) in
+      let fs = fs |> Row.map (analyze ~skip) in
       ( fs
         |> List.fold_left (fun s (_, (vs, _)) -> VarSet.union s vs) VarSet.empty,
-        fs |> List.map (fun (l, (_, e)) -> (l, e)) )
+        fs |> Row.map snd )
     in
     let _, e = analyze ~skip:true inn in
     !cs |> ErasedMap.bindings

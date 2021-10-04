@@ -274,9 +274,7 @@ let rec type_of_pat_lam = function
   | `Id (_, _, t) -> t
   | `Product (at, fs) ->
     Typ.product at
-      (fs
-      |> List.map @@ Pair.map Fun.id
-         @@ function `Pat p -> type_of_pat_lam p | `Ann t -> t)
+      (fs |> Row.map @@ function `Pat p -> type_of_pat_lam p | `Ann t -> t)
   | `Pack (_, _, _, t) -> t
 
 let rec elaborate_pat p' e' = function
