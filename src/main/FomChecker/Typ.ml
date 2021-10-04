@@ -250,7 +250,7 @@ let rec unfold_of_norm typ =
 (* *)
 
 module Goal = struct
-  include Compare.Pair (FomAST.Typ) (FomAST.Typ)
+  include Compare.Tuple'2 (FomAST.Typ) (FomAST.Typ)
 
   let map f = Pair.map f f
 
