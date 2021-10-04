@@ -257,7 +257,7 @@ end
 
 (* *)
 
-let avoid at i inn =
+let avoid i inn =
   mapping TypAliases.field (TypAliases.remove i)
   @@ let* exists =
        get_as TypAliases.field
@@ -358,7 +358,7 @@ and elaborate_typ = function
       let t = Typ.freshen t in
       Annot.Typ.use i (Typ.at t) >> return t)
   | `Lam (at', i, k, t) ->
-    avoid at' i @@ fun i ->
+    avoid i @@ fun i ->
     elaborate_typ t |> Typ.VarMap.adding i k >>- fun t -> `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let+ f = elaborate_typ f and+ x = elaborate_typ x in
@@ -412,7 +412,7 @@ let rec elaborate = function
     let+ f = elaborate f and+ x = elaborate x in
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
-    avoid at i @@ fun i ->
+    avoid i @@ fun i ->
     elaborate e |> Typ.VarMap.adding i k >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
@@ -445,13 +445,13 @@ let rec elaborate = function
     `Pack (at, t, e, x)
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
-    avoid at ti @@ fun ti ->
+    avoid ti @@ fun ti ->
     let+ e = elaborate e |> Typ.VarMap.adding ti @@ Kind.fresh at in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    avoid at ti @@ fun ti ->
+    avoid ti @@ fun ti ->
     let+ e = elaborate e |> Typ.VarMap.adding ti @@ Kind.fresh at in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, [(p, v)], e) ->
