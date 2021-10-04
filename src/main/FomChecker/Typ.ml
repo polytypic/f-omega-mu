@@ -480,39 +480,10 @@ let to_strict t =
 let to_lazy e =
   (e : ('a, 'k) f as 'a :> [('b, 'k) f | `Lazy of ('e, 'b) LVar.t] as 'b)
 
-module Goal = struct
-  include Compare.Tuple'2 (FomAST.Typ) (FomAST.Typ)
-
-  let map f = Pair.map f f
-
-  let free_vars_to_regular_assoc (lhs, rhs) =
-    VarSet.union (free lhs) (free rhs)
-    |> VarSet.elements
-    |> List.mapi @@ fun i v ->
-       (v, Var.of_string (Var.at v) ("#" ^ string_of_int i))
-
-  let to_subst =
-    List.to_seq
-    >>> Seq.map (Pair.map Fun.id var)
-    >>> VarMap.of_seq >>> subst_of_norm
-
-  let regularize_free_vars goal =
-    map (goal |> free_vars_to_regular_assoc |> to_subst) goal
-
-  let unify_vars li lt ri rt =
-    if Var.equal li ri then
-      (li, (lt, rt))
-    else
-      let i = Var.fresh Loc.dummy in
-      let v = `Var (Loc.dummy, i) in
-      ( i,
-        ( subst_of_norm (VarMap.singleton li v) lt,
-          subst_of_norm (VarMap.singleton ri v) rt ) )
-end
+module GoalMap = Map.Make (Compare.Tuple'2 (FomAST.Typ) (FomAST.Typ))
 
 let join_of_norm, meet_of_norm =
   let make_join_and_meet at =
-    let module GoalMap = Map.Make (Goal) in
     let joins = ref GoalMap.empty in
     let meets = ref GoalMap.empty in
     let rec intersection op os = function
@@ -523,7 +494,7 @@ let join_of_norm, meet_of_norm =
         else if 0 < c then
           intersection op os (llls, rls)
         else
-          op (lt, rt) >>= fun t -> intersection op ((ll, t) :: os) (lls, rls)
+          op lt rt >>= fun t -> intersection op ((ll, t) :: os) (lls, rls)
       | [], _ | _, [] -> return @@ List.rev os
     in
     let rec union op os = function
@@ -534,12 +505,13 @@ let join_of_norm, meet_of_norm =
         else if 0 < c then
           union op ((rl, to_lazy rt) :: os) (llls, rls)
         else
-          op (lt, rt) >>= fun t -> union op ((ll, t) :: os) (lls, rls)
+          op lt rt >>= fun t -> union op ((ll, t) :: os) (lls, rls)
       | (ll, lt) :: lls, [] -> union op ((ll, to_lazy lt) :: os) (lls, [])
       | [], (rl, rt) :: rls -> union op ((rl, to_lazy rt) :: os) ([], rls)
       | [], [] -> return @@ List.rev os
     in
-    let synth map fst snd upper lower intersection union ((l, r) as g) =
+    let synth map fst snd upper lower intersection union l r =
+      let g = (l, r) in
       match GoalMap.find_opt g !map with
       | Some result -> return result
       | None ->
@@ -553,7 +525,7 @@ let join_of_norm, meet_of_norm =
            else
              match g with
              | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-               let+ d = lower (ld, rd) and+ c = upper (lc, rc) in
+               let+ d = lower ld rd and+ c = upper lc rc in
                `Arrow (at, d, c)
              | `Product (_, lls), `Product (_, rls) ->
                intersection upper [] (lls, rls) >>- fun ls -> `Product (at, ls)
@@ -562,28 +534,33 @@ let join_of_norm, meet_of_norm =
              | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
                Kind.unify at lk rk
                >>
-               let i, goal = Goal.unify_vars li lt ri rt in
-               let assoc = Goal.free_vars_to_regular_assoc goal in
-               let+ t =
-                 goal
-                 |> Goal.map (Goal.to_subst assoc)
-                 |> upper >>= to_strict
-                 >>- Goal.to_subst (List.map Pair.swap assoc)
-                 >>- to_lazy
+               let i, lt, rt =
+                 if Var.equal li ri then
+                   (li, lt, rt)
+                 else if not (is_free li rt) then
+                   (li, lt, subst_of_norm (VarMap.singleton ri (var li)) rt)
+                 else if not (is_free ri lt) then
+                   (ri, subst_of_norm (VarMap.singleton li (var ri)) lt, rt)
+                 else
+                   let i = Var.fresh at in
+                   ( i,
+                     subst_of_norm (VarMap.singleton li (var i)) lt,
+                     subst_of_norm (VarMap.singleton ri (var i)) rt )
                in
+               let+ t = upper lt rt in
                `Lam (at, i, lk, t)
              | `ForAll (_, lt), `ForAll (_, rt) ->
-               upper (lt, rt) >>- fun t -> `ForAll (at, t)
+               upper lt rt >>- fun t -> `ForAll (at, t)
              | `Exists (_, lt), `Exists (_, rt) ->
-               upper (lt, rt) >>- fun t -> `Exists (at, t)
+               upper lt rt >>- fun t -> `Exists (at, t)
              | _ -> (
                match (unapp l, unapp r) with
                | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
-                 upper (unfold la lf lmu lxs, unfold ra rf rmu rxs)
+                 upper (unfold la lf lmu lxs) (unfold ra rf rmu rxs)
                | ((`Mu (la, lf) as lmu), lxs), _ ->
-                 upper (unfold la lf lmu lxs, r)
+                 upper (unfold la lf lmu lxs) r
                | _, ((`Mu (ra, rf) as rmu), rxs) ->
-                 upper (l, unfold ra rf rmu rxs)
+                 upper l (unfold ra rf rmu rxs)
                | _ -> fail @@ `Error_typ_mismatch (at, l, r)))
         |> LVar.create
         >>- fun var ->
@@ -591,10 +568,10 @@ let join_of_norm, meet_of_norm =
         map := GoalMap.add g result !map;
         result
     in
-    let rec join g = synth joins fst snd join meet intersection union g
-    and meet g = synth meets snd fst meet join union intersection g in
+    let rec join l r = synth joins fst snd join meet intersection union l r
+    and meet l r = synth meets snd fst meet join union intersection l r in
     (join, meet)
   in
-  let join at g = fst (make_join_and_meet at) g >>= to_strict
-  and meet at g = snd (make_join_and_meet at) g >>= to_strict in
+  let join at l r = fst (make_join_and_meet at) l r >>= to_strict
+  and meet at l r = snd (make_join_and_meet at) l r >>= to_strict in
   (join, meet)

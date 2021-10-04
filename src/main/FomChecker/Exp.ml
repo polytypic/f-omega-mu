@@ -120,7 +120,7 @@ let rec infer = function
     let* c_typ = infer c in
     Typ.check_sub_of_norm (at c) c_typ @@ `Const (at c, `Bool)
     >> let* t_typ = infer t and* e_typ = infer e in
-       Typ.join_of_norm (at e) (t_typ, e_typ)
+       Typ.join_of_norm (at e) t_typ e_typ
   | `Product (at', fs) ->
     let+ fs = fs |> MList.traverse @@ MPair.traverse return infer in
     Typ.product at' fs
@@ -139,7 +139,7 @@ let rec infer = function
         >> let* t_opt =
              match t_opt with
              | None -> return @@ Some t
-             | Some t' -> Typ.join_of_norm at' (t, t') >>- fun t -> Some t
+             | Some t' -> Typ.join_of_norm at' t t' >>- fun t -> Some t
            in
            select t_opt ls ks
       | [], k :: _ -> fail @@ `Error_product_lacks (at', p_typ, k)
@@ -159,8 +159,7 @@ let rec infer = function
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
       | [] -> return @@ Typ.zero (at cs)
-      | t :: ts ->
-        ts |> MList.fold_left (fun a t -> Typ.join_of_norm (at cs) (a, t)) t
+      | t :: ts -> ts |> MList.fold_left (Typ.join_of_norm (at cs)) t
     in
     let d_typ = `Sum (at cs, cs_arrows |> FomAST.Row.map fst) in
     `Arrow (at', d_typ, c_typ)
