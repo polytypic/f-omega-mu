@@ -27,7 +27,7 @@ let fill var v =
   | `Empty (k :: ks) ->
     var := `Empty ks;
     k ok
-  | _ -> failwith "impossible"
+  | _ -> failwith "MVar.fill"
 
 let get var =
   let+ v = take var in

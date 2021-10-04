@@ -82,7 +82,7 @@ let map_error ef xM r =
         on @@ function `Ok _ as a -> k a | `Error e -> k @@ `Error (ef e))
 
 let generalize_error (xM : ('r, Zero.t, 'a) t) =
-  map_error (fun _ -> failwith "impossible") xM
+  map_error (fun _ -> failwith "Rea.generalize_error") xM
 
 (* *)
 

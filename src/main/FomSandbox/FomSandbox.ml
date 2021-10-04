@@ -83,7 +83,7 @@ let pp_typ t =
   let n = TypSet.cardinal m in
   let decon = function
     | `Mu (_, `Lam (_, i, _, t)) -> (i, t)
-    | _ -> failwith "impossible"
+    | _ -> failwith "decon"
   in
   if
     n = 0
@@ -110,7 +110,7 @@ let pp_typ t =
          ^^
          match ds with
          | d :: ds -> type_mu ^^ d ^^ concat (ds |> List.map (( ^^ ) and_mu))
-         | _ -> failwith "impossible")
+         | _ -> failwith "pp_typ")
 
 (* *)
 

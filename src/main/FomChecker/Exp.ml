@@ -69,7 +69,7 @@ module Typ = struct
       let* f_kind = kind_of f_con in
       match f_kind with
       | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
-      | _ -> failwith "impossible")
+      | _ -> failwith "check_for_all")
     | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
   let check_exists at typ =
@@ -78,7 +78,7 @@ module Typ = struct
       let* f_kind = kind_of f_con in
       match f_kind with
       | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
-      | _ -> failwith "impossible")
+      | _ -> failwith "check_exists")
     | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 end
 

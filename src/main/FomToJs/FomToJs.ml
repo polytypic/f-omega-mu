@@ -563,7 +563,7 @@ module Exp = struct
     |> Row.map (function
          | `Lam (i, e) -> to_lam continue k i e
          | `Case (`Product fs) -> to_case continue k fs
-         | _ -> failwith "impossible")
+         | _ -> failwith "to_case")
     |> fun fs -> `Case (`Product fs)
 
   let may_inline_continuation = function
@@ -579,7 +579,7 @@ module Exp = struct
       match f with
       | `Lam (i, e) -> `App (to_lam inline_continuation k i e, x)
       | `Case (`Product fs) -> `App (to_case inline_continuation k fs, x)
-      | _ -> failwith "impossible")
+      | _ -> failwith "inline_continuation")
     | ( `Const _ | `Var _ | `Lam _ | `Mu _ | `Product _ | `Select _ | `Inject _
       | `App _ | `Case _ ) as e ->
       `App (k, e)

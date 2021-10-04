@@ -236,7 +236,7 @@ module Parameters = struct
       match (t, ps) with
       | `Arrow (_, _, t), _ :: ps -> loop t ps
       | t, [] -> t
-      | _ -> failwith "impossible"
+      | _ -> failwith "result_without"
     in
     get () >>- loop t
 

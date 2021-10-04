@@ -217,7 +217,7 @@ let rec kind_of = function
   | `Var (_, i) -> (
     let+ i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
-    | None -> failwith "impossible"
+    | None -> failwithf "kind_of %s" @@ Var.to_string i
     | Some (_, i_kind) -> i_kind)
   | `Lam (at', d, d_kind, r) ->
     let+ r_kind = VarMap.adding d d_kind (kind_of r) in
@@ -233,7 +233,7 @@ let rec kind_of = function
 and kind_of_cod checked_typ =
   let+ f_kind = kind_of checked_typ >>= Kind.resolve in
   match f_kind with
-  | `Star _ | `Unk (_, _) -> failwith "impossible"
+  | `Star _ | `Unk (_, _) -> failwith "kind_of_cod"
   | `Arrow (_, _, c_kind) -> c_kind
 
 let kind_of t = kind_of t >>= Kind.resolve

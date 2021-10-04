@@ -17,7 +17,7 @@ let create (op : (_, _, _) Rea.t) r =
             | `Empty ks ->
               var := (res :> (_, _) state);
               ks |> List.iter (fun k -> k res)
-            | _ -> failwith "impossible" ));
+            | _ -> failwith "LVar.create" ));
   `Ok var
 
 let get var _ =
@@ -38,4 +38,4 @@ let get var _ =
         match !var with
         | (`Ok _ | `Error _) as x -> k x
         | `Empty ks -> var := `Empty (k :: ks)
-        | _ -> failwith "impossible")
+        | _ -> failwith "LVar.get")
