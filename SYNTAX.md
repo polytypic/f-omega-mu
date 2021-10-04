@@ -93,7 +93,7 @@ bop
 1. Type variables are distinct from expression variables. `_` is allowed in
    place of a variable in bindings.
 
-2. The expression give to `case` must be a record of functions corresponding to
+2. The expression given to `case` must be a record of functions corresponding to
    the sum to be eliminated. The result of `case` is a sum eliminating function.
 
 3. `fₙ ◁ … ◁ f₁ ◁ x`, `x ▷ f₁ ▷ … ▷ fₙ`, and `f ◇ x₁ ◇ … ◇ xₙ` are special
