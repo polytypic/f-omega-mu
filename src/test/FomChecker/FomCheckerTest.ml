@@ -241,7 +241,40 @@ let () =
     I
     |eof};
   testInfersAs "offside in 《 \\ 》" "()"
-    "let《t\\v》=《λx.x\\λx:int.x》: ∃t.t (int → int) in ()"
+    "let《t\\v》=《λx.x\\λx:int.x》: ∃t.t (int → int) in ()";
+  testInfersAs "higher-order join and meet"
+    {eof|
+    (
+      (∀t.{map: ∀x.∀y.(x → y) → t x → t y}) → ∃t.{
+        return: ∀x.x → t x
+        apply: ∀x.∀y.t (x → y) → t x → t y
+      }
+    ) →
+    (
+      (∀t.{return: ∀x.x → t x, apply: ∀x.∀y.t (x → y) → t x → t y}) → ∃t.{
+        map: ∀x.∀y.(x → y) → t x → t y
+      }
+    ) →
+    (
+      ∀t.{
+        map: ∀x.∀y.(x → y) → t x → t y
+        return: ∀x.x → t x
+        apply: ∀x.∀y.t (x → y) → t x → t y
+      }
+    ) → ∃t.()
+    |eof}
+    {eof|
+    type functor = λt.{
+      map: ∀x.∀y.(x → y) → t x → t y
+    }
+    type applicative = λu.{
+      return: ∀x.x → u x
+      apply: ∀x.∀y.u (x → y) → u x → u y
+    }
+    λfunctor:∀(functor)→∃(applicative).
+    λapplicative:∀(applicative)→∃(functor).
+    if true then functor else applicative
+    |eof}
 
 let testErrors name exp =
   test name @@ fun () ->
