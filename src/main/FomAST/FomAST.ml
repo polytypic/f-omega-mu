@@ -130,6 +130,15 @@ module Row = struct
 
   let map fn = List.map (Pair.map Fun.id fn)
   let map_phys_eq fn = List.map_phys_eq (Pair.map_phys_eq Fun.id fn)
+
+  (* *)
+
+  open Rea
+
+  let traverse fn = MList.traverse (MPair.traverse return fn)
+
+  let traverse_phys_eq fn =
+    MList.traverse_phys_eq (MPair.traverse_phys_eq return fn)
 end
 
 module Typ = struct

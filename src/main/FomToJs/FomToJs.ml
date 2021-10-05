@@ -739,9 +739,7 @@ module Exp = struct
         let+ t = simplify t and+ e = simplify e in
         `IfElse (c, t, e))
     | `Product fs ->
-      let+ fs =
-        fs |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return simplify
-      in
+      let+ fs = fs |> FomAST.Row.traverse_phys_eq simplify in
       `Product fs
     | `Select (e, l) -> (
       let* e = simplify e and* l = simplify l in

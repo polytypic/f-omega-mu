@@ -114,11 +114,9 @@ let rec resolve t =
       let+ d' = resolve d and+ c' = resolve c in
       `Arrow (at', d', c')
     | `Product (at', ls) ->
-      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-      >>- fun ls' -> `Product (at', ls')
+      FomAST.Row.traverse_phys_eq resolve ls >>- fun ls' -> `Product (at', ls')
     | `Sum (at', ls) ->
-      ls |> MList.traverse_phys_eq @@ MPair.traverse_phys_eq return resolve
-      >>- fun ls' -> `Sum (at', ls')
+      FomAST.Row.traverse_phys_eq resolve ls >>- fun ls' -> `Sum (at', ls')
   in
   keep_phys_eq' t t'
 
@@ -189,7 +187,7 @@ let rec infer = function
 
 and infer_row at' ls con =
   let star = `Star at' in
-  let+ ls = MList.traverse (MPair.traverse return (check star)) ls in
+  let+ ls = FomAST.Row.traverse (check star) ls in
   (con at' ls, star)
 
 and infer_quantifier at' f con =
@@ -369,7 +367,7 @@ and contract_base t =
   (s, keep_phys_eq' t t')
 
 and contract_labels ls =
-  let+ sls' = ls |> MList.traverse @@ MPair.traverse return contract in
+  let+ sls' = ls |> FomAST.Row.traverse contract in
   let ls' =
     sls' |> FomAST.Row.map snd
     |> List.share_phys_eq (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x)) ls
@@ -453,11 +451,9 @@ let to_strict t =
       let+ d = to_strict d and+ c = to_strict c in
       `Arrow (at, d, c)
     | `Product (at, ls) ->
-      let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
-      `Product (at, ls)
+      FomAST.Row.traverse to_strict ls >>- fun ls -> `Product (at, ls)
     | `Sum (at, ls) ->
-      let+ ls = ls |> MList.traverse @@ MPair.traverse return to_strict in
-      `Sum (at, ls)
+      FomAST.Row.traverse to_strict ls >>- fun ls -> `Sum (at, ls)
     | `Lazy t -> (
       match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
       | None ->

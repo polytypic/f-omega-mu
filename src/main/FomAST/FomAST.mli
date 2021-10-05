@@ -50,6 +50,13 @@ module Row : sig
   val is_tuple : 'a t -> bool
   val map : ('t -> 'u) -> 't t -> 'u t
   val map_phys_eq : 't uop -> 't t -> 't t
+
+  (* *)
+
+  val traverse : ('t -> ('r, 'e, 'u) Rea.t) -> 't t -> ('r, 'e, 'u t) Rea.t
+
+  val traverse_phys_eq :
+    ('t -> ('r, 'e, 't) Rea.t) -> 't t -> ('r, 'e, 't t) Rea.t
 end
 
 module Typ : sig
