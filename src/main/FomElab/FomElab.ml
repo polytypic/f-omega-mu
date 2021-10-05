@@ -44,7 +44,7 @@ module Path = struct
   let is_http path =
     String.is_prefix "https://" path || String.is_prefix "http://" path
 
-  let resolve loc lit =
+  let coalesce loc lit =
     let path = JsonString.to_utf8 lit in
     (if is_http path then
        path |> split_to_origin_and_path
@@ -330,7 +330,7 @@ let rec elaborate_def = function
     in
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->
-    let inc_path = Path.resolve at' p |> Path.ensure_ext Path.inc_ext in
+    let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
     let* env, newer =
       (ImportChain.with_path at' inc_path
       <<< TypIncludes.get_or_put inc_path
@@ -378,7 +378,7 @@ and elaborate_typ = function
     let* typ_aliases = elaborate_def def in
     TypAliases.setting typ_aliases (elaborate_typ e)
   | `Import (at', p) ->
-    let sig_path = Path.resolve at' p |> Path.ensure_ext Path.sig_ext in
+    let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
     (ImportChain.with_path at' sig_path
     <<< TypImports.get_or_put sig_path
     <<< Elab.modularly)
@@ -487,7 +487,7 @@ let rec elaborate = function
     let+ x = elaborate x and+ f = elaborate f in
     `App (at, f, x)
   | `Import (at', p) ->
-    let mod_path = Path.resolve at' p |> Path.ensure_ext Path.mod_ext in
+    let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
     let* typ_opt =
       ImportChain.with_path at' sig_path

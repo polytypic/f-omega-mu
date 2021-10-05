@@ -16,7 +16,7 @@ module Path : sig
   (* *)
 
   val is_http : string -> bool
-  val resolve : Loc.t -> JsonString.t -> string
+  val coalesce : Loc.t -> JsonString.t -> string
 end
 
 module Fetch : sig

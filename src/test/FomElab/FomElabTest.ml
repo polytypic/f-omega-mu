@@ -7,7 +7,7 @@ open FomTest
 open Rea
 
 let () =
-  test "resolve" @@ fun () ->
+  test "Path.coalesce" @@ fun () ->
   [
     ("/foo/bar.fom", "baz", "/foo/baz");
     ("/foo/bar.fom", "/lol/bal", "/lol/bal");
@@ -19,7 +19,7 @@ let () =
   ]
   |> MList.iter @@ fun (loc, path, expected) ->
      let actual =
-       FomElab.Path.resolve (Loc.of_path loc) (JsonString.of_utf8 path)
+       FomElab.Path.coalesce (Loc.of_path loc) (JsonString.of_utf8 path)
      in
      if actual <> expected then (
        Printf.printf "Expected: %s\nActual:   %s\n" expected actual;
