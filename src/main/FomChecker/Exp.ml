@@ -100,7 +100,7 @@ let rec infer = function
     Typ.check_sub_of_norm (at x) x_typ d_typ >> return c_typ
   | `Gen (at', d, d_kind, r) ->
     let* r_typ =
-      Annot.Typ.def d d_kind >> Typ.VarMap.adding d d_kind (infer r)
+      Annot.Typ.def d d_kind >> infer r |> Typ.VarMap.adding d @@ `Kind d_kind
     in
     let* d_kind = Kind.resolve d_kind >>- Kind.ground in
     return @@ `ForAll (at', Typ.lam_of_norm at' d d_kind r_typ)
@@ -173,8 +173,9 @@ let rec infer = function
     let* v_con, d_kind = Typ.check_exists at' v_typ in
     let id_typ = Typ.app_of_norm at' v_con @@ `Var (at', tid) in
     let* e_typ =
-      Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind
-      >> VarMap.adding id id_typ (Typ.VarMap.adding tid d_kind (infer e))
+      Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind >> infer e
+      |> VarMap.adding id id_typ
+      |> Typ.VarMap.adding tid @@ `Kind d_kind
     in
     if Typ.is_free tid e_typ then
       fail @@ `Error_typ_var_escapes (at', tid, e_typ)

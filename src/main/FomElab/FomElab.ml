@@ -75,31 +75,6 @@ module Fetch = struct
     invoke (fun r -> field r at path) |> map_error (fun (#e as x) -> x)
 end
 
-module TypAliases = struct
-  include FomAST.Typ.VarMap
-
-  let empty =
-    let at = Loc.of_path "prelude" in
-    [
-      (Typ.Var.of_string Loc.dummy "bool", `Const (at, `Bool));
-      (Typ.Var.of_string Loc.dummy "int", `Const (at, `Int));
-      (Typ.Var.of_string Loc.dummy "string", `Const (at, `String));
-    ]
-    |> of_list
-
-  type nonrec t = FomAST.Typ.t t
-
-  let field r = r#typ_aliases
-  let setting e = setting field e
-  let find_opt i = get_as field @@ find_opt i
-
-  class con =
-    object
-      val typ_aliases : t = empty
-      method typ_aliases = Field.make typ_aliases (fun v -> {<typ_aliases = v>})
-    end
-end
-
 module VarTbl = struct
   let get field key =
     let* hashtbl = env_as field in
@@ -131,7 +106,8 @@ end
 module TypIncludes = struct
   type t =
     ( string,
-      (Error.t, FomAST.Typ.t FomAST.Typ.VarMap.t * Annot.map) IVar.t )
+      (Error.t, [`Typ of FomAST.Typ.t] FomAST.Typ.VarMap.t * Annot.map) IVar.t
+    )
     Hashtbl.t
 
   let create () = Hashtbl.create 100
@@ -248,27 +224,51 @@ module Parameters = struct
 end
 
 module Elab = struct
+  let initial_typ_env =
+    let open FomAST.Typ in
+    initial_env
+    |> VarMap.map (fun k -> `Kind k)
+    |> VarMap.add_list
+         (let at' = Loc.of_path "prelude" in
+          [
+            (Var.of_string at' "bool", `Const (at', `Bool));
+            (Var.of_string at' "int", `Const (at', `Int));
+            (Var.of_string at' "string", `Const (at', `String));
+          ]
+          |> List.map (fun (i, t) -> (i, `Typ t)))
+
   let modularly op =
     op
-    |> TypAliases.setting TypAliases.empty
-    |> Typ.VarMap.resetting |> Kind.UnkMap.resetting |> Parameters.resetting
-    |> Annot.scoping
+    |> Typ.VarMap.resetting_to initial_typ_env
+    |> Kind.UnkMap.resetting |> Parameters.resetting |> Annot.scoping
 end
 
 (* *)
 
+let to_avoid_capture i =
+  let+ exists =
+    Typ.VarMap.existing (fun _ -> function
+      | `Typ t' -> Typ.is_free i t' | _ -> false)
+  in
+  if exists then
+    let i' = Typ.Var.freshen i in
+    let v' = Typ.var i' in
+    (i', Typ.VarMap.singleton i @@ `Typ v')
+  else
+    (i, Typ.VarMap.empty)
+
+let rec to_avoid_captures = function
+  | [] -> return ([], Typ.VarMap.empty)
+  | i :: is ->
+    let+ i's, es = to_avoid_captures is and+ i', e = to_avoid_capture i in
+    (i' :: i's, Typ.VarMap.merge Map.prefer_rhs e es)
+
 let avoid i inn =
-  mapping TypAliases.field (TypAliases.remove i)
-  @@ let* exists =
-       get_as TypAliases.field
-         (TypAliases.exists (fun _ t' -> Typ.is_free i t'))
-     in
-     if exists then
-       let i' = Typ.Var.freshen i in
-       let v' = Typ.var i' in
-       mapping TypAliases.field (TypAliases.add i v') (inn i')
-     else
-       inn i
+  let* i, avoiding = to_avoid_capture i in
+  inn i
+  |> Typ.VarMap.merging (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+
+(* *)
 
 let rec type_of_pat_lam = function
   | `Id (_, _, t) -> t
@@ -307,28 +307,34 @@ let rec elaborate_pat p' e' = function
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
     let at = Typ.Var.at i in
-    let* t =
+    let+ t =
       `App (at, `Lam (at, i, k, `Var (at, i)), t)
       |> elaborate_typ >>= Typ.infer_and_resolve
     in
-    get_as TypAliases.field (TypAliases.add i t)
+    Typ.VarMap.singleton i @@ `Typ (Typ.set_at at t)
   | `TypRec (_, bs) ->
-    let* assoc =
-      bs
-      |> MList.traverse @@ fun (i, k, t) ->
-         let at = Typ.Var.at i in
-         let t = `Mu (at, `Lam (at, i, k, t)) in
-         let+ t = elaborate_typ t in
-         (i, t)
-    in
-    let env = assoc |> TypAliases.of_list in
-    let env = env |> TypAliases.map (Typ.subst_rec env) in
-    let* env =
-      env |> TypAliases.bindings
-      |> MList.traverse (MPair.traverse return Typ.infer_and_resolve)
-      >>- TypAliases.of_list
-    in
-    get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
+    let is = List.map (fun (i, _, _) -> i) bs in
+    let* i's, avoiding = to_avoid_captures is in
+    let bs = List.map2 (fun i (_, k, t) -> (i, k, t)) i's bs in
+    bs
+    |> MList.iter (fun (i, k, _) -> Annot.Typ.def i k)
+    >> let* assoc =
+         bs
+         |> MList.traverse (fun (i, k, t) ->
+                let at' = Typ.Var.at i in
+                let+ t = elaborate_typ t in
+                (i, `Mu (at', `Lam (at', i, k, t))))
+         |> Typ.VarMap.merging
+              (bs
+              |> List.map (fun (i, k, _) -> (i, `Kind k))
+              |> Typ.VarMap.of_list)
+         |> Typ.VarMap.merging
+              (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+       in
+       assoc
+       |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
+       |> MList.traverse Typ.infer_and_resolve
+       >>- (List.map2 (fun i t -> (i, `Typ t)) is >>> Typ.VarMap.of_list)
   | `Include (at', p) ->
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
     let* env, newer =
@@ -338,28 +344,29 @@ let rec elaborate_def = function
         (let* env =
            Fetch.fetch at' inc_path
            >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
-           >>= elaborate_defs
+           >>= elaborate_defs Typ.VarMap.empty
          in
          Annot.Typ.resolve Kind.resolve >> get Annot.field >>= MVar.get
          >>- fun annot -> (env, annot))
     in
     let* annot = get Annot.field in
-    MVar.mutate annot (Annot.LocMap.merge Map.prefer_lhs newer)
-    >> get_as TypAliases.field @@ TypAliases.merge Map.prefer_lhs env
+    MVar.mutate annot (Annot.LocMap.merge Map.prefer_lhs newer) >> return env
 
 and elaborate_typ = function
   | `Mu (at', t) -> elaborate_typ t >>- fun t -> `Mu (at', t)
   | `Const (_, _) as inn -> return inn
-  | `Var (_, i) as inn -> (
-    let* t_opt = TypAliases.find_opt i in
+  | `Var (at', i) as inn -> (
+    let* t_opt = Typ.VarMap.find_opt i in
     match t_opt with
-    | None -> return inn
-    | Some t ->
+    | Some (`Typ t) ->
       let t = Typ.freshen t in
-      Annot.Typ.use i (Typ.at t) >> return t)
+      Annot.Typ.use i (Typ.at t) >> return t
+    | Some (`Kind k) -> Annot.Typ.use i (Kind.at k) >> return inn
+    | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', i, k, t) ->
     avoid i @@ fun i ->
-    elaborate_typ t |> Typ.VarMap.adding i k >>- fun t -> `Lam (at', i, k, t)
+    elaborate_typ t |> Typ.VarMap.adding i @@ `Kind k >>- fun t ->
+    `Lam (at', i, k, t)
   | `App (at', f, x) ->
     let+ f = elaborate_typ f and+ x = elaborate_typ x in
     `App (at', f, x)
@@ -374,7 +381,8 @@ and elaborate_typ = function
     FomAST.Row.traverse elaborate_typ ls >>- fun ls -> `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    TypAliases.setting typ_aliases (elaborate_typ e)
+    elaborate_typ e
+    |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Import (at', p) ->
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
     (ImportChain.with_path at' sig_path
@@ -384,11 +392,15 @@ and elaborate_typ = function
       >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
       >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
 
-and elaborate_defs = function
-  | [] -> get TypAliases.field
+and elaborate_defs accum = function
+  | [] -> return accum
   | def :: defs ->
-    let* typ_aliases = elaborate_def def in
-    TypAliases.setting typ_aliases (elaborate_defs defs)
+    let* typ_aliases =
+      elaborate_def def
+      |> Typ.VarMap.merging (accum :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+    in
+    let accum = Typ.VarMap.merge Map.prefer_lhs typ_aliases accum in
+    elaborate_defs accum defs
 
 let maybe_annot e tO =
   match tO with
@@ -411,7 +423,7 @@ let rec elaborate = function
     `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid i @@ fun i ->
-    elaborate e |> Typ.VarMap.adding i k >>- fun e -> `Gen (at, i, k, e)
+    elaborate e |> Typ.VarMap.adding i @@ `Kind k >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
     `Inst (at, e, t)
@@ -425,7 +437,8 @@ let rec elaborate = function
     `LetIn (at, i, v, e)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
-    TypAliases.setting typ_aliases (elaborate e)
+    elaborate e
+    |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Mu (at, e) -> elaborate e >>- fun e -> `Mu (at, e)
   | `IfElse (at, c, t, e) ->
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
@@ -442,14 +455,20 @@ let rec elaborate = function
     `Pack (at, t, e, x)
   | `UnpackIn (at, ti, ei, v, e) ->
     let* v = elaborate v in
+    let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
-    let+ e = elaborate e |> Typ.VarMap.adding ti @@ Kind.fresh at in
+    let+ e =
+      Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
+    in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
+    let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
-    let+ e = elaborate e |> Typ.VarMap.adding ti @@ Kind.fresh at in
+    let+ e =
+      Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
+    in
     `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, [(p, v)], e) ->
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
@@ -522,7 +541,7 @@ let rec elaborate = function
 
 (* *)
 
-let elaborate_typ x = elaborate_typ x |> Error.generalize
+let elaborate_typ x = Elab.modularly (elaborate_typ x) |> Error.generalize
 
 (* *)
 

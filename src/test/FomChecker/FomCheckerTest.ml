@@ -274,6 +274,23 @@ let () =
     λfunctor:∀(functor)→∃(applicative).
     λapplicative:∀(applicative)→∃(functor).
     if true then functor else applicative
+    |eof};
+  testInfersAs "μ type variable scoping" "()"
+    {eof|
+    let《T\x》=《()\()》: ∃t.t
+    type U = T
+    type μT = {x: U}
+    {x} ▷ λx:T.()
+    |eof};
+  testInfersAs "another μ type variable scoping" "()"
+    {eof|
+    let《Shadowed\shadowed》=《()\()》: ∃t.t
+    type Alias = Shadowed
+    type μType = λτ.
+      | 'Shadowed (Shadowed τ)
+      | 'Alias Alias
+    and μShadowed = λτ.τ
+    'Shadowed shadowed ▷ λ_:Type Alias.()
     |eof}
 
 let testErrors name exp =

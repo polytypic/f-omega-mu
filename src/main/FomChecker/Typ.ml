@@ -15,17 +15,16 @@ include FomAST.Typ
 module VarMap = struct
   include VarMap
 
-  type t = (Var.t * Kind.t) VarMap.t
-
-  let empty = initial_env
   let field r = r#typ_env
-  let adding i k = mapping field @@ VarMap.add i (i, k)
-  let find_opt i = get_as field @@ VarMap.find_opt i
-  let resetting op = setting field empty op
+  let find_opt i = get_as field @@ find_opt i
+  let existing pr = get_as field @@ exists pr
+  let resetting_to initial op = setting field initial op
+  let adding i v = mapping field @@ add i v
+  let merging env = mapping field (merge Map.prefer_lhs env)
 
-  class con =
+  class ['t] con =
     object
-      val typ_env : t = empty
+      val typ_env : 't t = empty
       method typ_env = Field.make typ_env (fun v -> {<typ_env = v>})
     end
 end
@@ -164,11 +163,12 @@ let rec infer = function
   | `Var (at', i) as t -> (
     let* i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
-    | None -> fail @@ `Error_typ_var_unbound (at', i)
-    | Some (def, i_kind) -> Annot.Typ.use i (Var.at def) >> return (t, i_kind))
+    | Some (`Kind i_kind) ->
+      Annot.Typ.use i (Kind.at i_kind) >> return (t, i_kind)
+    | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
     let+ r, r_kind =
-      Annot.Typ.def d d_kind >> VarMap.adding d d_kind (infer r)
+      Annot.Typ.def d d_kind >> infer r |> VarMap.adding d @@ `Kind d_kind
     in
     (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
   | `App (at', f, x) ->
@@ -215,10 +215,10 @@ let rec kind_of = function
   | `Var (_, i) -> (
     let+ i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
-    | None -> failwithf "kind_of %s" @@ Var.to_string i
-    | Some (_, i_kind) -> i_kind)
+    | Some (`Kind i_kind) -> i_kind
+    | _ -> failwithf "kind_of %s" @@ Var.to_string i)
   | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = VarMap.adding d d_kind (kind_of r) in
+    let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
     `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)

@@ -32,15 +32,6 @@ module Fetch : sig
        end
 end
 
-module TypAliases : sig
-  type t
-
-  class con :
-    object ('r)
-      method typ_aliases : (t, 'r) Field.t
-    end
-end
-
 module Error : sig
   type t =
     [ Error.io_error
@@ -119,8 +110,7 @@ val elaborate_typ :
      ; fetch : Fetch.t
      ; import_chain : (ImportChain.t, 'r) Field.t
      ; kind_env : (Kind.UnkMap.t, 'r) Field.t
-     ; typ_env : (Typ.VarMap.t, 'r) Field.t
-     ; typ_aliases : (TypAliases.t, 'r) Field.t
+     ; typ_env : ([`Kind of Kind.t | `Typ of Typ.t] Typ.VarMap.t, 'r) Field.t
      ; typ_includes : TypIncludes.t
      ; typ_imports : TypImports.t
      ; parameters : (Parameters.t, 'r) Field.t
@@ -135,10 +125,9 @@ val elaborate :
   FomCST.Exp.t ->
   ( (< annotations : (Annot.t, 'r) Field.t
      ; fetch : Fetch.t
-     ; typ_aliases : (TypAliases.t, 'r) Field.t
      ; import_chain : (ImportChain.t, 'r) Field.t
      ; kind_env : (Kind.UnkMap.t, 'r) Field.t
-     ; typ_env : (Typ.VarMap.t, 'r) Field.t
+     ; typ_env : ([`Kind of Kind.t | `Typ of Typ.t] Typ.VarMap.t, 'r) Field.t
      ; typ_includes : TypIncludes.t
      ; typ_imports : TypImports.t
      ; exp_env : (Exp.VarMap.t, 'r) Field.t

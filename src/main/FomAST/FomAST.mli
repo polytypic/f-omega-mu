@@ -133,7 +133,7 @@ module Typ : sig
   (* *)
 
   val impure : Var.t
-  val initial_env : (Var.t * Kind.t) VarMap.t
+  val initial_env : Kind.t VarMap.t
 
   (* *)
 

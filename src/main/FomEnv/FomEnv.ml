@@ -7,9 +7,8 @@ module Env = struct
     object
       inherit FomAnnot.Annot.con annot
       inherit FomChecker.Exp.VarMap.con
-      inherit FomChecker.Typ.VarMap.con
+      inherit [_] FomChecker.Typ.VarMap.con
       inherit FomChecker.Kind.UnkMap.con
-      inherit FomElab.TypAliases.con
       inherit FomElab.Parameters.con
       inherit FomElab.Fetch.con fetch
       inherit FomElab.ImportChain.con

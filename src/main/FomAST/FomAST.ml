@@ -287,7 +287,7 @@ module Typ = struct
   let initial_env =
     let star = `Star Loc.dummy in
     let arrow d c = `Arrow (Loc.dummy, d, c) in
-    [(impure, (impure, arrow star star))] |> VarMap.of_list
+    [(impure, arrow star star)] |> VarMap.of_list
 
   let rec subst_rec env =
     keep_phys_eq @@ function
