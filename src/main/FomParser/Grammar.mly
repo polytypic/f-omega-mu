@@ -107,7 +107,7 @@ label:
   | n=LitNat                                            {Label.of_string $loc (Bigint.to_string n)}
 
 lab_list(item):
-  | ls=list_n(item,",")                                 {check_lab_list ls}
+  | ls=list_n(item,",")                                 {ls}
 
 //
 

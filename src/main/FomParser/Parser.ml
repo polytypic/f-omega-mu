@@ -15,8 +15,6 @@ let parse grammar lexer buffer : (_, [> Error.t], _) Rea.t =
   | Grammar.Error ->
     Rea.fail @@ `Error_grammar (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
   | Lexer.Exn_lexeme (at, lexeme) -> Rea.fail @@ `Error_lexeme (at, lexeme)
-  | FomCST.Exn_duplicated_label (at, label) ->
-    Rea.fail @@ `Error_duplicated_label (at, label)
 
 let parse_utf_8 grammar lexer ?(path = "") input =
   Buffer.from_utf_8 ~path input |> parse grammar lexer

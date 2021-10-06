@@ -108,15 +108,3 @@ module Exp = struct
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
 end
-
-exception Exn_duplicated_label of Loc.t * Label.t
-
-let check_lab_list fs =
-  let rec check_dups = function
-    | l1 :: (l2 :: _ as ls) ->
-      if Label.equal l1 l2 then
-        raise @@ Exn_duplicated_label (Label.at l2, l1);
-      check_dups ls
-    | _ -> fs
-  in
-  fs |> List.map fst |> List.stable_sort Label.compare |> check_dups

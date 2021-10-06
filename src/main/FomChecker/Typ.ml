@@ -113,9 +113,9 @@ let rec resolve t =
       let+ d' = resolve d and+ c' = resolve c in
       `Arrow (at', d', c')
     | `Product (at', ls) ->
-      FomAST.Row.traverse_phys_eq resolve ls >>- fun ls' -> `Product (at', ls')
+      Row.traverse_phys_eq resolve ls >>- fun ls' -> `Product (at', ls')
     | `Sum (at', ls) ->
-      FomAST.Row.traverse_phys_eq resolve ls >>- fun ls' -> `Sum (at', ls')
+      Row.traverse_phys_eq resolve ls >>- fun ls' -> `Sum (at', ls')
   in
   keep_phys_eq' t t'
 
@@ -137,8 +137,8 @@ let rec ground t =
      | `ForAll (at', f) -> `ForAll (at', ground f)
      | `Exists (at', f) -> `Exists (at', ground f)
      | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
-     | `Product (at', ls) -> `Product (at', FomAST.Row.map_phys_eq ground ls)
-     | `Sum (at', ls) -> `Sum (at', FomAST.Row.map_phys_eq ground ls)
+     | `Product (at', ls) -> `Product (at', Row.map_phys_eq ground ls)
+     | `Sum (at', ls) -> `Sum (at', Row.map_phys_eq ground ls)
 
 let ground = Profiling.Counter.wrap'1 "ground" ground
 
@@ -187,7 +187,7 @@ let rec infer = function
 
 and infer_row at' ls con =
   let star = `Star at' in
-  let+ ls = FomAST.Row.traverse (check star) ls in
+  let+ ls = Row.check ls >> Row.traverse (check star) ls in
   (con at' ls, star)
 
 and infer_quantifier at' f con =
@@ -367,9 +367,9 @@ and contract_base t =
   (s, keep_phys_eq' t t')
 
 and contract_labels ls =
-  let+ sls' = ls |> FomAST.Row.traverse contract in
+  let+ sls' = ls |> Row.traverse contract in
   let ls' =
-    sls' |> FomAST.Row.map snd
+    sls' |> Row.map snd
     |> List.share_phys_eq (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x)) ls
   in
   let s =
@@ -429,9 +429,8 @@ let rec replace_closed_mus m =
   | `Arrow (at', d, c) ->
     `Arrow (at', replace_closed_mus m d, replace_closed_mus m c)
   | `Product (at', ls) ->
-    `Product (at', FomAST.Row.map_phys_eq (replace_closed_mus m) ls)
-  | `Sum (at', ls) ->
-    `Sum (at', FomAST.Row.map_phys_eq (replace_closed_mus m) ls)
+    `Product (at', Row.map_phys_eq (replace_closed_mus m) ls)
+  | `Sum (at', ls) -> `Sum (at', Row.map_phys_eq (replace_closed_mus m) ls)
 
 (* *)
 
@@ -451,9 +450,8 @@ let to_strict t =
       let+ d = to_strict d and+ c = to_strict c in
       `Arrow (at, d, c)
     | `Product (at, ls) ->
-      FomAST.Row.traverse to_strict ls >>- fun ls -> `Product (at, ls)
-    | `Sum (at, ls) ->
-      FomAST.Row.traverse to_strict ls >>- fun ls -> `Sum (at, ls)
+      Row.traverse to_strict ls >>- fun ls -> `Product (at, ls)
+    | `Sum (at, ls) -> Row.traverse to_strict ls >>- fun ls -> `Sum (at, ls)
     | `Lazy t -> (
       match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
       | None ->

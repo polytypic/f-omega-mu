@@ -339,4 +339,7 @@ let () =
     {eof|
     type Apply = λf:(_ → _) → _.λx.f x
     type x = Apply (λx.x → int) int in ()
-    |eof}
+    |eof};
+  testErrors "duplicate produce label" "{x = 1, y = true, x = ()}";
+  testErrors "duplicate product type label" "λ_:{y: bool, x: int, y: string}.()";
+  testErrors "duplicate sum type label" "λ_: 'Y bool | 'X int | 'Y string.()"

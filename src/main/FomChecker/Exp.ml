@@ -122,7 +122,7 @@ let rec infer = function
     >> let* t_typ = infer t and* e_typ = infer e in
        Typ.join_of_norm (at e) t_typ e_typ
   | `Product (at', fs) ->
-    FomAST.Row.traverse infer fs >>- fun fs -> Typ.product at' fs
+    Row.check fs >> Row.traverse infer fs >>- fun fs -> Typ.product at' fs
   | `Select (at', p, i) ->
     let* p_typ = infer p and* i_typ = infer i in
     let* ls = Typ.check_product (at p) p_typ in
@@ -151,13 +151,13 @@ let rec infer = function
   | `Case (at', cs) ->
     let* cs_typ = infer cs in
     let* cs_fs = Typ.check_product (at cs) cs_typ in
-    let* cs_arrows = cs_fs |> FomAST.Row.traverse @@ Typ.check_arrow (at cs) in
+    let* cs_arrows = cs_fs |> Row.traverse @@ Typ.check_arrow (at cs) in
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
       | [] -> return @@ Typ.zero (at cs)
       | t :: ts -> ts |> MList.fold_left (Typ.join_of_norm (at cs)) t
     in
-    let d_typ = `Sum (at cs, cs_arrows |> FomAST.Row.map fst) in
+    let d_typ = `Sum (at cs, cs_arrows |> Row.map fst) in
     `Arrow (at', d_typ, c_typ)
   | `Pack (at', t, e, et) ->
     let* e_typ = infer e
