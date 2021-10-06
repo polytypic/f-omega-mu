@@ -18,9 +18,10 @@ module Error : sig
   type grammar = [`Error_grammar of Loc.t * string]
   type duplicated_label = [`Error_duplicated_label of Loc.t * Label.t]
   type duplicated_typ_bind = [`Error_duplicated_typ_bind of Loc.t * Typ.Var.t]
+  type duplicated_bind = [`Error_duplicated_bind of Loc.t * Exp.Var.t]
 
   type syntax_errors =
-    [lexeme | grammar | duplicated_label | duplicated_typ_bind]
+    [lexeme | grammar | duplicated_label | duplicated_typ_bind | duplicated_bind]
 
   (* Source errors *)
 

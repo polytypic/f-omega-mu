@@ -283,6 +283,9 @@ let rec elaborate_pat p' e' = function
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
     `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
 
+let elaborate_pat p' e' p =
+  FomCST.Exp.Pat.check p >>- fun () -> elaborate_pat p' e' p
+
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
     let at = Typ.Var.at i in
@@ -452,14 +455,14 @@ let rec elaborate = function
     let t = type_of_pat_lam p in
     let* t = elaborate_typ t in
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
-    let e = elaborate_pat (`Var (at, i)) e p in
+    let* e = elaborate_pat (`Var (at, i)) e p in
     let+ e = elaborate e in
     `Lam (at, i, t, e)
   | `LetPat (at, p, tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
-    let e = elaborate_pat (`Var (at, i)) e p in
+    let* e = elaborate_pat (`Var (at, i)) e p in
     let+ e = elaborate e in
     `LetIn (at, i, v, e)
   | `Annot (at, e, t) ->

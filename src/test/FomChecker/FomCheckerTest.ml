@@ -291,7 +291,11 @@ let () =
       | 'Alias Alias
     and μShadowed = λτ.τ
     'Shadowed shadowed ▷ λ_:Type Alias.()
-    |eof}
+    |eof};
+  testInfersAs "duplicate wildcard bindings" "()"
+    "let (《_\\_》,《_\\_》) = (《()\\()》: ∃t.t,《()\\()》: ∃t.t) in ()";
+  testInfersAs "duplicate wildcard μ bindings" "()"
+    "let μ_:int=1 and μ_:int=1 in ()"
 
 let testErrors name exp =
   test name @@ fun () ->
@@ -344,4 +348,7 @@ let () =
   testErrors "duplicate product type label" "λ_:{y: bool, x: int, y: string}.()";
   testErrors "duplicate sum type label" "λ_: 'Y bool | 'X int | 'Y string.()";
   testErrors "duplicate type bindings"
-    "type μdup = int and μdup = string in λx:dup.x"
+    "type μdup = int and μdup = string in λx:dup.x";
+  testErrors "duplicate pattern binding" "let {y, x = y} = {x = 2, y = 1} in y";
+  testErrors "duplicate unpack type binding"
+    "let (《t\\x》,《t\\y》) = (《()\\()》: ∃t.t,《()\\()》: ∃t.t) in ()"

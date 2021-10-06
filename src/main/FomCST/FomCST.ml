@@ -6,6 +6,7 @@ open FomSource
 
 module Kind = Kind
 module Label = Label
+module Row = Row
 
 module Tuple = struct
   let labels at =
@@ -60,6 +61,33 @@ module Exp = struct
       [ `Id of Loc.t * Var.t * Typ.t
       | `Product of Loc.t * (Label.t * [`Pat of t | `Ann of Typ.t]) list
       | `Pack of Loc.t * t * Typ.Var.t * Typ.t ]
+
+    let check p =
+      let open Rea in
+      let rec collect (ts, is) = function
+        | `Id (_, i, _) -> (ts, i :: is)
+        | `Product (_, ps) ->
+          ps
+          |> List.fold_left
+               (fun (ts, is) -> function
+                 | l, `Ann _ ->
+                   (ts, Exp.Var.of_name (Label.at l) (Label.name l) :: is)
+                 | _, `Pat p -> collect (ts, is) p)
+               (ts, is)
+        | `Pack (_, p, t, _) -> collect (t :: ts, is) p
+      in
+      let ts, is = collect ([], []) p in
+      let check_ts =
+        ts |> List.find_dup_opt Typ.Var.compare |> function
+        | None -> unit
+        | Some (i2, i1) -> fail @@ `Error_duplicated_typ_bind (Typ.Var.at i2, i1)
+      in
+      let check_is =
+        is |> List.find_dup_opt Var.compare |> function
+        | None -> unit
+        | Some (i2, i1) -> fail @@ `Error_duplicated_bind (Var.at i2, i1)
+      in
+      check_ts >> check_is
 
     let rec label_for = function
       | `Id (_, i, _) -> Var.to_label i
