@@ -452,6 +452,8 @@ module Typ = struct
 
   let some_spaces = Some spaces
 
+  type config = {hr : bool; pp_annot : Kind.t -> document}
+
   let rec hanging = function
     | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
       some_spaces
@@ -460,21 +462,20 @@ module Typ = struct
       match unapp t with `Var _, [x] -> hanging x | _ -> None)
     | _ -> None
 
-  let rec binding pp_annot prec_outer head i k t =
-    (group (head ^^ Var.pp i ^^ pp_annot k ^^ dot |> nest 2)
+  let rec binding config prec_outer head i k t =
+    (group (head ^^ Var.pp i ^^ config.pp_annot k ^^ dot |> nest 2)
     ^^
     match hanging t with
-    | Some _ -> pp pp_annot prec_min t
-    | None -> break_0 ^^ group (pp pp_annot prec_min t) |> nest 2 |> group)
+    | Some _ -> pp config prec_min t
+    | None -> break_0 ^^ group (pp config prec_min t) |> nest 2 |> group)
     |> if prec_min < prec_outer then egyptian parens 2 else Fun.id
 
-  and quantifier pp_annot prec_outer symbol (typ : t) =
+  and quantifier config prec_outer symbol (typ : t) =
     match typ with
-    | `Lam (_, id, kind, body) ->
-      binding pp_annot prec_outer symbol id kind body
-    | _ -> symbol ^^ egyptian parens 2 (pp pp_annot prec_min typ)
+    | `Lam (_, id, kind, body) -> binding config prec_outer symbol id kind body
+    | _ -> symbol ^^ egyptian parens 2 (pp config prec_min typ)
 
-  and labeled pp_annot labels =
+  and labeled config labels =
     labels
     |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
     |> List.map (function
@@ -483,18 +484,18 @@ module Typ = struct
            Label.pp label ^^ colon
            ^^
            match hanging typ with
-           | Some (lhs, _) -> lhs ^^ pp pp_annot prec_min typ
-           | None -> break_1 ^^ pp pp_annot prec_min typ |> nest 2 |> group))
+           | Some (lhs, _) -> lhs ^^ pp config prec_min typ
+           | None -> break_1 ^^ pp config prec_min typ |> nest 2 |> group))
     |> separate comma_break_1_or_break_0
 
-  and ticked pp_annot labels =
+  and ticked config labels =
     match
       labels
       |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
       |> List.map @@ function
          | l, `Product (_, []) -> tick ^^ Label.pp l
          | l, t ->
-           tick ^^ Label.pp l ^^ break_1 ^^ pp pp_annot prec_max t
+           tick ^^ Label.pp l ^^ break_1 ^^ pp config prec_max t
            |> nest 2 |> group
     with
     | [l] -> l
@@ -502,44 +503,45 @@ module Typ = struct
     | ls ->
       ls |> separate break_1_pipe_space |> precede (ifflat empty pipe_space)
 
-  and tuple pp_annot labels =
-    labels |> List.map (snd >>> pp pp_annot prec_min) |> separate comma_break_1
+  and tuple config labels =
+    labels |> List.map (snd >>> pp config prec_min) |> separate comma_break_1
 
-  and pp pp_annot prec_outer (typ : t) =
+  and pp config prec_outer (typ : t) =
     match typ with
     | `Const (_, const) -> Const.pp const
-    | `Var (_, id) -> Var.pp id
+    | `Var (_, id) -> Var.pp ~hr:config.hr id
     | `Lam (_, id, kind, body) ->
-      binding pp_annot prec_outer lambda_lower id kind body
-    | `Mu (_, typ) -> quantifier pp_annot prec_outer FomPP.mu_lower typ
-    | `ForAll (_, typ) -> quantifier pp_annot prec_outer FomPP.for_all typ
-    | `Exists (_, typ) -> quantifier pp_annot prec_outer FomPP.exists typ
+      binding config prec_outer lambda_lower id kind body
+    | `Mu (_, typ) -> quantifier config prec_outer FomPP.mu_lower typ
+    | `ForAll (_, typ) -> quantifier config prec_outer FomPP.for_all typ
+    | `Exists (_, typ) -> quantifier config prec_outer FomPP.exists typ
     | `Arrow (_, dom, cod) ->
-      pp pp_annot (prec_arrow + 1) dom
+      pp config (prec_arrow + 1) dom
       ^^ (match hanging cod with
          | Some (lhs, _) -> space_arrow_right ^^ lhs
          | None -> space_arrow_right_break_1)
-      ^^ pp pp_annot (prec_arrow - 1) cod
+      ^^ pp config (prec_arrow - 1) cod
       |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
     | `Product (_, labels) ->
       if Row.is_tuple labels then
-        tuple pp_annot labels |> egyptian parens 2
+        tuple config labels |> egyptian parens 2
       else
-        labeled pp_annot labels |> egyptian braces 2
+        labeled config labels |> egyptian braces 2
     | `Sum (_, [(l, `Product (_, []))]) -> tick ^^ Label.pp l
     | `Sum (_, labels) ->
-      ticked pp_annot labels
+      ticked config labels
       |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
     | `App (_, _, _) -> (
       match unapp typ with
       | f, xs ->
-        pp pp_annot prec_app f
-        :: (xs |> List.map (pp pp_annot (prec_app + 1) >>> group))
+        pp config prec_app f
+        :: (xs |> List.map (pp config (prec_app + 1) >>> group))
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
 
-  let pp ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
-    pp pp_annot prec_min typ |> group
+  let pp ?(hr = true)
+      ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
+    pp {hr; pp_annot} prec_min typ |> group
 end
 
 module Exp = struct

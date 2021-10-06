@@ -1,3 +1,4 @@
+open FomPP
 open FomBasis
 
 module Name : sig
@@ -57,7 +58,7 @@ module type S = sig
   (* Formatting *)
 
   val to_string : t -> string
-  val pp : t -> FomPP.document
+  val pp : ?hr:bool -> t -> document
 
   (* Constructors *)
 
@@ -97,12 +98,14 @@ module Make () : S = struct
     let it = Name.to_string name in
     if n = 0 then it else Printf.sprintf "%s$%d" it n
 
-  let pp {name; n; _} =
-    let it = Name.to_string name in
+  let pp ?(hr = true) {name; n; _} =
+    let it = Name.to_string name |> utf8string in
     if n = 0 then
-      FomPP.utf8string it
+      it
+    else if hr then
+      it ^^ subscript n
     else
-      FomPP.utf8format "%s$%d" it n
+      it ^^ utf8format "$%d" n
 
   (* Freshening *)
 

@@ -66,7 +66,7 @@ module Id : sig
     (* Formatting *)
 
     val to_string : t -> string
-    val pp : t -> document
+    val pp : ?hr:bool -> t -> document
 
     (* Constructors *)
 
