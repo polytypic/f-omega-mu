@@ -122,8 +122,7 @@ end
 module TypIncludes = struct
   type t =
     ( string,
-      (Error.t, [`Typ of FomAST.Typ.t] FomAST.Typ.VarMap.t * Annot.map) IVar.t
-    )
+      (Error.t, [`Typ of Typ.t] Typ.VarMap.t * Annot.map) IVar.t )
     Hashtbl.t
 
   let create () = Hashtbl.create 100
@@ -137,7 +136,7 @@ module TypIncludes = struct
 end
 
 module TypImports = struct
-  type t = (string, (Error.t, FomAST.Typ.t) IVar.t) Hashtbl.t
+  type t = (string, (Error.t, Typ.t) IVar.t) Hashtbl.t
 
   let create () = Hashtbl.create 100
   let field r = r#typ_imports
@@ -152,9 +151,7 @@ end
 module ExpImports = struct
   type t =
     ( string,
-      ( Error.t,
-        FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
-      IVar.t )
+      (Error.t, Exp.Var.t * Exp.t * Typ.t * string list) IVar.t )
     Hashtbl.t
 
   let create () = Hashtbl.create 100
@@ -210,7 +207,7 @@ end
 
 module Elab = struct
   let initial_typ_env =
-    let open FomAST.Typ in
+    let open Typ in
     initial_env
     |> VarMap.map (fun k -> `Kind k)
     |> VarMap.add_list
@@ -361,9 +358,8 @@ and elaborate_typ = function
     let+ d = elaborate_typ d and+ c = elaborate_typ c in
     `Arrow (at', d, c)
   | `Product (at', ls) ->
-    FomAST.Row.traverse elaborate_typ ls >>- fun ls -> `Product (at', ls)
-  | `Sum (at', ls) ->
-    FomAST.Row.traverse elaborate_typ ls >>- fun ls -> `Sum (at', ls)
+    Row.traverse elaborate_typ ls >>- fun ls -> `Product (at', ls)
+  | `Sum (at', ls) -> Row.traverse elaborate_typ ls >>- fun ls -> `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     elaborate_typ e
@@ -427,7 +423,7 @@ let rec elaborate = function
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
     `IfElse (at, c, t, e)
   | `Product (at, fs) ->
-    FomAST.Row.traverse elaborate fs >>- fun fs -> `Product (at, fs)
+    Row.traverse elaborate fs >>- fun fs -> `Product (at, fs)
   | `Select (at, e, l) ->
     let+ e = elaborate e and+ l = elaborate l in
     `Select (at, e, l)
@@ -503,9 +499,9 @@ let rec elaborate = function
         (let* ast =
            Fetch.fetch at' mod_path
            >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
-           >>= elaborate >>- FomAST.Exp.initial_exp
+           >>= elaborate >>- Exp.initial_exp
          in
-         let id = FomAST.Exp.Var.fresh at' in
+         let id = Exp.Var.fresh at' in
          let ast =
            match typ_opt with
            | None -> ast
@@ -527,7 +523,7 @@ let elaborate_typ x = Elab.modularly (elaborate_typ x)
 
 let elaborate cst =
   Elab.modularly
-    (let* ast = elaborate cst >>- FomAST.Exp.initial_exp in
+    (let* ast = elaborate cst >>- Exp.initial_exp in
      let* typ =
        Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
      in
