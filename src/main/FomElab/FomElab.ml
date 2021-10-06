@@ -75,90 +75,6 @@ module Fetch = struct
     invoke (fun r -> field r at path) |> map_error (fun (#e as x) -> x)
 end
 
-module VarTbl = struct
-  let get field key =
-    let* hashtbl = env_as field in
-    match Hashtbl.find_opt hashtbl key with
-    | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
-    | Some var -> IVar.get var
-
-  let get_or_put field key compute =
-    let* hashtbl = env_as field in
-    match Hashtbl.find_opt hashtbl key with
-    | None ->
-      let var = IVar.empty () in
-      Hashtbl.replace hashtbl key var;
-      catch compute >>= IVar.put var >> IVar.get var
-    | Some var -> IVar.get var
-end
-
-module Error = struct
-  type t =
-    [ Error.io_error
-    | Error.syntax_errors
-    | Error.source_errors
-    | Error.kind_errors
-    | Error.type_errors ]
-
-  let generalize x = map_error (fun (#t as x) -> x) x
-end
-
-module TypIncludes = struct
-  type t =
-    ( string,
-      (Error.t, [`Typ of FomAST.Typ.t] FomAST.Typ.VarMap.t * Annot.map) IVar.t
-    )
-    Hashtbl.t
-
-  let create () = Hashtbl.create 100
-  let field r = r#typ_includes
-
-  let get_or_put path compute =
-    VarTbl.get_or_put field path compute |> Error.generalize
-
-  class con (typ_includes : t) =
-    object
-      method typ_includes = typ_includes
-    end
-end
-
-module TypImports = struct
-  type t = (string, (Error.t, FomAST.Typ.t) IVar.t) Hashtbl.t
-
-  let create () = Hashtbl.create 100
-  let field r = r#typ_imports
-
-  let get_or_put path compute =
-    VarTbl.get_or_put field path compute |> Error.generalize
-
-  class con (typ_imports : t) =
-    object
-      method typ_imports = typ_imports
-    end
-end
-
-module ExpImports = struct
-  type t =
-    ( string,
-      ( Error.t,
-        FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
-      IVar.t )
-    Hashtbl.t
-
-  let create () = Hashtbl.create 100
-  let field r : t = r#exp_imports
-
-  let get_or_put path compute =
-    VarTbl.get_or_put field path compute |> Error.generalize
-
-  let get path = VarTbl.get field path |> Error.generalize
-
-  class con (exp_imports : t) =
-    object
-      method exp_imports = exp_imports
-    end
-end
-
 module PathMap = Map.Make (String)
 module PathSet = Set.Make (String)
 
@@ -180,6 +96,86 @@ module ImportChain = struct
 
       method import_chain =
         Field.make import_chain (fun v -> {<import_chain = v>})
+    end
+end
+
+module Error = struct
+  type t =
+    [ Error.io_error
+    | Error.syntax_errors
+    | Error.source_errors
+    | Error.kind_errors
+    | Error.type_errors ]
+
+  let generalize x = map_error (fun (#t as x) -> x) x
+end
+
+module PathTable = struct
+  let get field key =
+    (let* hashtbl = env_as field in
+     match Hashtbl.find_opt hashtbl key with
+     | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
+     | Some var -> IVar.get var)
+    |> Error.generalize
+
+  let get_or_put field at path compute =
+    (let* hashtbl = env_as field in
+     match Hashtbl.find_opt hashtbl path with
+     | None ->
+       let var = IVar.empty () in
+       Hashtbl.replace hashtbl path var;
+       catch compute >>= IVar.put var >> IVar.get var
+     | Some var -> IVar.get var)
+    |> ImportChain.with_path at path
+    |> Error.generalize
+end
+
+module TypIncludes = struct
+  type t =
+    ( string,
+      (Error.t, [`Typ of FomAST.Typ.t] FomAST.Typ.VarMap.t * Annot.map) IVar.t
+    )
+    Hashtbl.t
+
+  let create () = Hashtbl.create 100
+  let field r = r#typ_includes
+  let get_or_put at = PathTable.get_or_put field at
+
+  class con (typ_includes : t) =
+    object
+      method typ_includes = typ_includes
+    end
+end
+
+module TypImports = struct
+  type t = (string, (Error.t, FomAST.Typ.t) IVar.t) Hashtbl.t
+
+  let create () = Hashtbl.create 100
+  let field r = r#typ_imports
+  let get_or_put at = PathTable.get_or_put field at
+
+  class con (typ_imports : t) =
+    object
+      method typ_imports = typ_imports
+    end
+end
+
+module ExpImports = struct
+  type t =
+    ( string,
+      ( Error.t,
+        FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
+      IVar.t )
+    Hashtbl.t
+
+  let create () = Hashtbl.create 100
+  let field r : t = r#exp_imports
+  let get_or_put at = PathTable.get_or_put field at
+  let get path = PathTable.get field path
+
+  class con (exp_imports : t) =
+    object
+      method exp_imports = exp_imports
     end
 end
 
@@ -241,6 +237,7 @@ module Elab = struct
     op
     |> Typ.VarMap.resetting_to initial_typ_env
     |> Kind.UnkMap.resetting |> Parameters.resetting |> Annot.scoping
+    |> Error.generalize
 end
 
 (* *)
@@ -338,9 +335,7 @@ let rec elaborate_def = function
   | `Include (at', p) ->
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
     let* env, newer =
-      (ImportChain.with_path at' inc_path
-      <<< TypIncludes.get_or_put inc_path
-      <<< Elab.modularly)
+      (TypIncludes.get_or_put at' inc_path <<< Elab.modularly)
         (let* env =
            Fetch.fetch at' inc_path
            >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
@@ -385,9 +380,7 @@ and elaborate_typ = function
     |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Import (at', p) ->
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
-    (ImportChain.with_path at' sig_path
-    <<< TypImports.get_or_put sig_path
-    <<< Elab.modularly)
+    (TypImports.get_or_put at' sig_path <<< Elab.modularly)
       (Fetch.fetch at' sig_path
       >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
       >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
@@ -506,20 +499,17 @@ let rec elaborate = function
     let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
     let* typ_opt =
-      ImportChain.with_path at' sig_path
-        ((TypImports.get_or_put sig_path <<< Elab.modularly)
-           (Fetch.fetch at' sig_path
-           >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
-           >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
-        |> try_in (fun contents -> return @@ Some contents) @@ function
-           | `Error_file_doesnt_exist (_, path) when path = sig_path ->
-             return None
-           | e -> fail e)
+      (TypImports.get_or_put at' sig_path <<< Elab.modularly)
+        (Fetch.fetch at' sig_path
+        >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
+        >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
+      |> try_in (fun contents -> return @@ Some contents) @@ function
+         | `Error_file_doesnt_exist (_, path) when path = sig_path ->
+           return None
+         | e -> fail e
     in
     let* id, _, _, _ =
-      (ImportChain.with_path at' mod_path
-      <<< ExpImports.get_or_put mod_path
-      <<< Elab.modularly)
+      (ExpImports.get_or_put at' mod_path <<< Elab.modularly)
         (let* ast =
            Fetch.fetch at' mod_path
            >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
@@ -541,7 +531,7 @@ let rec elaborate = function
 
 (* *)
 
-let elaborate_typ x = Elab.modularly (elaborate_typ x) |> Error.generalize
+let elaborate_typ x = Elab.modularly (elaborate_typ x)
 
 (* *)
 
@@ -553,4 +543,3 @@ let elaborate cst =
      in
      let+ parameters = Parameters.get () in
      (ast, typ, parameters))
-  |> Error.generalize
