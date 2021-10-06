@@ -32,17 +32,6 @@ module Fetch : sig
        end
 end
 
-module Error : sig
-  type t =
-    [ Error.io_error
-    | Error.syntax_errors
-    | Error.source_errors
-    | Error.kind_errors
-    | Error.type_errors ]
-
-  val generalize : ('r, [< t], 'a) Rea.t -> ('r, [> t], 'a) Rea.t
-end
-
 module Parameters : sig
   type t
 

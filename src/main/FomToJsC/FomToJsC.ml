@@ -37,7 +37,7 @@ let topological_deps paths =
         Hashtbl.replace added path ();
         deps := path :: !deps)
   in
-  paths |> MList.iter loop |> FomElab.Error.generalize >>- fun () -> !deps
+  paths |> MList.iter loop |> FomDiag.Error.generalize >>- fun () -> !deps
 
 let erase_and_simplify_all paths =
   paths

@@ -1,6 +1,7 @@
 open FomPP
 open FomSource
 open FomAST
+open FomBasis.Rea
 
 module Diagnostic = struct
   type t = Loc.t * document
@@ -57,9 +58,11 @@ module Error = struct
     | label_missing
     | typ_var_escapes ]
 
-  (* Formatting *)
-
   type t = [io_error | syntax_errors | source_errors | kind_errors | type_errors]
+
+  let generalize x = map_error (fun (#t as x) -> x) x
+
+  (* Formatting *)
 
   let cyclic kind new_at filename old_at =
     ( ( new_at,

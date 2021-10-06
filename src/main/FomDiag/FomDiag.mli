@@ -1,3 +1,4 @@
+open FomBasis
 open FomPP
 open FomSource
 open FomAST
@@ -57,9 +58,11 @@ module Error : sig
     | label_missing
     | typ_var_escapes ]
 
-  (* Formatting *)
-
   type t = [io_error | syntax_errors | source_errors | kind_errors | type_errors]
+
+  val generalize : ('r, [< t], 'a) Rea.t -> ('r, [> t], 'a) Rea.t
+
+  (* Formatting *)
 
   val to_diagnostics : [< t] -> Diagnostic.t * Diagnostic.t list
 end

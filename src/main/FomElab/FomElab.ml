@@ -99,17 +99,6 @@ module ImportChain = struct
     end
 end
 
-module Error = struct
-  type t =
-    [ Error.io_error
-    | Error.syntax_errors
-    | Error.source_errors
-    | Error.kind_errors
-    | Error.type_errors ]
-
-  let generalize x = map_error (fun (#t as x) -> x) x
-end
-
 module PathTable = struct
   let get field key =
     (let* hashtbl = env_as field in
