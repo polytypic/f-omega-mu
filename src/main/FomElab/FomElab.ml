@@ -436,19 +436,15 @@ let rec elaborate = function
     let* v = elaborate v in
     let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
-    let+ e =
-      Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
-    in
-    `UnpackIn (at, ti, ei, v, e)
+    Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
+    >>- fun e -> `UnpackIn (at, ti, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
     let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
-    let+ e =
-      Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
-    in
-    `UnpackIn (at, ti, ei, v, e)
+    Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
+    >>- fun e -> `UnpackIn (at, ti, ei, v, e)
   | `LetPatRec (at, [(p, v)], e) ->
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LetPatRec (at, pvs, e) ->
