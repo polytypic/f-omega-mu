@@ -329,7 +329,7 @@ let () =
     type r = λt.x
     let (《x\_》, _)= (《()\()》: ∃t.t, 101)
     (λ_:r int.λ_:r string.(), 1).2
-     |eof};
+    |eof};
   testErrors "kind error with type"
     {eof|
     type Apply = λf:(_ → _) → _.λx.f x
