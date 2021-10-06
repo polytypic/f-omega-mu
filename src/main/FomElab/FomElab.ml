@@ -100,6 +100,8 @@ module ImportChain = struct
 end
 
 module PathTable = struct
+  type 'a t = (string, (Error.t, 'a) IVar.t) Hashtbl.t
+
   let get field key =
     (let* hashtbl = env_as field in
      match Hashtbl.find_opt hashtbl key with
@@ -120,10 +122,7 @@ module PathTable = struct
 end
 
 module TypIncludes = struct
-  type t =
-    ( string,
-      (Error.t, [`Typ of Typ.t] Typ.VarMap.t * Annot.map) IVar.t )
-    Hashtbl.t
+  type t = ([`Typ of Typ.t] Typ.VarMap.t * Annot.map) PathTable.t
 
   let create () = Hashtbl.create 100
   let field r = r#typ_includes
@@ -136,7 +135,7 @@ module TypIncludes = struct
 end
 
 module TypImports = struct
-  type t = (string, (Error.t, Typ.t) IVar.t) Hashtbl.t
+  type t = Typ.t PathTable.t
 
   let create () = Hashtbl.create 100
   let field r = r#typ_imports
@@ -149,10 +148,7 @@ module TypImports = struct
 end
 
 module ExpImports = struct
-  type t =
-    ( string,
-      (Error.t, Exp.Var.t * Exp.t * Typ.t * string list) IVar.t )
-    Hashtbl.t
+  type t = (Exp.Var.t * Exp.t * Typ.t * string list) PathTable.t
 
   let create () = Hashtbl.create 100
   let field r : t = r#exp_imports
