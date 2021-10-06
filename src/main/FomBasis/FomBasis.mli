@@ -88,6 +88,7 @@ module List : sig
   val compare_with : 'a cmp -> 'a list cmp
   val map_phys_eq : 'a uop -> 'a list uop
   val share_phys_eq : 'a bop -> 'a list bop
+  val find_dup_opt : 'a cmp -> 'a list -> ('a * 'a) option
 end
 
 module Map : sig

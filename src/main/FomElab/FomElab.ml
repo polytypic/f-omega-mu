@@ -300,27 +300,28 @@ let rec elaborate_def = function
     Typ.VarMap.singleton i @@ `Typ (Typ.set_at at t)
   | `TypRec (_, bs) ->
     let is = List.map (fun (i, _, _) -> i) bs in
+    let* () =
+      is |> List.find_dup_opt Typ.Var.compare |> function
+      | Some (i, i') -> fail @@ `Error_duplicated_typ_bind (Typ.Var.at i', i)
+      | None -> unit
+    in
     let* i's, avoiding = to_avoid_captures is in
     let bs = List.map2 (fun i (_, k, t) -> (i, k, t)) i's bs in
-    bs
-    |> MList.iter (fun (i, k, _) -> Annot.Typ.def i k)
-    >> let* assoc =
-         bs
-         |> MList.traverse (fun (i, k, t) ->
-                let at' = Typ.Var.at i in
-                let+ t = elaborate_typ t in
-                (i, `Mu (at', `Lam (at', i, k, t))))
-         |> Typ.VarMap.merging
-              (bs
-              |> List.map (fun (i, k, _) -> (i, `Kind k))
-              |> Typ.VarMap.of_list)
-         |> Typ.VarMap.merging
-              (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
-       in
-       assoc
-       |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
-       |> MList.traverse Typ.infer_and_resolve
-       >>- (List.map2 (fun i t -> (i, `Typ t)) is >>> Typ.VarMap.of_list)
+    let* () = bs |> MList.iter (fun (i, k, _) -> Annot.Typ.def i k) in
+    let* assoc =
+      bs
+      |> MList.traverse (fun (i, k, t) ->
+             let at' = Typ.Var.at i in
+             let+ t = elaborate_typ t in
+             (i, `Mu (at', `Lam (at', i, k, t))))
+      |> Typ.VarMap.merging
+           (bs |> List.map (fun (i, k, _) -> (i, `Kind k)) |> Typ.VarMap.of_list)
+      |> Typ.VarMap.merging (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+    in
+    assoc
+    |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
+    |> MList.traverse Typ.infer_and_resolve
+    >>- (List.map2 (fun i t -> (i, `Typ t)) is >>> Typ.VarMap.of_list)
   | `Include (at', p) ->
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
     let* env, newer =

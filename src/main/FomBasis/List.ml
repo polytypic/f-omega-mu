@@ -37,3 +37,10 @@ let rec share_phys_eq share_phys_eq_elem original changed =
     let c = share_phys_eq_elem o c in
     if os == cs && o == c then original else c :: cs
   | _ -> raise @@ Invalid_argument "List.share_phys_eq"
+
+let find_dup_opt cmp xs =
+  let rec loop = function
+    | x1 :: (x2 :: _ as xs) -> if 0 = cmp x1 x2 then Some (x1, x2) else loop xs
+    | _ -> None
+  in
+  xs |> Stdlib.List.stable_sort cmp |> loop

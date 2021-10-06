@@ -17,7 +17,10 @@ module Error = struct
   type lexeme = [`Error_lexeme of Loc.t * string]
   type grammar = [`Error_grammar of Loc.t * string]
   type duplicated_label = [`Error_duplicated_label of Loc.t * Label.t]
-  type syntax_errors = [lexeme | grammar | duplicated_label]
+  type duplicated_typ_bind = [`Error_duplicated_typ_bind of Loc.t * Typ.Var.t]
+
+  type syntax_errors =
+    [lexeme | grammar | duplicated_label | duplicated_typ_bind]
 
   (* Source errors *)
 
@@ -86,6 +89,9 @@ module Error = struct
     | `Error_duplicated_label (at, l) ->
       ( (at, concat [utf8string "Duplicated label "; Label.pp l]),
         [(Label.at l, utf8string "Initial"); (at, utf8string "Duplicate")] )
+    | `Error_duplicated_typ_bind (at, i) ->
+      ( (at, concat [utf8string "Duplicated type binding "; Typ.Var.pp i]),
+        [(Typ.Var.at i, utf8string "Initial"); (at, utf8string "Duplicate")] )
     (* Source errors *)
     | `Error_file_doesnt_exist (at, filename) ->
       ( ( at,

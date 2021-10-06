@@ -342,4 +342,6 @@ let () =
     |eof};
   testErrors "duplicate produce label" "{x = 1, y = true, x = ()}";
   testErrors "duplicate product type label" "λ_:{y: bool, x: int, y: string}.()";
-  testErrors "duplicate sum type label" "λ_: 'Y bool | 'X int | 'Y string.()"
+  testErrors "duplicate sum type label" "λ_: 'Y bool | 'X int | 'Y string.()";
+  testErrors "duplicate type bindings"
+    "type μdup = int and μdup = string in λx:dup.x"
