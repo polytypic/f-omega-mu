@@ -85,7 +85,7 @@ module TypAliases = struct
       (Typ.Var.of_string Loc.dummy "int", `Const (at, `Int));
       (Typ.Var.of_string Loc.dummy "string", `Const (at, `String));
     ]
-    |> List.to_seq |> of_seq
+    |> of_list
 
   type nonrec t = FomAST.Typ.t t
 
@@ -321,12 +321,12 @@ let rec elaborate_def = function
          let+ t = elaborate_typ t in
          (i, t)
     in
-    let env = assoc |> List.to_seq |> TypAliases.of_seq in
+    let env = assoc |> TypAliases.of_list in
     let env = env |> TypAliases.map (Typ.subst_rec env) in
     let* env =
       env |> TypAliases.bindings
       |> MList.traverse (MPair.traverse return Typ.infer_and_resolve)
-      >>- (List.to_seq >>> TypAliases.of_seq)
+      >>- TypAliases.of_list
     in
     get_as TypAliases.field (TypAliases.union (fun _ v _ -> Some v) env)
   | `Include (at', p) ->

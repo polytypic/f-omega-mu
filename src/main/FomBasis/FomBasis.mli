@@ -91,7 +91,16 @@ module List : sig
 end
 
 module Map : sig
-  include module type of Stdlib.Map
+  module type OrderedType = Stdlib.Map.OrderedType
+
+  module type S = sig
+    include Stdlib.Map.S
+
+    val add_list : (key * 'v) list -> 'v t -> 'v t
+    val of_list : (key * 'v) list -> 'v t
+  end
+
+  module Make : functor (Ord : OrderedType) -> S with type key = Ord.t
 
   val prefer_lhs : 'k -> 'v option -> 'v option -> 'v option
   val prefer_rhs : 'k -> 'v option -> 'v option -> 'v option

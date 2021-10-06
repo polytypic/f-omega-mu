@@ -100,7 +100,7 @@ module Annot = struct
                let+ kind = resolve_kind kind in
                (at, make v#def v#uses @@ `TypId (id, kind))
              | _ -> return (at, v))
-      >>- (List.to_seq >>> LocMap.of_seq)
+      >>- LocMap.of_list
 
     let def id kind = add_def (at id) @@ `TypId (id, kind)
     let use id = add_use @@ at id
