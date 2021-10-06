@@ -134,7 +134,7 @@ typ_rid:
   | i=IdTyp                                             {Typ.Var.of_string $loc i}
 
 typ_bid:
-  | Underscore                                          {Typ.Var.of_string $loc "_"}
+  | "_"                                                 {Typ.Var.underscore $loc}
   | i=typ_rid                                           {i}
 
 typ_bind:
@@ -206,7 +206,7 @@ exp_rid:
   | i=Id                                                {Exp.Var.of_string $loc i}
 
 exp_bid:
-  | Underscore                                          {Exp.Var.of_string $loc "_"}
+  | "_"                                                 {Exp.Var.underscore $loc}
   | i=exp_rid                                           {i}
 
 exp_atom:

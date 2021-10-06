@@ -57,6 +57,7 @@ module Id : sig
 
     val is_numeric : t -> bool
     val is_fresh : t -> bool
+    val is_underscore : t -> bool
 
     (* Comparison *)
 
@@ -70,6 +71,7 @@ module Id : sig
 
     (* Constructors *)
 
+    val underscore : Loc.t -> t
     val of_string : Loc.t -> string -> t
     val of_name : Loc.t -> Name.t -> t
 

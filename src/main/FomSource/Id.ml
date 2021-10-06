@@ -49,6 +49,7 @@ module type S = sig
 
   val is_numeric : t -> bool
   val is_fresh : t -> bool
+  val is_underscore : t -> bool
 
   (* Comparison *)
 
@@ -62,6 +63,7 @@ module type S = sig
 
   (* Constructors *)
 
+  val underscore : Loc.t -> t
   val of_string : Loc.t -> string -> t
   val of_name : Loc.t -> Name.t -> t
 
@@ -76,6 +78,11 @@ end
 
 module Make () : S = struct
   type t = {name : Name.t; n : Counter.t; at : Loc.t}
+
+  let underscore' = Name.of_string "_"
+  let fresh' = Name.of_string ""
+
+  (* *)
 
   let at {at; _} = at
   let name {name; _} = name
@@ -100,7 +107,7 @@ module Make () : S = struct
 
   let pp ?(hr = true) {name; n; _} =
     let it = Name.to_string name |> utf8string in
-    if n = 0 then
+    if n = 0 || name = underscore' then
       it
     else if hr then
       it ^^ subscript n
@@ -113,12 +120,21 @@ module Make () : S = struct
 
   (* Constructors *)
 
-  let of_name at name = {name; n = 0; at}
+  let of_name at name =
+    let n =
+      if name = underscore' || name = fresh' then Counter.next () else 0
+    in
+    {name; n; at}
+
   let of_string at s = of_name at (Name.of_string s)
 
   (* Generated *)
 
-  let fresh = Name.of_string ""
-  let is_fresh {name; _} = name = fresh
-  let fresh at = {name = fresh; n = Counter.next (); at}
+  let is_fresh {name; _} = name = fresh'
+  let fresh at = {name = fresh'; n = Counter.next (); at}
+
+  (* Underscore *)
+
+  let is_underscore {name; _} = underscore' = name
+  let underscore at = {name = underscore'; n = Counter.next (); at}
 end
