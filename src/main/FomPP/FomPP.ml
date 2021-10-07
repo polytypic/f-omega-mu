@@ -8,17 +8,20 @@ let double_angle_rhs = utf8string "》"
 let exists = utf8string "∃"
 let for_all = utf8string "∀"
 let greater_equal = utf8string "≥"
-let lambda_lower = utf8string "λ"
-let lambda_upper = utf8string "Λ"
 let less_equal = utf8string "≤"
 let logical_and = utf8string "∧"
 let logical_not = utf8string "¬"
 let logical_or = utf8string "∨"
-let mu_lower = utf8string "μ"
 let not_equal = utf8string "≠"
-let kappa_lower = utf8string "κ"
 let pipe = utf8string "|"
 let tick = utf8string "'"
+
+(* Greek *)
+
+let kappa_lower = utf8string "κ"
+let lambda_lower = utf8string "λ"
+let lambda_upper = utf8string "Λ"
+let mu_lower = utf8string "μ"
 
 (* Bracketing  *)
 
