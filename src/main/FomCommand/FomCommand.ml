@@ -3,10 +3,6 @@ open FomDiag
 
 (* *)
 
-open Rea
-
-(* *)
-
 let () = Hashtbl.randomize ()
 
 (* *)
@@ -172,7 +168,7 @@ let () =
     (Filename.basename Sys.executable_name
     ^ " [options] <file.fom>\n\nOptions:\n");
   let p, r = Lwt.wait () in
-  !files |> List.rev |> MList.iter process
+  !files |> List.rev |> List.iter_fr process
   >>- (fun () -> Lwt.wakeup r ())
   |> start ();
   Lwt_main.run p

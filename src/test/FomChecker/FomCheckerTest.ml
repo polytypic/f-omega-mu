@@ -5,10 +5,6 @@ open FomParser
 open FomElab
 open FomEnv
 
-(* *)
-
-open Rea
-
 let parse_typ source and_then =
   source
   |> Parser.parse_utf_8 Grammar.typ_exp Lexer.offside

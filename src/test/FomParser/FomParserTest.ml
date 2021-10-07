@@ -3,10 +3,6 @@ open FomAST
 open FomTest
 open FomParser
 
-(* *)
-
-open Rea
-
 let test_parses_as name source check =
   test name @@ fun () ->
   source

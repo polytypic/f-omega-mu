@@ -53,10 +53,11 @@ module Row : sig
 
   (* *)
 
-  val traverse : ('t -> ('r, 'e, 'u) Rea.t) -> 't t -> ('r, 'e, 'u t) Rea.t
+  val map_fr :
+    ('a -> ('f, 'F, 'b) Applicative.fr) -> 'a t -> ('f, 'F, 'b t) Applicative.fr
 
-  val traverse_phys_eq :
-    ('t -> ('r, 'e, 't) Rea.t) -> 't t -> ('r, 'e, 't t) Rea.t
+  val map_phys_eq_fr :
+    ('a -> ('f, 'F, 'a) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr
 end
 
 module Typ : sig
@@ -124,6 +125,25 @@ module Typ : sig
 
   val unapp : t -> t * t list
   val arity_and_result : t -> int * t
+
+  (* *)
+
+  val map_fr :
+    ('t -> ('f, 'F, 'u) Applicative.fr) ->
+    ('t, 'k) f ->
+    ('f, 'F, ('u, 'k) f) Applicative.fr
+
+  val map_eq_fr :
+    ('t -> ('f, 'F, 't) Applicative.fr) ->
+    ('t, 'k) f ->
+    ('f, 'F, ('t, 'k) f) Applicative.fr
+
+  val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
+  val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
+  val map_reduce : 'u bop -> 'u -> ('t -> 'u) -> ('t, 'k) f -> 'u
+  val exists : ('t -> bool) -> ('t, 'k) f -> bool
+  val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
+  val eq : ('t, 'k) f bpr
 
   (* *)
 
@@ -205,8 +225,10 @@ module Exp : sig
 
     val map_typ : ('t -> 'u) -> ('nat, 't) t -> ('nat, 'u) t
 
-    val traverse_typ :
-      ('t -> ('r, 'e, 'u) Rea.t) -> ('nat, 't) t -> ('r, 'e, ('nat, 'u) t) Rea.t
+    val map_typ_fr :
+      ('t -> ('f, 'F, 'u) Applicative.fr) ->
+      ('nat, 't) t ->
+      ('f, 'F, ('nat, 'u) t) Applicative.fr
 
     val collect_typ : ('nat, 't) t -> 't list
 

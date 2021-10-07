@@ -4,8 +4,6 @@ open FomAST
 
 (* *)
 
-open Rea
-
 module Annot = struct
   module LocSet = Set.Make (Loc)
   module LocMap = Map.Make (Loc)
@@ -94,7 +92,7 @@ module Annot = struct
       let* annot = get field in
       MVar.try_mutate annot @@ fun annot ->
       annot |> LocMap.bindings
-      |> MList.traverse (fun (at, v) ->
+      |> List.map_fr (fun (at, v) ->
              match v#annot with
              | `TypId (id, kind) ->
                let+ kind = resolve_kind kind in

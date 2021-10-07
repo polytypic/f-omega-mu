@@ -5,7 +5,6 @@ open FomAST
 
 (* *)
 
-open Rea
 open Cats
 
 module Label = struct
@@ -284,8 +283,7 @@ module Exp = struct
         | `App (fl, xl), `App (fr, xr) ->
           compare xl xr <>? fun () -> compare fl fr
         | `Case l, `Case r | `Mu l, `Mu r -> compare l r
-        | `Const l, `Const r ->
-          FomAST.Exp.Const.compare' Int32.compare Typ.compare l r
+        | `Const l, `Const r -> Exp.Const.compare' Int32.compare Typ.compare l r
         | `IfElse (cl, tl, el), `IfElse (cr, tr, er) ->
           compare cl cr <>? fun () ->
           compare tl tr <>? fun () -> compare el er
@@ -310,8 +308,7 @@ module Exp = struct
     let[@warning "-32"] rec pp : t -> document = function
       | `App (f, x) -> [pp f; space; pp x] |> concat |> egyptian parens 2
       | `Case t -> [utf8string "case"; space; pp t] |> concat
-      | `Const c ->
-        FomAST.Exp.Const.pp' (Int32.to_string >>> utf8string) FomAST.Typ.pp c
+      | `Const c -> Exp.Const.pp' (Int32.to_string >>> utf8string) Typ.pp c
       | `IfElse (c, t, e) ->
         [
           [utf8string "if"; space; pp c; space] |> concat;
@@ -345,7 +342,7 @@ module Exp = struct
 
     let field r = r#env
     let find_opt i = get_as field (find_opt i)
-    let adding i e = Rea.mapping field (add i e)
+    let adding i e = mapping field (add i e)
 
     class con =
       object
@@ -471,7 +468,7 @@ module Exp = struct
         | (`Const _ | `Var _ | `Lam _), [] -> return true
         | `IfElse (c, t, e), xs ->
           is_total c &&& is_total (app t xs) &&& is_total (app e xs)
-        | `Product fs, _ -> fs |> MList.for_all (fun (_, e) -> is_total e)
+        | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
         | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> VarMap.adding i e
         | `Select (e, l), [] -> is_total e &&& is_total l
         | `Inject (_, e), _ -> is_total e
@@ -485,11 +482,11 @@ module Exp = struct
           &&& (is_total e |> VarMap.adding i x)
           &&& (is_total (app e xs) |> VarMap.adding i x)
         | `Const c, xs ->
-          return (Const.is_total c) &&& (xs |> MList.for_all is_total)
+          return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
         | `Case (`Product fs), x :: xs ->
           is_total x
           &&& (fs
-              |> MList.for_all (fun (_, f) ->
+              |> List.for_all_fr (fun (_, f) ->
                      is_total (app f (dummy_var :: xs))))
         | `Case e, [] -> is_total e
         | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
@@ -590,7 +587,7 @@ module Exp = struct
       fail `Seen
     else
       get Limit.field
-      >>= MOption.iter (fun limit ->
+      >>= Option.iter_fr (fun limit ->
               if limit < size e then fail `Limit else unit)
       >> mapping Seen.field (Seen.add e) (simplify_base e >>- keep_phys_eq' e)
 
@@ -739,7 +736,7 @@ module Exp = struct
         let+ t = simplify t and+ e = simplify e in
         `IfElse (c, t, e))
     | `Product fs ->
-      let+ fs = fs |> FomAST.Row.traverse_phys_eq simplify in
+      let+ fs = fs |> Row.map_phys_eq_fr simplify in
       `Product fs
     | `Select (e, l) -> (
       let* e = simplify e and* l = simplify l in
@@ -749,7 +746,7 @@ module Exp = struct
         let* fs_are_total =
           fs
           |> List.filter (fst >>> Label.equal l >>> not)
-          |> MList.for_all (snd >>> is_total)
+          |> List.for_all_fr (snd >>> is_total)
         in
         if fs_are_total then
           fs |> List.find (fst >>> Label.equal l) |> snd |> return
@@ -914,7 +911,7 @@ module Exp = struct
             >>= to_js_stmts finish (VarSet.union ids (VarSet.of_list is))
           in
           let+ bs =
-            MList.fold_left2
+            List.fold_left2_fr
               (fun b i (_, v) ->
                 let+ v = simplify (subst f fs' v) >>= to_js_expr in
                 b ^ str "const " ^ Var.to_js i ^ str " = " ^ v ^ str "\n")
@@ -951,7 +948,7 @@ module Exp = struct
         fs |> ErasedMap.bindings
         |> List.sort (Compare.the (snd >>> List.length >>> ( ~- )) Int.compare)
         |> (function (e, _) :: cs -> List.rev_append cs [(e, [])] | [] -> [])
-        |> MList.traverse @@ fun (e, ls) ->
+        |> List.map_fr @@ fun (e, ls) ->
            let* e = simplify @@ `App (e, v1) in
            let+ e = to_js_stmts finish VarSet.empty e in
            let cs =
@@ -1021,7 +1018,7 @@ module Exp = struct
     | `Product fs ->
       let+ fs =
         fs
-        |> MList.traverse @@ function
+        |> List.map_fr @@ function
            | l, `Var i
              when Label.to_string l = Var.to_string i
                   && not (Js.is_illegal_id (Var.to_string i)) ->

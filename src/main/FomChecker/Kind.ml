@@ -2,7 +2,6 @@ open FomBasis
 
 (* *)
 include FomAST.Kind
-open Rea
 
 module UnkMap = struct
   include UnkMap

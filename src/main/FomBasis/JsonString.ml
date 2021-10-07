@@ -1,3 +1,5 @@
+open Exn.Syntax
+
 type t = string
 
 let compare = String.compare
@@ -27,7 +29,7 @@ let of_utf8 str =
   |> Uutf.String.fold_utf_8
        (fun i _ -> function
          | `Malformed _ ->
-           Exn.failwithf "Malformed UTF-8 in string at char index %d" i
+           failwithf "Malformed UTF-8 in string at char index %d" i
          | `Uchar u ->
            let c = Uchar.to_int u in
            if (0x0000 <= c && c <= 0x001f) || (0x007f <= c && c <= 0x009f) then (
@@ -112,7 +114,7 @@ let to_utf8 lit =
          | `Hex2 h, `Uchar c -> (`Hex3 (hex_to_int h c), i + 1)
          | `Hex3 h, `Uchar c -> encode (Uchar.of_int (hex_to_int h c))
          | _, `Malformed _ ->
-           Exn.failwithf "Malformed UTF-8 in string literal at char index %d" i)
+           failwithf "Malformed UTF-8 in string literal at char index %d" i)
        (`Unescaped, 0)
   |> ignore;
   Uutf.encode encoder `End |> ignore;

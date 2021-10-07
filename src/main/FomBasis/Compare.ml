@@ -1,4 +1,9 @@
-let ( <>? ) lhs rhs = if lhs = 0 then rhs () else lhs
+module Syntax = struct
+  let ( <>? ) lhs rhs = if lhs = 0 then rhs () else lhs
+end
+
+open Syntax
+
 let the part_of compare lhs rhs = compare (part_of lhs) (part_of rhs)
 
 module Tuple'2 (T1 : Set.OrderedType) (T2 : Set.OrderedType) = struct

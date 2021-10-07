@@ -3,10 +3,6 @@ open FomTest
 open FomParser
 open FomElab
 
-(* *)
-
-open Rea
-
 let parse_exp source and_then =
   source
   |> Parser.parse_utf_8 Grammar.program Lexer.offside

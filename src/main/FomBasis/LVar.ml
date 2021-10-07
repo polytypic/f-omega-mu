@@ -1,3 +1,5 @@
+open Rea
+
 type ('e, 'a) state =
   [ `Initial of unit -> unit
   | `Empty of (('e, 'a) Res.t -> unit) list
@@ -5,14 +7,14 @@ type ('e, 'a) state =
 
 type ('e, 'a) t = ('e, 'a) state ref
 
-let create (op : (_, _, _) Rea.t) r =
-  let open Rea in
+let create op _ =
+  inj @@ fun r ->
   let var = ref (`Empty []) in
   var :=
     `Initial
       (fun () ->
         start r
-          ( catch op >>- fun res ->
+          ( ( let+ ) (op |> run |> catch) @@ fun res ->
             match !var with
             | `Empty ks ->
               var := (res :> (_, _) state);
@@ -21,6 +23,7 @@ let create (op : (_, _, _) Rea.t) r =
   `Ok var
 
 let get var _ =
+  inj @@ fun _ ->
   match !var with
   | (`Ok _ | `Error _) as x -> x
   | `Initial _ ->

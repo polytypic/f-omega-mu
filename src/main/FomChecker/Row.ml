@@ -1,6 +1,5 @@
 open FomBasis
 include FomAST.Row
-open Rea
 
 let check fs =
   fs |> List.map fst |> List.find_dup_opt Label.compare |> function

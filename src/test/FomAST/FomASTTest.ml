@@ -2,10 +2,6 @@ open FomBasis
 open FomParser
 open FomTest
 
-(* *)
-
-open Rea
-
 let parse_typ utf_8 =
   Buffer.from_utf_8 utf_8 |> Parser.parse Grammar.typ_exp Lexer.offside
 

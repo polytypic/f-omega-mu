@@ -1,7 +1,7 @@
+open FomBasis
 open FomPP
 open FomSource
 open FomAST
-open FomBasis.Rea
 
 module Diagnostic = struct
   type t = Loc.t * document

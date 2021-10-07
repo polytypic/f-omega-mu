@@ -64,7 +64,7 @@ module Error : sig
 
   type t = [io_error | syntax_errors | source_errors | kind_errors | type_errors]
 
-  val generalize : ('r, [< t], 'a) Rea.t -> ('r, [> t], 'a) Rea.t
+  val generalize : ('r, [< t], 'a) rea -> ('r, [> t], 'a) rea
 
   (* Formatting *)
 

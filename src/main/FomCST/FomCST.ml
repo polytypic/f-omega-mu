@@ -63,7 +63,6 @@ module Exp = struct
       | `Pack of Loc.t * t * Typ.Var.t * Typ.t ]
 
     let check p =
-      let open Rea in
       let rec collect (ts, is) = function
         | `Id (_, i, _) -> (ts, i :: is)
         | `Product (_, ps) ->

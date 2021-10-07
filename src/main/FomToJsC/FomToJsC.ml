@@ -3,7 +3,6 @@ open FomEnv
 
 (* *)
 
-open Rea
 open Cats
 
 (* *)
@@ -32,16 +31,16 @@ let topological_deps paths =
       unit
     else
       let* _, _, _, paths = FomElab.ExpImports.get path in
-      paths |> MList.iter loop >>- fun () ->
+      paths |> List.iter_fr loop >>- fun () ->
       if not (Hashtbl.mem added path) then (
         Hashtbl.replace added path ();
         deps := path :: !deps)
   in
-  paths |> MList.iter loop |> FomDiag.Error.generalize >>- fun () -> !deps
+  paths |> List.iter_fr loop |> FomDiag.Error.generalize >>- fun () -> !deps
 
 let erase_and_simplify_all paths =
   paths
-  |> MList.traverse @@ fun path ->
+  |> List.map_fr @@ fun path ->
      let* id, ast, _, _ = FomElab.ExpImports.get path in
      let+ erased =
        match Hashtbl.find_opt mods_simplified path with
@@ -66,7 +65,7 @@ let mods_in_js : (string, (Zero.t, Cats.t) IVar.t) Hashtbl.t =
 
 let compile_to_js_all paths =
   paths |> erase_and_simplify_all
-  >>= MList.traverse @@ fun (id, path, erased) ->
+  >>= List.map_fr @@ fun (id, path, erased) ->
       let+ js =
         match Hashtbl.find_opt mods_in_js path with
         | Some var -> IVar.get var |> generalize_error

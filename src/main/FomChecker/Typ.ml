@@ -4,10 +4,6 @@ open FomBasis
 
 (* *)
 
-open Rea
-
-(* *)
-
 include FomAST.Typ
 
 (* *)
@@ -32,17 +28,8 @@ end
 (* *)
 
 let rec find_map_from_all_apps_of i' p = function
-  | `Const _ -> None
   | `Lam (_, i, _, t) ->
     if Var.equal i i' then None else find_map_from_all_apps_of i' p t
-  | `Mu (_, t) | `ForAll (_, t) | `Exists (_, t) ->
-    find_map_from_all_apps_of i' p t
-  | `Arrow (_, d, c) -> (
-    match find_map_from_all_apps_of i' p d with
-    | None -> find_map_from_all_apps_of i' p c
-    | some -> some)
-  | `Product (_, ls) | `Sum (_, ls) ->
-    ls |> List.find_map (snd >>> find_map_from_all_apps_of i' p)
   | (`App _ | `Var _) as t -> (
     match unapp t with
     | (`Var (_, i) as f), xs ->
@@ -56,6 +43,7 @@ let rec find_map_from_all_apps_of i' p = function
       match find_map_from_all_apps_of i' p f with
       | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
       | some -> some))
+  | t -> find_map (find_map_from_all_apps_of i' p) t
 
 let find_opt_nested_arg_mu at f arity =
   if arity <= 0 then
@@ -99,23 +87,10 @@ let find_opt_non_contractive_mu at f arity =
 let rec resolve t =
   let+ t' =
     match t with
-    | `Mu (at', f) -> resolve f >>- fun f' -> `Mu (at', f')
-    | (`Const (_, _) | `Var (_, _)) as t -> return t
     | `Lam (at', d, d_kind, r) ->
       let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
       `Lam (at', d, d_kind', r')
-    | `App (at', f, x) ->
-      let+ f' = resolve f and+ x' = resolve x in
-      `App (at', f', x')
-    | `ForAll (at', f) -> resolve f >>- fun f' -> `ForAll (at', f')
-    | `Exists (at', f) -> resolve f >>- fun f' -> `Exists (at', f')
-    | `Arrow (at', d, c) ->
-      let+ d' = resolve d and+ c' = resolve c in
-      `Arrow (at', d', c')
-    | `Product (at', ls) ->
-      Row.traverse_phys_eq resolve ls >>- fun ls' -> `Product (at', ls')
-    | `Sum (at', ls) ->
-      Row.traverse_phys_eq resolve ls >>- fun ls' -> `Sum (at', ls')
+    | t -> map_eq_fr resolve t
   in
   keep_phys_eq' t t'
 
@@ -130,15 +105,8 @@ let resolve t =
 let rec ground t =
   t
   |> keep_phys_eq @@ function
-     | `Mu (at', f) -> `Mu (at', ground f)
-     | (`Const (_, _) | `Var (_, _)) as t -> t
      | `Lam (at', d, d_kind, r) -> `Lam (at', d, Kind.ground d_kind, ground r)
-     | `App (at', f, x) -> `App (at', ground f, ground x)
-     | `ForAll (at', f) -> `ForAll (at', ground f)
-     | `Exists (at', f) -> `Exists (at', ground f)
-     | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
-     | `Product (at', ls) -> `Product (at', Row.map_phys_eq ground ls)
-     | `Sum (at', ls) -> `Sum (at', Row.map_phys_eq ground ls)
+     | t -> map_eq ground t
 
 let ground = Profiling.Counter.wrap'1 "ground" ground
 
@@ -151,11 +119,11 @@ let rec infer = function
     Kind.unify at' (`Arrow (at', kind, kind)) f_kind
     >> let* arity = Kind.resolve kind >>- Kind.min_arity in
        find_opt_nested_arg_mu at' f arity
-       |> MOption.iter (fun typ' ->
+       |> Option.iter_fr (fun typ' ->
               let* typ = resolve typ and* typ' = resolve typ' in
               fail @@ `Error_mu_nested (at', typ, typ'))
        >> (find_opt_non_contractive_mu at' f arity
-          |> MOption.iter (fun typ' ->
+          |> Option.iter_fr (fun typ' ->
                  let* typ = resolve typ and* typ' = resolve typ' in
                  fail @@ `Error_mu_non_contractive (at', typ, typ')))
        >> return (mu_of_norm at' f, kind)
@@ -187,7 +155,7 @@ let rec infer = function
 
 and infer_row at' ls con =
   let star = `Star at' in
-  let+ ls = Row.check ls >> Row.traverse (check star) ls in
+  let+ ls = Row.check ls >> Row.map_fr (check star) ls in
   (con at' ls, star)
 
 and infer_quantifier at' f con =
@@ -305,7 +273,7 @@ let check_sub_of_norm, check_equal_of_norm =
           | (lf, lx :: lxs), (rf, rx :: rxs)
             when List.length lxs = List.length rxs ->
             eq l_env r_env lf rf >> eq l_env r_env lx rx
-            >> MList.iter2 (eq l_env r_env) lxs rxs
+            >> List.iter2_fr (eq l_env r_env) lxs rxs
           | _ -> fail @@ `Error_typ_mismatch (at, r, l)))
       else
         unit
@@ -318,8 +286,7 @@ let check_sub_of_norm, check_equal_of_norm =
 
 let is_sub_of_norm, is_equal_of_norm =
   let as_predicate check l r =
-    check Loc.dummy l r
-    |> try_in (Fun.const @@ return true) (Fun.const @@ return false)
+    check Loc.dummy l r |> try_in (const @@ return true) (const @@ return false)
   in
   let sub l r = as_predicate check_sub_of_norm l r in
   let eq l r = as_predicate check_equal_of_norm l r in
@@ -331,9 +298,7 @@ module TypSet = Set.Make (FomAST.Typ)
 
 let rec contract t =
   let* s, t = contract_base t in
-  let+ t_opt =
-    s |> TypSet.elements |> MList.find_opt (fun mu -> is_equal_of_norm t mu)
-  in
+  let+ t_opt = s |> TypSet.elements |> List.find_opt_fr (is_equal_of_norm t) in
   let s, u =
     match t_opt with
     | Some t -> (s, t)
@@ -367,7 +332,7 @@ and contract_base t =
   (s, keep_phys_eq' t t')
 
 and contract_labels ls =
-  let+ sls' = ls |> Row.traverse contract in
+  let+ sls' = ls |> Row.map_fr contract in
   let ls' =
     sls' |> Row.map snd
     |> List.share_phys_eq (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x)) ls
@@ -419,18 +384,7 @@ let rec replace_closed_mus m =
       `Var (at', i)
     else
       `Mu (at'', `Lam (at', i, k, replace_closed_mus m e))
-  | `Mu (at', e) -> `Mu (at', replace_closed_mus m e)
-  | (`Const (_, _) | `Var (_, _)) as t -> t
-  | `App (at', f, x) ->
-    `App (at', replace_closed_mus m f, replace_closed_mus m x)
-  | `Lam (at', i, k, e) -> `Lam (at', i, k, replace_closed_mus m e)
-  | `ForAll (at', e) -> `ForAll (at', replace_closed_mus m e)
-  | `Exists (at', e) -> `Exists (at', replace_closed_mus m e)
-  | `Arrow (at', d, c) ->
-    `Arrow (at', replace_closed_mus m d, replace_closed_mus m c)
-  | `Product (at', ls) ->
-    `Product (at', Row.map_phys_eq (replace_closed_mus m) ls)
-  | `Sum (at', ls) -> `Sum (at', Row.map_phys_eq (replace_closed_mus m) ls)
+  | t -> map_eq (replace_closed_mus m) t
 
 (* *)
 
@@ -450,8 +404,8 @@ let to_strict t =
       let+ d = to_strict d and+ c = to_strict c in
       `Arrow (at, d, c)
     | `Product (at, ls) ->
-      Row.traverse to_strict ls >>- fun ls -> `Product (at, ls)
-    | `Sum (at, ls) -> Row.traverse to_strict ls >>- fun ls -> `Sum (at, ls)
+      Row.map_fr to_strict ls >>- fun ls -> `Product (at, ls)
+    | `Sum (at, ls) -> Row.map_fr to_strict ls >>- fun ls -> `Sum (at, ls)
     | `Lazy t -> (
       match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
       | None ->

@@ -9,10 +9,6 @@ open FomParser
 
 (* *)
 
-open Rea
-
-(* *)
-
 let () = Hashtbl.randomize ()
 
 (* *)
@@ -74,7 +70,7 @@ let pp_typ t =
   let open FomChecker.Typ in
   let+ t = contract t in
   let pp_typ t =
-    let typ_doc = pp ~pp_annot:(Fun.const empty) t in
+    let typ_doc = pp ~pp_annot:(const empty) t in
     match hanging t with
     | Some (sep, _) -> sep ^^ typ_doc
     | None -> break_1 ^^ typ_doc |> nest 2 |> group
@@ -151,14 +147,14 @@ let stringify = Js.Unsafe.pure_js_expr "JSON.stringify"
 module Cb : sig
   type 'a t
 
-  val invoke : 'a t -> 'a Js.t -> ('r, 'e, unit) Rea.t
+  val invoke : 'a t -> 'a Js.t -> ('r, 'e, unit) rea
 end = struct
   type 'a t = unit
 
   let invoke fn x =
-    Rea.delay @@ fun () ->
+    delay @@ fun () ->
     Js.Unsafe.fun_call fn [|Js.Unsafe.inject x|] |> ignore;
-    Rea.unit
+    unit
 end
 
 module JsHashtbl = Hashtbl.Make (struct
@@ -205,7 +201,7 @@ let js_codemirror_mode =
         | "undefined" -> tick ^^ label
         | _ ->
           tick ^^ label ^^ space ^^ format ~atomize:true value
-          |> if atomize then egyptian parens 2 else Fun.id
+          |> if atomize then egyptian parens 2 else id
       and format ~atomize value =
         match JsHashtbl.find_opt known value with
         | None ->
@@ -265,7 +261,7 @@ let js_codemirror_mode =
       let env = FomToJsC.Env.empty ~fetch () in
       let def_uses () =
         Field.get Annot.field env |> MVar.get >>- Annot.LocMap.bindings
-        >>= MList.traverse (js_use_def ~max_width)
+        >>= List.map_fr (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in
       input |> Js.to_string

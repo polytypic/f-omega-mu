@@ -3,10 +3,6 @@ open FomAnnot
 
 (* *)
 
-open Rea
-
-(* *)
-
 include FomAST.Exp
 
 (* *)
@@ -61,7 +57,8 @@ module Typ = struct
     let* ls = check_sum at typ in
     match ls with
     | [] -> fail @@ `Error_typ_unexpected (at, "'_", typ)
-    | ls -> ls |> MList.iter (snd >>> check_unit at) >> return (List.map fst ls)
+    | ls ->
+      ls |> List.iter_fr (snd >>> check_unit at) >> return (List.map fst ls)
 
   let check_for_all at typ =
     match unfold_of_norm typ with
@@ -122,7 +119,7 @@ let rec infer = function
     >> let* t_typ = infer t and* e_typ = infer e in
        Typ.join_of_norm (at e) t_typ e_typ
   | `Product (at', fs) ->
-    Row.check fs >> Row.traverse infer fs >>- fun fs -> Typ.product at' fs
+    Row.check fs >> Row.map_fr infer fs >>- fun fs -> Typ.product at' fs
   | `Select (at', p, i) ->
     let* p_typ = infer p and* i_typ = infer i in
     let* ls = Typ.check_product (at p) p_typ in
@@ -151,11 +148,11 @@ let rec infer = function
   | `Case (at', cs) ->
     let* cs_typ = infer cs in
     let* cs_fs = Typ.check_product (at cs) cs_typ in
-    let* cs_arrows = cs_fs |> Row.traverse @@ Typ.check_arrow (at cs) in
+    let* cs_arrows = Row.map_fr (Typ.check_arrow (at cs)) cs_fs in
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
       | [] -> return @@ Typ.zero (at cs)
-      | t :: ts -> ts |> MList.fold_left (Typ.join_of_norm (at cs)) t
+      | t :: ts -> ts |> List.fold_left_fr (Typ.join_of_norm (at cs)) t
     in
     let d_typ = `Sum (at cs, cs_arrows |> Row.map fst) in
     `Arrow (at', d_typ, c_typ)

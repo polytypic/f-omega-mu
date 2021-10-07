@@ -1,3 +1,5 @@
+open Applicative.Syntax
+
 let swap (x, y) = (y, x)
 let map f g (x, y) = (f x, g y)
 
@@ -10,3 +12,11 @@ let share_phys_eq share_l share_r ((o_l, o_r) as o) (l, r) =
   let l = share_l o_l l in
   let r = share_r o_r r in
   if o_l == l && o_r == r then o else (l, r)
+
+let map_fr xyF zwF (x, z) =
+  let+ y = xyF x and+ w = zwF z in
+  (y, w)
+
+let map_phys_eq_fr aaM bbM ((a, b) as ab) =
+  let+ a' = aaM a and+ b' = bbM b in
+  if a == a' && b == b' then ab else (a', b')

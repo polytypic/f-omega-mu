@@ -8,8 +8,6 @@ open FomDiag
 
 (* *)
 
-open Rea
-
 module Path = struct
   let inc_ext = ".fomd"
   let sig_ext = ".fomt"
@@ -50,20 +48,20 @@ module Path = struct
        path |> split_to_origin_and_path
     else
       loc |> Loc.path |> Filename.dirname |> split_to_origin_and_path
-      |> Pair.map Fun.id @@ fun parent_dir ->
+      |> Pair.map id @@ fun parent_dir ->
          if is_absolute path then
            path
          else
            parent_dir ^ "/" ^ path)
-    |> Pair.map Fun.id Filename.canonic
+    |> Pair.map id Filename.canonic
     |> join_origin_and_path
 end
 
 module Fetch = struct
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type t = Loc.t -> string -> (unit, e, string) Rea.t
+  type t = Loc.t -> string -> (unit, e, string) rea
 
-  let dummy at path = Rea.fail @@ `Error_file_doesnt_exist (at, path)
+  let dummy at path = fail @@ `Error_file_doesnt_exist (at, path)
   let field r = r#fetch
 
   class con (fetch : t) =
@@ -86,7 +84,7 @@ module ImportChain = struct
   let with_path at path compute =
     let* include_chain = get field in
     PathMap.find_opt path include_chain
-    |> MOption.iter (fun previously_at ->
+    |> Option.iter_fr (fun previously_at ->
            fail @@ `Error_cyclic_includes (at, path, previously_at))
     >> compute
 
@@ -179,7 +177,7 @@ module Parameters = struct
   let taking_in ast =
     let* imports = env_as ExpImports.field in
     get ()
-    >>= MList.fold_left
+    >>= List.fold_left_fr
           (fun ast filename ->
             let+ id, _, typ, _ = Hashtbl.find imports filename |> IVar.get in
             `Lam (Exp.Var.at id, id, typ, ast))
@@ -303,10 +301,10 @@ let rec elaborate_def = function
     in
     let* i's, avoiding = to_avoid_captures is in
     let bs = List.map2 (fun i (_, k, t) -> (i, k, t)) i's bs in
-    let* () = bs |> MList.iter (fun (i, k, _) -> Annot.Typ.def i k) in
+    let* () = bs |> List.iter_fr (fun (i, k, _) -> Annot.Typ.def i k) in
     let* assoc =
       bs
-      |> MList.traverse (fun (i, k, t) ->
+      |> List.map_fr (fun (i, k, t) ->
              let at' = Typ.Var.at i in
              let+ t = elaborate_typ t in
              (i, `Mu (at', `Lam (at', i, k, t))))
@@ -316,7 +314,7 @@ let rec elaborate_def = function
     in
     assoc
     |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
-    |> MList.traverse Typ.infer_and_resolve
+    |> List.map_fr Typ.infer_and_resolve
     >>- (List.map2 (fun i t -> (i, `Typ t)) is >>> Typ.VarMap.of_list)
   | `Include (at', p) ->
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
@@ -357,8 +355,8 @@ and elaborate_typ = function
     let+ d = elaborate_typ d and+ c = elaborate_typ c in
     `Arrow (at', d, c)
   | `Product (at', ls) ->
-    Row.traverse elaborate_typ ls >>- fun ls -> `Product (at', ls)
-  | `Sum (at', ls) -> Row.traverse elaborate_typ ls >>- fun ls -> `Sum (at', ls)
+    Row.map_fr elaborate_typ ls >>- fun ls -> `Product (at', ls)
+  | `Sum (at', ls) -> Row.map_fr elaborate_typ ls >>- fun ls -> `Sum (at', ls)
   | `LetDefIn (_, def, e) ->
     let* typ_aliases = elaborate_def def in
     elaborate_typ e
@@ -391,7 +389,7 @@ let maybe_annot e tO =
 
 let rec elaborate = function
   | `Const (at, c) ->
-    Exp.Const.traverse_typ elaborate_typ c >>- fun c -> `Const (at, c)
+    Exp.Const.map_typ_fr elaborate_typ c >>- fun c -> `Const (at, c)
   | `Var _ as ast -> return ast
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
     let+ t = elaborate_typ t and+ e = elaborate e in
@@ -421,8 +419,7 @@ let rec elaborate = function
   | `IfElse (at, c, t, e) ->
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
     `IfElse (at, c, t, e)
-  | `Product (at, fs) ->
-    Row.traverse elaborate fs >>- fun fs -> `Product (at, fs)
+  | `Product (at, fs) -> Row.map_fr elaborate fs >>- fun fs -> `Product (at, fs)
   | `Select (at, e, l) ->
     let+ e = elaborate e and+ l = elaborate l in
     `Select (at, e, l)

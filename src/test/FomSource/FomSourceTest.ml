@@ -2,10 +2,6 @@ open FomBasis
 open FomTest
 open FomSource
 
-(* *)
-
-open Rea
-
 let () =
   let module Id = Id.Make () in
   let x = Id.of_string Loc.dummy "x" in

@@ -2,17 +2,13 @@ open FomBasis
 
 (* *)
 
-open Rea
-
-(* *)
-
 let n_tests = ref 0
 let n_successes = ref 0
 let n_failures = ref 0
 
 (* *)
 
-let tests : (string * (unit, exn, unit) Rea.t) list ref = ref []
+let tests : (string * (unit, exn, unit) rea) list ref = ref []
 
 (* *)
 
@@ -27,7 +23,7 @@ let pop_all xs =
 let () =
   at_exit @@ fun () ->
   pop_all tests |> List.rev
-  |> MList.iter (fun (name, test) ->
+  |> List.iter_fr (fun (name, test) ->
          test
          |> try_in
               (fun () ->

@@ -88,7 +88,7 @@ module Kind = struct
         let dom = pp true dom in
         let cod = pp false cod in
         dom ^^ space_arrow_right_break_1 ^^ cod
-        |> if atomize then egyptian parens 2 else Fun.id
+        |> if atomize then egyptian parens 2 else id
       | `Unk (_, i) ->
         let n =
           match UnkMap.find_opt i !numbering with
@@ -128,17 +128,10 @@ module Row = struct
     labels
     |> List.for_alli @@ fun i (l, _) -> Label.to_string l = Int.to_string (i + 1)
 
-  let map fn = List.map (Pair.map Fun.id fn)
-  let map_phys_eq fn = List.map_phys_eq (Pair.map_phys_eq Fun.id fn)
-
-  (* *)
-
-  open Rea
-
-  let traverse fn = MList.traverse (MPair.traverse return fn)
-
-  let traverse_phys_eq fn =
-    MList.traverse_phys_eq (MPair.traverse_phys_eq return fn)
+  let map fn = List.map (Pair.map id fn)
+  let map_phys_eq fn = List.map_phys_eq (Pair.map_phys_eq id fn)
+  let map_fr fn = List.map_fr @@ Pair.map_fr return fn
+  let map_phys_eq_fr fn = List.map_phys_eq_fr @@ Pair.map_phys_eq_fr return fn
 end
 
 module Typ = struct
@@ -244,6 +237,38 @@ module Typ = struct
 
   (* *)
 
+  let map_fr' row fn = function
+    | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
+    | (`Const _ | `Var _) as inn -> return inn
+    | `Lam (at, i, k, t) -> fn t >>- fun t -> `Lam (at, i, k, t)
+    | `App (at, f, x) -> fn f <*> fn x >>- fun (f, x) -> `App (at, f, x)
+    | `ForAll (at, t) -> fn t >>- fun t -> `ForAll (at, t)
+    | `Exists (at, t) -> fn t >>- fun t -> `Exists (at, t)
+    | `Arrow (at, d, c) -> fn d <*> fn c >>- fun (d, c) -> `Arrow (at, d, c)
+    | `Product (at, ls) -> row fn ls >>- fun ls -> `Product (at, ls)
+    | `Sum (at, ls) -> row fn ls >>- fun ls -> `Sum (at, ls)
+
+  let map_fr fn = map_fr' Row.map_fr fn
+  let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
+  let map fn = map_fr (Identity.inj'1 fn) >>> Identity.run
+  let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
+  let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
+
+  let map_reduce plus zero one t =
+    map_constant
+      (Constant.of_monoid
+      @@ object
+           method identity = zero
+           method combine = plus
+         end)
+      one t
+
+  let exists fn =
+    map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
+
+  let find_map fn =
+    map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
+
   let eq l r =
     match (l, r) with
     | `Mu l, `Mu r -> eq'2 l r
@@ -267,15 +292,17 @@ module Typ = struct
 
   module VarSet = Set.Make (Var)
 
+  let union_m =
+    Constant.of_monoid
+    @@ object
+         method combine = VarSet.union
+         method identity = VarSet.empty
+       end
+
   let free' free = function
-    | `Const _ -> VarSet.empty
     | `Var (_, i) -> VarSet.singleton i
     | `Lam (_, i, _, e) -> free e |> VarSet.remove i
-    | `App (_, f, x) -> VarSet.union (free f) (free x)
-    | `Mu (_, e) | `ForAll (_, e) | `Exists (_, e) -> free e
-    | `Arrow (_, d, c) -> VarSet.union (free d) (free c)
-    | `Product (_, ls) | `Sum (_, ls) ->
-      List.fold_left (fun s (_, t) -> VarSet.union s (free t)) VarSet.empty ls
+    | t -> map_constant union_m free t
 
   let rec free t = free' free t
   let free = Profiling.Counter.wrap'1 "free" free
@@ -291,31 +318,19 @@ module Typ = struct
 
   let rec subst_rec env =
     keep_phys_eq @@ function
-    | `Mu (at, t) -> `Mu (at, subst_rec env t)
-    | `Const _ as inn -> inn
     | `Var (_, i) as inn -> (
       match VarMap.find_opt i env with None -> inn | Some t -> subst_rec env t)
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
       if VarMap.is_empty env then inn else `Lam (at, i, k, subst_rec env t)
-    | `App (at, f, x) -> `App (at, subst_rec env f, subst_rec env x)
-    | `ForAll (at, t) -> `ForAll (at, subst_rec env t)
-    | `Exists (at, t) -> `Exists (at, subst_rec env t)
-    | `Arrow (at, d, c) -> `Arrow (at, subst_rec env d, subst_rec env c)
-    | `Product (at, ls) -> `Product (at, Row.map_phys_eq (subst_rec env) ls)
-    | `Sum (at, ls) -> `Sum (at, Row.map_phys_eq (subst_rec env) ls)
+    | t -> map_eq (subst_rec env) t
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
   let is_free' is_free id = function
-    | `Const _ -> false
     | `Var (_, id') -> Var.equal id id'
     | `Lam (_, id', _, body) -> (not (Var.equal id id')) && is_free id body
-    | `App (_, fn, arg) -> is_free id fn || is_free id arg
-    | `Mu (_, typ) | `ForAll (_, typ) | `Exists (_, typ) -> is_free id typ
-    | `Arrow (_, d, c) -> is_free id d || is_free id c
-    | `Product (_, ls) | `Sum (_, ls) ->
-      ls |> List.exists @@ fun (_, t) -> is_free id t
+    | t -> exists (is_free id) t
 
   let rec is_free id = is_free' is_free id
   let is_free = Profiling.Counter.wrap'2 "is_free" is_free
@@ -350,12 +365,7 @@ module Typ = struct
         lam_of_norm' is_free at i k (subst_of_norm env t)
     | `App (at, f, x) ->
       app_of_norm' subst_of_norm at (subst_of_norm env f) (subst_of_norm env x)
-    | `Const _ as inn -> inn
-    | `ForAll (at, t) -> `ForAll (at, subst_of_norm env t)
-    | `Exists (at, t) -> `Exists (at, subst_of_norm env t)
-    | `Arrow (at, d, c) -> `Arrow (at, subst_of_norm env d, subst_of_norm env c)
-    | `Product (at, ls) -> `Product (at, Row.map_phys_eq (subst_of_norm env) ls)
-    | `Sum (at, ls) -> `Sum (at, Row.map_phys_eq (subst_of_norm env) ls)
+    | t -> map_eq (subst_of_norm env) t
 
   let rec subst_of_norm env =
     keep_phys_eq @@ subst_of_norm' subst_of_norm is_free env
@@ -376,15 +386,8 @@ module Typ = struct
     let rec freshen t =
       t
       |> keep_phys_eq @@ function
-         | `Mu (at, t) -> `Mu (at, freshen t)
-         | (`Const _ | `Var _) as inn -> inn
          | `Lam (at, i, k, t) -> `Lam (at, i, Kind.freshen env k, freshen t)
-         | `App (at, f, x) -> `App (at, freshen f, freshen x)
-         | `ForAll (at, t) -> `ForAll (at, freshen t)
-         | `Exists (at, t) -> `Exists (at, freshen t)
-         | `Arrow (at, d, c) -> `Arrow (at, freshen d, freshen c)
-         | `Product (at, ls) -> `Product (at, Row.map_phys_eq freshen ls)
-         | `Sum (at, ls) -> `Sum (at, Row.map_phys_eq freshen ls)
+         | t -> map_eq freshen t
     in
     freshen t
 
@@ -468,7 +471,7 @@ module Typ = struct
     match hanging t with
     | Some _ -> pp config prec_min t
     | None -> break_0 ^^ group (pp config prec_min t) |> nest 2 |> group)
-    |> if prec_min < prec_outer then egyptian parens 2 else Fun.id
+    |> if prec_min < prec_outer then egyptian parens 2 else id
 
   and quantifier config prec_outer symbol (typ : t) =
     match typ with
@@ -521,7 +524,7 @@ module Typ = struct
          | Some (lhs, _) -> space_arrow_right ^^ lhs
          | None -> space_arrow_right_break_1)
       ^^ pp config (prec_arrow - 1) cod
-      |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
+      |> if prec_arrow < prec_outer then egyptian parens 2 else id
     | `Product (_, labels) ->
       if Row.is_tuple labels then
         tuple config labels |> egyptian parens 2
@@ -530,7 +533,7 @@ module Typ = struct
     | `Sum (_, [(l, `Product (_, []))]) -> tick ^^ Label.pp l
     | `Sum (_, labels) ->
       ticked config labels
-      |> if prec_arrow < prec_outer then egyptian parens 2 else Fun.id
+      |> if prec_arrow < prec_outer then egyptian parens 2 else id
     | `App (_, _, _) -> (
       match unapp typ with
       | f, xs ->
@@ -609,9 +612,7 @@ module Exp = struct
       | `Keep t -> `Keep (tu t)
       | `Target (t, l) -> `Target (tu t, l)
 
-    let traverse_typ tuM =
-      let open Rea in
-      function
+    let map_typ_fr tuM = function
       | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
         | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
         | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd

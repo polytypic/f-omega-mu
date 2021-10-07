@@ -19,11 +19,11 @@ val erase : Exp.t -> Erased.t
 (** Erase (most) types from given Fωμ expression.  Note that this does not type
     check the expression. *)
 
-val simplify : Erased.t -> ('r, 'e, Erased.t) Rea.t
+val simplify : Erased.t -> ('r, 'e, Erased.t) rea
 (** Simplify erased expression. *)
 
 val to_js :
   ?top:[`Const of Exp.Var.t | `Return | `Top] ->
   Erased.t ->
-  ('r, 'e, Cats.t) Rea.t
+  ('r, 'e, Cats.t) rea
 (** Transpile erased expression to JavaScript. *)

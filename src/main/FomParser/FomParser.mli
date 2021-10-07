@@ -46,7 +46,7 @@ module Parser : sig
     type t = [Error.lexeme | Error.grammar | Error.duplicated_label]
   end
 
-  val parse : 'a Grammar.t -> Lexer.t -> Buffer.t -> ('r, [> Error.t], 'a) Rea.t
+  val parse : 'a Grammar.t -> Lexer.t -> Buffer.t -> ('r, [> Error.t], 'a) rea
   (** Parse from buffer using given grammar and lexical syntax. *)
 
   val parse_utf_8 :
@@ -54,6 +54,6 @@ module Parser : sig
     Lexer.t ->
     ?path:string ->
     string ->
-    ('r, [> Error.t], 'a) Rea.t
+    ('r, [> Error.t], 'a) rea
   (** Parse from UTF-8 string using given grammar and lexical syntax. *)
 end

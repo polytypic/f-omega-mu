@@ -29,33 +29,37 @@ let fill var v =
     k ok
   | _ -> failwith "MVar.fill"
 
-let get var =
-  let+ v = take var in
-  fill var v;
-  v
+let get var _ =
+  inj
+  @@ let+ v = take var in
+     fill var v;
+     v
 
-let mutate var fn =
-  let+ v = take var in
-  fill var (fn v)
+let mutate var fn _ =
+  inj
+  @@ let+ v = take var in
+     fill var (fn v)
 
-let try_mutate var fn =
-  let* v = take var in
-  let* r = catch (fn v) in
-  match r with
-  | `Error e ->
-    fill var v;
-    fail e
-  | `Ok v ->
-    fill var v;
-    unit
+let try_mutate var fn _ =
+  inj
+  @@ let* v = take var in
+     let* r = catch (run (fn v)) in
+     match r with
+     | `Error e ->
+       fill var v;
+       fail e
+     | `Ok v ->
+       fill var v;
+       unit
 
-let try_modify var fn =
-  let* v = take var in
-  let* r = catch (fn v) in
-  match r with
-  | `Error e ->
-    fill var v;
-    fail e
-  | `Ok (v, a) ->
-    fill var v;
-    return a
+let try_modify var fn _ =
+  inj
+  @@ let* v = take var in
+     let* r = catch (run (fn v)) in
+     match r with
+     | `Error e ->
+       fill var v;
+       fail e
+     | `Ok (v, a) ->
+       fill var v;
+       return a

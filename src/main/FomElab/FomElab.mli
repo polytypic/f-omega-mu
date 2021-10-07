@@ -21,7 +21,7 @@ end
 
 module Fetch : sig
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type t = Loc.t -> string -> (unit, e, string) Rea.t
+  type t = Loc.t -> string -> (unit, e, string) rea
 
   val dummy : t
 
@@ -75,7 +75,7 @@ module ExpImports : sig
     ( < exp_imports : t ; .. >,
       [> Error.t],
       FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
-    Rea.t
+    rea
 
   class con :
     t
@@ -108,7 +108,7 @@ val elaborate_typ :
      'r),
     [> Error.t],
     FomAST.Typ.t )
-  Rea.t
+  rea
 
 val elaborate :
   FomCST.Exp.t ->
@@ -127,4 +127,4 @@ val elaborate :
      'r),
     [> Error.t],
     FomAST.Exp.t * FomAST.Typ.t * string list )
-  Rea.t
+  rea
