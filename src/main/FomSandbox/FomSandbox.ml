@@ -248,12 +248,12 @@ let js_codemirror_mode =
           in
           JsHashtbl.remove known value;
           if !used then
-            group (mu_lower ^^ utf8format "α_%d" n ^^ dot ^^ result)
+            group (mu_lower ^^ alpha_lower ^^ subscript n ^^ dot ^^ result)
           else
             result
         | Some (n, used) ->
           used := true;
-          utf8format "α_%d" n
+          alpha_lower ^^ subscript n
       in
       format ~atomize:false value |> to_js_string ~max_width
 

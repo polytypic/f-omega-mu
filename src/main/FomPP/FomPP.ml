@@ -18,6 +18,7 @@ let tick = utf8string "'"
 
 (* Greek *)
 
+let alpha_lower = utf8format "α"
 let kappa_lower = utf8string "κ"
 let lambda_lower = utf8string "λ"
 let lambda_upper = utf8string "Λ"
