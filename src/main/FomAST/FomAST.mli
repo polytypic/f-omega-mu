@@ -78,7 +78,12 @@ module Typ : sig
     val pp : t -> document
   end
 
-  module Var : Id.S
+  module Var : sig
+    include Id.S
+
+    val to_label : t -> Label.t
+  end
+
   module VarSet : Set.S with type elt = Var.t
   module VarMap : Map.S with type key = Var.t
 
@@ -243,7 +248,13 @@ module Exp : sig
     val pp : (Bigint.t, Typ.t) t -> document
   end
 
-  module Var : Id.S
+  module Var : sig
+    include Id.S
+
+    val to_label : t -> Label.t
+    val of_label : Label.t -> t
+  end
+
   module VarSet : Set.S with type elt = Var.t
   module VarMap : Map.S with type key = Var.t
 

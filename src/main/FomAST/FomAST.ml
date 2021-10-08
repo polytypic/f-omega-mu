@@ -166,7 +166,11 @@ module Typ = struct
     let pp = function `Bool -> bool' | `Int -> int' | `String -> string'
   end
 
-  module Var = Id.Make ()
+  module Var = struct
+    include Id.Make ()
+
+    let to_label i = Label.of_name (at i) (name i)
+  end
 
   type ('t, 'k) f =
     [ `Mu of Loc.t * 't
@@ -685,7 +689,13 @@ module Exp = struct
     let pp = pp' (Bigint.to_string >>> utf8string) Typ.pp
   end
 
-  module Var = Id.Make ()
+  module Var = struct
+    include Id.Make ()
+
+    let to_label i = Label.of_name (at i) (name i)
+    let of_label l = of_name (Label.at l) (Label.name l)
+  end
+
   module VarSet = Set.Make (Var)
   module VarMap = Map.Make (Var)
 

@@ -261,9 +261,7 @@ let rec elaborate_pat p' e' = function
     |> List.fold_left
          (fun e' -> function
            | l, `Pat p ->
-             let i =
-               Exp.Var.freshen (Exp.Var.of_name (Label.at l) (Label.name l))
-             in
+             let i = Exp.Var.freshen (Exp.Var.of_label l) in
              `LetIn
                ( at,
                  i,
@@ -271,10 +269,7 @@ let rec elaborate_pat p' e' = function
                  elaborate_pat (`Var (at, i)) e' p )
            | l, `Ann _ ->
              `LetIn
-               ( at,
-                 Exp.Var.of_name (Label.at l) (Label.name l),
-                 `Select (at, p', FomCST.Exp.atom l),
-                 e' ))
+               (at, Exp.Var.of_label l, `Select (at, p', FomCST.Exp.atom l), e'))
          e'
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
   | `Pack (at, p, t, _) ->

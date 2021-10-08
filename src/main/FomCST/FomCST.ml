@@ -16,12 +16,6 @@ end
 module Typ = struct
   include Typ
 
-  module Var = struct
-    include Typ.Var
-
-    let to_label i = Label.of_name (at i) (name i)
-  end
-
   module Def = struct
     type 't f =
       [ `Typ of Loc.t * Var.t * Kind.t * 't
@@ -50,12 +44,6 @@ end
 module Exp = struct
   include Exp
 
-  module Var = struct
-    include Exp.Var
-
-    let to_label i = Label.of_name (at i) (name i)
-  end
-
   module Pat = struct
     type t =
       [ `Id of Loc.t * Var.t * Typ.t
@@ -69,8 +57,7 @@ module Exp = struct
           ps
           |> List.fold_left
                (fun (ts, is) -> function
-                 | l, `Ann _ ->
-                   (ts, Exp.Var.of_name (Label.at l) (Label.name l) :: is)
+                 | l, `Ann _ -> (ts, Var.of_label l :: is)
                  | _, `Pat p -> collect (ts, is) p)
                (ts, is)
         | `Pack (_, p, t, _) -> collect (t :: ts, is) p

@@ -10,8 +10,6 @@ open Cats
 module Label = struct
   include Label
 
-  let to_var l = Exp.Var.of_name (Label.at l) (Label.name l)
-
   let is_numeric id =
     let it = to_string id in
     '0' <= it.[0] && it.[0] <= '9'
@@ -682,12 +680,12 @@ module Exp = struct
           | `Product fs ->
             fs |> List.rev
             |> List.fold_left
-                 (fun e (l, v) -> `App (`Lam (Label.to_var l, e), v))
-                 ( fs |> List.map (fun (l, _) -> (l, `Var (Label.to_var l)))
+                 (fun e (l, v) -> `App (`Lam (Var.of_label l, e), v))
+                 ( fs |> List.map (fun (l, _) -> (l, `Var (Var.of_label l)))
                  |> fun fs -> `App (`Lam (i, e), `Product fs) )
             |> simplify
           | `Inject (l, v) ->
-            let i = Label.to_var l in
+            let i = Var.of_label l in
             `App (`Lam (i, `App (f, `Inject (l, `Var i))), v) |> simplify
           | _ -> return defaulted)
       | `App (`Lam (x', `Lam (y', e)), x), y ->
@@ -899,7 +897,7 @@ module Exp = struct
           let is =
             fs
             |> List.map @@ fun (l, _) ->
-               let i = Var.of_name (Label.at l) (Label.name l) in
+               let i = Var.of_label l in
                if VarSet.mem i ids || is_free i exp then
                  Var.freshen i
                else
