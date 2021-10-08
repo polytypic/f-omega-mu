@@ -445,35 +445,35 @@ module Rea : sig
     val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('r, 'e, 'g) rea
     val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('r, 'e, 'a) rea uop
     val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('r, 'e, 'a) rea uop
+
+    module IVar : sig
+      type ('e, 'a) t
+
+      val empty : unit -> ('e, 'a) t
+      val get : ('e, 'a) t -> ('r, 'e, 'a) rea
+      val put : ('e, 'a) t -> ('e, 'a) Res.t -> ('r, 'f, unit) rea
+    end
+
+    module LVar : sig
+      type ('e, 'a) t
+
+      val create : ('r, 'e, 'a) rea -> ('r, 'f, ('e, 'a) t) rea
+      val get : ('e, 'a) t -> ('r, 'e, 'a) rea
+    end
+
+    module MVar : sig
+      type 'v t
+
+      val create : 'v -> 'v t
+      val get : 'v t -> ('r, 'e, 'v) rea
+      val mutate : 'v t -> ('v -> 'v) -> ('r, 'e, unit) rea
+      val try_mutate : 'v t -> ('v -> ('r, 'e, 'v) rea) -> ('r, 'e, unit) rea
+      val try_modify : 'v t -> ('v -> ('r, 'e, 'v * 'a) rea) -> ('r, 'e, 'a) rea
+    end
   end
 end
 
 include module type of Rea.Syntax
-
-module IVar : sig
-  type ('e, 'a) t
-
-  val empty : unit -> ('e, 'a) t
-  val get : ('e, 'a) t -> ('r, 'e, 'a) rea
-  val put : ('e, 'a) t -> ('e, 'a) Res.t -> ('r, 'f, unit) rea
-end
-
-module LVar : sig
-  type ('e, 'a) t
-
-  val create : ('r, 'e, 'a) rea -> ('r, 'f, ('e, 'a) t) rea
-  val get : ('e, 'a) t -> ('r, 'e, 'a) rea
-end
-
-module MVar : sig
-  type 'v t
-
-  val create : 'v -> 'v t
-  val get : 'v t -> ('r, 'e, 'v) rea
-  val mutate : 'v t -> ('v -> 'v) -> ('r, 'e, unit) rea
-  val try_mutate : 'v t -> ('v -> ('r, 'e, 'v) rea) -> ('r, 'e, unit) rea
-  val try_modify : 'v t -> ('v -> ('r, 'e, 'v * 'a) rea) -> ('r, 'e, 'a) rea
-end
 
 module Profiling : sig
   module Counter : sig

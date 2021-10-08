@@ -1,6 +1,5 @@
 open Higher.Syntax
 open Fun.Syntax
-open Monad.Syntax
 
 type ('e, 'a) cod = [('e, 'a) Res.t | `Async of (('e, 'a) Res.t -> unit) -> unit]
 type ('r, 'e, 'a) t = 'r -> ('e, 'a) cod
@@ -49,21 +48,21 @@ let ( and* ) xM yM r =
 
 (* *)
 
-let ok_unit = `Ok ()
-let unit _ = ok_unit
+let ok_unit' = `Ok ()
+let unit' _ = ok_unit'
 
 (* *)
 
-let start r (xM : ('r, Zero.t, unit) t) =
+let start' r (xM : ('r, Zero.t, unit) t) =
   match xM r with `Ok () -> () | `Error _ -> . | `Async on -> on ignore
 
 (* *)
 
-let fail e _ = `Error e
+let fail' e _ = `Error e
 
 (* *)
 
-let catch xM r =
+let catch' xM r =
   match xM r with
   | (`Ok _ | `Error _) as x -> `Ok x
   | `Async on -> `Async (fun k -> on @@ fun x -> k @@ `Ok x)
@@ -101,7 +100,7 @@ let run xF = xF methods |> prj
 module Syntax = struct
   type ('r, 'e, 'a) rea = ('r, 'e, 'a) fr
 
-  let start r uF = start r (run uF)
+  let start r uF = start' r (run uF)
 
   (* *)
 
@@ -113,7 +112,7 @@ module Syntax = struct
 
   (* *)
 
-  let fail e _ = fail e |> inj
+  let fail e _ = fail' e |> inj
 
   (* *)
 
@@ -129,7 +128,7 @@ module Syntax = struct
           | `Ok x -> run (xyF x) r |> dispatch k
           | `Error e -> run (eyF e) r |> dispatch k)
 
-  let catch xF _ = catch (run xF) |> inj
+  let catch xF _ = catch' (run xF) |> inj
 
   (* *)
 
@@ -161,4 +160,144 @@ module Syntax = struct
   let get_as field fn = env_as @@ fun r -> fn @@ Field.get field r
   let setting field v = with_env @@ Field.set field v
   let mapping field fn = with_env @@ Field.map field fn
+
+  module IVar = struct
+    type ('e, 'a) state =
+      [`Empty of (('e, 'a) Res.t -> unit) list | ('e, 'a) Res.t]
+
+    type ('e, 'a) t = ('e, 'a) state ref
+
+    let empty () = ref @@ `Empty []
+
+    let get var _ =
+      inj @@ fun _ ->
+      match !var with
+      | (`Ok _ | `Error _) as x -> x
+      | `Empty _ ->
+        `Async
+          (fun k ->
+            match !var with
+            | (`Ok _ | `Error _) as x -> k x
+            | `Empty ks -> var := `Empty (k :: ks))
+
+    let put var res _ =
+      inj @@ fun _ ->
+      match !var with
+      | `Empty ks ->
+        var := (res :> (_, _) state);
+        ks |> List.iter (fun k -> k res);
+        ok_unit'
+      | _ -> ok_unit'
+  end
+
+  module LVar = struct
+    type ('e, 'a) state =
+      [ `Initial of unit -> unit
+      | `Empty of (('e, 'a) Res.t -> unit) list
+      | ('e, 'a) Res.t ]
+
+    type ('e, 'a) t = ('e, 'a) state ref
+
+    let create op _ =
+      inj @@ fun r ->
+      let var = ref (`Empty []) in
+      var :=
+        `Initial
+          (fun () ->
+            start' r
+              ( ( let+ ) (op |> run |> catch') @@ fun res ->
+                match !var with
+                | `Empty ks ->
+                  var := (res :> (_, _) state);
+                  ks |> List.iter (fun k -> k res)
+                | _ -> failwith "LVar.create" ));
+      `Ok var
+
+    let get var _ =
+      inj @@ fun _ ->
+      match !var with
+      | (`Ok _ | `Error _) as x -> x
+      | `Initial _ ->
+        `Async
+          (fun k ->
+            match !var with
+            | (`Ok _ | `Error _) as x -> k x
+            | `Empty ks -> var := `Empty (k :: ks)
+            | `Initial ef ->
+              var := `Empty [k];
+              ef ())
+      | `Empty _ ->
+        `Async
+          (fun k ->
+            match !var with
+            | (`Ok _ | `Error _) as x -> k x
+            | `Empty ks -> var := `Empty (k :: ks)
+            | _ -> failwith "LVar.get")
+  end
+
+  module MVar = struct
+    type 'v state = [`Empty of ([`Ok of 'v] -> unit) list | `Ok of 'v]
+    type 'v t = 'v state ref
+
+    let create v = ref @@ `Ok v
+    let empty = `Empty []
+
+    let take var _ =
+      match !var with
+      | `Ok _ as x ->
+        var := empty;
+        x
+      | `Empty _ ->
+        `Async
+          (fun k ->
+            match !var with
+            | `Ok _ as x ->
+              var := empty;
+              k x
+            | `Empty ks -> var := `Empty ((k :> [`Ok of 'v] -> unit) :: ks))
+
+    let fill var v =
+      let ok = `Ok v in
+      match !var with
+      | `Empty [] -> var := ok
+      | `Empty (k :: ks) ->
+        var := `Empty ks;
+        k ok
+      | _ -> failwith "MVar.fill"
+
+    let get var _ =
+      inj
+      @@ let+ v = take var in
+         fill var v;
+         v
+
+    let mutate var fn _ =
+      inj
+      @@ let+ v = take var in
+         fill var (fn v)
+
+    let try_mutate var fn _ =
+      inj
+      @@ let* v = take var in
+         let* r = catch' (run (fn v)) in
+         match r with
+         | `Error e ->
+           fill var v;
+           fail' e
+         | `Ok v ->
+           fill var v;
+           unit'
+
+    let try_modify var fn _ =
+      inj
+      @@ let* v = take var in
+         let* r = catch' (run (fn v)) in
+         match r with
+         | `Error e ->
+           fill var v;
+           fail' e
+         | `Ok (v, a) ->
+           fill var v;
+           return a
+  end
 end
