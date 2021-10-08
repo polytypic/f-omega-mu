@@ -1,4 +1,5 @@
 include Stdlib.String
+open Fun.Syntax
 
 let is_prefix s1 s2 = length s1 <= length s2 && s1 = sub s2 0 (length s1)
 
@@ -19,3 +20,5 @@ let split_on_char c s =
     | Some j -> loop (sub s i (j - i) :: ss) (j + 1)
   in
   loop [] 0 |> List.rev
+
+let filter pr = to_seq >>> Seq.filter pr >>> of_seq

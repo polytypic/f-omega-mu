@@ -153,9 +153,9 @@ let rec token_or_comment buffer =
   | nat_10 ->
     return
       (LitNat
-         (Buffer.lexeme_utf_8 buffer |> String.to_seq
-         |> Seq.filter (( <> ) '_')
-         |> String.of_seq |> Bigint.of_string))
+         (Buffer.lexeme_utf_8 buffer
+         |> String.filter (( <> ) '_')
+         |> Bigint.of_string))
   (* *)
   | string ->
     return (LitString (Buffer.lexeme_utf_8 buffer |> JsonString.of_utf8_json))
