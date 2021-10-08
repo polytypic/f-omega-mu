@@ -1,3 +1,3 @@
-module Pos = Pos
-module Loc = Loc
 module Id = Id
+module Loc = Loc
+module Pos = Pos
