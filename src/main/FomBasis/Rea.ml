@@ -83,7 +83,7 @@ let methods =
     method map : 'a 'b. ('a, 'b, _) Functor.map =
       fun xy xF -> inj (( let+ ) (prj xF) xy)
 
-    method return : 'a. ('a, _) Applicative.return = fun x -> inj (return x)
+    method return : 'a. ('a, _) Applicative.return = return >>> inj
 
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair =
       fun xF yF -> inj (( and* ) (prj xF) (prj yF))
