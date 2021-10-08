@@ -34,53 +34,40 @@ let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star (Opt '_', Plus '0' .. '9')]
 
 (* *)
 
-let sub_digit = [%sedlex.regexp? 0x2080 .. 0x2089]
+let non_id_hd = [%sedlex.regexp? lambda_lower | lambda_upper | mu_lower]
+let id_hd = [%sedlex.regexp? Sub (tr8876_ident_char, non_id_hd)]
+let id_tl = [%sedlex.regexp? tr8876_ident_char | '_' | '0' .. '9']
+let id = [%sedlex.regexp? id_hd, Star id_tl | '_', Plus id_tl]
 
 (* *)
 
-let id_first =
-  [%sedlex.regexp?
-    Sub (tr8876_ident_char, (lambda_lower | lambda_upper | mu_lower))]
+let letterlike_symbol = [%sedlex.regexp? 0x2100 .. 0x214f]
+let math_alphanumeric_symbol = [%sedlex.regexp? 0x1d400 .. 0x1d7ff]
+let math_symbol = [%sedlex.regexp? letterlike_symbol | math_alphanumeric_symbol]
+let id_typ_hd = [%sedlex.regexp? id_hd | math_symbol]
+let id_typ_tl = [%sedlex.regexp? id_tl | math_symbol]
+let id_typ = [%sedlex.regexp? id_typ_hd, Star id_typ_tl | '_', Plus id_typ_tl]
 
-let id_rest = [%sedlex.regexp? tr8876_ident_char | '_' | '0' .. '9']
-let id = [%sedlex.regexp? id_first, Star id_rest | '_', Plus id_rest]
+(* *)
 
-let math_symbol =
-  [%sedlex.regexp?
-    (* Letterlike Symbols *)
-    ( 0x2100 .. 0x214f
-    (* Mathematical Alphanumeric Symbols *)
-    | 0x1d400 .. 0x1d7ff )]
-
-let id_typ =
-  [%sedlex.regexp?
-    ( (id_first | math_symbol), Star (id_rest | math_symbol)
-    | '_', Plus (id_rest | math_symbol) )]
-
+let sub_digit = [%sedlex.regexp? 0x2080 .. 0x2089]
 let id_sub = [%sedlex.regexp? id_typ, Plus sub_digit]
 
 (* *)
 
 let hex_digit = [%sedlex.regexp? '0' .. '9' | 'a' .. 'f' | 'A' .. 'F']
-
-let char_escaped =
-  [%sedlex.regexp?
-    ( '\\',
-      ('"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u', Rep (hex_digit, 4))
-    )]
-
-let char_unescaped =
-  [%sedlex.regexp? Compl (0x0000 .. 0x001f | 0x007f .. 0x009f | '"' | '\\')]
-
+let esc_char = [%sedlex.regexp? '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't']
+let esc_hex = [%sedlex.regexp? 'u', Rep (hex_digit, 4)]
+let char_escaped = [%sedlex.regexp? '\\', (esc_char | esc_hex)]
+let control_chars = [%sedlex.regexp? 0x0000 .. 0x001f | 0x007f .. 0x009f]
+let char_unescaped = [%sedlex.regexp? Compl (control_chars | '"' | '\\')]
 let char = [%sedlex.regexp? char_unescaped | char_escaped]
-let string = [%sedlex.regexp? "\"", Star char, "\""]
+let string = [%sedlex.regexp? '"', Star char, '"']
 
 (* *)
 
-let line_ending = [%sedlex.regexp? '\r' | '\n' | "\r\n" | "\n\r"]
-
-let line_directive =
-  [%sedlex.regexp? "#line", ' ', nat_10, ' ', string, line_ending]
+let line_end = [%sedlex.regexp? '\r' | '\n' | "\r\n" | "\n\r"]
+let line_directive = [%sedlex.regexp? "#line ", nat_10, ' ', string, line_end]
 
 (* *)
 
