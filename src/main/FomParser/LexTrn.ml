@@ -2,14 +2,10 @@ open FomBasis
 open FomSource
 
 type 't t = 't * Pos.t * Pos.t
+type 't env = (Buffer.t -> 't t) * Buffer.t
+type 't state = bool * 't t option
 
-type ('t, 'a) m =
-  (Buffer.t -> 't t) ->
-  Buffer.t ->
-  Pos.t ->
-  bool ->
-  't t option ->
-  ('t, 'a) result * bool * 't t option
+type ('t, 'a) m = 't env -> Pos.t -> 't state -> ('t, 'a) result * 't state
 
 and ('t, 'a) result = Emit of 't t * ('t, 'a) m | Return of 'a
 
@@ -24,18 +20,17 @@ include
 
 type ('t, 'a) fr = ('t, f) app'1 Monad.t -> ('t, 'a, f) app'2
 
-let unit' _ _ _ is_typ tok_opt = (Return (), is_typ, tok_opt)
+let unit' _ _ state = (Return (), state)
 
 let methods =
-  let return value _ _ _ is_typ tok_opt = (Return value, is_typ, tok_opt) in
+  let return value _ _ state = (Return value, state) in
 
-  let rec ( let* ) xM xyM get_tok buffer last_pos is_typ tok_opt =
-    match xM get_tok buffer last_pos is_typ tok_opt with
-    | Emit (tok, xM), is_typ, tok_opt ->
-      (Emit (tok, ( let* ) xM xyM), is_typ, tok_opt)
-    | Return x, is_typ, tok_opt ->
+  let rec ( let* ) xM xyM env last_pos state =
+    match xM env last_pos state with
+    | Emit (tok, xM), state -> (Emit (tok, ( let* ) xM xyM), state)
+    | Return x, state ->
       let yM = xyM x in
-      yM get_tok buffer last_pos is_typ tok_opt
+      yM env last_pos state
   in
 
   object
@@ -70,32 +65,28 @@ let set token (_, s, (e : Pos.t)) = (token, s, {e with pos_bol = e.pos_bol - 1})
 (* *)
 
 let get _ =
-  inj @@ fun get_tok buffer _ is_typ tok_opt ->
-  ( Return (match tok_opt with Some tok -> tok | None -> get_tok buffer),
-    is_typ,
-    None )
+  inj @@ fun (get_tok, buffer) _ -> function
+  | is_typ, Some tok -> (Return tok, (is_typ, None))
+  | state -> (Return (get_tok buffer), state)
 
 let unget tok _ =
-  inj @@ fun _ _ _ is_typ tok_opt ->
+  inj @@ fun _ _ (is_typ, tok_opt) ->
   match tok_opt with
   | Some _ -> failwith "unget"
-  | None -> (Return (), is_typ, Some tok)
+  | None -> (Return (), (is_typ, Some tok))
 
 (* *)
 
-let emit tok _ =
-  inj @@ fun _ _ _ is_typ tok_opt -> (Emit (tok, unit'), is_typ, tok_opt)
-
+let emit tok _ = inj @@ fun _ _ state -> (Emit (tok, unit'), state)
 let emit_if bool tok = if bool then emit tok else unit
 let emit_before tok token = unget tok >> emit (set token tok)
 
 (* *)
 
-let is_typ _ =
-  inj @@ fun _ _ _ is_typ tok_opt -> (Return is_typ, is_typ, tok_opt)
+let is_typ _ = inj @@ fun _ _ ((is_typ, _) as state) -> (Return is_typ, state)
 
 let set_is_typ is_typ _ =
-  inj @@ fun _ _ _ _ tok_opt -> (Return (), is_typ, tok_opt)
+  inj @@ fun _ _ (_, tok_opt) -> (Return (), (is_typ, tok_opt))
 
 let as_typ op =
   let* was = is_typ in
@@ -103,24 +94,26 @@ let as_typ op =
 
 (* *)
 
-let loc _ =
-  inj @@ fun _ buffer _ is_typ tok_opt ->
-  (Return (Buffer.loc buffer), is_typ, tok_opt)
+let loc _ = inj @@ fun (_, buffer) _ state -> (Return (Buffer.loc buffer), state)
 
 let new_line (_, (p : Pos.t), _) _ =
-  inj @@ fun _ _ (last_pos : Pos.t) is_typ tok_opt ->
-  (Return (last_pos.pos_bol <> p.pos_bol), is_typ, tok_opt)
+  inj @@ fun _ (last_pos : Pos.t) state ->
+  (Return (last_pos.pos_bol <> p.pos_bol), state)
 
 let with_indent rule = get >>= fun tok -> rule (col_of tok) tok
 
 (* *)
 
 let init token start buffer =
-  let state = ref (start methods |> prj, Lexing.dummy_pos, false, None) in
+  let env = (token, buffer)
+  and continue' = ref (start methods |> prj)
+  and last_pos' = ref Lexing.dummy_pos
+  and state' = ref (false, None) in
   fun () ->
-    let uM, last_pos, is_typ, tok_opt = !state in
-    match uM token buffer last_pos is_typ tok_opt with
-    | Emit (((_, _, last_pos) as tok), continue), is_typ, tok_opt ->
-      state := (continue, last_pos, is_typ, tok_opt);
+    match !continue' env !last_pos' !state' with
+    | Emit (((_, _, last_pos) as tok), continue), state ->
+      continue' := continue;
+      last_pos' := last_pos;
+      state' := state;
       tok
-    | Return (), _, _ -> failwith "return"
+    | Return (), _ -> failwith "return"
