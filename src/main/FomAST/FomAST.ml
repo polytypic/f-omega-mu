@@ -470,7 +470,7 @@ module Typ = struct
     ^^
     match hanging t with
     | Some _ -> pp config prec_min t
-    | None -> break_0 ^^ group (pp config prec_min t) |> nest 2 |> group)
+    | None -> gnest 2 (break_0 ^^ group (pp config prec_min t)))
     |> if prec_min < prec_outer then egyptian parens 2 else id
 
   and quantifier config prec_outer symbol (typ : t) =
@@ -488,7 +488,7 @@ module Typ = struct
            ^^
            match hanging typ with
            | Some (lhs, _) -> lhs ^^ pp config prec_min typ
-           | None -> break_1 ^^ pp config prec_min typ |> nest 2 |> group))
+           | None -> gnest 2 (break_1 ^^ pp config prec_min typ)))
     |> separate comma_break_1_or_break_0
 
   and ticked config labels =
@@ -498,8 +498,7 @@ module Typ = struct
       |> List.map @@ function
          | l, `Product (_, []) -> tick ^^ Label.pp l
          | l, t ->
-           tick ^^ Label.pp l ^^ break_1 ^^ pp config prec_max t
-           |> nest 2 |> group
+           gnest 2 (tick ^^ Label.pp l ^^ break_1 ^^ pp config prec_max t)
     with
     | [l] -> l
     | [] -> pipe

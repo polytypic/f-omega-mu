@@ -115,26 +115,18 @@ let process filename =
          let open FomPP in
          match Error.to_diagnostics error with
          | (loc, overview), [] ->
-           [
-             [FomSource.Loc.pp loc; colon] |> concat;
-             [break_1; break_0; overview] |> concat |> nest 2 |> group;
-           ]
-           |> concat |> to_string ~max_width
+           gnest 2 (FomSource.Loc.pp loc ^^ colon_break_1_0 ^^ overview)
+           |> to_string ~max_width
          | (loc, overview), details ->
-           [
-             [FomSource.Loc.pp loc; colon] |> concat;
-             [break_1; break_0; overview; colon] |> concat |> nest 2 |> group;
-             [
-               [break_0; break_0] |> concat;
-               details
-               |> List.map (fun (loc, msg) ->
-                      [FomSource.Loc.pp loc; colon; break_1; msg]
-                      |> concat |> nest 2 |> group)
-               |> separate (concat [break_0; break_0]);
-             ]
-             |> concat |> nest 2;
-           ]
-           |> concat |> to_string ~max_width
+           FomSource.Loc.pp loc ^^ colon
+           ^^ gnest 2 (break_1_0 ^^ overview ^^ colon)
+           ^^ nest 2
+                (break_0_0
+                ^^ (details
+                   |> List.map (fun (loc, msg) ->
+                          gnest 2 (FomSource.Loc.pp loc ^^ colon_break_1 ^^ msg))
+                   |> separate break_0_0))
+           |> to_string ~max_width
        in
        Printf.printf "%s\n" message;
        exit 1

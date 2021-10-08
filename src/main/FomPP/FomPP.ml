@@ -66,8 +66,11 @@ let type' = utf8string "type"
 let break_0 = break 0
 let break_0_0 = break_0 ^^ break_0
 let break_1 = break 1
+let break_1_0 = break_1 ^^ break_0
 let pipe_space = pipe ^^ space
 let break_1_pipe_space = break_1 ^^ pipe_space
+let colon_break_1 = colon ^^ break_1
+let colon_break_1_0 = colon_break_1 ^^ break_0
 let comma_break_1 = comma ^^ break_1
 let comma_break_1_or_break_0 = ifflat comma_break_1 break_0
 let let_space = let' ^^ space
@@ -81,6 +84,8 @@ let space_in = space ^^ in'
 
 let egyptian (lhs, rhs) indent doc =
   group (lhs ^^ nest indent (break_0 ^^ doc) ^^ break_0 ^^ rhs)
+
+let gnest n d = group @@ nest n d
 
 (* *)
 

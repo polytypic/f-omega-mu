@@ -73,7 +73,7 @@ let pp_typ t =
     let typ_doc = pp ~pp_annot:(const empty) t in
     match hanging t with
     | Some (sep, _) -> sep ^^ typ_doc
-    | None -> break_1 ^^ typ_doc |> nest 2 |> group
+    | None -> gnest 2 (break_1 ^^ typ_doc)
   in
   let m, _ = collect_mus_closed VarSet.empty t TypSet.empty in
   let n = TypSet.cardinal m in
@@ -120,8 +120,7 @@ let js_use_def ?(max_width = 60) (def, o) =
       let+ typ = pp_typ typ in
       Exp.Var.pp id ^^ colon ^^ typ
     | `TypId (id, kind) ->
-      return
-      @@ group (Typ.Var.pp id ^^ colon ^^ nest 2 (break_1 ^^ Kind.pp kind)))
+      return @@ gnest 2 (Typ.Var.pp id ^^ colon_break_1 ^^ Kind.pp kind))
     >>- to_js_string ~max_width
   in
   object%js
@@ -293,17 +292,16 @@ let js_codemirror_mode =
                   val typ =
                     match diagnostics with
                     | (loc, overview), [] ->
-                      Loc.pp loc ^^ colon ^^ break_1 ^^ overview
-                      |> nest 2 |> group |> to_js_string ~max_width
+                      gnest 2 (Loc.pp loc ^^ colon_break_1 ^^ overview)
+                      |> to_js_string ~max_width
                     | (_, overview), details ->
-                      overview ^^ colon ^^ break_0
+                      overview ^^ colon_break_1
                       ^^ nest 2
                            (break_0
-                           ^^ separate break_0_0
-                                (details
-                                |> List.map @@ fun (loc, msg) ->
-                                   Loc.pp loc ^^ colon ^^ break_1 ^^ msg
-                                   |> nest 2 |> group))
+                           ^^ (details
+                              |> List.map (fun (loc, msg) ->
+                                     gnest 2 (Loc.pp loc ^^ colon_break_1 ^^ msg))
+                              |> separate break_0_0))
                       |> to_js_string ~max_width
 
                   val defUses = defUses
