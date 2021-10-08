@@ -3,7 +3,7 @@ open FomBasis
 module Error = struct
   open FomDiag
 
-  type t = [Error.lexeme | Error.grammar | Error.duplicated_label]
+  type t = [Error.lexeme | Error.grammar]
 end
 
 let parse grammar lexer buffer : (_, [> Error.t], _) rea =

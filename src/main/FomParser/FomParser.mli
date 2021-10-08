@@ -43,7 +43,7 @@ end
 
 module Parser : sig
   module Error : sig
-    type t = [Error.lexeme | Error.grammar | Error.duplicated_label]
+    type t = [Error.lexeme | Error.grammar]
   end
 
   val parse : 'a Grammar.t -> Lexer.t -> Buffer.t -> ('r, [> Error.t], 'a) rea
