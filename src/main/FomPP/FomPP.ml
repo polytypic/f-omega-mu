@@ -74,7 +74,7 @@ let let_space = let' ^^ space
 let space_arrow_right = space ^^ arrow_right
 let space_arrow_right_break_1 = space_arrow_right ^^ break_1
 let space_equals = space ^^ equals
-let space_equals_space = space ^^ equals ^^ space
+let space_equals_space = space_equals ^^ space
 let space_in = space ^^ in'
 
 (* *)
