@@ -485,6 +485,4 @@ module Offside = struct
     >> get
 end
 
-let offside : t =
-  let open Offside in
-  LexTrn.init token (LexTrn.( >>= ) LexTrn.get initial)
+let offside : t = LexTrn.init token (LexTrn.get >>= Offside.initial)
