@@ -601,17 +601,6 @@ module Exp = struct
 
     (* Substitution *)
 
-    let map_typ tu = function
-      | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
-        | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
-        | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-        | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
-        c
-      | `OpEq t -> `OpEq (tu t)
-      | `OpEqNot t -> `OpEqNot (tu t)
-      | `Keep t -> `Keep (tu t)
-      | `Target (t, l) -> `Target (tu t, l)
-
     let map_typ_fr tuM = function
       | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
         | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
@@ -623,13 +612,7 @@ module Exp = struct
       | `Keep t -> tuM t >>- fun t -> `Keep t
       | `Target (t, l) -> tuM t >>- fun t -> `Target (t, l)
 
-    let collect_typ = function
-      | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
-      | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
-      | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-      | `OpLogicalNot | `OpLogicalOr | `OpStringCat ->
-        []
-      | `OpEq t | `OpEqNot t | `Keep t | `Target (t, _) -> [t]
+    (* *)
 
     let lit_false = `LitBool false
     let lit_true = `LitBool true

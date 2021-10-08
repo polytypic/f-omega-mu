@@ -223,14 +223,10 @@ module Exp : sig
 
     (* Substitution *)
 
-    val map_typ : ('t -> 'u) -> ('nat, 't) t -> ('nat, 'u) t
-
     val map_typ_fr :
       ('t -> ('f, 'F, 'u) Applicative.fr) ->
       ('nat, 't) t ->
       ('f, 'F, ('nat, 'u) t) Applicative.fr
-
-    val collect_typ : ('nat, 't) t -> 't list
 
     (* Comparison *)
 
