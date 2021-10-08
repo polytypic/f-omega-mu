@@ -1,4 +1,5 @@
 open Higher.Syntax
+open Functor.Syntax
 
 type ('a, 'f) return = 'a -> ('a, 'f) app'1
 type ('a, 'b, 'f) pair = ('a, 'f) app'1 -> ('b, 'f) app'1 -> ('a * 'b, 'f) app'1
@@ -11,8 +12,6 @@ type 'f t =
 type ('f, 'F, 'a) fr = (< 'f t ; .. > as 'F) -> ('a, 'f) app'1
 
 module Syntax = struct
-  include Functor.Syntax
-
   let return x : (_, _, _) fr = fun f -> f#return x
   let ( and+ ) xM yM : (_, _, _) fr = fun f -> f#pair (xM f) (yM f)
 

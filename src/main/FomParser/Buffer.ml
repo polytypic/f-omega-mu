@@ -11,6 +11,6 @@ let init path lexbuf =
     {Lexing.pos_fname = path; pos_lnum = 1; pos_bol = 0; pos_cnum = 0}
 
 let from_utf_8 ?(path = "") input =
-  let lexbuf = input |> UTF8.to_uchar_array |> Sedlexing.from_uchar_array in
+  let lexbuf = input |> UTF.UTF8.to_uchar_array |> Sedlexing.from_uchar_array in
   init path lexbuf;
   lexbuf

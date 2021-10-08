@@ -1,3 +1,4 @@
+open Functor.Syntax
 open Applicative.Syntax
 
 let swap (x, y) = (y, x)

@@ -27,3 +27,12 @@ let encode_as encoding chars =
 
 let to_utf16_bytes chars = chars |> encode_as `UTF_16 |> Buffer.to_bytes
 let to_utf8 chars = chars |> encode_as `UTF_8 |> Buffer.contents
+
+module UTF8 = struct
+  let of_uchar_array = to_utf8
+  let to_uchar_array = to_uchar_array
+end
+
+module UTF16 = struct
+  let of_uchar_array = to_utf16_bytes
+end

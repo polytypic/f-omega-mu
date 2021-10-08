@@ -1,4 +1,5 @@
 open Higher.Syntax
+open Applicative.Syntax
 
 type ('a, 'b, 'f) bind =
   ('a -> ('b, 'f) app'1) -> ('a, 'f) app'1 -> ('b, 'f) app'1
@@ -7,8 +8,6 @@ type 'f t = < 'f Applicative.t ; bind : 'a 'b. ('a, 'b, 'f) bind >
 type ('f, 'F, 'a) fr = (< 'f t ; .. > as 'F) -> ('a, 'f) app'1
 
 module Syntax = struct
-  include Applicative.Syntax
-
   let ( let* ) xM xyM : (_, _, _) fr =
    fun f -> xM f |> f#bind (fun x -> xyM x f)
 

@@ -1,3 +1,5 @@
+open Functor.Syntax
+open Applicative.Syntax
 open Monad.Syntax
 open Compare.Syntax
 
