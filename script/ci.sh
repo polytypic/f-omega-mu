@@ -58,6 +58,8 @@ in_profile() {
 
 if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
   in_profile debug
+  folded "Cleaning" \
+    opam exec -- dune clean
 fi
 
 in_profile release
