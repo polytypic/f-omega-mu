@@ -18,7 +18,7 @@ let eval x = eval @@ prj x
 
 (* *)
 
-let inj'0 x = Fun.const @@ from x
+let inj'0 x _ = from x
 let inj'1 xy x = inj'0 @@ xy x
 
 (* *)
@@ -35,7 +35,7 @@ let of_monoid m =
   let identity = m#identity and combine = m#combine in
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
-    method return : 'a. ('a, _) Applicative.return = fun _ -> from identity
+    method return : 'a. ('a, _) Applicative.return = inj'0 identity
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair combine
   end
 
