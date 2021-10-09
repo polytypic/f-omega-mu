@@ -60,6 +60,10 @@ module Row : sig
     ('a -> ('f, 'F, 'a) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr
 end
 
+module Tuple : sig
+  val labels : Loc.t -> 't list -> 't Row.t
+end
+
 module Typ : sig
   module Const : sig
     type t = [`Bool | `Int | `String]
@@ -110,6 +114,10 @@ module Typ : sig
   val product : Loc.t -> 't Row.t -> [> `Product of Loc.t * 't Row.t]
   val sum : Loc.t -> 't Row.t -> [> `Sum of Loc.t * 't Row.t]
   val zero : Loc.t -> [> `Sum of Loc.t * 't Row.t]
+  val tuple : Loc.t -> ([> `Product of Loc.t * 't Row.t] as 't) list -> 't
+
+  val atom :
+    Label.t -> [> `Sum of Loc.t * [> `Product of Loc.t * 't Row.t] Row.t]
 
   (* Comparison *)
 
@@ -281,4 +289,13 @@ module Exp : sig
 
   val initial_exp :
     (('e, (('t, 'k) Typ.f as 't), ('k Kind.f as 'k)) f as 'e) -> 'e
+
+  (* *)
+
+  val tuple : Loc.t -> ([> `Product of Loc.t * 'e Row.t] as 'e) list -> 'e
+
+  val atom :
+    Label.t -> [> `Inject of Loc.t * Label.t * [> `Product of Loc.t * 't Row.t]]
+
+  val lit_bool : Loc.t -> bool -> ('e, 't, 'k) f
 end

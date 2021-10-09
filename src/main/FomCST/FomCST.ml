@@ -7,11 +7,7 @@ open FomSource
 module Kind = Kind
 module Label = Label
 module Row = Row
-
-module Tuple = struct
-  let labels at =
-    List.mapi (fun i t -> (Label.of_string (at t) (Int.to_string (i + 1)), t))
-end
+module Tuple = Tuple
 
 module Typ = struct
   include Typ
@@ -33,12 +29,6 @@ module Typ = struct
   let at = function
     | `LetDefIn (at, _, _) | `Import (at, _) -> at
     | #Typ.f as ast -> Typ.at ast
-
-  let tuple at' = function [t] -> t | ts -> product at' (Tuple.labels at ts)
-
-  let atom l =
-    let at' = Label.at l in
-    sum at' [(l, tuple at' [])]
 end
 
 module Exp = struct
@@ -83,9 +73,9 @@ module Exp = struct
     let at = function
       | `Id (at, _, _) | `Product (at, _) | `Pack (at, _, _, _) -> at
 
-    let tuple at' = function
+    let tuple at = function
       | [p] -> p
-      | ps -> `Product (at', ps |> Tuple.labels at |> Row.map @@ fun p -> `Pat p)
+      | ps -> `Product (at, ps |> Tuple.labels at |> Row.map @@ fun p -> `Pat p)
   end
 
   type 'e f =
@@ -112,13 +102,4 @@ module Exp = struct
     | `Annot (at, _, _) ->
       at
     | #Exp.f as ast -> Exp.at ast
-
-  let tuple at' = function [e] -> e | es -> `Product (at', Tuple.labels at es)
-
-  let atom l =
-    let at' = Label.at l in
-    `Inject (at', l, tuple at' [])
-
-  let lit_bool at value =
-    `Const (at, if value then Const.lit_true else Const.lit_false)
 end

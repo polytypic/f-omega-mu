@@ -264,14 +264,10 @@ let rec pat_to_exp p' e' = function
          (fun e' -> function
            | l, `Pat p ->
              let i = Exp.Var.freshen (Exp.Var.of_label l) in
-             `LetIn
-               ( at,
-                 i,
-                 `Select (at, p', FomCST.Exp.atom l),
-                 pat_to_exp (`Var (at, i)) e' p )
+             let e' = pat_to_exp (`Var (at, i)) e' p in
+             `LetIn (at, i, `Select (at, p', Exp.atom l), e')
            | l, `Ann _ ->
-             `LetIn
-               (at, Exp.Var.of_label l, `Select (at, p', FomCST.Exp.atom l), e'))
+             `LetIn (at, Exp.Var.of_label l, `Select (at, p', Exp.atom l), e'))
          e'
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
   | `Pack (at, p, t, _) ->

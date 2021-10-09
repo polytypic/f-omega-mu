@@ -134,6 +134,11 @@ module Row = struct
   let map_phys_eq_fr fn = List.map_phys_eq_fr @@ Pair.map_phys_eq_fr return fn
 end
 
+module Tuple = struct
+  let labels at' =
+    List.mapi (fun i t -> (Label.of_string at' (Int.to_string (i + 1)), t))
+end
+
 module Typ = struct
   module Const = struct
     type t = [`Bool | `Int | `String]
@@ -217,6 +222,12 @@ module Typ = struct
   let sort labels = List.sort (Compare.the fst Label.compare) labels
   let product at fs = `Product (at, sort fs)
   let sum at cs = `Sum (at, sort cs)
+  let tuple at = function [t] -> t | ts -> `Product (at, Tuple.labels at ts)
+
+  let atom l =
+    let at = Label.at l in
+    `Sum (at, [(l, `Product (at, []))])
+
   let zero at = `Sum (at, [])
 
   (* Type predicates *)
@@ -509,7 +520,7 @@ module Typ = struct
     | ls ->
       ls |> separate break_1_pipe_space |> precede (ifflat empty pipe_space)
 
-  and tuple config labels =
+  and tupled config labels =
     labels |> List.map (snd >>> pp config prec_min) |> separate comma_break_1
 
   and pp config prec_outer (typ : t) =
@@ -530,7 +541,7 @@ module Typ = struct
       |> if prec_arrow < prec_outer then egyptian parens 2 else id
     | `Product (_, labels) ->
       if Row.is_tuple labels then
-        tuple config labels |> egyptian parens 2
+        tupled config labels |> egyptian parens 2
       else
         labeled config labels |> egyptian braces 2
     | `Sum (_, [(l, `Product (_, []))]) -> tick ^^ Label.pp l
@@ -749,4 +760,15 @@ module Exp = struct
 
   let initial_exp e =
     builtins |> List.fold_left (fun e (i, v) -> `LetIn (Loc.dummy, i, v, e)) e
+
+  (* *)
+
+  let tuple at = function [e] -> e | es -> `Product (at, Tuple.labels at es)
+
+  let atom l =
+    let at = Label.at l in
+    `Inject (at, l, `Product (at, []))
+
+  let lit_bool at value =
+    `Const (at, if value then Const.lit_true else Const.lit_false)
 end
