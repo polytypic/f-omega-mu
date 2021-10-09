@@ -245,6 +245,10 @@ let avoid i inn =
 
 (* *)
 
+let annot at i k t = `App (at, `Lam (at, i, k, `Var (at, i)), t)
+
+(* *)
+
 let rec type_of_pat_lam = function
   | `Id (_, _, t) -> t
   | `Product (at, fs) ->
@@ -280,10 +284,7 @@ let elaborate_pat p' e' p =
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
     let at = Typ.Var.at i in
-    let+ t =
-      `App (at, `Lam (at, i, k, `Var (at, i)), t)
-      |> elaborate_typ >>= Typ.infer_and_resolve
-    in
+    let+ t = elaborate_typ (annot at i k t) >>= Typ.infer_and_resolve in
     Typ.VarMap.singleton i @@ `Typ (Typ.set_at at t)
   | `TypRec (_, bs) ->
     let is = List.map (fun (i, _, _) -> i) bs in
@@ -378,7 +379,7 @@ let maybe_annot e tO =
     let+ t = elaborate_typ t in
     let at = Typ.at t in
     let i = Exp.Var.fresh at in
-    `App (at, `Lam (at, i, t, `Var (at, i)), e)
+    annot at i t e
 
 let rec elaborate = function
   | `Const (at, c) ->
@@ -458,7 +459,7 @@ let rec elaborate = function
   | `Annot (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
     let x = Exp.Var.fresh at in
-    `App (at, `Lam (at, x, t, `Var (at, x)), e)
+    annot at x t e
   | `AppL (at, x, f) ->
     let+ x = elaborate x and+ f = elaborate f in
     let i = Exp.Var.fresh at in
@@ -488,9 +489,7 @@ let rec elaborate = function
          in
          let id = Exp.Var.fresh at' in
          let ast =
-           match typ_opt with
-           | None -> ast
-           | Some typ -> `App (at', `Lam (at', id, typ, `Var (at', id)), ast)
+           match typ_opt with None -> ast | Some typ -> annot at' id typ ast
          in
          let* typ =
            Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
