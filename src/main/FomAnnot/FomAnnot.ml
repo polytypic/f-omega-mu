@@ -46,7 +46,9 @@ module Annot = struct
   let add_def at annot =
     let* locmap = get field in
     MVar.mutate locmap @@ LocMap.update at
-    @@ function None -> Some (make at LocSet.empty annot) | some -> some
+    @@ function
+    | None -> Some (make at LocSet.empty annot)
+    | Some o -> Some (make at o#uses annot)
 
   let add_use use def =
     let* locmap = get field in
