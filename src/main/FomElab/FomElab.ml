@@ -256,7 +256,7 @@ let rec type_of_pat_lam = function
       (fs |> Row.map @@ function `Pat p -> type_of_pat_lam p | `Ann t -> t)
   | `Pack (_, _, _, t) -> t
 
-let rec elaborate_pat p' e' = function
+let rec pat_to_exp p' e' = function
   | `Id (at, i, _) -> `LetIn (at, i, p', e')
   | `Product (at, fs) ->
     fs |> List.rev
@@ -268,7 +268,7 @@ let rec elaborate_pat p' e' = function
                ( at,
                  i,
                  `Select (at, p', FomCST.Exp.atom l),
-                 elaborate_pat (`Var (at, i)) e' p )
+                 pat_to_exp (`Var (at, i)) e' p )
            | l, `Ann _ ->
              `LetIn
                (at, Exp.Var.of_label l, `Select (at, p', FomCST.Exp.atom l), e'))
@@ -276,10 +276,7 @@ let rec elaborate_pat p' e' = function
   | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
   | `Pack (at, p, t, _) ->
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
-    `UnpackIn (at, t, i, p', elaborate_pat (`Var (at, i)) e' p)
-
-let elaborate_pat p' e' p =
-  FomCST.Exp.Pat.check p >>- fun () -> elaborate_pat p' e' p
+    `UnpackIn (at, t, i, p', pat_to_exp (`Var (at, i)) e' p)
 
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
@@ -446,15 +443,13 @@ let rec elaborate = function
     let t = type_of_pat_lam p in
     let* t = elaborate_typ t in
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
-    let* e = elaborate_pat (`Var (at, i)) e p in
-    let+ e = elaborate e in
+    let+ e = elaborate_pat (`Var (at, i)) e p in
     `Lam (at, i, t, e)
   | `LetPat (at, p, tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
-    let* e = elaborate_pat (`Var (at, i)) e p in
-    let+ e = elaborate e in
+    let+ e = elaborate_pat (`Var (at, i)) e p in
     `LetIn (at, i, v, e)
   | `Annot (at, e, t) ->
     let+ e = elaborate e and+ t = elaborate_typ t in
@@ -498,6 +493,9 @@ let rec elaborate = function
          (id, ast, typ, parameters))
     in
     Parameters.add mod_path >> return @@ `Var (at', id)
+
+and elaborate_pat p' e' p =
+  FomCST.Exp.Pat.check p >>= fun () -> pat_to_exp p' e' p |> elaborate
 
 (* *)
 
