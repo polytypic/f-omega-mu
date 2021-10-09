@@ -32,6 +32,7 @@ val as_typ : ('t, 'a) fr -> ('t, 'a) fr
 (* *)
 
 val loc : ('t, Loc.t) fr
+val last_tok : ('t, 't t) fr
 val new_line : 't t -> ('t, bool) fr
 val with_indent : (int -> 't t -> ('t, 'a) fr) -> ('t, 'a) fr
 

@@ -8,7 +8,7 @@ type μNat = λn.
 and μZero = λn.    eq  'Z    n
 and μSucc = λn.λm.(eq ('S m) n, Nat m)
 
-let Zero = 'Zero (Eq.refl['Z])
+let Zero = 'Zero Eq.refl['Z]
 let Succ = Λm.λm:Nat m.'Succ《m\(Eq.refl['S m], m)》: ∃(Succ ('S m))
 
 let from = λn:int.

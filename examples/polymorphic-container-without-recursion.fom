@@ -42,5 +42,5 @@ let map = ΛM.λB:∀τ.M τ → ContainerM τ.Λα.Λβ.λab:α → β.λc:∃(
 let ContainerB = Λτ.λM:ContainerM τ.M
 
 container[int] 101
-▷ map[ContainerM] ContainerB [int][string] Int.to_string
+▷ map[ContainerM] ContainerB [int] [string] Int.to_string
 ▷ get[ContainerM] ContainerB [string]

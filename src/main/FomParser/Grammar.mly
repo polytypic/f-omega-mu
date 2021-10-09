@@ -23,6 +23,7 @@
 %token BraceLhs "{"
 %token BraceRhs "}"
 %token BracketLhs "["
+%token BracketLhsNS "_["
 %token BracketRhs "]"
 %token Caret "^"
 %token Colon ":"
@@ -47,6 +48,7 @@
 %token MuLower "μ"
 %token NotEqual "≠"
 %token ParenLhs "("
+%token ParenLhsNS "_("
 %token ParenRhs ")"
 %token Percent "%"
 %token Pipe "|"
@@ -215,6 +217,8 @@ exp_atom:
   | l=LitString                                         {`Const ($loc, `LitString l)}
   | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
   | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
+  | f=exp_atom"_("xs=list_n(exp,",")")"                 {`App ($loc, f, Exp.tuple $loc xs)}
+  | f=exp_atom"_["x=typ"]"                              {`Inst ($loc, f, x)}
   | e=exp_atom"."l=label                                {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom".""("i=exp")"                            {`Select ($loc, e, i)}
   | "target""["t=typ"]"c=LitString                      {`Const ($loc, `Target (t, c))}

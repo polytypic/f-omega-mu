@@ -22,4 +22,4 @@ let μcontainer:∀α.α → container α = Λα.λx:α.{
   map = Λβ.λxy:α → β.container[β] (xy x)
 }
 
-(container[int] 101).map[string] Int.to_string
+container[int](101).map[string] Int.to_string

@@ -18,7 +18,7 @@ let new = Λα.λ().
   let to = λx:α.{id, value = unsafe_cast[α] x}
   let of = λx:univ.
     if x.id =[int] id then
-      'Some (x.value[α])
+      'Some x.value[α]
     else
       'None
   {to, of}

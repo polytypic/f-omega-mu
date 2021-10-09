@@ -57,4 +57,4 @@ let Interval = λ(n:int, m:int).
     union = λs:ISet.Union (this, s)
   }
 
-(Empty.insert 4).union(Empty.insert 2)
+Empty.insert(4).union(Empty.insert 2)

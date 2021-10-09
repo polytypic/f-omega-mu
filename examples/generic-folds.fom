@@ -27,7 +27,7 @@ let List =
       Some = λ(x:α, xs:List α).p x ∨ has[α] p xs
     }
   let fold = Λρ.Λα.λrxr:ρ → α → ρ.λr:ρ.
-    fold[ListF α][ρ] (ListF[α]) ◁ case {
+    fold[ListF α][ρ] ListF[α] ◁ case {
         None = λ().r
         Some = λ(x:α, r:ρ).rxr r x
       }

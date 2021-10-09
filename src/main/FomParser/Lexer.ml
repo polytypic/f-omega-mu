@@ -199,6 +199,7 @@ let token_info_utf_8 =
     | BraceLhs -> punctuation
     | BraceRhs -> punctuation
     | BracketLhs -> punctuation
+    | BracketLhsNS -> punctuation
     | BracketRhs -> punctuation
     | Caret -> operator
     | Case -> keyword
@@ -239,6 +240,7 @@ let token_info_utf_8 =
     | MuLower -> tag
     | NotEqual -> operator
     | ParenLhs -> punctuation
+    | ParenLhsNS -> punctuation
     | ParenRhs -> punctuation
     | Percent -> operator
     | Pipe -> punctuation
@@ -263,6 +265,7 @@ let[@warning "-32"] to_string = function
   | BraceLhs -> "{"
   | BraceRhs -> "}"
   | BracketLhs -> "["
+  | BracketLhsNS -> "["
   | BracketRhs -> "]"
   | Caret -> "^"
   | Case -> "case"
@@ -301,6 +304,7 @@ let[@warning "-32"] to_string = function
   | MuLower -> "μ"
   | NotEqual -> "≠"
   | ParenLhs -> "("
+  | ParenLhsNS -> "("
   | ParenRhs -> ")"
   | Percent -> "%"
   | Pipe -> "|"
@@ -431,7 +435,20 @@ module Offside = struct
       if tok_of tok <> ParenLhs then emit_before tok ParenLhs else unget tok
     | If | LambdaLower | LambdaUpper | DoubleAngleLhs -> emit (set ParenLhs tok)
     | _ -> unit)
-    >> emit tok
+    >> (match tok with
+       | BracketLhs, l, _ -> (
+         let* t, _, r = last_tok in
+         match t with
+         | (Id _ | BracketRhs | ParenRhs) when l = r ->
+           emit (set BracketLhsNS tok)
+         | _ -> emit tok)
+       | ParenLhs, l, _ -> (
+         let* t, _, r = last_tok in
+         match t with
+         | (Id _ | BracketRhs | ParenRhs) when l = r ->
+           emit (set ParenLhsNS tok)
+         | _ -> emit tok)
+       | _ -> emit tok)
     >> (match tok_of tok with
        | BraceLhs -> with_indent (inside_braces false)
        | ParenLhs -> get >>= nest_until ParenRhs

@@ -5,7 +5,7 @@ type 't t = 't * Pos.t * Pos.t
 type 't env = (Buffer.t -> 't t) * Buffer.t
 type 't state = bool * 't t option
 
-type ('t, 'a) m = 't env -> Pos.t -> 't state -> ('t, 'a) result * 't state
+type ('t, 'a) m = 't env -> 't t -> 't state -> ('t, 'a) result * 't state
 
 and ('t, 'a) result = Emit of 't t * ('t, 'a) m | Return of 'a
 
@@ -95,9 +95,10 @@ let as_typ op =
 (* *)
 
 let loc _ = inj @@ fun (_, buffer) _ state -> (Return (Buffer.loc buffer), state)
+let last_tok _ = inj @@ fun _ last_tok state -> (Return last_tok, state)
 
 let new_line (_, (p : Pos.t), _) _ =
-  inj @@ fun _ (last_pos : Pos.t) state ->
+  inj @@ fun _ (_, _, (last_pos : Pos.t)) state ->
   (Return (last_pos.pos_bol <> p.pos_bol), state)
 
 let with_indent rule = get >>= fun tok -> rule (col_of tok) tok
@@ -105,15 +106,16 @@ let with_indent rule = get >>= fun tok -> rule (col_of tok) tok
 (* *)
 
 let init token start buffer =
+  let tok = token buffer in
   let env = (token, buffer)
   and continue' = ref (start methods |> prj)
-  and last_pos' = ref Lexing.dummy_pos
-  and state' = ref (false, None) in
+  and last_tok' = ref tok
+  and state' = ref (false, Some tok) in
   fun () ->
-    match !continue' env !last_pos' !state' with
-    | Emit (((_, _, last_pos) as tok), continue), state ->
+    match !continue' env !last_tok' !state' with
+    | Emit (tok, continue), state ->
       continue' := continue;
-      last_pos' := last_pos;
+      last_tok' := tok;
       state' := state;
       tok
     | Return (), _ -> failwith "return"
