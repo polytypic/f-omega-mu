@@ -160,8 +160,7 @@ and infer_row at' ls con =
 
 and infer_quantifier at' f con =
   let* f, f_kind = infer f in
-  let d_kind = Kind.fresh at' in
-  let c_kind = `Star at' in
+  let d_kind = Kind.fresh at' and c_kind = `Star at' in
   Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
   >> return (con at' f, c_kind)
 
@@ -278,16 +277,16 @@ let check_sub_of_norm, check_equal_of_norm =
     and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
     (sub, eq)
   in
-  let sub at l r = fst (make_sub_and_eq at) Rename.empty Rename.empty l r in
-  let eq at l r = snd (make_sub_and_eq at) Rename.empty Rename.empty l r in
+  let sub at l r = fst (make_sub_and_eq at) Rename.empty Rename.empty l r
+  and eq at l r = snd (make_sub_and_eq at) Rename.empty Rename.empty l r in
   (sub, eq)
 
 let is_sub_of_norm, is_equal_of_norm =
   let as_predicate check l r =
     check Loc.dummy l r |> try_in (const @@ return true) (const @@ return false)
   in
-  let sub l r = as_predicate check_sub_of_norm l r in
-  let eq l r = as_predicate check_equal_of_norm l r in
+  let sub l r = as_predicate check_sub_of_norm l r
+  and eq l r = as_predicate check_equal_of_norm l r in
   (sub, eq)
 
 (* *)
