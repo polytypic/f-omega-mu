@@ -466,15 +466,12 @@ let join_of_norm, meet_of_norm =
         else
           match g with
           | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-            let+ d = lower ld rd and+ c = upper lc rc in
-            `Arrow (at, d, c)
+            lower ld rd <*> upper lc rc >>- fun (d, c) -> `Arrow (at, d, c)
           | `Product (_, lls), `Product (_, rls) ->
             intersection upper [] (lls, rls) >>- fun ls -> `Product (at, ls)
           | `Sum (_, lls), `Sum (_, rls) ->
             union upper [] (lls, rls) >>- fun ls -> `Sum (at, ls)
           | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-            Kind.unify at lk rk
-            >>
             let i, lt, rt =
               if Var.equal li ri then
                 (li, lt, rt)
@@ -488,8 +485,7 @@ let join_of_norm, meet_of_norm =
                   subst_of_norm (VarMap.singleton li (var i)) lt,
                   subst_of_norm (VarMap.singleton ri (var i)) rt )
             in
-            let+ t = upper lt rt in
-            `Lam (at, i, lk, t)
+            Kind.unify at lk rk >> upper lt rt >>- fun t -> `Lam (at, i, lk, t)
           | `ForAll (_, lt), `ForAll (_, rt) ->
             upper lt rt >>- fun t -> `ForAll (at, t)
           | `Exists (_, lt), `Exists (_, rt) ->
