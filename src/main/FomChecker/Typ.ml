@@ -171,9 +171,7 @@ and check expected t =
 
 (* *)
 
-let infer_and_resolve t =
-  let* _ = infer t in
-  resolve t
+let infer_and_resolve t = infer t >>= fun (t, _) -> resolve t
 
 (* *)
 
