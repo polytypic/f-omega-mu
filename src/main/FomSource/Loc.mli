@@ -19,3 +19,4 @@ val path : t -> string
 (* Formatting *)
 
 val pp : t -> document
+val to_string : t -> string

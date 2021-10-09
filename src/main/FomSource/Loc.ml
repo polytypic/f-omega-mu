@@ -30,3 +30,5 @@ let pp ((lhs, rhs) : t) =
   FomPP.utf8format "%s line%s, column%s" file_info
     (format_range lhs.pos_lnum rhs.pos_lnum)
     (format_range (Pos.column_of lhs) (Pos.column_of rhs))
+
+let to_string = pp >>> FomPP.to_string
