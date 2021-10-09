@@ -75,8 +75,7 @@ let rec find_opt_non_contractive ids typ =
 let find_opt_non_contractive_mu at f arity =
   match f with
   | `Lam (_, id, _, f) -> (
-    let is = List.init arity @@ fun _ -> Var.fresh at in
-    let xs = is |> List.map var in
+    let xs = List.init arity @@ fun _ -> var @@ Var.fresh at in
     match apps_of_norm Loc.dummy f xs |> unapp with
     | (`Var (_, id') as mu), _ when Var.equal id' id -> Some mu
     | typ, _ -> find_opt_non_contractive (VarSet.singleton id) typ)
@@ -87,9 +86,8 @@ let find_opt_non_contractive_mu at f arity =
 let rec resolve t =
   let+ t' =
     match t with
-    | `Lam (at', d, d_kind, r) ->
-      let+ d_kind' = Kind.resolve d_kind and+ r' = resolve r in
-      `Lam (at', d, d_kind', r')
+    | `Lam (at', d, k, t) ->
+      Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
     | t -> map_eq_fr resolve t
   in
   keep_phys_eq' t t'
@@ -105,7 +103,7 @@ let resolve t =
 let rec ground t =
   t
   |> keep_phys_eq @@ function
-     | `Lam (at', d, d_kind, r) -> `Lam (at', d, Kind.ground d_kind, ground r)
+     | `Lam (at', i, k, t) -> `Lam (at', i, Kind.ground k, ground t)
      | t -> map_eq ground t
 
 let ground = Profiling.Counter.wrap'1 "ground" ground
@@ -148,8 +146,7 @@ let rec infer = function
   | `Exists (at', f) -> infer_quantifier at' f @@ fun at' f -> `Exists (at', f)
   | `Arrow (at', d, c) ->
     let star = `Star at' in
-    let+ d = check star d and+ c = check star c in
-    (`Arrow (at', d, c), star)
+    check star d <*> check star c >>- fun (d, c) -> (`Arrow (at', d, c), star)
   | `Product (at', ls) -> infer_row at' ls @@ fun at' ls -> `Product (at', ls)
   | `Sum (at', ls) -> infer_row at' ls @@ fun at' ls -> `Sum (at', ls)
 
