@@ -392,20 +392,7 @@ let to_strict t =
   let bound = ref [] in
   let rec to_strict (t : [('a, 'k) f | `Lazy of ('e, 'a) LVar.t] as 'a) =
     match t with
-    | `Mu (at, t) -> to_strict t >>- fun t -> `Mu (at, t)
-    | (`Const _ | `Var _) as inn -> return inn
-    | `Lam (at, i, k, t) -> to_strict t >>- fun t -> `Lam (at, i, k, t)
-    | `App (at, f, x) ->
-      let+ f = to_strict f and+ x = to_strict x in
-      `App (at, f, x)
-    | `ForAll (at, t) -> to_strict t >>- fun t -> `ForAll (at, t)
-    | `Exists (at, t) -> to_strict t >>- fun t -> `Exists (at, t)
-    | `Arrow (at, d, c) ->
-      let+ d = to_strict d and+ c = to_strict c in
-      `Arrow (at, d, c)
-    | `Product (at, ls) ->
-      Row.map_fr to_strict ls >>- fun ls -> `Product (at, ls)
-    | `Sum (at, ls) -> Row.map_fr to_strict ls >>- fun ls -> `Sum (at, ls)
+    | #f as t -> map_fr to_strict t
     | `Lazy t -> (
       match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
       | None ->
