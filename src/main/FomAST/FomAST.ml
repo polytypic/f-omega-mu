@@ -559,6 +559,8 @@ module Typ = struct
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
     pp {hr; pp_annot} prec_min typ |> group
+
+  let to_string = pp >>> to_string
 end
 
 module Exp = struct

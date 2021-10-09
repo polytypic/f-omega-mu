@@ -202,6 +202,7 @@ module Typ : sig
 
   val hanging : t -> (document * document) option
   val pp : ?hr:bool -> ?pp_annot:(Kind.t -> document) -> t -> document
+  val to_string : t -> string
 end
 
 module Exp : sig
