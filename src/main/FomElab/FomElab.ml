@@ -31,11 +31,7 @@ module Path = struct
   let join_origin_and_path (origin_opt, path) =
     match origin_opt with
     | None -> path
-    | Some origin ->
-      if is_absolute path then
-        origin ^ path
-      else
-        origin ^ "/" ^ path
+    | Some origin -> origin ^ if is_absolute path then path else "/" ^ path
 
   (* *)
 
@@ -49,10 +45,7 @@ module Path = struct
     else
       loc |> Loc.path |> Filename.dirname |> split_to_origin_and_path
       |> Pair.map id @@ fun parent_dir ->
-         if is_absolute path then
-           path
-         else
-           parent_dir ^ "/" ^ path)
+         if is_absolute path then path else parent_dir ^ "/" ^ path)
     |> Pair.map id Filename.canonic
     |> join_origin_and_path
 end
@@ -334,13 +327,11 @@ and elaborate_typ = function
     elaborate_typ t |> Typ.VarMap.adding i @@ `Kind k >>- fun t ->
     `Lam (at', i, k, t)
   | `App (at', f, x) ->
-    let+ f = elaborate_typ f and+ x = elaborate_typ x in
-    `App (at', f, x)
+    elaborate_typ f <*> elaborate_typ x >>- fun (f, x) -> `App (at', f, x)
   | `ForAll (at', t) -> elaborate_typ t >>- fun t -> `ForAll (at', t)
   | `Exists (at', t) -> elaborate_typ t >>- fun t -> `Exists (at', t)
   | `Arrow (at', d, c) ->
-    let+ d = elaborate_typ d and+ c = elaborate_typ c in
-    `Arrow (at', d, c)
+    elaborate_typ d <*> elaborate_typ c >>- fun (d, c) -> `Arrow (at', d, c)
   | `Product (at', ls) ->
     Row.map_fr elaborate_typ ls >>- fun ls -> `Product (at', ls)
   | `Sum (at', ls) -> Row.map_fr elaborate_typ ls >>- fun ls -> `Sum (at', ls)
@@ -379,20 +370,16 @@ let rec elaborate = function
     Exp.Const.map_typ_fr elaborate_typ c >>- fun c -> `Const (at, c)
   | `Var _ as ast -> return ast
   | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
-    let+ t = elaborate_typ t and+ e = elaborate e in
-    `Lam (at, i, t, e)
+    elaborate_typ t <*> elaborate e >>- fun (t, e) -> `Lam (at, i, t, e)
   | `App (at, f, x) ->
-    let+ f = elaborate f and+ x = elaborate x in
-    `App (at, f, x)
+    elaborate f <*> elaborate x >>- fun (f, x) -> `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid i @@ fun i ->
     elaborate e |> Typ.VarMap.adding i @@ `Kind k >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
-    let+ e = elaborate e and+ t = elaborate_typ t in
-    `Inst (at, e, t)
+    elaborate e <*> elaborate_typ t >>- fun (e, t) -> `Inst (at, e, t)
   | `LetIn (at, i, v, e) ->
-    let+ v = elaborate v and+ e = elaborate e in
-    `LetIn (at, i, v, e)
+    elaborate v <*> elaborate e >>- fun (v, e) -> `LetIn (at, i, v, e)
   | `LetPat (at, `Id (_, i, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
@@ -408,8 +395,7 @@ let rec elaborate = function
     `IfElse (at, c, t, e)
   | `Product (at, fs) -> Row.map_fr elaborate fs >>- fun fs -> `Product (at, fs)
   | `Select (at, e, l) ->
-    let+ e = elaborate e and+ l = elaborate l in
-    `Select (at, e, l)
+    elaborate e <*> elaborate l >>- fun (e, l) -> `Select (at, e, l)
   | `Inject (at, l, e) -> elaborate e >>- fun e -> `Inject (at, l, e)
   | `Case (at, cs) -> elaborate cs >>- fun cs -> `Case (at, cs)
   | `Pack (at, t, e, x) ->
@@ -436,8 +422,7 @@ let rec elaborate = function
     let v = `Product (at, List.map2 (fun l (_, v) -> (l, v)) ls pvs) in
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LamPat (at, p, e) ->
-    let t = type_of_pat_lam p in
-    let* t = elaborate_typ t in
+    let* t = type_of_pat_lam p |> elaborate_typ in
     let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
     let+ e = elaborate_pat (`Var (at, i)) e p in
     `Lam (at, i, t, e)
@@ -448,20 +433,18 @@ let rec elaborate = function
     let+ e = elaborate_pat (`Var (at, i)) e p in
     `LetIn (at, i, v, e)
   | `Annot (at, e, t) ->
-    let+ e = elaborate e and+ t = elaborate_typ t in
-    let x = Exp.Var.fresh at in
-    annot at x t e
+    elaborate e <*> elaborate_typ t >>- fun (e, t) ->
+    annot at (Exp.Var.fresh at) t e
   | `AppL (at, x, f) ->
     let+ x = elaborate x and+ f = elaborate f in
     let i = Exp.Var.fresh at in
     `LetIn (at, i, x, `App (at, f, `Var (at, i)))
   | `AppR (at, f, x) ->
-    let+ x = elaborate x and+ f = elaborate f in
-    `App (at, f, x)
+    elaborate x <*> elaborate f >>- fun (x, f) -> `App (at, f, x)
   | `Import (at', p) ->
     let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
-    let* typ_opt =
+    let* t_opt =
       (TypImports.get_or_put at' sig_path <<< Elab.modularly)
         (Fetch.fetch at' sig_path
         >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
@@ -473,20 +456,18 @@ let rec elaborate = function
     in
     let* id, _, _, _ =
       (ExpImports.get_or_put at' mod_path <<< Elab.modularly)
-        (let* ast =
+        (let* e =
            Fetch.fetch at' mod_path
            >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
            >>= elaborate >>- Exp.initial_exp
          in
-         let id = Exp.Var.fresh at' in
-         let ast =
-           match typ_opt with None -> ast | Some typ -> annot at' id typ ast
-         in
-         let* typ =
-           Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
+         let i = Exp.Var.fresh at' in
+         let e = match t_opt with None -> e | Some t -> annot at' i t e in
+         let* t =
+           Parameters.taking_in e >>= Exp.infer >>= Parameters.result_without
          in
          let+ parameters = Parameters.get () in
-         (id, ast, typ, parameters))
+         (i, e, t, parameters))
     in
     Parameters.add mod_path >> return @@ `Var (at', id)
 
