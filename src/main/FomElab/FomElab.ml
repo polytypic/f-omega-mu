@@ -98,22 +98,22 @@ module ImportChain = struct
 end
 
 module PathTable = struct
-  type 'a t = (string, (Error.t, 'a) IVar.t) Hashtbl.t
+  type 'a t = (string, (Error.t, 'a) LVar.t) Hashtbl.t
 
   let get field key =
     let* hashtbl = env_as field in
     match Hashtbl.find_opt hashtbl key with
     | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
-    | Some var -> IVar.get var |> map_error @@ fun (#Error.t as e) -> e
+    | Some var -> LVar.get var |> map_error @@ fun (#Error.t as e) -> e
 
   let get_or_put field at path compute =
     (let* hashtbl = env_as field in
      match Hashtbl.find_opt hashtbl path with
      | None ->
-       let var = IVar.empty () in
+       let* var = LVar.create compute in
        Hashtbl.replace hashtbl path var;
-       catch compute >>= IVar.put var >> IVar.get var
-     | Some var -> IVar.get var)
+       LVar.get var
+     | Some var -> LVar.get var)
     |> ImportChain.with_path at path
 end
 
@@ -177,7 +177,7 @@ module Parameters = struct
     get ()
     >>= List.fold_left_fr
           (fun ast filename ->
-            let+ id, _, typ, _ = Hashtbl.find imports filename |> IVar.get in
+            let+ id, _, typ, _ = Hashtbl.find imports filename |> LVar.get in
             `Lam (Exp.Var.at id, id, typ, ast))
           ast
 

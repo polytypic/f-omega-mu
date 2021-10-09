@@ -20,7 +20,7 @@ module Env = struct
     Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports
 end
 
-let mods_simplified : (string, (Zero.t, FomToJs.Erased.t) IVar.t) Hashtbl.t =
+let mods_simplified : (string, (Zero.t, FomToJs.Erased.t) LVar.t) Hashtbl.t =
   Hashtbl.create 100
 
 let topological_deps paths =
@@ -44,12 +44,11 @@ let erase_and_simplify_all paths =
      let* id, ast, _, _ = FomElab.ExpImports.get path in
      let+ erased =
        match Hashtbl.find_opt mods_simplified path with
-       | Some var -> IVar.get var |> generalize_error
+       | Some var -> LVar.get var |> generalize_error
        | None ->
-         let var = IVar.empty () in
+         let* var = LVar.create (ast |> FomToJs.erase |> FomToJs.simplify) in
          Hashtbl.replace mods_simplified path var;
-         ast |> FomToJs.erase |> FomToJs.simplify |> catch >>= IVar.put var
-         >> IVar.get var |> generalize_error
+         LVar.get var |> generalize_error
      in
      (id, path, erased)
 
@@ -60,21 +59,22 @@ let whole_program_to_js ast paths =
         (FomToJs.erase ast)
   >>= FomToJs.simplify >>= FomToJs.to_js >>- to_string
 
-let mods_in_js : (string, (Zero.t, Cats.t) IVar.t) Hashtbl.t =
+let mods_in_js : (string, (Zero.t, Cats.t) LVar.t) Hashtbl.t =
   Hashtbl.create 100
 
 let compile_to_js_all paths =
   paths |> erase_and_simplify_all
   >>= List.map_fr @@ fun (id, path, erased) ->
       match Hashtbl.find_opt mods_in_js path with
-      | Some var -> IVar.get var |> generalize_error
+      | Some var -> LVar.get var |> generalize_error
       | None ->
-        let var = IVar.empty () in
+        let* var =
+          LVar.create
+            ( erased |> FomToJs.to_js ~top:(`Const id) >>- fun js ->
+              str "// " ^ str path ^ str "\n" ^ js )
+        in
         Hashtbl.replace mods_in_js path var;
-        erased
-        |> FomToJs.to_js ~top:(`Const id)
-        >>- (fun js -> str "// " ^ str path ^ str "\n" ^ js)
-        |> catch >>= IVar.put var >> IVar.get var |> generalize_error
+        LVar.get var |> generalize_error
 
 let modules_to_js ast paths =
   let* paths = topological_deps paths in
