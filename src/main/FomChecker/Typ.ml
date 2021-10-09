@@ -434,6 +434,15 @@ let join_of_norm, meet_of_norm =
   let make_join_and_meet at =
     let joins = ref GoalMap.empty in
     let meets = ref GoalMap.empty in
+    let memo_in map g op =
+      match GoalMap.find_opt g !map with
+      | Some result -> return result
+      | None ->
+        let+ var = LVar.create (op g) in
+        let result = `Lazy var in
+        map := GoalMap.add g result !map;
+        result
+    in
     let rec intersection op os = function
       | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
         let c = Label.compare ll rl in
@@ -459,62 +468,52 @@ let join_of_norm, meet_of_norm =
       | [], [] -> return @@ List.rev os
     in
     let synth map fst snd upper lower intersection union l r =
-      let g = (l, r) in
-      match GoalMap.find_opt g !map with
-      | Some result -> return result
-      | None ->
-        (let* g_is_sub = is_sub_of_norm l r in
-         if g_is_sub then
-           return @@ to_lazy (snd g)
-         else
-           let* swap_g_is_sub = is_sub_of_norm r l in
-           if swap_g_is_sub then
-             return @@ to_lazy (fst g)
-           else
-             match g with
-             | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-               let+ d = lower ld rd and+ c = upper lc rc in
-               `Arrow (at, d, c)
-             | `Product (_, lls), `Product (_, rls) ->
-               intersection upper [] (lls, rls) >>- fun ls -> `Product (at, ls)
-             | `Sum (_, lls), `Sum (_, rls) ->
-               union upper [] (lls, rls) >>- fun ls -> `Sum (at, ls)
-             | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-               Kind.unify at lk rk
-               >>
-               let i, lt, rt =
-                 if Var.equal li ri then
-                   (li, lt, rt)
-                 else if not (is_free li rt) then
-                   (li, lt, subst_of_norm (VarMap.singleton ri (var li)) rt)
-                 else if not (is_free ri lt) then
-                   (ri, subst_of_norm (VarMap.singleton li (var ri)) lt, rt)
-                 else
-                   let i = Var.fresh at in
-                   ( i,
-                     subst_of_norm (VarMap.singleton li (var i)) lt,
-                     subst_of_norm (VarMap.singleton ri (var i)) rt )
-               in
-               let+ t = upper lt rt in
-               `Lam (at, i, lk, t)
-             | `ForAll (_, lt), `ForAll (_, rt) ->
-               upper lt rt >>- fun t -> `ForAll (at, t)
-             | `Exists (_, lt), `Exists (_, rt) ->
-               upper lt rt >>- fun t -> `Exists (at, t)
-             | _ -> (
-               match (unapp l, unapp r) with
-               | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
-                 upper (unfold la lf lmu lxs) (unfold ra rf rmu rxs)
-               | ((`Mu (la, lf) as lmu), lxs), _ ->
-                 upper (unfold la lf lmu lxs) r
-               | _, ((`Mu (ra, rf) as rmu), rxs) ->
-                 upper l (unfold ra rf rmu rxs)
-               | _ -> fail @@ `Error_typ_mismatch (at, l, r)))
-        |> LVar.create
-        >>- fun var ->
-        let result = `Lazy var in
-        map := GoalMap.add g result !map;
-        result
+      memo_in map (l, r) @@ fun g ->
+      let* g_is_sub = is_sub_of_norm l r in
+      if g_is_sub then
+        return @@ to_lazy (snd g)
+      else
+        let* swap_g_is_sub = is_sub_of_norm r l in
+        if swap_g_is_sub then
+          return @@ to_lazy (fst g)
+        else
+          match g with
+          | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+            let+ d = lower ld rd and+ c = upper lc rc in
+            `Arrow (at, d, c)
+          | `Product (_, lls), `Product (_, rls) ->
+            intersection upper [] (lls, rls) >>- fun ls -> `Product (at, ls)
+          | `Sum (_, lls), `Sum (_, rls) ->
+            union upper [] (lls, rls) >>- fun ls -> `Sum (at, ls)
+          | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+            Kind.unify at lk rk
+            >>
+            let i, lt, rt =
+              if Var.equal li ri then
+                (li, lt, rt)
+              else if not (is_free li rt) then
+                (li, lt, subst_of_norm (VarMap.singleton ri (var li)) rt)
+              else if not (is_free ri lt) then
+                (ri, subst_of_norm (VarMap.singleton li (var ri)) lt, rt)
+              else
+                let i = Var.fresh at in
+                ( i,
+                  subst_of_norm (VarMap.singleton li (var i)) lt,
+                  subst_of_norm (VarMap.singleton ri (var i)) rt )
+            in
+            let+ t = upper lt rt in
+            `Lam (at, i, lk, t)
+          | `ForAll (_, lt), `ForAll (_, rt) ->
+            upper lt rt >>- fun t -> `ForAll (at, t)
+          | `Exists (_, lt), `Exists (_, rt) ->
+            upper lt rt >>- fun t -> `Exists (at, t)
+          | _ -> (
+            match (unapp l, unapp r) with
+            | ((`Mu (la, lf) as lmu), lxs), ((`Mu (ra, rf) as rmu), rxs) ->
+              upper (unfold la lf lmu lxs) (unfold ra rf rmu rxs)
+            | ((`Mu (la, lf) as lmu), lxs), _ -> upper (unfold la lf lmu lxs) r
+            | _, ((`Mu (ra, rf) as rmu), rxs) -> upper l (unfold ra rf rmu rxs)
+            | _ -> fail @@ `Error_typ_mismatch (at, l, r))
     in
     let rec join l r = synth joins fst snd join meet intersection union l r
     and meet l r = synth meets snd fst meet join union intersection l r in
