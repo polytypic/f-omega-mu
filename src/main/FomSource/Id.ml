@@ -96,8 +96,7 @@ module Make () : S = struct
   let equal lhs rhs = lhs.name = rhs.name && lhs.n = rhs.n
 
   let compare lhs rhs =
-    Stdlib.Int.compare lhs.name rhs.name <>? fun () ->
-    Stdlib.Int.compare lhs.n rhs.n
+    Int.compare lhs.name rhs.name <>? fun () -> Int.compare lhs.n rhs.n
 
   (* Formatting *)
 
