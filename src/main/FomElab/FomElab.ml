@@ -271,7 +271,7 @@ let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
     let at = Typ.Var.at i in
     let+ t = elaborate_typ (annot at i k t) >>= Typ.infer_and_resolve in
-    Typ.VarMap.singleton i @@ `Typ (Typ.set_at at t)
+    Typ.VarMap.singleton i @@ `Typ (annot at i k t)
   | `TypRec (_, bs) ->
     let is = List.map (fun (i, _, _) -> i) bs in
     let* () =
