@@ -286,7 +286,7 @@ let js_codemirror_mode =
            (fun error ->
              Profiling.Counter.dump_all ();
              let* defUses = def_uses () in
-             let diagnostics = Error.to_diagnostics error in
+             let diagnostics = Diagnostic.of_error error in
              Cb.invoke on_result
              @@ object%js
                   val typ =

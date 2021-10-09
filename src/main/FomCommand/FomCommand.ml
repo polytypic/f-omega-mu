@@ -113,7 +113,7 @@ let process filename =
      | #Error.t as error ->
        let message =
          let open FomPP in
-         match Error.to_diagnostics error with
+         match Diagnostic.of_error error with
          | (loc, overview), [] ->
            gnest 2 (FomSource.Loc.pp loc ^^ colon_break_1_0 ^^ overview)
            |> to_string ~max_width

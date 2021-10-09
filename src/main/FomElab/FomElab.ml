@@ -101,11 +101,10 @@ module PathTable = struct
   type 'a t = (string, (Error.t, 'a) IVar.t) Hashtbl.t
 
   let get field key =
-    (let* hashtbl = env_as field in
-     match Hashtbl.find_opt hashtbl key with
-     | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
-     | Some var -> IVar.get var)
-    |> Error.generalize
+    let* hashtbl = env_as field in
+    match Hashtbl.find_opt hashtbl key with
+    | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
+    | Some var -> IVar.get var |> map_error @@ fun (#Error.t as e) -> e
 
   let get_or_put field at path compute =
     (let* hashtbl = env_as field in
@@ -116,7 +115,6 @@ module PathTable = struct
        catch compute >>= IVar.put var >> IVar.get var
      | Some var -> IVar.get var)
     |> ImportChain.with_path at path
-    |> Error.generalize
 end
 
 module TypIncludes = struct
@@ -217,7 +215,7 @@ module Elab = struct
     op
     |> Typ.VarMap.resetting_to initial_typ_env
     |> Kind.UnkMap.resetting |> Parameters.resetting |> Annot.scoping
-    |> Error.generalize
+    |> map_error @@ fun (#Error.t as e) -> e
 end
 
 (* *)
