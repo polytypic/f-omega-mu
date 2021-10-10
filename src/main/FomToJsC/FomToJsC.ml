@@ -30,7 +30,7 @@ let topological_deps paths =
     if Hashtbl.mem added path then
       unit
     else
-      let* _, _, _, paths = FomElab.ExpImports.get path in
+      let* (_, _, _, paths), _ = FomElab.ExpImports.get path in
       paths |> List.iter_fr loop >>- fun () ->
       if not (Hashtbl.mem added path) then (
         Hashtbl.replace added path ();
@@ -41,7 +41,7 @@ let topological_deps paths =
 let erase_and_simplify_all paths =
   paths
   |> List.map_fr @@ fun path ->
-     let* id, ast, _, _ = FomElab.ExpImports.get path in
+     let* (id, ast, _, _), _ = FomElab.ExpImports.get path in
      let+ erased =
        match Hashtbl.find_opt mods_simplified path with
        | Some var -> LVar.get var |> generalize_error

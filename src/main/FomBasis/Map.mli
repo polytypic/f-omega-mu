@@ -13,3 +13,4 @@ module Make : functor (Ord : OrderedType) -> S with type key = Ord.t
 
 val prefer_lhs : 'k -> 'v option bop
 val prefer_rhs : 'k -> 'v option bop
+val combining_with : 'v bop -> 'k -> 'v option bop

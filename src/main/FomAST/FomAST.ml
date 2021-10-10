@@ -327,12 +327,22 @@ module Typ = struct
 
   module VarMap = Map.Make (Var)
 
-  let impure = Var.of_string Loc.dummy "impure"
+  let impure = Var.of_string (Loc.of_path "impure") "impure"
 
   let initial_env =
-    let star = `Star Loc.dummy in
-    let arrow d c = `Arrow (Loc.dummy, d, c) in
-    [(impure, arrow star star)] |> VarMap.of_list
+    let star at = `Star at in
+    let arrow d c at = `Arrow (at, d at, c at) in
+    let alias name const =
+      let at = Loc.of_path name in
+      (Var.of_string at name, `Typ (`Const (at, const)))
+    in
+    VarMap.of_list
+      [
+        (impure, `Kind (arrow star star (Var.at impure)));
+        alias "bool" `Bool;
+        alias "int" `Int;
+        alias "string" `String;
+      ]
 
   let rec subst_rec env =
     keep_phys_eq @@ function
@@ -754,17 +764,20 @@ module Exp = struct
       at
 
   let builtins =
-    let at = Loc.dummy in
+    let mk name fn =
+      let at = Loc.of_path name in
+      (Var.of_string at name, fn at)
+    in
     [
-      (Var.of_string at "true", `Const (at, `LitBool true));
-      (Var.of_string at "false", `Const (at, `LitBool false));
-      ( Var.of_string at "keep",
-        let t = Typ.Var.fresh at in
-        `Gen (at, t, `Star at, `Const (at, `Keep (Typ.var t))) );
+      mk "true" (fun at -> `Const (at, `LitBool true));
+      mk "false" (fun at -> `Const (at, `LitBool false));
+      mk "keep" (fun at ->
+          let t = Typ.Var.of_string (Loc.of_path "α") "α" in
+          `Gen (at, t, `Star at, `Const (at, `Keep (Typ.var t))));
     ]
 
   let initial_exp e =
-    builtins |> List.fold_left (fun e (i, v) -> `LetIn (Loc.dummy, i, v, e)) e
+    builtins |> List.fold_left (fun e (i, v) -> `LetIn (Var.at i, i, v, e)) e
 
   (* *)
 

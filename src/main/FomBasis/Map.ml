@@ -19,3 +19,9 @@ let prefer_lhs _ l r =
 
 let prefer_rhs _ l r =
   match (l, r) with _, Some r -> Some r | Some l, _ -> Some l | _, _ -> None
+
+let combining_with plus _ l r =
+  match (l, r) with
+  | Some l, Some r -> Some (plus l r)
+  | None, Some r | Some r, None -> Some r
+  | None, None -> None

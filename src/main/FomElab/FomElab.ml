@@ -8,6 +8,18 @@ open FomDiag
 
 (* *)
 
+module Annot = struct
+  include Annot
+
+  let setup op =
+    let open FomAST in
+    Typ.initial_env |> Typ.VarMap.bindings
+    |> List.iter_fr (function
+         | i, `Kind k -> Annot.Typ.def i k
+         | i, `Typ _ -> Annot.Typ.def i (`Star (Typ.Var.at i)))
+    >> op
+end
+
 module Path = struct
   let inc_ext = ".fomd"
   let sig_ext = ".fomt"
@@ -91,27 +103,35 @@ module ImportChain = struct
 end
 
 module PathTable = struct
-  type 'a t = (string, (Error.t, 'a) LVar.t) Hashtbl.t
+  type 'a t = (string, (Error.t, 'a * Annot.map) LVar.t) Hashtbl.t
+
+  let get_or_put field at path compute =
+    (let* result, inner =
+       Annot.scoping
+         (let* (hashtbl : _ t) = env_as field in
+          match Hashtbl.find_opt hashtbl path with
+          | None ->
+            let* var =
+              LVar.create
+                (Annot.setup compute <*> (get Annot.field >>= MVar.get))
+            in
+            Hashtbl.replace hashtbl path var;
+            LVar.get var
+          | Some var -> LVar.get var)
+     in
+     let* annot = get Annot.field in
+     MVar.mutate annot (Annot.merge inner) >> return result)
+    |> ImportChain.with_path at path
 
   let get field key =
     let* hashtbl = env_as field in
     match Hashtbl.find_opt hashtbl key with
     | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
     | Some var -> LVar.get var |> map_error @@ fun (#Error.t as e) -> e
-
-  let get_or_put field at path compute =
-    (let* hashtbl = env_as field in
-     match Hashtbl.find_opt hashtbl path with
-     | None ->
-       let* var = LVar.create compute in
-       Hashtbl.replace hashtbl path var;
-       LVar.get var
-     | Some var -> LVar.get var)
-    |> ImportChain.with_path at path
 end
 
 module TypIncludes = struct
-  type t = ([`Typ of Typ.t] Typ.VarMap.t * Annot.map) PathTable.t
+  type t = [`Typ of Typ.t] Typ.VarMap.t PathTable.t
 
   let create () = Hashtbl.create 100
   let field r = r#typ_includes
@@ -170,7 +190,9 @@ module Parameters = struct
     get ()
     >>= List.fold_left_fr
           (fun ast filename ->
-            let+ id, _, typ, _ = Hashtbl.find imports filename |> LVar.get in
+            let+ (id, _, typ, _), _ =
+              Hashtbl.find imports filename |> LVar.get
+            in
             `Lam (Exp.Var.at id, id, typ, ast))
           ast
 
@@ -191,23 +213,10 @@ module Parameters = struct
 end
 
 module Elab = struct
-  let initial_typ_env =
-    let open Typ in
-    initial_env
-    |> VarMap.map (fun k -> `Kind k)
-    |> VarMap.add_list
-         (let at' = Loc.of_path "prelude" in
-          [
-            (Var.of_string at' "bool", `Const (at', `Bool));
-            (Var.of_string at' "int", `Const (at', `Int));
-            (Var.of_string at' "string", `Const (at', `String));
-          ]
-          |> List.map (fun (i, t) -> (i, `Typ t)))
-
   let modularly op =
     op
-    |> Typ.VarMap.resetting_to initial_typ_env
-    |> Kind.UnkMap.resetting |> Parameters.resetting |> Annot.scoping
+    |> Typ.VarMap.resetting_to Typ.initial_env
+    |> Kind.UnkMap.resetting |> Parameters.resetting
     |> map_error @@ fun (#Error.t as e) -> e
 end
 
@@ -297,21 +306,18 @@ let rec elaborate_def = function
     assoc
     |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
     |> List.map_fr Typ.infer_and_resolve
-    >>- (List.map2 (fun i t -> (i, `Typ t)) is >>> Typ.VarMap.of_list)
+    >>- (List.map2 (fun i t -> (i, `Typ (Typ.set_at (Typ.Var.at i) t))) is
+        >>> Typ.VarMap.of_list)
   | `Include (at', p) ->
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
-    let* env, newer =
-      (TypIncludes.get_or_put at' inc_path <<< Elab.modularly)
-        (let* env =
-           Fetch.fetch at' inc_path
-           >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
-           >>= elaborate_defs Typ.VarMap.empty
-         in
-         Annot.Typ.resolve Kind.resolve >> get Annot.field >>= MVar.get
-         >>- fun annot -> (env, annot))
-    in
-    let* annot = get Annot.field in
-    MVar.mutate annot (Annot.LocMap.merge Map.prefer_lhs newer) >> return env
+    (let* env =
+       Fetch.fetch at' inc_path
+       >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
+       >>= elaborate_defs Typ.VarMap.empty
+     in
+     Annot.Typ.resolve Kind.resolve >> return env)
+    |> TypIncludes.get_or_put at' inc_path
+    |> Elab.modularly
 
 and elaborate_typ = function
   | `Mu (at', t) -> elaborate_typ t >>- fun t -> `Mu (at', t)
@@ -343,10 +349,11 @@ and elaborate_typ = function
     |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Import (at', p) ->
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
-    (TypImports.get_or_put at' sig_path <<< Elab.modularly)
-      (Fetch.fetch at' sig_path
-      >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
-      >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
+    Fetch.fetch at' sig_path
+    >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
+    >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground
+    |> TypImports.get_or_put at' sig_path
+    |> Elab.modularly
 
 and elaborate_defs accum = function
   | [] -> return accum
@@ -446,29 +453,31 @@ let rec elaborate = function
     let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
     let* t_opt =
-      (TypImports.get_or_put at' sig_path <<< Elab.modularly)
-        (Fetch.fetch at' sig_path
-        >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
-        >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground)
+      Fetch.fetch at' sig_path
+      >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
+      >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground
+      |> TypImports.get_or_put at' sig_path
+      |> Elab.modularly
       |> try_in (fun contents -> return @@ Some contents) @@ function
          | `Error_file_doesnt_exist (_, path) when path = sig_path ->
            return None
          | e -> fail e
     in
     let* id, _, _, _ =
-      (ExpImports.get_or_put at' mod_path <<< Elab.modularly)
-        (let* e =
-           Fetch.fetch at' mod_path
-           >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
-           >>= elaborate >>- Exp.initial_exp
-         in
-         let i = Exp.Var.fresh at' in
-         let e = match t_opt with None -> e | Some t -> annot at' i t e in
-         let* t =
-           Parameters.taking_in e >>= Exp.infer >>= Parameters.result_without
-         in
-         let+ parameters = Parameters.get () in
-         (i, e, t, parameters))
+      (let* e =
+         Fetch.fetch at' mod_path
+         >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
+         >>= elaborate >>- Exp.initial_exp
+       in
+       let i = Exp.Var.fresh at' in
+       let e = match t_opt with None -> e | Some t -> annot at' i t e in
+       let* t =
+         Parameters.taking_in e >>= Exp.infer >>= Parameters.result_without
+       in
+       let+ parameters = Parameters.get () in
+       (i, e, t, parameters))
+      |> ExpImports.get_or_put at' mod_path
+      |> Elab.modularly
     in
     Parameters.add mod_path >> return @@ `Var (at', id)
 
@@ -477,15 +486,15 @@ and elaborate_pat p' e' p =
 
 (* *)
 
-let elaborate_typ x = Elab.modularly (elaborate_typ x)
+let elaborate_typ x = elaborate_typ x |> Annot.setup |> Elab.modularly
 
 (* *)
 
 let elaborate cst =
-  Elab.modularly
-    (let* ast = elaborate cst >>- Exp.initial_exp in
-     let* typ =
-       Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
-     in
-     let+ parameters = Parameters.get () in
-     (ast, typ, parameters))
+  (let* ast = elaborate cst |> Annot.setup >>- Exp.initial_exp in
+   let* typ =
+     Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
+   in
+   let+ parameters = Parameters.get () in
+   (ast, typ, parameters))
+  |> Elab.modularly

@@ -1,6 +1,7 @@
 open FomBasis
 open FomSource
 open FomAnnot
+open FomAST
 open FomDiag
 open FomChecker
 
@@ -74,7 +75,7 @@ module ExpImports : sig
     string ->
     ( < exp_imports : t ; .. >,
       [> Error.t],
-      FomAST.Exp.Var.t * FomAST.Exp.t * FomAST.Typ.t * string list )
+      (Exp.Var.t * Exp.t * Typ.t * string list) * Annot.map )
     rea
 
   class con :
@@ -107,7 +108,7 @@ val elaborate_typ :
      as
      'r),
     [> Error.t],
-    FomAST.Typ.t )
+    Typ.t )
   rea
 
 val elaborate :
@@ -126,5 +127,5 @@ val elaborate :
      as
      'r),
     [> Error.t],
-    FomAST.Exp.t * FomAST.Typ.t * string list )
+    Exp.t * Typ.t * string list )
   rea

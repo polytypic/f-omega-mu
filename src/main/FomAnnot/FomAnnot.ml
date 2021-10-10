@@ -21,14 +21,7 @@ module Annot = struct
 
   let field r : (t, _) Field.t = r#annotations
   let empty () = MVar.create LocMap.empty
-
-  let scoping op =
-    let* current = get field in
-    setting field (empty ())
-      ( op >>= fun result ->
-        let* newer = get field >>= MVar.get in
-        MVar.mutate current (LocMap.merge Map.prefer_lhs newer) >> return result
-      )
+  let scoping op = setting field (empty ()) op
 
   class con (annotations : t) =
     object
@@ -42,6 +35,12 @@ module Annot = struct
       method uses = uses
       method annot = annot
     end
+
+  let merge lhs rhs =
+    LocMap.merge
+      ( Map.combining_with @@ fun lhs rhs ->
+        make lhs#def (LocSet.union lhs#uses rhs#uses) lhs#annot )
+      lhs rhs
 
   let add_def at annot =
     let* locmap = get field in
