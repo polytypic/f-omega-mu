@@ -187,6 +187,14 @@ const posAsNative = (cm, {line, ch}) => {
   return {line, ch: fom.offset(input, ch)}
 }
 
+const setTyp = (value, {noKeywords} = 0) => {
+  if (typCM.getValue() !== value) {
+    typDiv.className = noKeywords ? 'no-keywords show' : 'show'
+    typCM.setValue(value)
+    typDiv.classList.remove('show')
+  }
+}
+
 const updateDefUses = throttled(100, cm => {
   clearMarkers(duMarkers)
   const du = duAt(cm, cm.getCursor())
@@ -211,11 +219,9 @@ const updateDefUses = throttled(100, cm => {
         )
       }
     })
-    typDiv.className = ''
-    typCM.setValue(du.annot)
+    setTyp(du.annot)
   } else {
-    typDiv.className = result.diagnostics.length ? 'no-keywords' : ''
-    typCM.setValue(result.typ)
+    setTyp(result.typ, {noKeywords: result.diagnostics.length})
   }
 })
 

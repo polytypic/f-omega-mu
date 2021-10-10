@@ -60,10 +60,14 @@ select {
   top: 1em;
   right: 1em;
   z-index: 0;
+  transition-property: z-index;
+  transition-delay: 5s;
 }
 
-#typDiv .CodeMirror:hover {
+#typDiv .CodeMirror:hover,
+#typDiv.show .CodeMirror {
   z-index: 10;
+  transition: none;
 }
 
 #typDiv.no-keywords .CodeMirror .cm-keyword {
