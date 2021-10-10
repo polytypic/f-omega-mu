@@ -70,7 +70,7 @@ const jsCM = CodeMirror(jsDiv, {
   cursorBlinkRate: 0,
   lineNumbers: true,
   mode: 'javascript',
-  readOnly: true,
+  readOnly: 'nocursor',
   theme: theme,
 })
 
@@ -94,14 +94,14 @@ const resultCM = CodeMirror(resultDiv, {
   cursorBlinkRate: 0,
   lineNumbers: true,
   mode: 'fom',
-  readOnly: true,
+  readOnly: 'nocursor',
   theme: theme,
 })
 
 const typCM = CodeMirror(typDiv, {
   cursorBlinkRate: 0,
   mode: 'fom',
-  readOnly: true,
+  readOnly: 'nocursor',
   theme: theme,
   value: '...',
 })
@@ -256,7 +256,7 @@ const updateDeps = () => {
           indentUnit: 2,
           lineNumbers: true,
           mode: 'fom',
-          readOnly: true,
+          readOnly: 'nocursor',
           tabSize: 2,
           theme: theme,
         })
@@ -521,6 +521,11 @@ depsSelect.onchange = () => {
   for (const div of depsDl.querySelectorAll('dd > div'))
     div.CodeMirror.refresh()
 }
+
+//
+
+editInput.onchange = () =>
+  fomCM.setOption('readOnly', editInput.checked ? false : 'nocursor')
 
 //
 
