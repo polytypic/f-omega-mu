@@ -283,7 +283,7 @@ module Exp : sig
     | `Inject of Loc.t * Label.t * 'e
     | `Case of Loc.t * 'e
     | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Var.t * Var.t * 'e * 'e ]
+    | `UnpackIn of Loc.t * Typ.Var.t * 'k * Var.t * 'e * 'e ]
 
   type t = (t, Typ.t, Kind.t) f
 

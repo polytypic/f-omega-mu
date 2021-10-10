@@ -165,13 +165,13 @@ let rec infer = function
     >>
     let et_t = Typ.app_of_norm at' et_con t in
     Typ.check_sub_of_norm (at e) e_typ et_t >> return et
-  | `UnpackIn (at', tid, id, v, e) ->
+  | `UnpackIn (at', tid, k, id, v, e) ->
     let* v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
     let id_typ = Typ.app_of_norm at' v_con @@ `Var (at', tid) in
     let* e_typ =
-      Annot.Exp.def id id_typ >> Annot.Typ.def tid d_kind >> infer e
-      |> VarMap.adding id id_typ
+      Kind.unify at' k d_kind >> Annot.Exp.def id id_typ
+      >> Annot.Typ.def tid d_kind >> infer e |> VarMap.adding id id_typ
       |> Typ.VarMap.adding tid @@ `Kind d_kind
     in
     if Typ.is_free tid e_typ then

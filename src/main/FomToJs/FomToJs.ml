@@ -380,7 +380,7 @@ module Exp = struct
     | `Var (_, i) -> `Var i
     | `Lam (_, i, _, e) -> `Lam (i, erase e)
     | `App (_, f, x) -> `App (erase f, erase x)
-    | `UnpackIn (_, _, i, v, e) | `LetIn (_, i, v, e) ->
+    | `UnpackIn (_, _, _, i, v, e) | `LetIn (_, i, v, e) ->
       `App (`Lam (i, erase e), erase v)
     | `Mu (_, e) -> `Mu (erase e)
     | `IfElse (_, c, t, e) -> `IfElse (erase c, erase t, erase e)

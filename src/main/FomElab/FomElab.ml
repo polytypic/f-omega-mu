@@ -262,16 +262,18 @@ let rec pat_to_exp p' e' = function
            | l, `Ann _ ->
              `LetIn (at, Exp.Var.of_label l, `Select (at, p', Exp.atom l), e'))
          e'
-  | `Pack (at, `Id (_, i, _), t, _) -> `UnpackIn (at, t, i, p', e')
+  | `Pack (at, `Id (_, i, _), t, _) ->
+    `UnpackIn (at, t, Kind.fresh (Typ.Var.at t), i, p', e')
   | `Pack (at, p, t, _) ->
-    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
-    `UnpackIn (at, t, i, p', pat_to_exp (`Var (at, i)) e' p)
+    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p)
+    and k = Kind.fresh (Typ.Var.at t) in
+    `UnpackIn (at, t, k, i, p', pat_to_exp (`Var (at, i)) e' p)
 
 let rec elaborate_def = function
   | `Typ (_, i, k, t) ->
     let at = Typ.Var.at i in
     let+ t = elaborate_typ (annot at i k t) >>= Typ.infer_and_resolve in
-    Typ.VarMap.singleton i @@ `Typ (annot at i k t)
+    Typ.VarMap.singleton i @@ `Typ (Typ.set_at at t)
   | `TypRec (_, bs) ->
     let is = List.map (fun (i, _, _) -> i) bs in
     let* () =
@@ -401,19 +403,18 @@ let rec elaborate = function
   | `Pack (at, t, e, x) ->
     let+ t = elaborate_typ t and+ e = elaborate e and+ x = elaborate_typ x in
     `Pack (at, t, e, x)
-  | `UnpackIn (at, ti, ei, v, e) ->
+  | `UnpackIn (at, ti, k, ei, v, e) ->
     let* v = elaborate v in
-    let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
     Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
-    >>- fun e -> `UnpackIn (at, ti, ei, v, e)
+    >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LetPat (at, `Pack (_, `Id (_, ei, _), ti, _), tO, v, e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
     let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
     Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
-    >>- fun e -> `UnpackIn (at, ti, ei, v, e)
+    >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LetPatRec (at, [(p, v)], e) ->
     elaborate @@ `LetPat (at, p, None, `Mu (at, `LamPat (at, p, v)), e)
   | `LetPatRec (at, pvs, e) ->
