@@ -8,6 +8,8 @@ const url = `${location.origin}${location.pathname}examples/*`
 
 //
 
+const get = (o, p, ...ps) => (o != null && p != null ? get(o[p], ...ps) : o)
+
 const throttled = (ms, fn) => {
   let timeout = null
   return (...args) => {
@@ -177,7 +179,7 @@ const duAt = (cm, cursor, offset) => {
       token &&
       token.start <= cursor.ch &&
       cursor.ch <= token.end &&
-      duMap?.[file]?.[cursor.line]?.[token.start]
+      get(duMap, file, cursor.line, token.start)
     )
   }
 }
