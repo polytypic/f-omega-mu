@@ -12,11 +12,11 @@ and μCases = λρ.{
 }
 
 let Val = Λα.      λx:α.                            Λρ.λcs:Cases ρ.cs.Val[α] x
-let Bin = Λα.Λβ.Λγ.λf:α → β → γ.λx:Expr α.λy:Expr β.Λρ.λcs:Cases ρ.cs.Bin[α][β][γ] f x y
-let  If = Λα.      λc:Expr bool.λt:Expr α.λe:Expr α.Λρ.λcs:Cases ρ.cs.If[α] c t e
-let App = Λα.Λβ.   λf:Expr (α → β).λx:Expr α.       Λρ.λcs:Cases ρ.cs.App[α][β] f x
-let Lam = Λα.Λβ.   λf:Expr α → Expr β.              Λρ.λcs:Cases ρ.cs.Lam[α][β] f
-let Fix = Λα.Λβ.   λf:Expr ((α → β) → α → β).       Λρ.λcs:Cases ρ.cs.Fix[α][β] f
+and Bin = Λα.Λβ.Λγ.λf:α → β → γ.λx:Expr α.λy:Expr β.Λρ.λcs:Cases ρ.cs.Bin[α][β][γ] f x y
+and  If = Λα.      λc:Expr bool.λt:Expr α.λe:Expr α.Λρ.λcs:Cases ρ.cs.If[α] c t e
+and App = Λα.Λβ.   λf:Expr (α → β).λx:Expr α.       Λρ.λcs:Cases ρ.cs.App[α][β] f x
+and Lam = Λα.Λβ.   λf:Expr α → Expr β.              Λρ.λcs:Cases ρ.cs.Lam[α][β] f
+and Fix = Λα.Λβ.   λf:Expr ((α → β) → α → β).       Λρ.λcs:Cases ρ.cs.Fix[α][β] f
 
 let match = Λρ.λcs:Cases ρ.Λα.λe:Expr α.e[ρ] cs
 

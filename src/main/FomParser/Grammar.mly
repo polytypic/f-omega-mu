@@ -114,12 +114,15 @@ lab_list(item):
 //
 
 typ_def:
-  | "type"b=typ_bind"="t=typ                            {`Typ ($loc, fst b, snd b, t)}
+  | "type"bs=list_1(typ_par_def, "and")                 {`TypPar ($loc, bs)}
   | "type"bs=list_1(typ_mu_def, "and")                  {`TypRec ($loc, bs)}
   | "include"p=LitString                                {`Include ($loc, p)}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(fst b, snd b, t)}
+
+typ_par_def:
+  | b=typ_bind"="t=typ                                  {(fst b, snd b, t)}
 
 //
 
@@ -284,14 +287,17 @@ exp:
   | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
   | "if"c=exp"then"t=exp"else"e=exp                     {`IfElse ($loc, c, t, e)}
   | d=typ_def"in"e=exp                                  {`LetDefIn ($loc, d, e)}
-  | "let"p=pat(annot_let)"="v=exp"in"e=exp              {`LetPat ($loc, p, None, v, e)}
-  | "let"p=pat(annot_let)":"t=typ"="v=exp"in"e=exp      {`LetPat ($loc, p, Some t, v, e)}
+  | "let"bs=list_1(par_def,"and")"in"e=exp              {`LetPatPar ($loc, bs, e)}
   | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
   | "<<"x=typ"\\"e=exp">>"":"f=typ                      {`Pack ($loc, x, e, f)}
   | e=exp_in":"t=typ                                    {`Annot ($loc, e, t)}
 
 mu_def:
   | "μ"p=pat(annot_lam)"="v=exp                         {(p, v)}
+
+par_def:
+  | p=pat(annot_let)"="v=exp                            {(p, None, v)}
+  | p=pat(annot_let)":"t=typ"="v=exp                    {(p, Some t, v )}
 
 //
 

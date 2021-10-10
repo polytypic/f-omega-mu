@@ -11,8 +11,8 @@ and μCases = λρ.{
 }
 
 let Unit = Λν.        λv:opt ν.                   Λr.λcs:Cases r.cs.Unit[ν] v
-let Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr.λcs:Cases r.cs.Alt[ν][κ1][κ2] t1 t2
-let Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr.λcs:Cases r.cs.Pair[ν][κ1][κ2] t
+and Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr.λcs:Cases r.cs.Alt[ν][κ1][κ2] t1 t2
+and Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr.λcs:Cases r.cs.Pair[ν][κ1][κ2] t
 
 let match = Λρ.λcs:Cases ρ.Λκ.Λν.λt:Trie κ ν.t[ρ] cs
 

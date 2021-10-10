@@ -20,7 +20,7 @@ typ
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
   | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
-  | 'type' tid (':' kind)? '=' typ 'in' typ                    // Type binding (*4)
+  | 'type' (    tid (':' kind)? '=' typ, 'and')+ 'in' typ      // Parallel type bindings (*4)
   | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+ 'in' typ      // Recursive type bindings (*4)
   | 'include' string 'in' typ                                  // Include type definitions
   | 'import' string                                            // Import type
@@ -48,10 +48,10 @@ exp
   | exp '◇' exp                                                // (L) Apply (*3)
   | uop exp                                                    // Apply unary operator
   | exp bop exp                                                // Apply binary operator
-  | 'type' tid (':' kind)? '=' typ 'in' exp                    // Type binding (*4)
+  | 'type' (    tid (':' kind)? '=' typ, 'and')+ 'in' exp      // Parallel type bindings (*4)
   | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+ 'in' exp      // Recursive type bindings (*4)
-  | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*5)
-  | 'let' ('μ' pat ':' typ '=' exp, 'and')+ 'in' exp           // Recursive bindings (*5)
+  | 'let' (    pat (':' typ)? '=' exp, 'and')+ 'in' exp        // Parallel bindings (*5)
+  | 'let' ('μ' pat  ':' typ   '=' exp, 'and')+ 'in' exp        // Recursive bindings (*5)
   | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)
   | 'λ' pat ':' typ '.' exp                                    // Function (*5)
   | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*7)
@@ -119,7 +119,7 @@ bop
    Fωμ does not have singleton kinds, for example.
 
 5. Type annotations must be specified in function parameters and recursive
-   expressions and are optional in non-recursive `let` bindings. Existential
+   expressions and are optional in parallel `let` bindings. Existential
    unpacking has the usual side condition of not allowing the type variable to
    escape.
 

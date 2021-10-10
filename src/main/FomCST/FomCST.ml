@@ -14,7 +14,7 @@ module Typ = struct
 
   module Def = struct
     type 't f =
-      [ `Typ of Loc.t * Var.t * Kind.t * 't
+      [ `TypPar of Loc.t * (Var.t * Kind.t * 't) list
       | `TypRec of Loc.t * (Var.t * Kind.t * 't) list
       | `Include of Loc.t * JsonString.t ]
   end
@@ -84,7 +84,7 @@ module Exp = struct
     | `AppR of Loc.t * 'e * 'e
     | `LetDefIn of Loc.t * Typ.t Typ.Def.f * 'e
     | `Import of Loc.t * JsonString.t
-    | `LetPat of Loc.t * Pat.t * Typ.t option * 'e * 'e
+    | `LetPatPar of Loc.t * (Pat.t * Typ.t option * 'e) list * 'e
     | `LetPatRec of Loc.t * (Pat.t * 'e) list * 'e
     | `LamPat of Loc.t * Pat.t * 'e
     | `Annot of Loc.t * 'e * Typ.t ]
@@ -96,7 +96,7 @@ module Exp = struct
     | `AppR (at, _, _)
     | `LetDefIn (at, _, _)
     | `Import (at, _)
-    | `LetPat (at, _, _, _, _)
+    | `LetPatPar (at, _, _)
     | `LetPatRec (at, _, _)
     | `LamPat (at, _, _)
     | `Annot (at, _, _) ->

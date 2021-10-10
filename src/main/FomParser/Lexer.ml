@@ -349,15 +349,17 @@ module Offside = struct
         emit_if (new_line && col_of tok = indent && insert) (set Comma tok)
         >> nest tok >>= inside_braces true indent
 
-  and insert_in indent tok =
+  and insert_in is_rec indent tok =
     match tok_of tok with
     | EOF -> emit tok
     | And ->
       let* new_line = new_line tok in
       if new_line && col_of tok < indent then
         error "offside"
+      else if is_rec then
+        emit tok >> expect MuLower >> get >>= insert_in is_rec indent
       else
-        emit tok >> expect MuLower >> get >>= insert_in indent
+        emit tok >> get >>= insert_in is_rec indent
     | In -> if col_of tok < indent then error "offside" else emit tok
     | _ ->
       let* new_line = new_line tok in
@@ -366,7 +368,7 @@ module Offside = struct
       else if new_line && col_of tok = indent then
         emit_before tok In
       else
-        nest tok >>= insert_in indent
+        nest tok >>= insert_in is_rec indent
 
   and inside_binder tok =
     match tok_of tok with
@@ -390,7 +392,7 @@ module Offside = struct
   and inside_body indent tok =
     let* is_typ = is_typ in
     match tok_of tok with
-    | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | EOF | Else | In
+    | And | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | EOF | Else | In
     | ParenRhs ->
       emit_before tok ParenRhs
     | (Dot | Equal | Backslash) when is_typ -> emit_before tok ParenRhs
@@ -461,21 +463,21 @@ module Offside = struct
          else
            emit_before tok ParenRhs
        | BracketLhs -> as_typ (get >>= nest_until BracketRhs)
-       | Include -> get >>= insert_in (col_of tok)
+       | Include -> get >>= insert_in false (col_of tok)
        | Type ->
          let indent = col_of tok in
          get >>= fun tok ->
          if tok_of tok = MuLower then
-           as_typ (emit tok >> get >>= insert_in indent)
+           as_typ (emit tok >> get >>= insert_in true indent)
          else
-           as_typ (insert_in indent tok)
+           as_typ (insert_in false indent tok)
        | Let ->
          let indent = col_of tok in
          get >>= fun tok ->
          if tok_of tok = MuLower then
-           emit tok >> get >>= insert_in indent
+           emit tok >> get >>= insert_in true indent
          else
-           insert_in indent tok
+           insert_in false indent tok
        | Colon -> as_typ (with_indent inside_annot)
        | LambdaLower | LambdaUpper -> get >>= inside_binder
        | ForAll | Exists | MuLower ->
