@@ -105,6 +105,9 @@ module Kind = struct
   let pp_annot ?(numbering = Numbering.create ()) = function
     | `Star _ -> empty
     | kind -> colon ^^ align (pp ~numbering kind)
+
+  let to_string ?(numbering = Numbering.create ()) k =
+    pp ~numbering k |> to_string
 end
 
 module Label = struct

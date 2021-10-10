@@ -40,6 +40,7 @@ module Kind : sig
 
   val pp : ?numbering:Numbering.t -> t -> document
   val pp_annot : ?numbering:Numbering.t -> t -> document
+  val to_string : ?numbering:Numbering.t -> t -> string
 end
 
 module Label : Id.S
