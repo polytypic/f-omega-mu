@@ -2,7 +2,7 @@
 
 include "lib/types"
 
-let《univ\Univ》= import "lib/univ"
+let «univ, Univ» = import "lib/univ"
 
 type HMap = λmap.λκ.{
   empty: map
@@ -11,7 +11,7 @@ type HMap = λmap.λκ.{
   add: ∀ν.κ ν → ν → map → map
 }
 
-let《map\《κ\HMap》》=
+let «map, «κ, HMap»» =
   type κ = λν.{to: ν → univ, of: univ → opt ν}
   type map = list univ
   let empty = 'None
@@ -25,7 +25,7 @@ let《map\《κ\HMap》》=
       }
   }
   let add = Λν.λk:κ ν.λv:ν.λm:map.'Some (k.to v, m)
-  《map\《κ\{empty, new_key, get, add}》: ∃(HMap map)》: ∃map.∃(HMap map)
+  «map, «κ, {empty, new_key, get, add}»: ∃(HMap map)»: ∃map.∃(HMap map)
 
 let k1 = HMap.new_key[int] ()
 let k2 = HMap.new_key[string] ()

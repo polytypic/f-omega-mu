@@ -11,17 +11,17 @@ include "lib/types"
 let List = import "lib/list"
 
 # Non recursive existential stream type
-let《stream\Stream》=
+let «stream, Stream» =
   type step = λα.λs.'Done | 'Yield (α, s) | 'Skip s
   type stream = λα.∃s.(s, s → step α s)
-  let of_list = Λα.λxs:list α.《list α\(
+  let of_list = Λα.λxs:list α.«list α, (
     xs,
     case {
       None = λ().'Done
       Some = λc:(α, list α).'Yield c
     }
-  )》: stream α
-  let to_list = Λα.λ《s\(xs, next)》:stream α.
+  )»: stream α
+  let to_list = Λα.λ«s, (xs, next)»:stream α.
     let to_list = μto_list:s → list α.λxs:s.
       next xs ▷ case {
         Done = λ().'None
@@ -29,7 +29,7 @@ let《stream\Stream》=
         Skip = to_list
       }
     to_list xs
-  let map = Λα.Λβ.λfn:α → β.λ《s\(xs, next)》:stream α.《s\(
+  let map = Λα.Λβ.λfn:α → β.λ«s, (xs, next)»:stream α.«s, (
       xs,
       λxs:s.
         next xs ▷ case {
@@ -37,8 +37,8 @@ let《stream\Stream》=
           Yield = λ(hd: α, tl: s).'Yield (fn hd, tl)
           Skip = λs:s.'Skip s
         }
-    )》: stream β
-  let filter = Λα.λp:α → bool.λ《s\(xs, next)》:stream α.《s\(
+    )»: stream β
+  let filter = Λα.λp:α → bool.λ«s, (xs, next)»:stream α.«s, (
       xs,
       λxs:s.
         next xs ▷ case {
@@ -47,9 +47,9 @@ let《stream\Stream》=
             if p hd then 'Yield (hd, tl) else 'Skip tl
           Skip = λs:s.'Skip s
         }
-    )》: stream α
-  let append = Λα.λ《s1\(xs1, next1)》:stream α.λ《s2\(xs2, next2)》:stream α.
-    type s = 'S1 s1 | 'S2 s2 in《s\(
+    )»: stream α
+  let append = Λα.λ«s1, (xs1, next1)»:stream α.λ«s2, (xs2, next2)»:stream α.
+    type s = 'S1 s1 | 'S2 s2 in«s, (
       'S1 xs1,
       case {
         S1 = λs1:s1.next1 s1 ▷ case {
@@ -63,8 +63,8 @@ let《stream\Stream》=
           Skip = λs2:s2.'Skip ('S2 s2)
         }
       }
-    )》: stream α
-  《stream\{of_list, to_list, map, filter, append}》: ∃stream.{
+    )»: stream α
+  «stream, {of_list, to_list, map, filter, append}»: ∃stream.{
     of_list: ∀α.list α → stream α
     to_list: ∀α.stream α → list α
     map: ∀α.∀β.(α → β) → stream α → stream β

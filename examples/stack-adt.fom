@@ -8,11 +8,11 @@ type Stack = λstack.{
   pop: ∀α.stack α → opt (α, stack α)
 }
 
-let《stack\Stack》=《list\{
+let «stack, Stack» = «list, {
   empty = Λα.'None
   push = Λα.λx:α.λxs:list α.'Some (x, xs)
   pop = Λα.λxs:list α.xs
-}》: ∃(Stack)
+}»: ∃(Stack)
 
 let a_stack =
   Stack.empty[int]

@@ -2,7 +2,7 @@ include "types"
 include "univ"
 
 let new_id =
-  let《ref\{ref, get, set}》= import "ref"
+  let «ref, {ref, get, set}» = import "ref"
   let counter = ref[int] 0
   λ().
     let id = get[int] counter
@@ -23,4 +23,4 @@ let new = Λα.λ().
       'None
   {to, of}
 
-《univ\{new}》: ∃(Univ)
+«univ, {new}»: ∃(Univ)

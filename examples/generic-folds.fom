@@ -58,7 +58,7 @@ let Set = {
       List.concat[elem] l
       ◁ List.filter[elem] (λi:elem.¬List.has[elem] (eq i) l) r
     let to_list = λs:set.s
-    《set\{empty, singleton, remove, union, to_list}》: ∃(Set elem)
+    «set, {empty, singleton, remove, union, to_list}»: ∃(Set elem)
 }
 
 # Term type
@@ -82,7 +82,7 @@ let TermF = {
 }
 
 # Set of strings
-let《ids\Ids》= Set.make[string] (=[string])
+let «ids, Ids» = Set.make[string] (=[string])
 
 # Compute free variables using `fold`
 let fv =

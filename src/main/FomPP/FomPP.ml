@@ -3,8 +3,8 @@ include PPrint
 (* Constants *)
 
 let arrow_right = utf8string "→"
-let double_angle_lhs = utf8string "《"
-let double_angle_rhs = utf8string "》"
+let double_angle_quote_lhs = utf8string "«"
+let double_angle_quote_rhs = utf8string "»"
 let exists = utf8string "∃"
 let for_all = utf8string "∀"
 let greater_equal = utf8string "≥"
@@ -31,7 +31,7 @@ let spaces = (space, space)
 let angles = (langle, rangle)
 let braces = (lbrace, rbrace)
 let brackets = (lbracket, rbracket)
-let double_angles = (double_angle_lhs, double_angle_rhs)
+let double_angle_quotes = (double_angle_quote_lhs, double_angle_quote_rhs)
 let parens = (lparen, rparen)
 
 (* Rendering *)

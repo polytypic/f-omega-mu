@@ -21,7 +21,6 @@
 %token Type "type"
 
 %token ArrowRight "→"
-%token Backslash "\\"
 %token BraceLhs "{"
 %token BraceRhs "}"
 %token BracketLhs "["
@@ -32,8 +31,8 @@
 %token Comma ","
 %token Diamond "◇"
 %token Dot "."
-%token DoubleAngleLhs "<<"
-%token DoubleAngleRhs ">>"
+%token DoubleAngleQuoteLhs "«"
+%token DoubleAngleQuoteRhs "»"
 %token Equal "="
 %token Exists "∃"
 %token ForAll "∀"
@@ -201,7 +200,7 @@ pat(annot):
   | i=exp_bid a=annot                                   {`Id ($loc, i, a)}
   | "("ps=list_n(pat(annot),",")")"                     {Exp.Pat.tuple $loc ps}
   | "{"fs=lab_list(lab_pat(annot))"}"                   {`Product ($loc, fs)}
-  | "<<"t=typ_bid"\\"p=pat(annot_let)">>"e=annot        {`Pack ($loc, p, t, e)}
+  | "«"t=typ_bid","p=pat(annot_let)"»"e=annot           {`Pack ($loc, p, t, e)}
 
 //
 
@@ -291,7 +290,7 @@ exp:
   | d=typ_def"in"e=exp                                  {`LetDefIn ($loc, d, e)}
   | "let"bs=list_1(par_def,"and")"in"e=exp              {`LetPatPar ($loc, bs, e)}
   | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
-  | "<<"x=typ"\\"e=exp">>"":"f=typ                      {`Pack ($loc, x, e, f)}
+  | "«"x=typ","e=exp"»"":"f=typ                         {`Pack ($loc, x, e, f)}
   | e=exp_in":"t=typ                                    {`Annot ($loc, e, t)}
 
 mu_def:

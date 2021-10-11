@@ -1,6 +1,6 @@
 # Natural number GADT encoding using type equality witnesses
 
-let《eq\Eq》= import "lib/leibniz"
+let «eq, Eq» = import "lib/leibniz"
 
 type μNat = λn.
   | 'Zero  (Zero n)
@@ -9,7 +9,7 @@ and μZero = λn.    eq  'Z    n
 and μSucc = λn.λm.(eq ('S m) n, Nat m)
 
 let Zero = 'Zero Eq.refl['Z]
-let Succ = Λm.λm:Nat m.'Succ《m\(Eq.refl['S m], m)》: ∃(Succ ('S m))
+let Succ = Λm.λm:Nat m.'Succ «m, (Eq.refl['S m], m)»: ∃(Succ ('S m))
 
 let from = λn:int.
   if n < 0 then
@@ -17,16 +17,16 @@ let from = λn:int.
   else
     let μloop:∀n.Nat n → int → ∃(Nat) = Λn.λn:Nat n.λi:int.
       if i ≤ 0 then
-        《n\n》: ∃(Nat)
+        «n, n»: ∃(Nat)
       else
         loop['S n] (Succ[n] n) (i-1)
     'Some (loop['Z] Zero n)
 
-let to = λ《n\n》: ∃(Nat).
+let to = λ«n, n»: ∃(Nat).
   let μloop:∀n.Nat n → int → int = Λn.λn:Nat n.λi:int.
     n ▷ case {
       Zero = λ_:Zero n.i
-      Succ = λ《m\(_, m)》: ∃(Succ n).loop[m] m (i+1)
+      Succ = λ«m, (_, m)»: ∃(Succ n).loop[m] m (i+1)
     }
   loop[n] n 0
 

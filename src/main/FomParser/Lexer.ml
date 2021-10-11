@@ -8,8 +8,8 @@ let return_from buffer tok =
   let lhs, rhs = Buffer.loc buffer in
   (tok, lhs, rhs)
 
-let double_angle_lhs = [%sedlex.regexp? 0x300a (* 《 *)]
-let double_angle_rhs = [%sedlex.regexp? 0x300b (* 》 *)]
+let double_angle_quote_lhs = [%sedlex.regexp? 0x00ab (* « *)]
+let double_angle_quote_rhs = [%sedlex.regexp? 0x00bb (* » *)]
 let lambda_lower = [%sedlex.regexp? 0x03bb (* λ *)]
 let lambda_upper = [%sedlex.regexp? 0x039b (* Λ *)]
 let arrow_right = [%sedlex.regexp? 0x2192 (* → *)]
@@ -100,7 +100,6 @@ let rec token_or_comment buffer =
   | "=" -> return Equal
   | ">" -> return Greater
   | "[" -> return BracketLhs
-  | "\\" -> return Backslash
   | "]" -> return BracketRhs
   | "^" -> return Caret
   | "{" -> return BraceLhs
@@ -123,8 +122,8 @@ let rec token_or_comment buffer =
   | "type" -> return Type
   (* *)
   | arrow_right | "->" -> return ArrowRight
-  | double_angle_lhs | "<<" -> return DoubleAngleLhs
-  | double_angle_rhs | ">>" -> return DoubleAngleRhs
+  | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
+  | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs
   | greater_equal | ">=" -> return GreaterEqual
   | lambda_lower | "fun" -> return LambdaLower
   | lambda_upper | "gen" -> return LambdaUpper
@@ -213,7 +212,6 @@ let token_info_utf_8 =
   let to_name = function
     | And -> keyword
     | ArrowRight -> operator
-    | Backslash -> punctuation
     | BraceLhs -> punctuation
     | BraceRhs -> punctuation
     | BracketLhs -> punctuation
@@ -226,8 +224,8 @@ let token_info_utf_8 =
     | Comment _ -> comment
     | Diamond -> punctuation
     | Dot -> punctuation
-    | DoubleAngleLhs -> punctuation
-    | DoubleAngleRhs -> punctuation
+    | DoubleAngleQuoteLhs -> punctuation
+    | DoubleAngleQuoteRhs -> punctuation
     | EOF -> error
     | Else -> keyword
     | Equal -> operator
@@ -287,7 +285,6 @@ let token_info_utf_8 =
 let[@warning "-32"] to_string = function
   | And -> "and"
   | ArrowRight -> "→"
-  | Backslash -> "\\"
   | BraceLhs -> "{"
   | BraceRhs -> "}"
   | BracketLhs -> "["
@@ -300,8 +297,8 @@ let[@warning "-32"] to_string = function
   | Comment _ -> "# ..."
   | Diamond -> "◇"
   | Dot -> "."
-  | DoubleAngleLhs -> "《"
-  | DoubleAngleRhs -> "》"
+  | DoubleAngleQuoteLhs -> "«"
+  | DoubleAngleQuoteRhs -> "»"
   | EOF -> "<EOF>"
   | Else -> "else"
   | Equal -> "="
@@ -406,8 +403,8 @@ module Offside = struct
 
   and inside_annot indent tok =
     match tok_of tok with
-    | BraceRhs | BracketRhs | Comma | Dot | DoubleAngleRhs | EOF | Equal | In
-    | ParenRhs ->
+    | BraceRhs | BracketRhs | Comma | Dot | DoubleAngleQuoteRhs | EOF | Equal
+    | In | ParenRhs ->
       unget tok
     | _ ->
       let* new_line = new_line tok in
@@ -419,10 +416,10 @@ module Offside = struct
   and inside_body indent tok =
     let* is_typ = is_typ in
     match tok_of tok with
-    | And | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | EOF | Else | In
-    | ParenRhs ->
+    | And | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | Else
+    | In | ParenRhs ->
       emit_before tok ParenRhs
-    | (Dot | Equal | Backslash) when is_typ -> emit_before tok ParenRhs
+    | (Dot | Equal) when is_typ -> emit_before tok ParenRhs
     | _ ->
       let* new_line = new_line tok in
       if new_line && col_of tok < indent then
@@ -442,7 +439,7 @@ module Offside = struct
 
   and inside_else indent tok =
     match tok_of tok with
-    | BraceRhs | BracketRhs | Comma | DoubleAngleRhs | EOF | ParenRhs ->
+    | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | ParenRhs ->
       emit_before tok ParenRhs
     | _ ->
       let* new_line = new_line tok in
@@ -462,7 +459,8 @@ module Offside = struct
     | ForAll | Exists | MuLower ->
       get >>= fun tok ->
       if tok_of tok <> ParenLhs then emit_before tok ParenLhs else unget tok
-    | If | LambdaLower | LambdaUpper | DoubleAngleLhs -> emit (set ParenLhs tok)
+    | If | LambdaLower | LambdaUpper | DoubleAngleQuoteLhs ->
+      emit (set ParenLhs tok)
     | _ -> unit)
     >> (match tok with
        | BracketLhs, l, _ -> (
@@ -481,9 +479,11 @@ module Offside = struct
     >> (match tok_of tok with
        | BraceLhs -> with_indent (inside_braces false)
        | ParenLhs -> get >>= nest_until ParenRhs
-       | DoubleAngleLhs ->
-         as_typ (get >>= nest_until Backslash)
-         >> get >>= nest_until DoubleAngleRhs >> get
+       | DoubleAngleQuoteLhs ->
+         as_typ (get >>= nest_until Comma)
+         >> get
+         >>= nest_until DoubleAngleQuoteRhs
+         >> get
          >>= fun tok ->
          if tok_of tok = Colon then
            nest tok >>= fun tok -> emit_before tok ParenRhs

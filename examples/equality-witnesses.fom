@@ -21,7 +21,7 @@ let Leibniz =
   let trans = Λα.Λβ.Λγ.λbc:Leibniz β γ.λab:Leibniz α β.Λφ.λx:φ α.bc[φ] ◁ ab[φ] x
   let to = Λα.Λβ.λab:Leibniz α β.ab[λx.x]
   let from = Λα.Λβ.λab:Leibniz α β.to[β][α] ◁ symm[α][β] ab
-  《Leibniz\{ofFold, ofLeibniz, refl, symm, trans, to, from}》: ∃(Eq)
+  «Leibniz, {ofFold, ofLeibniz, refl, symm, trans, to, from}»: ∃(Eq)
 
 let Fold =
   let ofFold = Λα.Λβ.λab:Fold α β.ab
@@ -32,6 +32,6 @@ let Fold =
     λf:∀γ.ϕ γ γ.bc[λγ.λδ.ϕ α γ → ϕ α δ] (Λγ.λx:ϕ α γ.x) ◁ ab[ϕ] f
   let to = Λα.Λβ.λab:Fold α β.ab[λα.λβ.α → β] Λγ.λx:γ.x
   let from = Λα.Λβ.λab:Fold α β.to[β][α] ◁ symm[α][β] ab
-  《Fold\{ofFold, ofLeibniz, refl, symm, trans, to, from}》: ∃(Eq)
+  «Fold, {ofFold, ofLeibniz, refl, symm, trans, to, from}»: ∃(Eq)
 
 {Leibniz, Fold}

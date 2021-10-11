@@ -132,9 +132,9 @@ let () =
   testInfersAs "existential silly" "∃t.{an: t, do: t → t}"
     {eof|
     type doan = ∃t.{do: t → t, an: t}
-    let x =《int\{do = λx:int.x+1, an = 1}》: doan
-    let《t\r》= x
-    《t\{do = r.do, an = r.do r.an}》: doan
+    let x = «int, {do = λx:int.x+1, an = 1}»: doan
+    let «t, r» = x
+    «t, {do = r.do, an = r.do r.an}»: doan
     |eof};
   testInfersAs "hungry function" "(μt.int → t) → μt.int → t"
     "λf:μt.int → t.f 1 2 3";
@@ -147,7 +147,7 @@ let () =
       push: ∀v.v → t v → t v
       pop: ∀v.t v → option {value: v, stack: t v}
     }
-    let《stack\S》 =《list\{
+    let «stack, S» = «list, {
       empty = Λv.'nil : list v
       push = Λv.λx:v.λxs:list v.'cons {hd = x, tl = xs} : list v
       pop = Λv.case {
@@ -156,7 +156,7 @@ let () =
         cons = λr:{hd: v, tl: list v}.
           'some {value = r.hd, stack = r.tl} : option {value: v, stack: list v}
       }
-    }》: Stack
+    }»: Stack
     let a_stack = S.push[int] 4 (S.push[int] 1 (S.push[int] 3 (S.empty[int])))
     let to_list = Λv.μto_list:stack v → list v.λs:stack v.
       S.pop[v] s ▷ case {
@@ -236,8 +236,8 @@ let () =
     let I = S K K in
     I
     |eof};
-  testInfersAs "offside in 《 \\ 》" "()"
-    "let《t\\v》=《λx.x\\λx:int.x》: ∃t.t (int → int) in ()";
+  testInfersAs "offside in «_, _»" "()"
+    "let «t, v» = «λx.x, λx:int.x»: ∃t.t (int → int) in ()";
   testInfersAs "higher-order join and meet"
     {eof|
     (
@@ -273,14 +273,14 @@ let () =
     |eof};
   testInfersAs "μ type variable scoping" "()"
     {eof|
-    let《T\x》=《()\()》: ∃t.t
+    let «T, x» = «(), ()»: ∃t.t
     type U = T
     type μT = {x: U}
     {x} ▷ λx:T.()
     |eof};
   testInfersAs "another μ type variable scoping" "()"
     {eof|
-    let《Shadowed\shadowed》=《()\()》: ∃t.t
+    let «Shadowed, shadowed» = «(), ()»: ∃t.t
     type Alias = Shadowed
     type μType = λτ.
       | 'Shadowed (Shadowed τ)
@@ -289,7 +289,7 @@ let () =
     'Shadowed shadowed ▷ λ_:Type Alias.()
     |eof};
   testInfersAs "duplicate wildcard bindings" "()"
-    "let (《_\\_》,《_\\_》) = (《()\\()》: ∃t.t,《()\\()》: ∃t.t) in ()";
+    "let («_, _», «_, _») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()";
   testInfersAs "duplicate wildcard μ bindings" "()"
     "let μ_:int=1 and μ_:int=1 in ()"
 
@@ -318,16 +318,16 @@ let () =
     |eof};
   testErrors "free variable in def and Λ"
     "type def = λt.x in Λx.λ_:def int.λ_:def string.()";
-  testErrors "free variable in def and 《》"
+  testErrors "free variable in def and «_, _»"
     {eof|
     type r = λt.x
-    let《x\_》= 《()\()》: ∃t.t
+    let «x, _» = «(), ()»: ∃t.t
     (λ_:r int.λ_:r string.(), 1).2
     |eof};
-  testErrors "free variable in def and 《》 inside pattern"
+  testErrors "free variable in def and «_, _» inside pattern"
     {eof|
     type r = λt.x
-    let (《x\_》, _)= (《()\()》: ∃t.t, 101)
+    let («x, _», _)= («(), ()»: ∃t.t, 101)
     (λ_:r int.λ_:r string.(), 1).2
     |eof};
   testErrors "kind error with type"
@@ -347,4 +347,4 @@ let () =
     "type μdup = int and μdup = string in λx:dup.x";
   testErrors "duplicate pattern binding" "let {y, x = y} = {x = 2, y = 1} in y";
   testErrors "duplicate unpack type binding"
-    "let (《t\\x》,《t\\y》) = (《()\\()》: ∃t.t,《()\\()》: ∃t.t) in ()"
+    "let («t, x», «t, y») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()"

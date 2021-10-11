@@ -29,7 +29,7 @@ pat
   : eid                                                        // Variable pattern
   | '(' (pat, ',')* ')'                                        // Tuple pattern
   | '{' (label '=' pat, ',')* '}'                              // Product pattern
-  | '<<' tid '\\' pat '>>'                                     // Existential pack pattern
+  | '«' tid ',' pat '»'                                        // Existential pack pattern
 
 exp
   : '(' exp ')'
@@ -41,7 +41,7 @@ exp
   | exp '.' (label | '(' exp ')')                              // Product elimination
   | "'" label exp?                                             // Sum introduction
   | 'case' exp                                                 // Sum elimination (*2)
-  | '<<' typ '\\' exp '>>' ':' typ                             // Existential packing
+  | '«' typ ',' exp '»' ':' typ                                // Existential packing
   | exp exp                                                    // Apply function
   | exp '◁' exp                                                // (R) Apply forward (*3)
   | exp '▷' exp                                                // (L) Apply backward (*3)
@@ -155,5 +155,5 @@ bop
 |            `▷` | <code>&#124;&gt;</code>   |
 |            `◁` | <code>&lt;&#124;</code>   |
 |            `◇` | `<>`                      |
-|           `《` | `<<`                      |
-|           `》` | `>>`                      |
+|            `«` | `<<`                      |
+|            `»` | `>>`                      |

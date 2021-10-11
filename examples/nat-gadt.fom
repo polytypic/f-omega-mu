@@ -16,12 +16,12 @@ let from = λn:int.
   else
     let μloop:∀n.Nat n → int → ∃(Nat) = Λn.λn:Nat n.λi:int.
       if i ≤ 0 then
-        《n\n》: ∃(Nat)
+        «n, n»: ∃(Nat)
       else
         loop['S n] (Succ[n] n) (i-1)
     'Some (loop['Z] Zero n)
 
-let to = λ《n\n》: ∃(Nat).
+let to = λ«n, n»: ∃(Nat).
   let μloop:∀n.Nat n → int → int = Λn.λn:Nat n.λi:int.
     n[λ_.int] {
       Zero = i

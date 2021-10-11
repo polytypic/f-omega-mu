@@ -22,7 +22,7 @@ let CounterClass = {
 
 # A counter object is sealed to hide the state type:
 
-let aCounter =《int\(0, CounterClass)》: ∃(Object CounterM)
+let aCounter = «int, (0, CounterClass)»: ∃(Object CounterM)
 
 # We can similarly specify a subtype of counters that can also be reset and that
 # keeps track of how many times the counter has been reset:
@@ -41,31 +41,31 @@ let ResetCounterClass = {
   reset_count = λ{resets: int}.resets
 }
 
-let aResetCounter =《
-  {count: int, resets: int} \ ({count = 0, resets = 0}, ResetCounterClass)
-》: ∃(Object ResetCounterM)
+let aResetCounter = «
+  {count: int, resets: int}, ({count = 0, resets = 0}, ResetCounterClass)
+»: ∃(Object ResetCounterM)
 
 # To encode bounded quantification of counters we can pass explicit coercions,
 # `B`, to access the methods.  Here are helpers to invoke the methods `inc`,
 # `get`, `reset`, and `reset_count`:
 
 let inc = ΛM.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
-  let《τ\(x, M)》= c
+  let «τ, (x, M)» = c
   let C = B[τ] M
-  《τ\(C.inc x, M)》: ∃(Object M)
+  «τ, (C.inc x, M)»: ∃(Object M)
 
 let get = ΛM.λB:∀τ.M τ → CounterM τ.λc:∃(Object M).
-  let《τ\(x, M)》= c
+  let «τ, (x, M)» = c
   let C = B[τ] M
   C.get x
 
 let reset = ΛM.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
-  let《τ\(x, M)》= c
+  let «τ, (x, M)» = c
   let C = B[τ] M
-  《τ\(C.reset x, M)》: ∃(Object M)
+  «τ, (C.reset x, M)»: ∃(Object M)
 
 let reset_count = ΛM.λB:∀τ.M τ → ResetCounterM τ.λc:∃(Object M).
-  let《τ\(x, M)》= c
+  let «τ, (x, M)» = c
   let C = B[τ] M
   C.reset_count x
 

@@ -36,4 +36,4 @@ let update = Λα.λxs:array α.λi:int.λx:α.
     xs i x
   ▷ keep[()]
 
-《array\{tabulate, length, sub, update}》: ∃(Array)
+«array, {tabulate, length, sub, update}»: ∃(Array)

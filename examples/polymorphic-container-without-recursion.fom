@@ -24,21 +24,21 @@ let ContainerC = {
   map = Λα.Λβ.λab:α → β.ab
 }
 
-let container = Λα.λx:α.《λx.x\(x, ContainerC)》: ∃(Object ContainerM α)
+let container = Λα.λx:α.«λx.x, (x, ContainerC)»: ∃(Object ContainerM α)
 
 # Unlike in TAPL we use an explicit coercion (naïve witness) to encode bounded
 # quantification.
 
 let get = ΛM.λB:∀τ.M τ → ContainerM τ.Λα.λc:∃(Object M α).
-  let《τ\(x, M)》= c
+  let «τ, (x, M)» = c
   let C = B[τ] M
   C.get[α] x
 
 let map = ΛM.λB:∀τ.M τ → ContainerM τ.Λα.Λβ.λab:α → β.λc:∃(Object M α).
-  let《τ\(x, M)》= c
+  let «τ, (x, M)» = c
   let C = B[τ] M
-  《τ\(C.map[α][β] ab x, M)》: ∃(Object M β)
-  
+  «τ, (C.map[α][β] ab x, M)»: ∃(Object M β)
+
 let ContainerB = Λτ.λM:ContainerM τ.M
 
 container[int] 101
