@@ -296,18 +296,19 @@ let testErrors name exp =
   test name @@ fun () ->
   exp
   |> Parser.parse_utf_8 Grammar.program Lexer.offside
-  >>= elaborate
-  |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in
-       (fun (_, unexpected, _) ->
-         let open FomPP in
-         [
-           utf8string "Expected type checking to fail, but got type";
-           [break_1; Typ.pp unexpected] |> concat |> nest 2;
-         ]
-         |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
-         verify false)
-       (fun _ -> unit)
+       (elaborate
+       >>> with_env (ignore >>> FomEnv.Env.empty)
+       >>> try_in
+             (fun (_, unexpected, _) ->
+               let open FomPP in
+               [
+                 utf8string "Expected type checking to fail, but got type";
+                 [break_1; Typ.pp unexpected] |> concat |> nest 2;
+               ]
+               |> concat |> group |> to_string ~max_width:80 |> failuref "%s")
+             (fun _ -> unit))
+       (fun _ -> failure "parsing failed")
 
 let () =
   testErrors "non contractive case"
