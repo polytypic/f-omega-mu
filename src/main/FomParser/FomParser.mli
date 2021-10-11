@@ -18,10 +18,16 @@ module Lexer : sig
   val offside : t
   (** Lexical syntax with offside rules. *)
 
-  type token_info = {begins : int; ends : int; name : string}
+  module State : sig
+    type t
+
+    val initial : t
+  end
+
+  type token_info = {begins : int; ends : int; name : string; state : State.t}
   (** Describes a token for syntax highlighting purposes. *)
 
-  val token_info_utf_8 : string -> token_info
+  val token_info_utf_8 : State.t -> string -> token_info
   (** Parse info of first single token from given UTF-8 string input. *)
 
   val offset_as_utf_16 : string -> int -> int

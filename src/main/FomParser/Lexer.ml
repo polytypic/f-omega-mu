@@ -59,9 +59,10 @@ let hex_digit = [%sedlex.regexp? '0' .. '9' | 'a' .. 'f' | 'A' .. 'F']
 let esc_char = [%sedlex.regexp? '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't']
 let esc_hex = [%sedlex.regexp? 'u', Rep (hex_digit, 4)]
 let char_escaped = [%sedlex.regexp? '\\', (esc_char | esc_hex)]
+let char_continued = [%sedlex.regexp? '\\', whitespace, '\\']
 let control_chars = [%sedlex.regexp? 0x0000 .. 0x001f | 0x007f .. 0x009f]
 let char_unescaped = [%sedlex.regexp? Compl (control_chars | '"' | '\\')]
-let char = [%sedlex.regexp? char_unescaped | char_escaped]
+let char = [%sedlex.regexp? char_unescaped | char_escaped | char_continued]
 let string = [%sedlex.regexp? '"', Star char, '"']
 
 (* *)
@@ -145,7 +146,9 @@ let rec token_or_comment buffer =
          |> Bigint.of_string))
   (* *)
   | string ->
-    return (LitString (Buffer.lexeme_utf_8 buffer |> JsonString.of_utf8_json))
+    return
+      (LitString (Buffer.lexeme_utf_8 buffer |> JsonString.of_utf8_json_literal))
+  | '"', Star char, '\\', Opt whitespace, eof -> return LitStringPart
   (* *)
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
   | id_typ -> return (IdTyp (Buffer.lexeme_utf_8 buffer))
@@ -156,8 +159,17 @@ let rec token_or_comment buffer =
   (* *)
   | eof -> return EOF
   (* *)
-  | nat_10, id | any ->
+  | nat_10, id | '"', Star char | any ->
     raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+  | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+
+let string_continuation buffer =
+  let return = return_from buffer in
+  match%sedlex buffer with
+  | Opt whitespace, '\\', Star char, '\\', Opt whitespace, eof ->
+    return LitStringPart
+  | Opt whitespace, '\\', Star char, '"', Opt whitespace, eof ->
+    return (LitString (JsonString.of_utf8_json "\"\""))
   | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
 
 let rec token buffer =
@@ -178,7 +190,13 @@ let offset_as_utf_16 input i =
 
 (* *)
 
-type token_info = {begins : int; ends : int; name : string}
+module State = struct
+  type t = bool
+
+  let initial = false
+end
+
+type token_info = {begins : int; ends : int; name : string; state : State.t}
 
 let token_info_utf_8 =
   let atom = "atom"
@@ -233,6 +251,7 @@ let token_info_utf_8 =
     | Let -> keyword
     | LitNat _ -> number
     | LitString _ -> string
+    | LitStringPart -> string
     | LogicalAnd -> operator
     | LogicalNot -> operator
     | LogicalOr -> operator
@@ -255,8 +274,15 @@ let token_info_utf_8 =
     | Type -> keyword
     | Underscore -> variable
   in
-  Buffer.from_utf_8 >>> token_or_comment >>> fun (token, lhs, rhs) ->
-  {begins = lhs.pos_cnum; ends = rhs.pos_cnum; name = to_name token}
+  fun state ->
+    let lexer = if state then string_continuation else token_or_comment in
+    Buffer.from_utf_8 >>> lexer >>> fun (token, lhs, rhs) ->
+    {
+      begins = lhs.pos_cnum;
+      ends = rhs.pos_cnum;
+      name = to_name token;
+      state = token = LitStringPart;
+    }
 
 let[@warning "-32"] to_string = function
   | And -> "and"
@@ -297,6 +323,7 @@ let[@warning "-32"] to_string = function
   | Let -> "let"
   | LitNat n -> Bigint.to_string n
   | LitString s -> JsonString.to_utf8_json s
+  | LitStringPart -> "..."
   | LogicalAnd -> "∧"
   | LogicalNot -> "∨"
   | LogicalOr -> "¬"

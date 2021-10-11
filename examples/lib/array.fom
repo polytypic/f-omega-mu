@@ -4,7 +4,11 @@ type array = λα.∃array.array α
 
 let tabulate = Λα.λf:int → α.λn:int.
   target[(int → α) → int → impure (array α)]
-    "fn => n => {const a = new Array(n); for (let i=0; i<n; ++i) a[i] = fn(i); return a}"
+    "fn => n => {\n\
+    \  const a = new Array(n)\n\
+    \  for (let i=0; i<n; ++i) a[i] = fn(i)\n\
+    \  return a\n\
+    \}"
     f n
   ▷ keep[array α]
 
@@ -14,13 +18,21 @@ let length =
 
 let sub = Λα.λxs:array α.λi:int.
   target[array α → int → impure α]
-    "a => i => { if (i < 0 || a.length <= i) throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`; return a[i] }"
+    "a => i => {\n\
+    \  if (i < 0 || a.length <= i)\n\
+    \    throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`\n\
+    \  return a[i]\n\
+    \}"
     xs i
   ▷ keep[α]
 
 let update = Λα.λxs:array α.λi:int.λx:α.
   target[array α → int → α → impure ()]
-    "a => i => v => { if (i < 0 || a.length <= i) throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`; a[i] = v }"
+    "a => i => v => {\n\
+    \  if (i < 0 || a.length <= i)\n\
+    \    throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`\n\
+    \  a[i] = v\n\
+    \}"
     xs i x
   ▷ keep[()]
 

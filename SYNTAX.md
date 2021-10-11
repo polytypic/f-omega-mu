@@ -94,6 +94,10 @@ bop
   immediately followed by a newline. The following line will then be considered
   to come from the specified file and line.
 
+- String literals are JSON strings with the addition of Standard ML style
+  `\ws+\` ignored escape sequences where `ws+` is a non-empty sequence of
+  whitespace allowing string literals to span multiple source lines.
+
 1. Type variables are distinct from value variables.
 
    `_` is allowed in place of a variable in bindings.

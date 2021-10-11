@@ -1,4 +1,5 @@
 open Exn.Syntax
+open Fun.Syntax
 
 type t = string
 
@@ -75,6 +76,12 @@ let to_utf8 lit =
     else
       Uchar.to_int c - Uchar.to_int (Uchar.of_char 'A') + 10
   in
+  let is_white c =
+    Uchar.of_char ' ' = c
+    || Uchar.of_char '\t' = c
+    || Uchar.of_char '\n' = c
+    || Uchar.of_char '\r' = c
+  in
   lit
   |> Uutf.String.fold_utf_8
        (fun (s, i) _ u ->
@@ -107,8 +114,15 @@ let to_utf8 lit =
              encode (Uchar.of_char '\r')
            else if Uchar.of_char 't' = c then
              encode (Uchar.of_char '\t')
+           else if is_white c then
+             (`Continued, i + 1)
            else
              (`Hex0, i + 1)
+         | `Continued, `Uchar c ->
+           if is_white c then
+             (`Continued, i + 1)
+           else
+             (`Unescaped, i + 1)
          | `Hex0, `Uchar c -> (`Hex1 (hex_to_int 0 c), i + 1)
          | `Hex1 h, `Uchar c -> (`Hex2 (hex_to_int h c), i + 1)
          | `Hex2 h, `Uchar c -> (`Hex3 (hex_to_int h c), i + 1)
@@ -119,3 +133,7 @@ let to_utf8 lit =
   |> ignore;
   Uutf.encode encoder `End |> ignore;
   Buffer.contents buffer
+
+(* *)
+
+let of_utf8_json_literal = of_utf8_json >>> to_utf8 >>> of_utf8

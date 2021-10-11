@@ -77,9 +77,11 @@ const jsCM = CodeMirror(jsDiv, {
 })
 
 CodeMirror.defineMode('fom', () => ({
-  token: stream => {
+  startState: () => ({state: fom.initial}),
+  token: (stream, state) => {
     const input = stream.string.slice(stream.start)
-    const token = fom.token(stream.string.slice(stream.start))
+    const token = fom.token(stream.string.slice(stream.start), state.state)
+    state.state = token.state
     if (token.name === 'error') {
       stream.skipToEnd()
     } else {

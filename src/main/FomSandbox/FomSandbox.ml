@@ -47,11 +47,12 @@ let js_pos pos =
     val ch = Pos.column_of pos - 1
   end
 
-let js_token begins ends name =
+let js_token begins ends name state =
   object%js
     val begins = begins
     val ends = ends
     val name = Js.string name
+    val state = state
   end
 
 let js_loc (begins, ends) =
@@ -338,13 +339,15 @@ let js_codemirror_mode =
              Cb.invoke on_result @@ Js.string "")
       |> start (FomToJsC.Env.empty ~fetch ())
 
-    method token input =
+    method token input state =
       try
-        let {Lexer.begins; ends; name} =
-          input |> Js.to_string |> Lexer.token_info_utf_8
+        let {Lexer.begins; ends; name; state} =
+          input |> Js.to_string |> Lexer.token_info_utf_8 state
         in
-        js_token begins ends name
-      with _ -> js_token 0 0 "error"
+        js_token begins ends name state
+      with _ -> js_token 0 0 "error" state
+
+    val initial = Lexer.State.initial
   end
 
 let () = Js.Unsafe.global##.fom := js_codemirror_mode
