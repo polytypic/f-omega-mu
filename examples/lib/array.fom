@@ -2,7 +2,7 @@ include "array"
 
 type array = λα.∃array.array α
 
-let tabulate = Λα.λf:int → α.λn:int.
+let tabulate = Λα.λf: int → α.λn: int.
   target[(int → α) → int → impure (array α)]
     "fn => n => {\n\
     \  const a = new Array(n)\n\
@@ -16,7 +16,7 @@ let length =
   # Can be considered pure as length cannot (currently) be changed
   target[∀α.array α → int] "a => a.length"
 
-let sub = Λα.λxs:array α.λi:int.
+let sub = Λα.λxs: array α.λi: int.
   target[array α → int → impure α]
     "a => i => {\n\
     \  if (i < 0 || a.length <= i)\n\
@@ -26,7 +26,7 @@ let sub = Λα.λxs:array α.λi:int.
     xs i
   ▷ keep[α]
 
-let update = Λα.λxs:array α.λi:int.λx:α.
+let update = Λα.λxs: array α.λi: int.λx: α.
   target[array α → int → α → impure ()]
     "a => i => v => {\n\
     \  if (i < 0 || a.length <= i)\n\

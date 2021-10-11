@@ -1,6 +1,6 @@
 let Target = import "target"
 
-let compare = λl:int.λr:int.
+let compare = λl: int.λr: int.
   if l < r then
     'Less
   else if l =[int] r then

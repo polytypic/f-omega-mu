@@ -10,8 +10,8 @@ type Stack = λstack.{
 
 let «stack, Stack» = «list, {
   empty = Λα.'None
-  push = Λα.λx:α.λxs:list α.'Some (x, xs)
-  pop = Λα.λxs:list α.xs
+  push = Λα.λx: α.λxs: list α.'Some (x, xs)
+  pop = Λα.λxs: list α.xs
 }»: ∃(Stack)
 
 let a_stack =
@@ -20,7 +20,7 @@ let a_stack =
   ▷ Stack.push[int] 1
   ▷ Stack.push[int] 5
 
-let μto_list:∀α.stack α → list α = Λα.λs:stack α.
+let μto_list: ∀α.stack α → list α = Λα.λs: stack α.
   Stack.pop[α] s ▷ case {
     None = λ().'None
     Some = λ(x: α, xs: stack α).'Some (x, to_list[α] xs)

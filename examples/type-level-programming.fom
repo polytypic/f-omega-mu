@@ -45,7 +45,7 @@ type Map = λf.λxs.λn.λc.xs n λx.c (f x)
 
 #
 
-λ_:Map λt.(t, t)
-       (Cons int (Cons string (Cons bool Nil)))
-       ()
-       λh.λt.(h, t).()
+λ_: Map λt.(t, t)
+        (Cons int (Cons string (Cons bool Nil)))
+        ()
+        λh.λt.(h, t).()

@@ -1,46 +1,46 @@
 include "types"
 
-let one = Λα.λx:α.'Some (x, 'None)
+let one = Λα.λx: α.'Some (x, 'None)
 
-let μhas:∀α.(α → bool) → list α → bool = Λα.λp:α → bool.case {
+let μhas: ∀α.(α → bool) → list α → bool = Λα.λp: α → bool.case {
   None = λ().false
-  Some = λ(x:α, xs:list α).p x ∨ has[α] p xs
+  Some = λ(x: α, xs: list α).p x ∨ has[α] p xs
 }
 
-let μfold:∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ =
-  Λρ.Λα.λrxr:ρ → α → ρ.λr:ρ.case {
+let μfold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ =
+  Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.case {
     None = λ().r
-    Some = λ(x:α, xs:list α).fold[ρ][α] rxr (rxr r x) xs
+    Some = λ(x: α, xs: list α).fold[ρ][α] rxr (rxr r x) xs
   }
 
-let rev_to = Λα.fold[list α][α] λxs:list α.λx:α.'Some (x, xs)
+let rev_to = Λα.fold[list α][α] λxs: list α.λx: α.'Some (x, xs)
 
 let rev = Λα.rev_to[α] 'None
 
-let filter = Λα.λp:α → bool.λxs:list α.
+let filter = Λα.λp: α → bool.λxs: list α.
   xs
   ▷ fold[list α][α]
-      λxs:list α.λx:α.if p x then 'Some (x, xs) else xs
+      λxs: list α.λx: α.if p x then 'Some (x, xs) else xs
       'None
   ▷ rev[α]
 
-let reject = Λα.λp:α → bool.filter[α] λx:α.¬p x
+let reject = Λα.λp: α → bool.filter[α] λx: α.¬p x
 
-let concat = Λα.λxs:list α.λys:list α.rev[α] xs ▷ rev_to[α] ys
+let concat = Λα.λxs: list α.λys: list α.rev[α] xs ▷ rev_to[α] ys
 
-let infinite_of = Λα.λx:α.μxs:list_of_inf α.'Some (x, xs)
+let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Some (x, xs)
 
-let μtake_n:∀α.int → list α → list α = Λα.λn:int.λxs:list α.
+let μtake_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
   if n ≤ 0 then
     'None
   else
     xs ▷ case {
       None = λ().'None
-      Some = λ(x:α, xs:list α).'Some (x, take_n[α] (n-1) xs)
+      Some = λ(x: α, xs: list α).'Some (x, take_n[α] (n-1) xs)
     }
 
-let iota = λn:int.
-  let μloop:int → list int = λi:int.
+let iota = λn: int.
+  let μloop: int → list int = λi: int.
     if i < n then 'Some (i, loop (i + 1)) else 'None
   loop 0
 

@@ -4,8 +4,8 @@
 # should be compiled to a simple loop for the general case.
 
 let fib =
-  let μloop:int → int → int → int =
-    λi:int.λj:int.λn:int.
+  let μloop: int → int → int → int =
+    λi: int.λj: int.λn: int.
       if n ≤ 0
       then i
       else loop j ◇ i + j ◇ n - 1

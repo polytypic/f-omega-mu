@@ -14,53 +14,53 @@ let List = import "lib/list"
 let «stream, Stream» =
   type step = λα.λs.'Done | 'Yield (α, s) | 'Skip s
   type stream = λα.∃s.(s, s → step α s)
-  let of_list = Λα.λxs:list α.«list α, (
+  let of_list = Λα.λxs: list α.«list α, (
     xs,
     case {
       None = λ().'Done
-      Some = λc:(α, list α).'Yield c
+      Some = λc: (α, list α).'Yield c
     }
   )»: stream α
-  let to_list = Λα.λ«s, (xs, next)»:stream α.
-    let to_list = μto_list:s → list α.λxs:s.
+  let to_list = Λα.λ«s, (xs, next)»: stream α.
+    let to_list = μto_list: s → list α.λxs: s.
       next xs ▷ case {
         Done = λ().'None
         Yield = λ(hd: α, tl: s).'Some (hd, to_list tl)
         Skip = to_list
       }
     to_list xs
-  let map = Λα.Λβ.λfn:α → β.λ«s, (xs, next)»:stream α.«s, (
+  let map = Λα.Λβ.λfn: α → β.λ«s, (xs, next)»: stream α.«s, (
       xs,
-      λxs:s.
+      λxs: s.
         next xs ▷ case {
           Done = λ().'Done
           Yield = λ(hd: α, tl: s).'Yield (fn hd, tl)
-          Skip = λs:s.'Skip s
+          Skip = λs: s.'Skip s
         }
     )»: stream β
-  let filter = Λα.λp:α → bool.λ«s, (xs, next)»:stream α.«s, (
+  let filter = Λα.λp: α → bool.λ«s, (xs, next)»: stream α.«s, (
       xs,
-      λxs:s.
+      λxs: s.
         next xs ▷ case {
           Done = λ().'Done
           Yield = λ(hd: α, tl: s).
             if p hd then 'Yield (hd, tl) else 'Skip tl
-          Skip = λs:s.'Skip s
+          Skip = λs: s.'Skip s
         }
     )»: stream α
-  let append = Λα.λ«s1, (xs1, next1)»:stream α.λ«s2, (xs2, next2)»:stream α.
+  let append = Λα.λ«s1, (xs1, next1)»: stream α.λ«s2, (xs2, next2)»: stream α.
     type s = 'S1 s1 | 'S2 s2 in«s, (
       'S1 xs1,
       case {
-        S1 = λs1:s1.next1 s1 ▷ case {
+        S1 = λs1: s1.next1 s1 ▷ case {
           Done = λ().'Skip ('S2 xs2)
           Yield = λ(hd: α, tl: s1).'Yield (hd, 'S1 tl)
-          Skip = λs1:s1.'Skip ('S1 s1)
+          Skip = λs1: s1.'Skip ('S1 s1)
         }
-        S2 = λs2:s2.next2 s2 ▷ case {
+        S2 = λs2: s2.next2 s2 ▷ case {
           Done = λ().'Done
           Yield = λ(hd: α, tl: s2).'Yield (hd, 'S2 tl)
-          Skip = λs2:s2.'Skip ('S2 s2)
+          Skip = λs2: s2.'Skip ('S2 s2)
         }
       }
     )»: stream α
@@ -75,7 +75,7 @@ let «stream, Stream» =
 # Example usage
 let xs = List.iota 5
 Stream.append[int] ◇ Stream.of_list[int] xs ◇ Stream.of_list[int] xs
-▷ Stream.map[int][int] λx:int.x + 1
-▷ Stream.filter[int] λx:int.x % 2 =[int] 1
-▷ Stream.map[int][int] λx:int.x * 2
+▷ Stream.map[int][int] λx: int.x + 1
+▷ Stream.filter[int] λx: int.x % 2 =[int] 1
+▷ Stream.map[int][int] λx: int.x * 2
 ▷ Stream.to_list[int]
