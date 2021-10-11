@@ -11,7 +11,6 @@ kind
 
 typ
   : tid                                                        // Type variable (*1)
-  | ('int' | 'bool' | 'string')                                // Builtin types
   | typ '→' typ                                                // Function type
   | '(' (typ ',')* ')'                                         // Tuple type
   | '{' (label (':' typ)? ',')* '}'                            // Product type
@@ -36,7 +35,7 @@ exp
   : '(' exp ')'
   | exp ':' typ                                                // Type ascription
   | eid                                                        // Variable (*1)
-  | (int | 'true' | 'false' | string)                          // Literals
+  | (int | string)                                             // Literals
   | '(' (exp ',')* '}'                                         // Tuple introduction
   | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
   | exp '.' (label | '(' exp ')')                              // Product elimination
@@ -95,8 +94,20 @@ bop
   immediately followed by a newline. The following line will then be considered
   to come from the specified file and line.
 
-1. Type variables are distinct from expression variables. `_` is allowed in
-   place of a variable in bindings.
+1. Type variables are distinct from value variables.
+
+   `_` is allowed in place of a variable in bindings.
+
+   The initial type environment has bindings for the builtin types
+
+   - `bool: *`,
+   - `int: *`, and
+   - `string: *`
+
+   and the initial value environment has bindings for the values
+
+   - `false: bool`, and
+   - `true: bool`.
 
 2. The expression given to `case` must be a record of functions corresponding to
    the sum to be eliminated. The result of `case` is a sum eliminating function.
