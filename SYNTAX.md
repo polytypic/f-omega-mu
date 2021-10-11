@@ -12,23 +12,23 @@ kind
 typ
   : tid                                                        // Type variable (*1)
   | typ '→' typ                                                // Function type
-  | '(' (typ ',')* ')'                                         // Tuple type
-  | '{' (label (':' typ)? ',')* '}'                            // Product type
-  | '|' | ('|' "'" label typ?)+                                // Sum type
+  | '(' (typ, ',')* ')'                                        // Tuple type
+  | '{' (label (':' typ)?, ',')* '}'                           // Product type
+  | '|' ("'" label typ?, '|')*                                 // Sum type
   | typ typ                                                    // Apply type level function
   | 'λ' tid (':' kind)? '.' typ                                // Type level function
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
   | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
   | 'type' tid (':' kind)? '=' typ 'in' typ                    // Type binding (*4)
-  | 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' typ       // Recursive type bindings (*4)
+  | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+ 'in' typ      // Recursive type bindings (*4)
   | 'include' string 'in' typ                                  // Include type definitions
   | 'import' string                                            // Import type
 
 pat
   : eid                                                        // Variable pattern
-  | '(' (pat ',')* ')'                                         // Tuple pattern
-  | '{' (label '=' pat)* '}'                                   // Product pattern
+  | '(' (pat, ',')* ')'                                        // Tuple pattern
+  | '{' (label '=' pat, ',')* '}'                              // Product pattern
   | '<<' tid '\\' pat '>>'                                     // Existential pack pattern
 
 exp
@@ -36,8 +36,8 @@ exp
   | exp ':' typ                                                // Type ascription
   | eid                                                        // Variable (*1)
   | (int | string)                                             // Literals
-  | '(' (exp ',')* '}'                                         // Tuple introduction
-  | '{' (label ('=' exp)? ',')* '}'                            // Product introduction
+  | '(' (exp, ',')* ')'                                        // Tuple introduction
+  | '{' (label ('=' exp)?, ',')* '}'                           // Product introduction
   | exp '.' (label | '(' exp ')')                              // Product elimination
   | "'" label exp?                                             // Sum introduction
   | 'case' exp                                                 // Sum elimination (*2)
@@ -49,9 +49,9 @@ exp
   | uop exp                                                    // Apply unary operator
   | exp bop exp                                                // Apply binary operator
   | 'type' tid (':' kind)? '=' typ 'in' exp                    // Type binding (*4)
-  | 'type' ('μ' tid (':' kind)? '=' typ 'and')+ 'in' exp       // Recursive type bindings (*4)
+  | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+ 'in' exp      // Recursive type bindings (*4)
   | 'let' pat (':' typ)? '=' exp 'in' exp                      // Binding (*5)
-  | 'let' ('μ' pat ':' typ '=' exp)+ 'in' exp                  // Recursive bindings (*5)
+  | 'let' ('μ' pat ':' typ '=' exp, 'and')+ 'in' exp           // Recursive bindings (*5)
   | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)
   | 'λ' pat ':' typ '.' exp                                    // Function (*5)
   | 'μ' (pat ':' typ '.' exp | '(' exp ')')                    // Recursive expression (*7)
