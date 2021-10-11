@@ -5,7 +5,7 @@ open FomElab
 
 let parse_exp source and_then =
   source
-  |> Parser.parse_utf_8 Grammar.program Lexer.offside
+  |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   >>= elaborate
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then @@ fun _ -> verify false

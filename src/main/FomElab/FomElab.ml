@@ -315,7 +315,7 @@ let rec elaborate_def = function
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
     (let* env =
        Fetch.fetch at' inc_path
-       >>= Parser.parse_utf_8 Grammar.typ_defs Lexer.offside ~path:inc_path
+       >>= Parser.parse_utf_8 Grammar.incs Lexer.offside ~path:inc_path
        >>= elaborate_defs Typ.VarMap.empty
      in
      Annot.Typ.resolve Kind.resolve >> return env)
@@ -353,7 +353,7 @@ and elaborate_typ = function
   | `Import (at', p) ->
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
     Fetch.fetch at' sig_path
-    >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
+    >>= Parser.parse_utf_8 Grammar.sigs Lexer.offside ~path:sig_path
     >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground
     |> TypImports.get_or_put at' sig_path
     |> Elab.modularly
@@ -470,7 +470,7 @@ let rec elaborate = function
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
     let* t_opt =
       Fetch.fetch at' sig_path
-      >>= Parser.parse_utf_8 Grammar.typ_exp Lexer.offside ~path:sig_path
+      >>= Parser.parse_utf_8 Grammar.sigs Lexer.offside ~path:sig_path
       >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground
       |> TypImports.get_or_put at' sig_path
       |> Elab.modularly
@@ -482,7 +482,7 @@ let rec elaborate = function
     let* id, _, _, _ =
       (let* e =
          Fetch.fetch at' mod_path
-         >>= Parser.parse_utf_8 Grammar.program Lexer.offside ~path:mod_path
+         >>= Parser.parse_utf_8 Grammar.mods Lexer.offside ~path:mod_path
          >>= elaborate >>- Exp.initial_exp
        in
        let i = Exp.Var.fresh at' in

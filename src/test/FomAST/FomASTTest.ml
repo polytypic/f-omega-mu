@@ -3,7 +3,7 @@ open FomParser
 open FomTest
 
 let parse_typ utf_8 =
-  Buffer.from_utf_8 utf_8 |> Parser.parse Grammar.typ_exp Lexer.offside
+  Buffer.from_utf_8 utf_8 |> Parser.parse Grammar.sigs Lexer.offside
 
 let () =
   test "Typ.to_string" @@ fun () ->

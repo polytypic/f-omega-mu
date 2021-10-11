@@ -37,14 +37,14 @@ end
 module Grammar : sig
   type 'a t
 
-  val program : Exp.t t
-  (** Grammar of Fωμ expressions. *)
+  val mods : Exp.t t
+  (** Grammar of Fωμ expressions or modules. *)
 
-  val typ_exp : Typ.t t
-  (** Grammar of Fωμ type expressions. *)
+  val sigs : Typ.t t
+  (** Grammar of Fωμ type expressions or signatures. *)
 
-  val typ_defs : Typ.t Typ.Def.f list t
-  (** Grammar of Fωμ type definitions. *)
+  val incs : Typ.t Typ.Def.f list t
+  (** Grammar of Fωμ type definitions or includes. *)
 end
 
 module Parser : sig

@@ -7,7 +7,7 @@ open FomEnv
 
 let parse_typ source and_then =
   source
-  |> Parser.parse_utf_8 Grammar.typ_exp Lexer.offside
+  |> Parser.parse_utf_8 Grammar.sigs Lexer.offside
   >>= elaborate_typ
   |> with_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then @@ fun _ -> verify false
@@ -71,7 +71,7 @@ let () =
 
 let parse_exp source and_then =
   source
-  |> Parser.parse_utf_8 Grammar.program Lexer.offside
+  |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   >>= elaborate
   |> with_env (ignore >>> Env.empty)
   |> try_in and_then @@ fun _ -> verify false
@@ -295,7 +295,7 @@ let () =
 let testErrors name exp =
   test name @@ fun () ->
   exp
-  |> Parser.parse_utf_8 Grammar.program Lexer.offside
+  |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   |> try_in
        (elaborate
        >>> with_env (ignore >>> FomEnv.Env.empty)

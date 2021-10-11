@@ -73,9 +73,9 @@
 %left "+" "-" "^"
 %left "*" "/" "%"
 
-%start <Exp.t> program
-%start <Typ.t> typ_exp
-%start <Typ.t Typ.Def.f list> typ_defs
+%start <Exp.t> mods
+%start <Typ.t> sigs
+%start <Typ.t Typ.Def.f list> incs
 
 %{ open FomCST %}
 
@@ -118,6 +118,9 @@ typ_def:
   | "type"bs=list_1(typ_par_def, "and")                 {`TypPar ($loc, bs)}
   | "type"bs=list_1(typ_mu_def, "and")                  {`TypRec ($loc, bs)}
   | "include"p=LitString                                {`Include ($loc, p)}
+
+typ_defs:
+  | ds=separated_list("in", typ_def)                    {ds}
 
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(fst b, snd b, t)}
@@ -302,11 +305,11 @@ par_def:
 
 //
 
-program:
+mods:
   | e=exp EOF                                           {e}
 
-typ_exp:
+sigs:
   | t=typ EOF                                           {t}
 
-typ_defs:
-  | ds=separated_list("in", typ_def) EOF                {ds}
+incs:
+  | ds=typ_defs EOF                                     {ds}

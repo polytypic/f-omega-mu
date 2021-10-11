@@ -6,7 +6,7 @@ open FomParser
 let test_parses_as name source check =
   test name @@ fun () ->
   source
-  |> Parser.parse_utf_8 Grammar.program Lexer.offside
+  |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   |> try_in check @@ fun _ -> verify false
 
 let () =
