@@ -84,7 +84,7 @@ let testInfersAs name typ exp =
   let* actual = norm actual in
   Typ.is_equal_of_norm expected actual |> with_env (ignore >>> Env.empty)
   >>= fun are_equal ->
-  if not are_equal then (
+  if not are_equal then
     let open FomPP in
     [
       utf8string "Types not equal";
@@ -93,8 +93,7 @@ let testInfersAs name typ exp =
       utf8string "vs";
       [break_1; Typ.pp actual] |> concat |> nest 2;
     ]
-    |> concat |> group |> to_string ~max_width:80 |> Printf.eprintf "%s\n";
-    verify false)
+    |> concat |> group |> to_string ~max_width:80 |> failuref "%s"
   else
     unit
 

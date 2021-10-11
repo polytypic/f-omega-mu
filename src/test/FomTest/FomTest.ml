@@ -47,4 +47,6 @@ let test name effect =
   inc n_tests;
   push_to tests (name, test)
 
-let verify b = if not b then fail (Failure "ERROR") else unit
+let failure m = fail @@ Failure m
+let failuref fmt = Printf.ksprintf failure fmt
+let verify b = if not b then failure "verify false" else unit

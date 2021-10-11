@@ -17,9 +17,8 @@ let () =
   ]
   |> List.iter_fr @@ fun (to_canonize, expected) ->
      let actual = Filename.canonic to_canonize in
-     if actual <> expected then (
-       Printf.printf "Expected: %s\nActual:   %s\n" expected actual;
-       verify false)
+     if actual <> expected then
+       failuref "Expected: %s\nActual:   %s\n" expected actual
      else
        unit
 

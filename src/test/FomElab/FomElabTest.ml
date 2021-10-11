@@ -17,8 +17,7 @@ let () =
      let actual =
        FomElab.Path.coalesce (Loc.of_path loc) (JsonString.of_utf8 path)
      in
-     if actual <> expected then (
-       Printf.printf "Expected: %s\nActual:   %s\n" expected actual;
-       verify false)
+     if actual <> expected then
+       failuref "Expected: %s\nActual:   %s\n" expected actual
      else
        unit
