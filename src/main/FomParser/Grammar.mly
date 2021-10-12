@@ -98,11 +98,11 @@ list_n(elem, sep):
 kind_atom:
   | "_"                                                 {Kind.fresh $loc}
   | "*"                                                 {`Star $loc}
-  | "("k=kind")"                                        {k}
+  | "(" k=kind ")"                                      {k}
 
 kind:
   | k=kind_atom                                         {k}
-  | d=kind_atom"→"c=kind                                {`Arrow ($loc, d, c)}
+  | d=kind_atom "→" c=kind                              {`Arrow ($loc, d, c)}
 
 //
 
@@ -111,37 +111,37 @@ label:
   | n=LitNat                                            {Label.of_string $loc (Bigint.to_string n)}
 
 lab_list(item):
-  | ls=list_n(item,",")                                 {ls}
+  | ls=list_n(item, ",")                                {ls}
 
 //
 
 typ_def:
-  | "type"bs=list_1(typ_par_def, "and")                 {`TypPar ($loc, bs)}
-  | "type"bs=list_1(typ_mu_def, "and")                  {`TypRec ($loc, bs)}
-  | "include"p=LitString                                {`Include ($loc, p)}
+  | "type" bs=list_1(typ_par_def, "and")                {`TypPar ($loc, bs)}
+  | "type" bs=list_1(typ_mu_def, "and")                 {`TypRec ($loc, bs)}
+  | "include" p=LitString                               {`Include ($loc, p)}
 
 typ_mu_def:
-  | "μ"b=typ_bind"="t=typ                               {(fst b, snd b, t)}
+  | "μ" b=typ_bind "=" t=typ                            {(fst b, snd b, t)}
 
 typ_par_def:
-  | b=typ_bind"="t=typ                                  {(fst b, snd b, t)}
+  | b=typ_bind "=" t=typ                                {(fst b, snd b, t)}
 
 //
 
 typ_defs:
   | d=typ_def                                           {d :> _ Typ.Defs.f}
-  | d=typ_def"in"ds=typ_defs                            {`In ($loc, d, ds)}
-  | "local"d=typ_def"in"ds=typ_defs                     {`LocalIn ($loc, d, ds)}
+  | d=typ_def "in" ds=typ_defs                          {`In ($loc, d, ds)}
+  | "local" d=typ_def "in" ds=typ_defs                  {`LocalIn ($loc, d, ds)}
 
 //
 
 lab_typ:
-  | l=label":"t=typ                                     {(l, t)}
+  | l=label ":" t=typ                                   {(l, t)}
   | i=typ_rid                                           {(Typ.Var.to_label i, Typ.var i)}
 
 tick_lab_typ:
-  | "'"l=label                                          {(l, Typ.product $loc [])}
-  | "'"l=label t=lab_typ_atom                           {(l, t)}
+  | "'" l=label                                         {(l, Typ.product $loc [])}
+  | "'" l=label t=lab_typ_atom                          {(l, t)}
 
 typ_rid:
   | i=Id                                                {Typ.Var.of_string $loc i}
@@ -153,20 +153,20 @@ typ_bid:
 
 typ_bind:
   | i=typ_bid                                           {(i, Kind.fresh $loc)}
-  | i=typ_bid":"k=kind                                  {(i, k)}
+  | i=typ_bid ":" k=kind                                {(i, k)}
 
 typ_atom:
   | i=typ_rid                                           {Typ.var i}
-  | "("ts=list_n(typ,",")")"                            {Typ.tuple $loc ts}
-  | "{"fs=lab_list(lab_typ)"}"                          {Typ.product $loc fs}
-  | "μ""("t=typ")"                                      {`Mu ($loc, t)}
-  | "∃""("t=typ")"                                      {`Exists ($loc, t)}
-  | "∀""("t=typ")"                                      {`ForAll ($loc, t)}
-  | "import"p=LitString                                 {`Import ($loc, p)}
+  | "(" ts=list_n(typ, ",") ")"                         {Typ.tuple $loc ts}
+  | "{" fs=lab_list(lab_typ) "}"                        {Typ.product $loc fs}
+  | "μ" "(" t=typ ")"                                   {`Mu ($loc, t)}
+  | "∃" "(" t=typ ")"                                   {`Exists ($loc, t)}
+  | "∀" "(" t=typ ")"                                   {`ForAll ($loc, t)}
+  | "import" p=LitString                                {`Import ($loc, p)}
 
 lab_typ_atom:
   | t=typ_atom                                          {t}
-  | "'"l=label                                          {Typ.atom l}
+  | "'" l=label                                         {Typ.atom l}
 
 typ_app:
   | t=typ_atom                                          {t}
@@ -179,10 +179,10 @@ typ_inf:
 
 typ_arr:
   | t=typ_inf                                           {t}
-  | d=typ_inf"→"c=typ                                   {`Arrow ($loc, d, c)}
+  | d=typ_inf "→" c=typ                                 {`Arrow ($loc, d, c)}
 
 typ_lam(head):
-  | head b=typ_bind"."t=typ                             {`Lam ($loc, fst b, snd b, t)}
+  | head b=typ_bind "." t=typ                           {`Lam ($loc, fst b, snd b, t)}
 
 typ:
   | t=typ_arr                                           {t}
@@ -190,7 +190,7 @@ typ:
   | t=typ_lam("∃")                                      {`Exists ($loc, t)}
   | t=typ_lam("∀")                                      {`ForAll ($loc, t)}
   | t=typ_lam("λ")                                      {t}
-  | d=typ_def"in"t=typ                                  {`LetDefIn ($loc, d, t)}
+  | d=typ_def "in" t=typ                                {`LetDefIn ($loc, d, t)}
 
 //
 
@@ -206,14 +206,14 @@ lab_pat(annot):
 
 pat(annot):
   | i=exp_bid a=annot                                   {`Id ($loc, i, a)}
-  | "("ps=list_n(pat(annot),",")")"                     {Exp.Pat.tuple $loc ps}
-  | "{"fs=lab_list(lab_pat(annot))"}"                   {`Product ($loc, fs)}
-  | "«"t=typ_bid","p=pat(annot_let)"»"e=annot           {`Pack ($loc, p, t, e)}
+  | "(" ps=list_n(pat(annot), ",") ")"                  {Exp.Pat.tuple $loc ps}
+  | "{" fs=lab_list(lab_pat(annot)) "}"                 {`Product ($loc, fs)}
+  | "«" t=typ_bid "," p=pat(annot_let) "»" e=annot      {`Pack ($loc, p, t, e)}
 
 //
 
 lab_exp:
-  | l=label"="e=exp                                     {(l, e)}
+  | l=label "=" e=exp                                   {(l, e)}
   | i=exp_rid                                           {(Exp.Var.to_label i, `Var ($loc, i))}
 
 exp_rid:
@@ -227,33 +227,33 @@ exp_atom:
   | i=exp_rid                                           {`Var ($loc, i)}
   | l=LitNat                                            {`Const ($loc, `LitNat l)}
   | l=LitString                                         {`Const ($loc, `LitString l)}
-  | "("es=list_n(exp,",")")"                            {Exp.tuple $loc es}
-  | "{"fs=lab_list(lab_exp)"}"                          {`Product ($loc, fs)}
-  | f=exp_atom"_("xs=list_n(exp,",")")"                 {`App ($loc, f, Exp.tuple $loc xs)}
-  | f=exp_atom"_["x=typ"]"                              {`Inst ($loc, f, x)}
-  | e=exp_atom"."l=label                                {`Select ($loc, e, Exp.atom l)}
-  | e=exp_atom".""("i=exp")"                            {`Select ($loc, e, i)}
-  | "target""["t=typ"]"c=LitString                      {`Const ($loc, `Target (t, c))}
-  | "import"p=LitString                                 {`Import ($loc, p)}
+  | "(" es=list_n(exp, ",") ")"                         {Exp.tuple $loc es}
+  | "{" fs=lab_list(lab_exp) "}"                        {`Product ($loc, fs)}
+  | f=exp_atom "_(" xs=list_n(exp, ",") ")"             {`App ($loc, f, Exp.tuple $loc xs)}
+  | f=exp_atom "_[" x=typ "]"                           {`Inst ($loc, f, x)}
+  | e=exp_atom "." l=label                              {`Select ($loc, e, Exp.atom l)}
+  | e=exp_atom "." "(" i=exp ")"                        {`Select ($loc, e, i)}
+  | "target" "[" t=typ "]" c=LitString                  {`Const ($loc, `Target (t, c))}
+  | "import" p=LitString                                {`Import ($loc, p)}
 
 lab_exp_atom:
   | e=exp_atom                                          {e}
-  | "'"l=label                                          {Exp.atom l}
+  | "'" l=label                                         {Exp.atom l}
 
 exp_app:
   | e=exp_atom                                          {e}
   | f=exp_app x=lab_exp_atom                            {`App ($loc, f, x)}
-  | f=exp_app"["x=typ"]"                                {`Inst ($loc, f, x)}
-  | "case"cs=exp_atom                                   {`Case ($loc, cs)}
+  | f=exp_app "[" x=typ "]"                             {`Inst ($loc, f, x)}
+  | "case" cs=exp_atom                                  {`Case ($loc, cs)}
 
 exp_inf:
-  | "'"l=label                                          {Exp.atom l}
-  | "'"l=label e=lab_exp_atom                           {`Inject ($loc, l, e)}
+  | "'" l=label                                         {Exp.atom l}
+  | "'" l=label e=lab_exp_atom                          {`Inject ($loc, l, e)}
   | e=exp_app                                           {e}
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
-  | f=exp_inf"◁"x=exp_inf                               {`AppR ($loc, f, x)}
-  | x=exp_inf"▷"f=exp_inf                               {`AppL ($loc, x, f)}
-  | f=exp_inf"◇"x=exp_inf                               {`App ($loc, f, x)}
+  | f=exp_inf "◁" x=exp_inf                             {`AppR ($loc, f, x)}
+  | x=exp_inf "▷" f=exp_inf                             {`AppL ($loc, x, f)}
+  | f=exp_inf "◇" x=exp_inf                             {`App ($loc, f, x)}
   | l=exp_inf o=bop r=exp_inf                           {`App ($loc, `App ($loc, o, l), r)}
 
 %inline uop:
@@ -265,8 +265,8 @@ exp_inf:
   | "∨"                                                 {`Const ($loc, `OpLogicalOr)}
   | "∧"                                                 {`Const ($loc, `OpLogicalAnd)}
 
-  | "=""["t=typ"]"                                      {`Const ($loc, `OpEq t)}
-  | "≠""["t=typ"]"                                      {`Const ($loc, `OpEqNot t)}
+  | "=" "[" t=typ "]"                                   {`Const ($loc, `OpEq t)}
+  | "≠" "[" t=typ "]"                                   {`Const ($loc, `OpEqNot t)}
 
   | ">"                                                 {`Const ($loc, `OpCmpGt)}
   | "≥"                                                 {`Const ($loc, `OpCmpGtEq)}
@@ -285,7 +285,7 @@ exp_bind(head):
   | head p=pat(annot_lam) "." e=exp                     {`LamPat ($loc, p, e)}
 
 exp_in:
-  | e=uop"_"                                            {e}
+  | e=uop "_"                                           {e}
   | e=bop                                               {e}
   | e=exp_inf                                           {e}
 
@@ -293,20 +293,20 @@ exp:
   | e=exp_in                                            {e}
   | e=exp_bind("μ")                                     {`Mu ($loc, e)}
   | e=exp_bind("λ")                                     {e}
-  | "Λ"b=typ_bind"."e=exp                               {`Gen ($loc, fst b, snd b, e)}
-  | "if"c=exp"then"t=exp"else"e=exp                     {`IfElse ($loc, c, t, e)}
-  | d=typ_def"in"e=exp                                  {`LetDefIn ($loc, d, e)}
-  | "let"bs=list_1(par_def,"and")"in"e=exp              {`LetPatPar ($loc, bs, e)}
-  | "let"bs=list_1(mu_def, "and")"in"e=exp              {`LetPatRec ($loc, bs, e)}
-  | "«"x=typ","e=exp"»"":"f=typ                         {`Pack ($loc, x, e, f)}
-  | e=exp_in":"t=typ                                    {`Annot ($loc, e, t)}
+  | "Λ" b=typ_bind "." e=exp                            {`Gen ($loc, fst b, snd b, e)}
+  | "if" c=exp "then" t=exp "else" e=exp                {`IfElse ($loc, c, t, e)}
+  | d=typ_def "in" e=exp                                {`LetDefIn ($loc, d, e)}
+  | "let" bs=list_1(par_def, "and") "in" e=exp          {`LetPatPar ($loc, bs, e)}
+  | "let" bs=list_1(mu_def, "and") "in" e=exp           {`LetPatRec ($loc, bs, e)}
+  | "«" x=typ "," e=exp "»" ":" f=typ                   {`Pack ($loc, x, e, f)}
+  | e=exp_in ":" t=typ                                  {`Annot ($loc, e, t)}
 
 mu_def:
-  | "μ"p=pat(annot_lam)"="v=exp                         {(p, v)}
+  | "μ" p=pat(annot_lam) "=" v=exp                      {(p, v)}
 
 par_def:
-  | p=pat(annot_let)"="v=exp                            {(p, None, v)}
-  | p=pat(annot_let)":"t=typ"="v=exp                    {(p, Some t, v )}
+  | p=pat(annot_let) "=" v=exp                          {(p, None, v)}
+  | p=pat(annot_let) ":" t=typ "=" v=exp                {(p, Some t, v )}
 
 //
 
