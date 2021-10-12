@@ -1,5 +1,6 @@
 module Buffer = Buffer
 module Lexer = Lexer
+module Tokenizer = Tokenizer
 
 module Grammar = struct
   include Grammar

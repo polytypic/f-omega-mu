@@ -17,7 +17,9 @@ module Lexer : sig
 
   val offside : t
   (** Lexical syntax with offside rules. *)
+end
 
+module Tokenizer : sig
   module State : sig
     type t
 
@@ -31,7 +33,8 @@ module Lexer : sig
   (** Parse info of first single token from given UTF-8 string input. *)
 
   val offset_as_utf_16 : string -> int -> int
-  (** Convert UTF-32 character offset to UTF-16 character offset with respect to given UTF-8 string. *)
+  (** Convert UTF-32 character offset to UTF-16 character offset with respect to
+      given UTF-8 string. *)
 end
 
 module Grammar : sig

@@ -253,7 +253,7 @@ let js_codemirror_mode =
       in
       format ~atomize:false value |> to_js_string ~max_width
 
-    method offset input i = Lexer.offset_as_utf_16 (Js.to_string input) i
+    method offset input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
 
     method check path input max_width (on_result : _ Cb.t) =
       Profiling.Counter.reset_all ();
@@ -341,13 +341,13 @@ let js_codemirror_mode =
 
     method token input state =
       try
-        let {Lexer.begins; ends; name; state} =
-          input |> Js.to_string |> Lexer.token_info_utf_8 state
+        let {Tokenizer.begins; ends; name; state} =
+          input |> Js.to_string |> Tokenizer.token_info_utf_8 state
         in
         js_token begins ends name state
       with _ -> js_token 0 0 "error" state
 
-    val initial = Lexer.State.initial
+    val initial = Tokenizer.State.initial
   end
 
 let () = Js.Unsafe.global##.fom := js_codemirror_mode
