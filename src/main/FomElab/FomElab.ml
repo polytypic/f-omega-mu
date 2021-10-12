@@ -359,14 +359,17 @@ and elaborate_typ = function
     |> Elab.modularly
 
 and elaborate_defs accum = function
-  | [] -> return accum
-  | def :: defs ->
-    let* typ_aliases =
-      elaborate_def def
-      |> Typ.VarMap.merging (accum :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
-    in
-    let accum = Typ.VarMap.merge Map.prefer_lhs typ_aliases accum in
-    elaborate_defs accum defs
+  | #FomCST.Typ.Def.f as d ->
+    let+ d = elaborate_def d in
+    Typ.VarMap.merge Map.prefer_rhs accum d
+  | `In (_, d, ds) ->
+    let* d = elaborate_def d in
+    elaborate_defs (Typ.VarMap.merge Map.prefer_rhs accum d) ds
+    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+  | `LocalIn (_, d, ds) ->
+    let* d = elaborate_def d in
+    elaborate_defs accum ds
+    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 let maybe_annot e tO =
   match tO with

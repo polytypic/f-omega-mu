@@ -117,6 +117,7 @@ let rec token_or_comment buffer =
   | "in" -> return In
   | "include" -> return Include
   | "let" -> return Let
+  | "local" -> return Local
   | "target" -> return Target
   | "then" -> return Then
   | "type" -> return Type
@@ -247,6 +248,7 @@ let token_info_utf_8 =
     | Less -> operator
     | LessEqual -> operator
     | Let -> keyword
+    | Local -> keyword
     | LitNat _ -> number
     | LitString _ -> string
     | LitStringPart -> string
@@ -318,6 +320,7 @@ let[@warning "-32"] to_string = function
   | Less -> "<"
   | LessEqual -> "≤"
   | Let -> "let"
+  | Local -> "local"
   | LitNat n -> Bigint.to_string n
   | LitString s -> JsonString.to_utf8_json s
   | LitStringPart -> "..."
@@ -387,9 +390,7 @@ module Offside = struct
     | In -> if col_of tok < indent then error "offside" else emit tok
     | _ ->
       let* new_line = new_line tok in
-      if new_line && col_of tok < indent then
-        error "offside"
-      else if new_line && col_of tok = indent then
+      if new_line && col_of tok <= indent then
         emit_before tok In
       else
         nest tok >>= insert_in is_rec indent

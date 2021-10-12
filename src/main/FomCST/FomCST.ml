@@ -29,6 +29,13 @@ module Typ = struct
   let at = function
     | `LetDefIn (at, _, _) | `Import (at, _) -> at
     | #Typ.f as ast -> Typ.at ast
+
+  module Defs = struct
+    type 't f =
+      [ 't Def.f
+      | `In of Loc.t * 't Def.f * 't f
+      | `LocalIn of Loc.t * 't Def.f * 't f ]
+  end
 end
 
 module Exp = struct

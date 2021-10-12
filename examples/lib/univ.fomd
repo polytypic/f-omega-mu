@@ -1,4 +1,4 @@
-include "types"
+local include "types"
 
 type Univ = λuniv.{
   new: ∀α.() → {to: α → univ, of: univ → opt α}

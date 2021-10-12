@@ -43,7 +43,7 @@ module Grammar : sig
   val sigs : Typ.t t
   (** Grammar of Fωμ type expressions or signatures. *)
 
-  val incs : Typ.t Typ.Def.f list t
+  val incs : Typ.t Typ.Defs.f t
   (** Grammar of Fωμ type definitions or includes. *)
 end
 

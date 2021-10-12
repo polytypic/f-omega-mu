@@ -20,10 +20,18 @@ typ
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
   | '∀' (tid (':' kind)? '.' typ | '(' typ ')')                // Universal type
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')                // Recursive type
-  | 'type' (    tid (':' kind)? '=' typ, 'and')+ 'in' typ      // Parallel type bindings (*4)
-  | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+ 'in' typ      // Recursive type bindings (*4)
-  | 'include' string 'in' typ                                  // Include type definitions
+  | typ_def 'in' typ                                           // Type bindings (*4)
   | 'import' string                                            // Import type
+
+typ_def
+  : 'type' (    tid (':' kind)? '=' typ, 'and')+               // Parallel type bindings
+  | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+               // Recursive type bindings
+  | 'include' string                                           // Include type bindings
+
+typ_defs
+  : typ_def
+  | typ_def 'in' typ_defs                                      // Sequential type binding
+  | 'local' typ_def 'in' typ_defs                              // Local type binding
 
 pat
   : eid                                                        // Variable pattern
@@ -48,8 +56,7 @@ exp
   | exp '◇' exp                                                // (L) Apply (*3)
   | uop exp                                                    // Apply unary operator
   | exp bop exp                                                // Apply binary operator
-  | 'type' (    tid (':' kind)? '=' typ, 'and')+ 'in' exp      // Parallel type bindings (*4)
-  | 'type' ('μ' tid (':' kind)? '=' typ, 'and')+ 'in' exp      // Recursive type bindings (*4)
+  | typ_def 'in' exp                                           // Type bindings (*4)
   | 'let' (    pat (':' typ)? '=' exp, 'and')+ 'in' exp        // Parallel bindings (*5)
   | 'let' ('μ' pat  ':' typ   '=' exp, 'and')+ 'in' exp        // Recursive bindings (*5)
   | 'if' exp 'then' exp 'else' exp                             // Conditional (*6)
@@ -58,7 +65,6 @@ exp
   | 'Λ' tid (':' kind)? '.' exp                                // Generalization
   | exp '[' typ ']'                                            // Instantiation
   | 'target' '[' typ ']' string                                // Inline target (JavaScript) code
-  | 'include' string 'in' exp                                  // Include type definitions
   | 'import' string                                            // Import value
 
 uop
@@ -71,6 +77,15 @@ bop
   | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
   | '+' | '-' | '^'                                            // (L) Additive
   | '*' | '/' | '%'                                            // (L) Multiplicative
+
+mods                                                           // Syntax of .fom modules
+  : exp eof
+
+sigs                                                           // Syntax of .fomt signatures
+  : typ eof
+
+incs                                                           // Syntax of .fomd includes
+  : typ_defs eof
 ```
 
 **Notes:**

@@ -16,6 +16,7 @@
 %token In "in"
 %token Include "include"
 %token Let "let"
+%token Local "local"
 %token Target "target"
 %token Then "then"
 %token Type "type"
@@ -75,7 +76,7 @@
 
 %start <Exp.t> mods
 %start <Typ.t> sigs
-%start <Typ.t Typ.Def.f list> incs
+%start <Typ.t Typ.Defs.f> incs
 
 %{ open FomCST %}
 
@@ -119,14 +120,18 @@ typ_def:
   | "type"bs=list_1(typ_mu_def, "and")                  {`TypRec ($loc, bs)}
   | "include"p=LitString                                {`Include ($loc, p)}
 
-typ_defs:
-  | ds=separated_list("in", typ_def)                    {ds}
-
 typ_mu_def:
   | "μ"b=typ_bind"="t=typ                               {(fst b, snd b, t)}
 
 typ_par_def:
   | b=typ_bind"="t=typ                                  {(fst b, snd b, t)}
+
+//
+
+typ_defs:
+  | d=typ_def                                           {d :> _ Typ.Defs.f}
+  | d=typ_def"in"ds=typ_defs                            {`In ($loc, d, ds)}
+  | "local"d=typ_def"in"ds=typ_defs                     {`LocalIn ($loc, d, ds)}
 
 //
 
