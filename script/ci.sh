@@ -43,9 +43,18 @@ if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
       uutf
 fi
 
-in_profile() {
-  PROFILE="$1"
+FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
 
+run_error_examples() {
+  for f in examples/errors/*.fom; do
+    if $FOM_COMMAND "$f" > /dev/null; then
+      echo "$f unexpectedly ran successfully"
+      exit 1
+    fi
+  done
+}
+
+build_and_test() {
   folded "Build in $PROFILE" \
     opam exec -- dune build --root=. --profile "$PROFILE"
 
@@ -53,13 +62,16 @@ in_profile() {
     opam exec -- dune test --root=. --profile "$PROFILE"
 
   folded "Run examples in $PROFILE" \
-    _build/default/src/main/FomCommand/FomCommand.exe examples/*.fom
+    $FOM_COMMAND examples/*.fom
+
+  folded "Run error examples in $PROFILE" \
+    run_error_examples
 }
 
 if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
-  in_profile debug
+  PROFILE=debug build_and_test
   folded "Cleaning" \
     opam exec -- dune clean
 fi
 
-in_profile release
+PROFILE=release build_and_test
