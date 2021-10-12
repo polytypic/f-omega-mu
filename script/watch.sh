@@ -18,13 +18,6 @@ tmux select-pane -t 1
 tmux send-keys "npx serve docs" C-m
 
 tmux select-pane -t 2
-tmux send-keys "watchexec -d 250 -i docs -- \"(\
-  echo $'<<< <<< <<<' && \
-  dune build --profile release && \
-  ./script/docs.sh && \
-  dune test --profile release && \
-  ./script/ci.sh ; \
-  echo $'\n>>> >>> >>>' \
-)\"" C-m
+tmux send-keys "script/watch-test.sh" C-m
 
 tmux attach-session -t $SESSION
