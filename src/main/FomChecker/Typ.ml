@@ -284,22 +284,23 @@ let is_equal_of_norm l r = as_predicate check_equal_of_norm l r
 
 (* *)
 
+type ('e, 't, 'k) f' = [('t, 'k) f | `Lazy of Loc.t * ('e, 't) LVar.t]
+
 let to_strict t =
   let bound = ref [] in
-  let rec to_strict (t : [('a, 'k) f | `Lazy of ('e, 'a) LVar.t] as 'a) =
+  let rec to_strict (t : ('e, 't, 'k) f' as 't) =
     match t with
     | #f as t -> map_fr to_strict t
-    | `Lazy t -> (
+    | `Lazy (at', t) -> (
       match !bound |> List.find_opt (fun (t', _, _) -> t == t') with
       | None ->
         let n = ref 0 in
-        let id = Var.fresh Loc.dummy in
+        let id = Var.fresh at' in
         bound := (t, id, n) :: !bound;
         let* t = LVar.get t >>= to_strict in
         bound := List.tl !bound;
         if !n <> 0 then
-          let+ k = kind_of t in
-          `Mu (Loc.dummy, `Lam (Loc.dummy, id, k, t))
+          kind_of t >>- fun k -> `Mu (at', `Lam (at', id, k, t))
         else
           return t
       | Some (_, id, n) ->
@@ -308,17 +309,16 @@ let to_strict t =
   in
   to_strict t
 
-let to_lazy e =
-  (e : ('a, 'k) f as 'a :> [('b, 'k) f | `Lazy of ('e, 'b) LVar.t] as 'b)
+let to_lazy e = (e : ('s, 'k) f as 's :> ('e, 't, 'k) f' as 't)
 
 module GoalMap = Map.Make (Compare.Tuple'2 (FomAST.Typ) (FomAST.Typ))
 
-let memo_in map g op =
+let memo_in map at' g op =
   match GoalMap.find_opt g !map with
   | Some result -> return result
   | None ->
     let+ var = LVar.create (op g) in
-    let result = `Lazy var in
+    let result = `Lazy (at', var) in
     map := GoalMap.add g result !map;
     result
 
@@ -350,7 +350,7 @@ let make_join_and_meet at =
   let joins = ref GoalMap.empty in
   let meets = ref GoalMap.empty in
   let synth map fst snd upper lower intersection union l r =
-    memo_in map (l, r) @@ fun g ->
+    memo_in map at (l, r) @@ fun g ->
     let* g_is_sub = is_sub_of_norm l r in
     if g_is_sub then
       return @@ to_lazy (snd g)
