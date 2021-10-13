@@ -3,7 +3,6 @@ open FomBasis
 open FomPP
 open FomSource
 open FomAnnot
-open FomAST
 open FomDiag
 open FomParser
 
@@ -68,7 +67,7 @@ let type_mu = utf8string "type " ^^ mu_lower
 let and_mu = break_0_0 ^^ utf8string "and " ^^ mu_lower
 
 let pp_typ t =
-  let open FomChecker.Typ in
+  let open Typ in
   let+ t = contract t in
   let pp_typ t =
     let typ_doc = pp ~pp_annot:(const empty) t in
@@ -116,12 +115,12 @@ let js_use_def ?(max_width = 60) (def, o) =
     (match o#annot with
     | `Label (id, typ) ->
       let+ typ = pp_typ typ in
-      Label.pp id ^^ colon ^^ typ
+      FomAST.Label.pp id ^^ colon ^^ typ
     | `ExpId (id, typ) ->
       let+ typ = pp_typ typ in
-      Exp.Var.pp id ^^ colon ^^ typ
+      FomAST.Exp.Var.pp id ^^ colon ^^ typ
     | `TypId (id, kind) ->
-      return @@ gnest 2 (Typ.Var.pp id ^^ colon_break_1 ^^ Kind.pp kind))
+      return @@ gnest 2 (Typ.Var.pp id ^^ colon_break_1 ^^ FomAST.Kind.pp kind))
     >>- to_js_string ~max_width
   in
   object%js
@@ -180,8 +179,8 @@ let js_codemirror_mode =
         if
           keys
           |> List.map (fun s ->
-                 (Js.to_string s |> Label.of_string Loc.dummy, ()))
-          |> Row.is_tuple
+                 (Js.to_string s |> FomAST.Label.of_string Loc.dummy, ()))
+          |> FomAST.Row.is_tuple
         then
           keys
           |> List.map (Js.Unsafe.get obj >>> format ~atomize:false)
