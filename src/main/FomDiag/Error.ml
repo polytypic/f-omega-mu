@@ -42,10 +42,13 @@ type kind_errors =
 
 type var_unbound = [`Error_var_unbound of Loc.t * Exp.Var.t]
 type typ_mismatch = [`Error_typ_mismatch of Loc.t * Typ.t * Typ.t]
-type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.t]
-type product_lacks = [`Error_product_lacks of Loc.t * Typ.t * Label.t]
-type label_missing = [`Error_label_missing of Loc.t * Label.t * Typ.t * Typ.t]
-type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.t]
+type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.Core.t]
+type product_lacks = [`Error_product_lacks of Loc.t * Typ.Core.t * Label.t]
+
+type label_missing =
+  [`Error_label_missing of Loc.t * Label.t * Typ.Core.t * Typ.Core.t]
+
+type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.Core.t]
 
 type type_errors =
   [ var_unbound

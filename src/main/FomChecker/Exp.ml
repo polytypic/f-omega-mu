@@ -10,9 +10,9 @@ include FomAST.Exp
 module VarMap = struct
   include VarMap
 
-  type t = (Var.t * Typ.t) VarMap.t
+  type t = (Var.t * Typ.Core.t) VarMap.t
 
-  let field r = r#exp_env
+  let field r : (t, _) Field.t = r#exp_env
   let adding v t = mapping field @@ VarMap.add v (v, t)
   let find_opt i = get_as field @@ VarMap.find_opt i
 
@@ -28,22 +28,20 @@ end
 module Typ = struct
   include Typ
 
-  let check_and_norm typ =
-    let* typ = check (`Star (at typ)) typ in
-    resolve typ
+  let check_and_norm typ = check_and_resolve (`Star (at typ)) typ
 
   let check_arrow at typ =
-    match unfold_of_norm typ with
+    match Core.unfold_of_norm typ with
     | `Arrow (_, dom, cod) -> return (dom, cod)
     | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
 
   let check_product at typ =
-    match unfold_of_norm typ with
+    match Core.unfold_of_norm typ with
     | `Product (_, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
   let check_sum at typ =
-    match unfold_of_norm typ with
+    match Core.unfold_of_norm typ with
     | `Sum (_, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
@@ -61,7 +59,7 @@ module Typ = struct
       ls |> List.iter_fr (snd >>> check_unit at) >> return (List.map fst ls)
 
   let check_for_all at typ =
-    match unfold_of_norm typ with
+    match Core.unfold_of_norm typ with
     | `ForAll (_, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
@@ -70,7 +68,7 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
   let check_exists at typ =
-    match unfold_of_norm typ with
+    match Core.unfold_of_norm typ with
     | `Exists (_, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
@@ -100,12 +98,13 @@ let rec infer = function
       Annot.Typ.def d d_kind >> infer r |> Typ.VarMap.adding d @@ `Kind d_kind
     in
     let* d_kind = Kind.resolve d_kind >>- Kind.ground in
-    return @@ `ForAll (at', Typ.lam_of_norm at' d d_kind r_typ)
+    return @@ `ForAll (at', Typ.Core.lam_of_norm at' d d_kind r_typ)
   | `Inst (at', f, x_typ) ->
     let* f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
     let* x_typ, x_kind = Typ.infer x_typ in
-    Kind.unify at' d_kind x_kind >> return @@ Typ.app_of_norm at' f_con x_typ
+    Kind.unify at' d_kind x_kind
+    >> return @@ Typ.Core.app_of_norm at' f_con x_typ
   | `LetIn (_, d, x, r) ->
     let* x_typ = infer x in
     Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r)
@@ -163,18 +162,18 @@ let rec infer = function
     let* et_con, d_kind = Typ.check_exists at' et in
     Kind.unify at' d_kind t_kind
     >>
-    let et_t = Typ.app_of_norm at' et_con t in
+    let et_t = Typ.Core.app_of_norm at' et_con t in
     Typ.check_sub_of_norm (at e) e_typ et_t >> return et
   | `UnpackIn (at', tid, k, id, v, e) ->
     let* v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
-    let id_typ = Typ.app_of_norm at' v_con @@ `Var (at', tid) in
+    let id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
     let* e_typ =
       Kind.unify at' k d_kind >> Annot.Exp.def id id_typ
       >> Annot.Typ.def tid d_kind >> infer e |> VarMap.adding id id_typ
       |> Typ.VarMap.adding tid @@ `Kind d_kind
     in
-    if Typ.is_free tid e_typ then
+    if Typ.Core.is_free tid e_typ then
       fail @@ `Error_typ_var_escapes (at', tid, e_typ)
     else
       return e_typ

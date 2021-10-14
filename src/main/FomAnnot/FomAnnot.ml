@@ -10,8 +10,8 @@ module Annot = struct
 
   type map =
     < annot :
-        [ `Label of Label.t * Typ.t
-        | `ExpId of Exp.Var.t * Typ.t
+        [ `Label of Label.t * Typ.Core.t
+        | `ExpId of Exp.Var.t * Typ.Core.t
         | `TypId of Typ.Var.t * Kind.t ]
     ; def : Loc.t
     ; uses : LocSet.t >

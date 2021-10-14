@@ -178,6 +178,8 @@ typ_inf:
   | option("|") s=list_1(tick_lab_typ, "|")             {Typ.sum $loc s}
   | "|"                                                 {Typ.sum $loc []}
   | t=typ_app                                           {t}
+  | l=typ_inf "∨" r=typ_inf                             {`Join ($loc, l, r)}
+  | l=typ_inf "∧" r=typ_inf                             {`Meet ($loc, l, r)}
 
 typ_arr:
   | t=typ_inf                                           {t}

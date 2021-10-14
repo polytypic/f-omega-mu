@@ -12,6 +12,8 @@ kind
 typ
   : tid                                                        // Type variable (*1)
   | typ '→' typ                                                // Function type
+  | typ '∨' typ                                                // Join of types (*10)
+  | typ '∧' typ                                                // Meet of types (*10)
   | '(' (typ, ',')* ')'                                        // Tuple type
   | '{' (label (':' typ)?, ',')* '}'                           // Product type
   | '|'? ("'" label typ?, '|')*                                // Sum type
@@ -149,6 +151,9 @@ incs                                                           // Syntax of .fom
 8. When applied to literals, sign operators are interpreted at compile-time.
 
 9. Binary logical connectives, `∧` and `∨`, evaluate their arguments lazily.
+
+10. Structural joins `∨` and meets `∧` are eliminated during type checking and
+    are not allowed over arbitrary or unknown types.
 
 ### Alternative tokens
 

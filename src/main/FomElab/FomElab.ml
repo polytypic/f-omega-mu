@@ -134,7 +134,7 @@ module TypIncludes = struct
   type t = [`Typ of Typ.t] Typ.VarMap.t PathTable.t
 
   let create () = Hashtbl.create 100
-  let field r = r#typ_includes
+  let field r : t = r#typ_includes
   let get_or_put at = PathTable.get_or_put field at
 
   class con (typ_includes : t) =
@@ -144,10 +144,10 @@ module TypIncludes = struct
 end
 
 module TypImports = struct
-  type t = Typ.t PathTable.t
+  type t = Typ.Core.t PathTable.t
 
   let create () = Hashtbl.create 100
-  let field r = r#typ_imports
+  let field r : t = r#typ_imports
   let get_or_put at = PathTable.get_or_put field at
 
   class con (typ_imports : t) =
@@ -157,7 +157,7 @@ module TypImports = struct
 end
 
 module ExpImports = struct
-  type t = (Exp.Var.t * Exp.t * Typ.t * string list) PathTable.t
+  type t = (Exp.Var.t * Exp.t * Typ.Core.t * string list) PathTable.t
 
   let create () = Hashtbl.create 100
   let field r : t = r#exp_imports
@@ -193,7 +193,7 @@ module Parameters = struct
             let+ (id, _, typ, _), _ =
               Hashtbl.find imports filename |> LVar.get
             in
-            `Lam (Exp.Var.at id, id, typ, ast))
+            `Lam (Exp.Var.at id, id, (typ :> Typ.t), ast))
           ast
 
   let result_without t =
@@ -284,7 +284,7 @@ let rec elaborate_def = function
     |> List.map_fr (fun (i, k, t) ->
            let at = Typ.Var.at i in
            let+ t = elaborate_typ (annot at i k t) >>= Typ.infer_and_resolve in
-           (i, `Typ (Typ.set_at at t)))
+           (i, `Typ (Typ.Core.set_at at t :> Typ.t)))
     >>- Typ.VarMap.of_list
   | `TypRec (_, bs) ->
     let is = List.map (fun (i, _, _) -> i) bs in
@@ -309,7 +309,10 @@ let rec elaborate_def = function
     assoc
     |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
     |> List.map_fr Typ.infer_and_resolve
-    >>- (List.map2 (fun i t -> (i, `Typ (Typ.set_at (Typ.Var.at i) t))) is
+    >>- (List.map2
+           (fun i (t : Typ.Core.t) ->
+             (i, `Typ (Typ.set_at (Typ.Var.at i) (t :> Typ.t))))
+           is
         >>> Typ.VarMap.of_list)
   | `Include (at', p) ->
     let inc_path = Path.coalesce at' p |> Path.ensure_ext Path.inc_ext in
@@ -354,9 +357,14 @@ and elaborate_typ = function
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
     Fetch.fetch at' sig_path
     >>= Parser.parse_utf_8 Grammar.sigs Lexer.offside ~path:sig_path
-    >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground
+    >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.Core.ground
     |> TypImports.get_or_put at' sig_path
     |> Elab.modularly
+    >>- fun t -> (t : Typ.Core.t :> Typ.t)
+  | `Join (at', l, r) ->
+    elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Join (at', l, r)
+  | `Meet (at', l, r) ->
+    elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Meet (at', l, r)
 
 and elaborate_defs accum = function
   | #FomCST.Typ.Def.f as d ->
@@ -474,7 +482,7 @@ let rec elaborate = function
     let* t_opt =
       Fetch.fetch at' sig_path
       >>= Parser.parse_utf_8 Grammar.sigs Lexer.offside ~path:sig_path
-      >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.ground
+      >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.Core.ground
       |> TypImports.get_or_put at' sig_path
       |> Elab.modularly
       |> try_in (fun contents -> return @@ Some contents) @@ function
@@ -489,7 +497,9 @@ let rec elaborate = function
          >>= elaborate >>- Exp.initial_exp
        in
        let i = Exp.Var.fresh at' in
-       let e = match t_opt with None -> e | Some t -> annot at' i t e in
+       let e =
+         match t_opt with None -> e | Some t -> annot at' i (t :> Typ.t) e
+       in
        let* t =
          Parameters.taking_in e >>= Exp.infer >>= Parameters.result_without
        in

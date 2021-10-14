@@ -6,9 +6,11 @@ module Kind : sig
   module Unk : Id.S
   module UnkMap : Map.S with type key = Unk.t
 
-  type 'k f =
-    [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Unk of Loc.t * Unk.t]
+  module Core : sig
+    type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
+  end
 
+  type 'k f = ['k Core.f | `Unk of Loc.t * Unk.t]
   type t = t f
 
   val at : t -> Loc.t
@@ -92,22 +94,63 @@ module Typ : sig
   module VarSet : Set.S with type elt = Var.t
   module VarMap : Map.S with type key = Var.t
 
+  module Core : sig
+    type ('t, 'k) f =
+      [ `Mu of Loc.t * 't
+      | `Const of Loc.t * Const.t
+      | `Var of Loc.t * Var.t
+      | `Lam of Loc.t * Var.t * 'k * 't
+      | `App of Loc.t * 't * 't
+      | `ForAll of Loc.t * 't
+      | `Exists of Loc.t * 't
+      | `Arrow of Loc.t * 't * 't
+      | `Product of Loc.t * 't Row.t
+      | `Sum of Loc.t * 't Row.t ]
+
+    type t = (t, Kind.t) f
+
+    val set_at : Loc.t -> [< ('t, 'k) f] -> ('t, 'k) f
+
+    (* *)
+
+    val map_fr :
+      ('t -> ('f, 'F, 'u) Applicative.fr) ->
+      ('t, 'k) f ->
+      ('f, 'F, ('u, 'k) f) Applicative.fr
+
+    val map_eq_fr :
+      ('t -> ('f, 'F, 't) Applicative.fr) ->
+      ('t, 'k) f ->
+      ('f, 'F, ('t, 'k) f) Applicative.fr
+
+    val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
+    val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
+    val exists : ('t -> bool) -> ('t, 'k) f -> bool
+    val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
+    val eq : ('t, 'k) f bpr
+
+    (* *)
+
+    val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
+    val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
+
+    (* *)
+
+    val is_free : Var.t -> t -> bool
+    val subst_of_norm : (('t, 'k) f as 't) VarMap.t -> 't uop
+    val mu_of_norm : Loc.t -> (('t, 'k) f as 't) -> 't
+    val lam_of_norm : Loc.t -> Var.t -> 'k -> (('t, 'k) f as 't) -> 't
+    val app_of_norm : Loc.t -> (('t, 'k) f as 't) bop
+    val apps_of_norm : Loc.t -> (('t, 'k) f as 't) -> 't list -> 't
+  end
+
   type ('t, 'k) f =
-    [ `Mu of Loc.t * 't
-    | `Const of Loc.t * Const.t
-    | `Var of Loc.t * Var.t
-    | `Lam of Loc.t * Var.t * 'k * 't
-    | `App of Loc.t * 't * 't
-    | `ForAll of Loc.t * 't
-    | `Exists of Loc.t * 't
-    | `Arrow of Loc.t * 't * 't
-    | `Product of Loc.t * 't Row.t
-    | `Sum of Loc.t * 't Row.t ]
+    [('t, 'k) Core.f | `Join of Loc.t * 't * 't | `Meet of Loc.t * 't * 't]
 
   type t = (t, Kind.t) f
 
-  val at : ('t, 'k) f -> Loc.t
-  val set_at : Loc.t -> ('t, 'k) f uop
+  val at : [< ('t, 'k) f] -> Loc.t
+  val set_at : Loc.t -> [< ('t, 'k) f] -> ('t, 'k) f
 
   (* Macros *)
 
@@ -137,8 +180,11 @@ module Typ : sig
 
   (* Type applications *)
 
-  val unapp : t -> t * t list
-  val arity_and_result : t -> int * t
+  val unlam :
+    ([> `Lam of Loc.t * Var.t * 'k * 't] as 't) -> 't * (Var.t * 'k) list
+
+  val unapp : ([> `App of Loc.t * 't * 't] as 't) -> 't * 't list
+  val arity_and_result : ([> `Arrow of Loc.t * 't * 't] as 't) -> int * 't
 
   (* *)
 
@@ -176,24 +222,14 @@ module Typ : sig
   (* *)
 
   val free' : ('t -> VarSet.t) -> ('t, 'k) f -> VarSet.t
-  val is_free' : (Var.t -> 't -> bool) -> Var.t -> ('t, 'k) f -> bool
 
-  val subst_of_norm' :
-    (([> ('t, 'k) f] as 't) VarMap.t -> 't uop) ->
-    (Var.t -> 't -> bool) ->
-    't VarMap.t ->
-    ('t, 'k) f ->
-    't
+  val is_free' :
+    (Var.t -> 't -> bool) -> Var.t -> [< ('t, 'k) f > `Lam `Var] -> bool
 
   (* *)
 
   val free : t -> VarSet.t
   val is_free : Var.t -> t -> bool
-  val subst_of_norm : t VarMap.t -> t uop
-  val mu_of_norm : Loc.t -> t uop
-  val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t uop
-  val app_of_norm : Loc.t -> t bop
-  val apps_of_norm : Loc.t -> t -> t list -> t
 
   (* Freshening *)
 
@@ -201,9 +237,17 @@ module Typ : sig
 
   (* Formatting *)
 
-  val hanging : t -> (document * document) option
-  val pp : ?hr:bool -> ?pp_annot:(Kind.t -> document) -> t -> document
-  val to_string : t -> string
+  val hanging : ([> ('t, 'k) Core.f] as 't) -> (document * document) option
+
+  val pp :
+    ?hr:bool ->
+    ?pp_annot:(Kind.t -> document) ->
+    ([< ('t, Kind.t) f > `App `Exists `ForAll `Lam `Mu `Product `Var] as 't) ->
+    document
+
+  val to_string :
+    ([< ('t, Kind.t) f > `App `Exists `ForAll `Lam `Mu `Product `Var] as 't) ->
+    string
 end
 
 module Exp : sig

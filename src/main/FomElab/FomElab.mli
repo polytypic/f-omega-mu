@@ -75,7 +75,7 @@ module ExpImports : sig
     string ->
     ( < exp_imports : t ; .. >,
       [> Error.t],
-      (Exp.Var.t * Exp.t * Typ.t * string list) * Annot.map )
+      (Exp.Var.t * Exp.t * Typ.Core.t * string list) * Annot.map )
     rea
 
   class con :
@@ -104,6 +104,7 @@ val elaborate_typ :
      ; typ_includes : TypIncludes.t
      ; typ_imports : TypImports.t
      ; parameters : (Parameters.t, 'r) Field.t
+     ; typ_solved : (Typ.Solved.t, 'r) Field.t
      ; .. >
      as
      'r),
@@ -123,9 +124,10 @@ val elaborate :
      ; exp_env : (Exp.VarMap.t, 'r) Field.t
      ; exp_imports : ExpImports.t
      ; parameters : (Parameters.t, 'r) Field.t
+     ; typ_solved : (Typ.Solved.t, 'r) Field.t
      ; .. >
      as
      'r),
     [> Error.t],
-    Exp.t * Typ.t * string list )
+    Exp.t * Typ.Core.t * string list )
   rea

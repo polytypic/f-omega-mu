@@ -4,10 +4,11 @@ open FomChecker
 (* *)
 
 include FomChecker.Typ
+include FomChecker.Typ.Core
 
 (* Transforms to make types more legible - Not needed for type checking *)
 
-module TypSet = Set.Make (FomChecker.Typ)
+module TypSet = Set.Make (Core)
 
 let rec contract t =
   let* s, t = contract_base t in

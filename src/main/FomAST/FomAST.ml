@@ -6,9 +6,11 @@ module Kind = struct
   module Unk = Id.Make ()
   module UnkMap = Map.Make (Unk)
 
-  type 'k f =
-    [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k | `Unk of Loc.t * Unk.t]
+  module Core = struct
+    type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
+  end
 
+  type 'k f = ['k Core.f | `Unk of Loc.t * Unk.t]
   type t = t f
 
   let at = function `Star at -> at | `Arrow (at, _, _) | `Unk (at, _) -> at
@@ -180,17 +182,142 @@ module Typ = struct
     let to_label i = Label.of_name (at i) (name i)
   end
 
+  module VarSet = Set.Make (Var)
+  module VarMap = Map.Make (Var)
+
+  let union_m =
+    Constant.of_monoid
+    @@ object
+         method combine = VarSet.union
+         method identity = VarSet.empty
+       end
+
+  module Core = struct
+    type ('t, 'k) f =
+      [ `Mu of Loc.t * 't
+      | `Const of Loc.t * Const.t
+      | `Var of Loc.t * Var.t
+      | `Lam of Loc.t * Var.t * 'k * 't
+      | `App of Loc.t * 't * 't
+      | `ForAll of Loc.t * 't
+      | `Exists of Loc.t * 't
+      | `Arrow of Loc.t * 't * 't
+      | `Product of Loc.t * 't Row.t
+      | `Sum of Loc.t * 't Row.t ]
+
+    type t = (t, Kind.t) f
+
+    let set_at at = function
+      | `Mu (_, t) -> `Mu (at, t)
+      | `Const (_, c) -> `Const (at, c)
+      | `Var (_, i) -> `Var (at, i)
+      | `Lam (_, i, k, t) -> `Lam (at, i, k, t)
+      | `App (_, f, x) -> `App (at, f, x)
+      | `ForAll (_, t) -> `ForAll (at, t)
+      | `Exists (_, t) -> `Exists (at, t)
+      | `Arrow (_, d, c) -> `Arrow (at, d, c)
+      | `Product (_, ls) -> `Product (at, ls)
+      | `Sum (_, ls) -> `Sum (at, ls)
+
+    let map_fr' row fn = function
+      | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
+      | (`Const _ | `Var _) as inn -> return inn
+      | `Lam (at, i, k, t) -> fn t >>- fun t -> `Lam (at, i, k, t)
+      | `App (at, f, x) -> fn f <*> fn x >>- fun (f, x) -> `App (at, f, x)
+      | `ForAll (at, t) -> fn t >>- fun t -> `ForAll (at, t)
+      | `Exists (at, t) -> fn t >>- fun t -> `Exists (at, t)
+      | `Arrow (at, d, c) -> fn d <*> fn c >>- fun (d, c) -> `Arrow (at, d, c)
+      | `Product (at, ls) -> row fn ls >>- fun ls -> `Product (at, ls)
+      | `Sum (at, ls) -> row fn ls >>- fun ls -> `Sum (at, ls)
+
+    let map_fr fn = map_fr' Row.map_fr fn
+    let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
+    let map fn = map_fr (Identity.inj'1 fn) >>> Identity.run
+    let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
+    let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
+
+    let exists fn =
+      map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
+
+    let find_map fn =
+      map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
+
+    (* *)
+
+    let eq l r =
+      match (l, r) with
+      | `Mu l, `Mu r -> eq'2 l r
+      | `Const l, `Const r -> eq'2 l r
+      | `Var l, `Var r -> eq'2 l r
+      | `Lam l, `Lam r -> eq'4 l r
+      | `App l, `App r -> eq'3 l r
+      | `ForAll l, `ForAll r -> eq'2 l r
+      | `Exists l, `Exists r -> eq'2 l r
+      | `Arrow l, `Arrow r -> eq'3 l r
+      | `Product l, `Product r -> eq'2 l r
+      | `Sum l, `Sum r -> eq'2 l r
+      | _ -> false
+
+    let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
+    let keep_phys_eq fn t = keep_phys_eq' t (fn t)
+
+    (* *)
+
+    let is_free' is_free id = function
+      | `Var (_, id') -> Var.equal id id'
+      | `Lam (_, id', _, body) -> (not (Var.equal id id')) && is_free id body
+      | t -> exists (is_free id) t
+
+    let rec is_free id = is_free' is_free id
+
+    let mu_of_norm' is_free at = function
+      | `Lam (_, i, _, t) when not (is_free i t) -> t
+      | t' -> `Mu (at, t')
+
+    let lam_of_norm' is_free at i k = function
+      | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
+      | t' -> `Lam (at, i, k, t')
+
+    let app_of_norm' subst_of_norm at f' x' =
+      match f' with
+      | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
+      | f' -> `App (at, f', x')
+
+    let subst_of_norm' subst_of_norm is_free env = function
+      | `Var (_, i) as inn -> (
+        match VarMap.find_opt i env with None -> inn | Some t -> t)
+      | `Mu (at, t) -> mu_of_norm' is_free at (subst_of_norm env t)
+      | `Lam (at, i, k, t) as inn ->
+        let env = VarMap.remove i env in
+        if VarMap.is_empty env then
+          inn
+        else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env
+        then
+          let i' = Var.freshen i in
+          let v' = `Var (at, i') in
+          let t' = subst_of_norm (VarMap.add i v' env) t in
+          lam_of_norm' is_free at i' k t'
+        else
+          lam_of_norm' is_free at i k (subst_of_norm env t)
+      | `App (at, f, x) ->
+        app_of_norm' subst_of_norm at (subst_of_norm env f)
+          (subst_of_norm env x)
+      | t -> map_eq (subst_of_norm env) t
+
+    let rec subst_of_norm env =
+      keep_phys_eq @@ subst_of_norm' subst_of_norm is_free env
+
+    let subst_of_norm env t =
+      if VarMap.is_empty env then t else subst_of_norm env t
+
+    let mu_of_norm at = mu_of_norm' is_free at
+    let lam_of_norm at = lam_of_norm' is_free at
+    let app_of_norm at = app_of_norm' subst_of_norm at
+    let apps_of_norm at = List.fold_left @@ app_of_norm at
+  end
+
   type ('t, 'k) f =
-    [ `Mu of Loc.t * 't
-    | `Const of Loc.t * Const.t
-    | `Var of Loc.t * Var.t
-    | `Lam of Loc.t * Var.t * 'k * 't
-    | `App of Loc.t * 't * 't
-    | `ForAll of Loc.t * 't
-    | `Exists of Loc.t * 't
-    | `Arrow of Loc.t * 't * 't
-    | `Product of Loc.t * 't Row.t
-    | `Sum of Loc.t * 't Row.t ]
+    [('t, 'k) Core.f | `Join of Loc.t * 't * 't | `Meet of Loc.t * 't * 't]
 
   type t = (t, Kind.t) f
 
@@ -204,20 +331,15 @@ module Typ = struct
     | `Exists (at, _)
     | `Arrow (at, _, _)
     | `Product (at, _)
-    | `Sum (at, _) ->
+    | `Sum (at, _)
+    | `Join (at, _, _)
+    | `Meet (at, _, _) ->
       at
 
   let set_at at = function
-    | `Mu (_, t) -> `Mu (at, t)
-    | `Const (_, c) -> `Const (at, c)
-    | `Var (_, i) -> `Var (at, i)
-    | `Lam (_, i, k, t) -> `Lam (at, i, k, t)
-    | `App (_, f, x) -> `App (at, f, x)
-    | `ForAll (_, t) -> `ForAll (at, t)
-    | `Exists (_, t) -> `Exists (at, t)
-    | `Arrow (_, d, c) -> `Arrow (at, d, c)
-    | `Product (_, ls) -> `Product (at, ls)
-    | `Sum (_, ls) -> `Sum (at, ls)
+    | #Core.f as t -> Core.set_at at t
+    | `Join (_, l, r) -> `Join (at, l, r)
+    | `Meet (_, l, r) -> `Meet (at, l, r)
 
   (* Macros *)
 
@@ -239,6 +361,13 @@ module Typ = struct
 
   (* Type applications *)
 
+  let unlam t =
+    let rec loop iks = function
+      | `Lam (_, i, k, t) -> loop ((i, k) :: iks) t
+      | t -> (t, iks)
+    in
+    loop [] t
+
   let unapp t =
     let rec loop xs = function
       | `App (_, f, x) -> loop (x :: xs) f
@@ -256,15 +385,9 @@ module Typ = struct
   (* *)
 
   let map_fr' row fn = function
-    | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
-    | (`Const _ | `Var _) as inn -> return inn
-    | `Lam (at, i, k, t) -> fn t >>- fun t -> `Lam (at, i, k, t)
-    | `App (at, f, x) -> fn f <*> fn x >>- fun (f, x) -> `App (at, f, x)
-    | `ForAll (at, t) -> fn t >>- fun t -> `ForAll (at, t)
-    | `Exists (at, t) -> fn t >>- fun t -> `Exists (at, t)
-    | `Arrow (at, d, c) -> fn d <*> fn c >>- fun (d, c) -> `Arrow (at, d, c)
-    | `Product (at, ls) -> row fn ls >>- fun ls -> `Product (at, ls)
-    | `Sum (at, ls) -> row fn ls >>- fun ls -> `Sum (at, ls)
+    | #Core.f as t -> Core.map_fr' row fn t
+    | `Join (at, l, r) -> fn l <*> fn r >>- fun (l, r) -> `Join (at, l, r)
+    | `Meet (at, l, r) -> fn l <*> fn r >>- fun (l, r) -> `Meet (at, l, r)
 
   let map_fr fn = map_fr' Row.map_fr fn
   let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
@@ -287,35 +410,18 @@ module Typ = struct
   let find_map fn =
     map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
 
+  (* *)
+
   let eq l r =
     match (l, r) with
-    | `Mu l, `Mu r -> eq'2 l r
-    | `Const l, `Const r -> eq'2 l r
-    | `Var l, `Var r -> eq'2 l r
-    | `Lam l, `Lam r -> eq'4 l r
-    | `App l, `App r -> eq'3 l r
-    | `ForAll l, `ForAll r -> eq'2 l r
-    | `Exists l, `Exists r -> eq'2 l r
-    | `Arrow l, `Arrow r -> eq'3 l r
-    | `Product l, `Product r -> eq'2 l r
-    | `Sum l, `Sum r -> eq'2 l r
-    | _ -> false
-
-  (* *)
+    | `Join l, `Join r -> eq'3 l r
+    | `Meet l, `Meet r -> eq'3 l r
+    | l, r -> Core.eq l r
 
   let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
   let keep_phys_eq fn t = keep_phys_eq' t (fn t)
 
   (* Substitution *)
-
-  module VarSet = Set.Make (Var)
-
-  let union_m =
-    Constant.of_monoid
-    @@ object
-         method combine = VarSet.union
-         method identity = VarSet.empty
-       end
 
   let free' free = function
     | `Var (_, i) -> VarSet.singleton i
@@ -325,7 +431,7 @@ module Typ = struct
   let rec free t = free' free t
   let free = Profiling.Counter.wrap'1 "free" free
 
-  module VarMap = Map.Make (Var)
+  (* *)
 
   let impure = Var.of_string (Loc.of_path "impure") "impure"
 
@@ -343,6 +449,8 @@ module Typ = struct
         alias "int" `Int;
         alias "string" `String;
       ]
+
+  (* *)
 
   let rec subst_rec env =
     keep_phys_eq @@ function
@@ -362,50 +470,6 @@ module Typ = struct
 
   let rec is_free id = is_free' is_free id
   let is_free = Profiling.Counter.wrap'2 "is_free" is_free
-
-  let mu_of_norm' is_free at = function
-    | `Lam (_, i, _, t) when not (is_free i t) -> t
-    | t' -> `Mu (at, t')
-
-  let lam_of_norm' is_free at i k = function
-    | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
-    | t' -> `Lam (at, i, k, t')
-
-  let app_of_norm' subst_of_norm at f' x' =
-    match f' with
-    | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
-    | f' -> `App (at, f', x')
-
-  let subst_of_norm' subst_of_norm is_free env = function
-    | `Var (_, i) as inn -> (
-      match VarMap.find_opt i env with None -> inn | Some t -> t)
-    | `Mu (at, t) -> mu_of_norm' is_free at (subst_of_norm env t)
-    | `Lam (at, i, k, t) as inn ->
-      let env = VarMap.remove i env in
-      if VarMap.is_empty env then
-        inn
-      else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
-        let i' = Var.freshen i in
-        let v' = `Var (at, i') in
-        let t' = subst_of_norm (VarMap.add i v' env) t in
-        lam_of_norm' is_free at i' k t'
-      else
-        lam_of_norm' is_free at i k (subst_of_norm env t)
-    | `App (at, f, x) ->
-      app_of_norm' subst_of_norm at (subst_of_norm env f) (subst_of_norm env x)
-    | t -> map_eq (subst_of_norm env) t
-
-  let rec subst_of_norm env =
-    keep_phys_eq @@ subst_of_norm' subst_of_norm is_free env
-
-  let subst_of_norm env t =
-    if VarMap.is_empty env then t else subst_of_norm env t
-
-  let subst_of_norm = Profiling.Counter.wrap'2 "subst_of_norm" subst_of_norm
-  let mu_of_norm at = mu_of_norm' is_free at
-  let lam_of_norm at = lam_of_norm' is_free at
-  let app_of_norm at = app_of_norm' subst_of_norm at
-  let apps_of_norm at = List.fold_left @@ app_of_norm at
 
   (* Freshening *)
 
@@ -434,6 +498,8 @@ module Typ = struct
     | `Arrow _ -> 7
     | `Product _ -> 8
     | `Sum _ -> 9
+    | `Join _ -> 10
+    | `Meet _ -> 11
 
   let compare' compare l_env r_env l r =
     match (l, r) with
@@ -461,6 +527,8 @@ module Typ = struct
         (fun (l_l, l_t) (r_l, r_t) ->
           Label.compare l_l r_l <>? fun () -> compare l_env r_env l_t r_t)
         l_ls r_ls
+    | `Join (_, a, b), `Join (_, c, d) | `Meet (_, a, b), `Meet (_, c, d) ->
+      compare l_env r_env a c <>? fun () -> compare l_env r_env b d
     | _ -> index l - index r
 
   let rec compare_in_env l_env r_env l r =
@@ -501,7 +569,7 @@ module Typ = struct
     | None -> gnest 2 (break_0 ^^ group (pp config prec_min t)))
     |> if prec_min < prec_outer then egyptian parens 2 else id
 
-  and quantifier config prec_outer symbol (typ : t) =
+  and quantifier config prec_outer symbol typ =
     match typ with
     | `Lam (_, id, kind, body) -> binding config prec_outer symbol id kind body
     | _ -> symbol ^^ egyptian parens 2 (pp config prec_min typ)
@@ -536,7 +604,7 @@ module Typ = struct
   and tupled config labels =
     labels |> List.map (snd >>> pp config prec_min) |> separate comma_break_1
 
-  and pp config prec_outer (typ : t) =
+  and pp config prec_outer typ =
     match typ with
     | `Const (_, const) -> Const.pp const
     | `Var (_, id) -> Var.pp ~hr:config.hr id
@@ -568,12 +636,18 @@ module Typ = struct
         :: (xs |> List.map (pp config (prec_app + 1) >>> group))
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
+    | `Join (_, l, r) ->
+      pp config prec_app l ^^ space ^^ logical_or ^^ space
+      ^^ pp config prec_app r
+    | `Meet (_, l, r) ->
+      pp config prec_app l ^^ space ^^ logical_and ^^ space
+      ^^ pp config prec_app r
 
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
     pp {hr; pp_annot} prec_min typ |> group
 
-  let to_string = pp >>> to_string
+  let to_string t = t |> pp |> to_string
 end
 
 module Exp = struct

@@ -20,18 +20,24 @@ let test_typ_parses_as name source check =
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_none" "μxs.int→xs"
   @@ fun typ ->
-  verify (Typ.find_opt_non_contractive Typ.VarSet.empty typ |> Option.is_none)
+  Typ.find_opt_non_contractive Typ.VarSet.empty typ
+  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> try_in (Option.is_none >>> verify) @@ fun _ -> verify false
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [A]" "μxs.xs"
   @@ fun typ ->
-  verify (Typ.find_opt_non_contractive Typ.VarSet.empty typ |> Option.is_some)
+  Typ.find_opt_non_contractive Typ.VarSet.empty typ
+  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> try_in (Option.is_some >>> verify) @@ fun _ -> verify false
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [B]"
     "(μf.λx.λy.f y x) int string"
   @@ fun typ ->
-  verify (Typ.find_opt_non_contractive Typ.VarSet.empty typ |> Option.is_some)
+  Typ.find_opt_non_contractive Typ.VarSet.empty typ
+  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> try_in (Option.is_some >>> verify) @@ fun _ -> verify false
 
 (* *)
 
@@ -40,17 +46,17 @@ let norm typ =
   |> with_env (ignore >>> Env.empty)
   |> try_in return @@ fun _ -> fail (Failure "norm")
 
-let test_typs_parse_as name source1 source2 check =
-  test name @@ fun () ->
-  parse_typ source1 @@ fun typ1 -> parse_typ source2 (check typ1)
+let test_typs_parse_as name s1 s2 check =
+  test (Printf.sprintf "%s (%s) (%s)" name s1 s2) @@ fun () ->
+  parse_typ s1 @@ fun typ1 -> parse_typ s2 (check typ1)
 
-let test_equal_typs source1 source2 =
-  test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
+let test_equal_typs s1 s2 =
+  test_typs_parse_as "Typ.is_equal_of_norm" s1 s2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
   Typ.is_equal_of_norm typ1 typ2 |> with_env (ignore >>> Env.empty) >>= verify
 
-let test_not_equal_typs source1 source2 =
-  test_typs_parse_as "Typ.is_equal_of_norm" source1 source2 @@ fun typ1 typ2 ->
+let test_not_equal_typs s1 s2 =
+  test_typs_parse_as "not Typ.is_equal_of_norm" s1 s2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
   Typ.is_equal_of_norm typ1 typ2
   |> with_env (ignore >>> Env.empty)
@@ -81,7 +87,6 @@ let testInfersAs name typ exp =
   parse_typ typ @@ fun expected ->
   let* expected = norm expected in
   parse_exp exp @@ fun (_, actual, _) ->
-  let* actual = norm actual in
   Typ.is_equal_of_norm expected actual |> with_env (ignore >>> Env.empty)
   >>= fun are_equal ->
   if not are_equal then
@@ -287,7 +292,34 @@ let () =
   testInfersAs "duplicate wildcard bindings" "()"
     "let («_, _», «_, _») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()";
   testInfersAs "duplicate wildcard μ bindings" "()"
-    "let μ_:int=1 and μ_:int=1 in ()"
+    "let μ_:int=1 and μ_:int=1 in ()";
+  testInfersAs "self recursive ∨" "'Soft int | 'Hard string"
+    {eof|
+    type μhard = λt.λu.'Soft t ∨ 'Hard u ∨ hard t u
+    μx:hard int string.x
+    |eof};
+  testInfersAs "mutually recursive ∨" "'Foo | 'Bar"
+    {eof|
+    type μfoo = 'Foo ∨ bar
+     and μbar = 'Bar ∨ foo
+    μx:foo.x
+    |eof};
+  testInfersAs "higher-order and first-order ∨"
+    {eof|
+    type μfoo = λt.λu.'Foo (foo t u) | 'T (t, u)
+    type μbar = λt.λu.'Bar (bar t u) | 'U (t, u)
+    type both = 'Foo (foo bool int) | 'T (bool, int)
+              | 'Bar (bar bool int) | 'U (bool, int)
+    {first: both, higher: both}
+    |eof}
+    {eof|
+    type μfoo = λt.λu.'Foo (foo t u) | 'T (t, u)
+    type μbar = λt.λu.'Bar (bar t u) | 'U (t, u)
+    μ({first: foo bool int ∨ bar bool int,
+       higher: (foo ∨ bar) bool int}).
+      {first = higher, higher = first}
+    |eof};
+  ()
 
 let testErrors name exp =
   test name @@ fun () ->
@@ -342,4 +374,5 @@ let () =
     "type μdup = int and μdup = string in λx:dup.x";
   testErrors "duplicate pattern binding" "let {y, x = y} = {x = 2, y = 1} in y";
   testErrors "duplicate unpack type binding"
-    "let («t, x», «t, y») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()"
+    "let («t, x», «t, y») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()";
+  ()
