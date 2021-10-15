@@ -18,8 +18,8 @@ end
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
-  of_async @@ fun r on_error on_ok ->
-  match try Ok (op r) with e -> Error e with
+  of_async @@ fun on_error on_ok ->
+  match try Ok (op ()) with e -> Error e with
   | Ok p -> Lwt.on_any p on_ok on_error
   | Error e -> on_error e
 
@@ -27,7 +27,7 @@ let error_io at exn = fail @@ `Error_io (at, exn)
 
 let fetch at filename =
   if FomElab.Path.is_http filename then
-    of_lwt (fun _ ->
+    of_lwt (fun () ->
         let open Lwt.Syntax in
         let open Cohttp in
         let open Cohttp_lwt_unix in
@@ -42,7 +42,7 @@ let fetch at filename =
        | HttpError (404, _, _) -> fail @@ `Error_file_doesnt_exist (at, filename)
        | exn -> fail @@ `Error_io (at, exn)
   else
-    of_lwt (fun _ ->
+    of_lwt (fun () ->
         let open Lwt.Syntax in
         let* channel = Lwt_io.open_file ~mode:Lwt_io.input filename in
         Lwt.finalize
@@ -56,7 +56,7 @@ let fetch at filename =
 (* *)
 
 let run_process_with_input at command input =
-  of_lwt (fun _ ->
+  of_lwt (fun () ->
       Lwt_process.with_process_out command @@ fun out ->
       let open Lwt.Syntax in
       let rec write_input = function

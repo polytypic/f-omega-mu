@@ -22,14 +22,14 @@ end
 
 module Fetch : sig
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type t = Loc.t -> string -> (unit, e, string) rea
+  type 'r t = Loc.t -> string -> ('r, e, string) rea
 
-  val dummy : t
+  val dummy : 'r t
 
-  class con :
-    t
+  class ['r] con :
+    'r t
     -> object
-         method fetch : t
+         method fetch : 'r t
        end
 end
 
@@ -97,7 +97,7 @@ end
 val elaborate_typ :
   FomCST.Typ.t ->
   ( (< annotations : (Annot.t, 'r) Field.t
-     ; fetch : Fetch.t
+     ; fetch : 'r Fetch.t
      ; import_chain : (ImportChain.t, 'r) Field.t
      ; kind_env : (Kind.UnkMap.t, 'r) Field.t
      ; typ_env : ([`Kind of Kind.t | `Typ of Typ.t] Typ.VarMap.t, 'r) Field.t
@@ -114,7 +114,7 @@ val elaborate_typ :
 val elaborate :
   FomCST.Exp.t ->
   ( (< annotations : (Annot.t, 'r) Field.t
-     ; fetch : Fetch.t
+     ; fetch : 'r Fetch.t
      ; import_chain : (ImportChain.t, 'r) Field.t
      ; kind_env : (Kind.UnkMap.t, 'r) Field.t
      ; typ_env : ([`Kind of Kind.t | `Typ of Typ.t] Typ.VarMap.t, 'r) Field.t

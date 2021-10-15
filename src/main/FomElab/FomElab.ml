@@ -64,12 +64,12 @@ end
 
 module Fetch = struct
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type t = Loc.t -> string -> (unit, e, string) rea
+  type 'r t = Loc.t -> string -> ('r, e, string) rea
 
   let dummy at path = fail @@ `Error_file_doesnt_exist (at, path)
   let field r = r#fetch
 
-  class con (fetch : t) =
+  class ['r] con (fetch : 'r t) =
     object
       method fetch = fetch
     end

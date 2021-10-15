@@ -10,7 +10,7 @@ module Env = struct
       inherit [_] FomChecker.Typ.VarMap.con
       inherit FomChecker.Kind.UnkMap.con
       inherit FomElab.Parameters.con
-      inherit FomElab.Fetch.con fetch
+      inherit [_] FomElab.Fetch.con fetch
       inherit FomElab.ImportChain.con
       inherit FomElab.TypIncludes.con typ_includes
       inherit FomElab.TypImports.con typ_imports

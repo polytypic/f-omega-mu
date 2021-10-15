@@ -2,70 +2,85 @@ open Higher.Syntax
 open Fun.Syntax
 
 type ('e, 'a) cod = [('e, 'a) Res.t | `Async of (('e, 'a) Res.t -> unit) -> unit]
-type ('r, 'e, 'a) t = 'r -> ('e, 'a) cod
 
-let dispatch k = function (`Ok _ | `Error _) as x -> k x | `Async on -> on k
-let return x _ = `Ok x
+type (-'r, +'e, +'a) t =
+  | Fail : 'e -> ('r, 'e, 'a) t
+  | Return : 'a -> ('r, 'e, 'a) t
+  | Bind : ('r, 'e, 'b) t * ('b -> ('r, 'e, 'a) t) -> ('r, 'e, 'a) t
+  | TryIn :
+      ('r, 'f, 'b) t * ('b -> ('r, 'e, 'a) t) * ('f -> ('r, 'e, 'a) t)
+      -> ('r, 'e, 'a) t
+  | Env : ('r -> ('r, 'e, 'a) t) -> ('r, 'e, 'a) t
+  | MapEnv : ('r -> 's) * ('s, 'e, 'a) t -> ('r, 'e, 'a) t
+  | Async : ((('e, 'a) Res.t -> work) -> unit) -> ('r, 'e, 'a) t
 
-let ( let* ) xM xyM r =
-  match xM r with
-  | `Ok x -> xyM x r
-  | `Error _ as e -> e
-  | `Async on ->
-    `Async
-      (fun k ->
-        on @@ function `Ok x -> xyM x r |> dispatch k | `Error _ as e -> k e)
+and work = Work : 'r * ('r, Zero.t, unit) t -> work
 
-let ( let+ ) xM xy r =
-  match xM r with
-  | `Ok x -> `Ok (xy x)
-  | `Error _ as e -> e
-  | `Async on ->
-    `Async
-      (fun k ->
-        on @@ function `Ok x -> k @@ `Ok (xy x) | `Error _ as e -> k e)
+let work = ref []
+let running = ref false
 
-let pairing x k = function `Ok y -> k @@ `Ok (x, y) | `Error _ as e -> k e
+let rec pop () =
+  match !work with
+  | Work (r, xF) :: ws ->
+    work := ws;
+    start' (r, xF)
+  | [] -> running := false
 
-let ( and* ) xM yM r =
-  match xM r with
-  | `Ok x -> (
-    match yM r with
-    | `Ok y -> `Ok (x, y)
-    | `Error _ as e -> e
-    | `Async on -> `Async (fun k -> on @@ pairing x k))
-  | `Error _ as e -> e
-  | `Async on ->
-    `Async
-      (fun k ->
-        on @@ function
-        | `Ok x -> (
-          match yM r with
-          | `Ok y -> k @@ `Ok (x, y)
-          | `Error _ as e -> k e
-          | `Async on -> on @@ pairing x k)
-        | `Error _ as e -> k e)
+and start' : 'r. 'r * ('r, 'e, 'a) t -> unit =
+ fun (r, xF) ->
+  match xF with
+  | Fail _ | Return _ -> pop ()
+  | Env rxF -> start' (r, rxF r)
+  | MapEnv (rs, xF) -> start' (rs r, xF)
+  | Async on ->
+    on (fun _ -> Work ((), Return ()));
+    pop ()
+  | TryIn (xF, xyF, eyF) -> (
+    match xF with
+    | Return x -> start' (r, xyF x)
+    | Fail e -> start' (r, eyF e)
+    | Env rxF -> start' (r, TryIn (rxF r, xyF, eyF))
+    | MapEnv (rs, xF) ->
+      start'
+        ( rs r,
+          TryIn
+            ( xF,
+              (fun x -> MapEnv (const r, xyF x)),
+              fun e -> MapEnv (const r, eyF e) ) )
+    | Async on ->
+      on (function `Ok x -> Work (r, xyF x) | `Error e -> Work (r, eyF e));
+      pop ()
+    | Bind (zF, zxF) ->
+      start' (r, TryIn (zF, (fun z -> TryIn (zxF z, xyF, eyF)), eyF))
+    | TryIn (zF, zxF, exF) ->
+      start'
+        ( r,
+          TryIn
+            ( zF,
+              (fun z -> TryIn (zxF z, xyF, eyF)),
+              fun e -> TryIn (exF e, xyF, eyF) ) ))
+  | Bind (xF, xyF) -> (
+    match xF with
+    | Fail _ -> ()
+    | Return x -> start' (r, xyF x)
+    | Env rxF -> start' (r, Bind (rxF r, xyF))
+    | MapEnv (rs, xF) ->
+      start' (rs r, Bind (xF, fun x -> MapEnv (const r, xyF x)))
+    | Async on ->
+      on (function `Ok x -> Work (r, xyF x) | `Error _ -> .);
+      pop ()
+    | Bind (zF, zxF) -> start' (r, Bind (zF, fun z -> Bind (zxF z, xyF)))
+    | TryIn (zF, zxF, exF) ->
+      start'
+        (r, TryIn (zF, (fun z -> Bind (zxF z, xyF)), fun e -> Bind (exF e, xyF)))
+    )
 
-(* *)
-
-let ok_unit' = `Ok ()
-let unit' _ = ok_unit'
-
-(* *)
-
-let start' r (xM : ('r, Zero.t, unit) t) =
-  match xM r with `Ok () -> () | `Error _ -> . | `Async on -> on ignore
-
-(* *)
-
-let fail' e _ = `Error e
-
-(* *)
-
-let catch' xM r =
-  match xM r with
-  | (`Ok _ | `Error _) as x -> `Ok x
-  | `Async on -> `Async (fun k -> on @@ fun x -> k @@ `Ok x)
+let push (Work (r, xF) as w) =
+  if !running then
+    work := w :: !work
+  else (
+    running := true;
+    start' (r, xF))
 
 (* *)
 
@@ -81,18 +96,16 @@ type ('r, 'e, 'a) fr = ('r, 'e, f) app'2 Monad.t -> ('r, 'e, 'a, f) app'3
 let methods =
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map =
-      fun xy xF -> inj (( let+ ) (prj xF) xy)
+      fun xy xF -> inj @@ Bind (prj xF, fun x -> Return (xy x))
 
-    method return : 'a. ('a, _) Applicative.return = return >>> inj
+    method return : 'a. ('a, _) Applicative.return = fun x -> inj (Return x)
 
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair =
-      fun xF yF -> inj (( and* ) (prj xF) (prj yF))
+      fun xF yF ->
+        inj (Bind (prj xF, fun x -> Bind (prj yF, fun y -> Return (x, y))))
 
     method bind : 'a 'b. ('a, 'b, _) Monad.bind =
-      fun xyF xF ->
-        inj
-          (let* x = prj xF in
-           prj (xyF x))
+      fun xyF xF -> inj @@ Bind (prj xF, fun x -> prj (xyF x))
   end
 
 let run xF = xF methods |> prj
@@ -100,59 +113,52 @@ let run xF = xF methods |> prj
 module Syntax = struct
   type ('r, 'e, 'a) rea = ('r, 'e, 'a) fr
 
-  let start r uF = start' r (run uF)
+  let start r (uF : (_, _, _) rea) = push @@ Work (r, run uF)
 
   (* *)
 
-  let of_async op _ =
-    inj @@ fun r ->
-    `Async (fun k -> op r (fun e -> k @@ `Error e) (fun a -> k @@ `Ok a))
+  let of_async op : (_, _, _) rea =
+   fun _ ->
+    inj
+    @@ Async
+         (fun k ->
+           op (fun e -> push @@ k @@ `Error e) (fun a -> push @@ k @@ `Ok a))
 
-  let of_res x _ = inj @@ fun _ -> (x :> (_, _) cod)
-
-  (* *)
-
-  let fail e _ = fail' e |> inj
-
-  (* *)
-
-  let try_in xyF eyF xF _ =
-    inj @@ fun r ->
-    match run xF r with
-    | `Ok x -> run (xyF x) r
-    | `Error e -> run (eyF e) r
-    | `Async on ->
-      `Async
-        (fun k ->
-          on @@ function
-          | `Ok x -> run (xyF x) r |> dispatch k
-          | `Error e -> run (eyF e) r |> dispatch k)
-
-  let catch xF _ = catch' (run xF) |> inj
+  let of_res x _ = inj @@ match x with `Ok x -> Return x | `Error e -> Fail e
 
   (* *)
 
-  let map_error ef xF _ =
-    inj @@ fun r ->
-    match run xF r with
-    | `Ok _ as a -> a
-    | `Error e -> `Error (ef e)
-    | `Async on ->
-      `Async
-        (fun k ->
-          on @@ function `Ok _ as a -> k a | `Error e -> k @@ `Error (ef e))
+  let fail e : (_, _, _) rea = fun _ -> Fail e |> inj
+
+  (* *)
+
+  let try_in xyF eyF xF : (_, _, _) rea =
+   fun _ -> inj @@ TryIn (run xF, xyF >>> run, eyF >>> run)
+
+  let catch xF : (_, _, _) rea =
+   fun _ ->
+    inj @@ TryIn (run xF, (fun x -> Return (`Ok x)), fun e -> Return (`Error e))
+
+  (* *)
+
+  let map_error ef xF : (_, _, _) rea =
+   fun _ -> inj @@ TryIn (run xF, (fun x -> Return x), fun e -> Fail (ef e))
 
   let generalize_error xF = map_error (function (_ : Zero.t) -> .) xF
 
   (* *)
 
-  let env_as ra _ = inj @@ fun r -> `Ok (ra r)
-  let with_env rs xF _ = inj @@ fun r -> run xF (rs r)
+  let env_as ra : (_, _, _) rea = fun _ -> inj @@ Env (fun r -> Return (ra r))
+
+  let with_env rs (xF : (_, _, _) rea) : (_, _, _) rea =
+   fun _ -> inj @@ MapEnv (rs, run xF)
+
   let replace_env r = with_env (const r)
 
   (* *)
 
-  let invoke raF _ = inj @@ fun r -> run (raF r) ()
+  let invoke (raF : 'r -> ('r, 'e, 'a) rea) : ('r, 'e, 'a) rea =
+   fun _ -> inj @@ Env (fun r -> run (raF r))
 
   (* *)
 
@@ -161,143 +167,145 @@ module Syntax = struct
   let setting field v = with_env @@ Field.set field v
   let mapping field fn = with_env @@ Field.map field fn
 
-  module IVar = struct
-    type ('e, 'a) state =
-      [`Empty of (('e, 'a) Res.t -> unit) list | ('e, 'a) Res.t]
-
-    type ('e, 'a) t = ('e, 'a) state ref
-
-    let empty () = ref @@ `Empty []
-
-    let get var _ =
-      inj @@ fun _ ->
-      match !var with
-      | (`Ok _ | `Error _) as x -> x
-      | `Empty _ ->
-        `Async
-          (fun k ->
-            match !var with
-            | (`Ok _ | `Error _) as x -> k x
-            | `Empty ks -> var := `Empty (k :: ks))
-
-    let put var res _ =
-      inj @@ fun _ ->
-      match !var with
-      | `Empty ks ->
-        var := (res :> (_, _) state);
-        ks |> List.iter (fun k -> k res);
-        ok_unit'
-      | _ -> ok_unit'
-  end
-
   module LVar = struct
     type ('e, 'a) state =
-      [ `Initial of unit -> unit
-      | `Empty of (('e, 'a) Res.t -> unit) list
+      [ `Initial of work
+      | `Empty of (('e, 'a) Res.t -> work) list
       | ('e, 'a) Res.t ]
 
     type ('e, 'a) t = ('e, 'a) state ref
 
-    let create op _ =
-      inj @@ fun r ->
-      let var = ref (`Empty []) in
-      var :=
-        `Initial
-          (fun () ->
-            start' r
-              ( ( let+ ) (op |> run |> catch') @@ fun res ->
-                match !var with
-                | `Empty ks ->
-                  var := (res :> (_, _) state);
-                  ks |> List.iter (fun k -> k res)
-                | _ -> failwith "LVar.create" ));
-      `Ok var
+    let create (op : (_, _, _) rea) : (_, _, (_, _) t) rea =
+     fun _ ->
+      inj
+      @@ Env
+           (fun r ->
+             let var = ref (`Empty []) in
+             var :=
+               `Initial
+                 (Work
+                    ( r,
+                      TryIn
+                        ( run op,
+                          (fun x ->
+                            let res = `Ok x in
+                            match !var with
+                            | `Empty ks ->
+                              var := (res :> (_, _) state);
+                              ks |> List.iter (fun k -> push @@ k res);
+                              Return ()
+                            | _ -> failwith "LVar.create"),
+                          fun e ->
+                            let res = `Error e in
+                            match !var with
+                            | `Empty ks ->
+                              var := (res :> (_, _) state);
+                              ks |> List.iter (fun k -> push @@ k res);
+                              Return ()
+                            | _ -> failwith "LVar.create" ) ));
+             Return var)
 
-    let get var _ =
-      inj @@ fun _ ->
+    let get (var : _ t) : (_, _, _) rea =
+     fun _ ->
+      inj
+      @@
       match !var with
-      | (`Ok _ | `Error _) as x -> x
+      | `Ok x -> Return x
+      | `Error e -> Fail e
       | `Initial _ ->
-        `Async
+        Async
           (fun k ->
             match !var with
-            | (`Ok _ | `Error _) as x -> k x
+            | (`Ok _ | `Error _) as x -> push @@ k x
             | `Empty ks -> var := `Empty (k :: ks)
             | `Initial ef ->
               var := `Empty [k];
-              ef ())
+              push ef)
       | `Empty _ ->
-        `Async
+        Async
           (fun k ->
             match !var with
-            | (`Ok _ | `Error _) as x -> k x
+            | (`Ok _ | `Error _) as x -> push @@ k x
             | `Empty ks -> var := `Empty (k :: ks)
             | _ -> failwith "LVar.get")
   end
 
   module MVar = struct
-    type 'v state = [`Empty of ([`Ok of 'v] -> unit) list | `Ok of 'v]
+    type 'v state = [`Empty of ([`Ok of 'v] -> work) list | `Ok of 'v]
     type 'v t = 'v state ref
 
     let create v = ref @@ `Ok v
     let empty = `Empty []
 
-    let take var _ =
+    let take (var : _ t) : (_, _, _) t'3 =
       match !var with
-      | `Ok _ as x ->
+      | `Ok x ->
         var := empty;
-        x
+        Return x
       | `Empty _ ->
-        `Async
+        Async
           (fun k ->
             match !var with
             | `Ok _ as x ->
               var := empty;
-              k x
-            | `Empty ks -> var := `Empty ((k :> [`Ok of 'v] -> unit) :: ks))
+              push @@ k x
+            | `Empty ks -> var := `Empty ((k :> [`Ok of 'v] -> work) :: ks))
 
-    let fill var v =
+    let fill (var : _ t) v =
       let ok = `Ok v in
       match !var with
       | `Empty [] -> var := ok
       | `Empty (k :: ks) ->
         var := `Empty ks;
-        k ok
+        push @@ k ok
       | _ -> failwith "MVar.fill"
 
-    let get var _ =
+    let get (var : 'v t) : (_, _, 'v) rea =
+     fun _ ->
       inj
-      @@ let+ v = take var in
-         fill var v;
-         v
+      @@ Bind
+           ( take var,
+             fun v ->
+               fill var v;
+               Return v )
 
-    let mutate var fn _ =
+    let mutate (var : _ t) fn : (_, _, _) rea =
+     fun _ ->
       inj
-      @@ let+ v = take var in
-         fill var (fn v)
+      @@ Bind
+           ( take var,
+             fun v ->
+               fill var (fn v);
+               Return () )
 
-    let try_mutate var fn _ =
+    let try_mutate (var : _ t) fn : (_, _, _) rea =
+     fun _ ->
       inj
-      @@ let* v = take var in
-         let* r = catch' (run (fn v)) in
-         match r with
-         | `Error e ->
-           fill var v;
-           fail' e
-         | `Ok v ->
-           fill var v;
-           unit'
+      @@ Bind
+           ( take var,
+             fun v ->
+               TryIn
+                 ( run (fn v),
+                   (fun v ->
+                     fill var v;
+                     Return ()),
+                   fun e ->
+                     fill var v;
+                     Fail e ) )
 
-    let try_modify var fn _ =
+    let try_modify (var : _ t) fn : (_, _, _) rea =
+     fun _ ->
       inj
-      @@ let* v = take var in
-         let* r = catch' (run (fn v)) in
-         match r with
-         | `Error e ->
-           fill var v;
-           fail' e
-         | `Ok (v, a) ->
-           fill var v;
-           return a
+      @@ Bind
+           ( take var,
+             fun v ->
+               TryIn
+                 ( run (fn v),
+                   (fun (v, a) ->
+                     fill var v;
+                     Return a),
+                   fun e ->
+                     fill var v;
+                     Fail e ) )
   end
 end

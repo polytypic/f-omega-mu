@@ -15,13 +15,13 @@ let () = Hashtbl.randomize ()
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
-  of_async @@ fun r on_error on_ok ->
-  match try Ok (op r) with e -> Error e with
+  of_async @@ fun on_error on_ok ->
+  match try Ok (op ()) with e -> Error e with
   | Ok p -> Lwt.on_any p on_ok on_error
   | Error e -> on_error e
 
 let fetch at filename =
-  of_lwt (fun _ ->
+  of_lwt (fun () ->
       let open Lwt.Syntax in
       let open Cohttp in
       let open Cohttp_lwt_jsoo in

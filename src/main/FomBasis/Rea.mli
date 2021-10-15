@@ -14,9 +14,7 @@ module Syntax : sig
 
   (* *)
 
-  val of_async :
-    ('r -> ('e -> unit) -> ('a -> unit) -> unit) -> ('r, 'e, 'a) rea
-
+  val of_async : (('e -> unit) -> ('a -> unit) -> unit) -> ('r, 'e, 'a) rea
   val of_res : ('e, 'a) Res.t -> ('r, 'e, 'a) rea
 
   (* *)
@@ -46,7 +44,7 @@ module Syntax : sig
 
   (* *)
 
-  val invoke : ('r -> (unit, 'e, 'a) rea) -> ('r, 'e, 'a) rea
+  val invoke : ('r -> ('r, 'e, 'a) rea) -> ('r, 'e, 'a) rea
 
   (* *)
 
@@ -54,14 +52,6 @@ module Syntax : sig
   val get_as : ('r -> ('f, 'r) Field.t) -> ('f -> 'g) -> ('r, 'e, 'g) rea
   val setting : ('r -> ('f, 'r) Field.t) -> 'f -> ('r, 'e, 'a) rea uop
   val mapping : ('r -> ('f, 'r) Field.t) -> 'f uop -> ('r, 'e, 'a) rea uop
-
-  module IVar : sig
-    type ('e, 'a) t
-
-    val empty : unit -> ('e, 'a) t
-    val get : ('e, 'a) t -> ('r, 'e, 'a) rea
-    val put : ('e, 'a) t -> ('e, 'a) Res.t -> ('r, 'f, unit) rea
-  end
 
   module LVar : sig
     type ('e, 'a) t
