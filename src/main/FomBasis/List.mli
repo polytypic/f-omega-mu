@@ -45,6 +45,8 @@ val find_opt_fr :
 
 (* *)
 
+val map_m : ('a -> ('f, 'F, 'b) Monad.fr) -> 'a t -> ('f, 'F, 'b t) Monad.fr
+
 val map_fr :
   ('a -> ('f, 'F, 'b) Applicative.fr) -> 'a t -> ('f, 'F, 'b t) Applicative.fr
 

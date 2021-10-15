@@ -260,7 +260,7 @@ let js_codemirror_mode =
       let env = FomToJsC.Env.empty ~fetch () in
       let def_uses () =
         Field.get Annot.field env |> MVar.get >>- Annot.LocMap.bindings
-        >>= List.map_fr (js_use_def ~max_width)
+        >>= List.map_m (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in
       input |> Js.to_string

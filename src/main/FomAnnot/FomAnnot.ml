@@ -91,7 +91,7 @@ module Annot = struct
       let* annot = get field in
       MVar.try_mutate annot @@ fun annot ->
       annot |> LocMap.bindings
-      |> List.map_fr (fun (at, v) ->
+      |> List.map_m (fun (at, v) ->
              match v#annot with
              | `TypId (id, kind) ->
                let+ kind = resolve_kind kind in

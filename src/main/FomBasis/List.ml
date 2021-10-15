@@ -95,6 +95,13 @@ let rec find_opt_fr p = function
 
 (* *)
 
+let rec map_m xyF = function
+  | x :: xs ->
+    let* y = xyF x in
+    let+ ys = map_m xyF xs in
+    y :: ys
+  | [] -> return []
+
 let rec map_fr xyF ysF = function
   | x :: xs -> map_fr xyF (xyF x <*> ysF >>- fun (y, ys) -> y :: ys) xs
   | [] -> ysF >>- rev
