@@ -3,4 +3,8 @@
  (modes js)
  (libraries FomElab FomParser FomToJsC cohttp-lwt-jsoo)
  (preprocess (pps js_of_ocaml-ppx))
- (js_of_ocaml (flags --wrap-with-fun=FomSandbox)))
+ (js_of_ocaml
+  (flags ; --debug-info
+         ; --pretty
+         ; --source-map-inline
+         --wrap-with-fun=FomSandbox)))
