@@ -7,6 +7,9 @@ open Compare.Syntax
 
 include Stdlib.List
 
+let rec map xy ys = function x :: xs -> map xy (xy x :: ys) xs | [] -> rev ys
+let map xy = map xy []
+
 let rec for_alli p i = function
   | x :: xs -> p i x && for_alli p (i + 1) xs
   | [] -> true
