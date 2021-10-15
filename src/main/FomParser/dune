@@ -9,4 +9,5 @@
  (flags --no-dollars
    --unused-token Comment
    --unused-token LitStringPart
+   --unused-token IdDollar
    --unused-token IdSub))

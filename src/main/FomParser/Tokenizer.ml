@@ -55,8 +55,9 @@ let token_info_utf_8 =
     | Id ("bool" | "int" | "impure" | "string") -> builtin
     | Id ("true" | "false") -> atom
     | Id _ -> variable
-    | IdTyp _ -> variable
+    | IdDollar _ -> variable
     | IdSub _ -> variable
+    | IdTyp _ -> variable
     | If -> keyword
     | Import -> keyword
     | In -> keyword

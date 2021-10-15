@@ -26,8 +26,9 @@ let[@warning "-32"] to_string = function
   | Greater -> ">"
   | GreaterEqual -> "≥"
   | Id id -> id
-  | IdTyp id -> id
+  | IdDollar id -> id
   | IdSub id -> id
+  | IdTyp id -> id
   | If -> "if"
   | Import -> "import"
   | In -> "in"

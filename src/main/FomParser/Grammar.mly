@@ -4,8 +4,10 @@
 %token LitStringPart
 
 %token <string> Id
-%token <string> IdTyp
+%token <string> IdDollar
 %token <string> IdSub
+%token <string> IdTyp
+
 %token <string> Comment
 
 %token And "and"

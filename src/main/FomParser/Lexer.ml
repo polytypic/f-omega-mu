@@ -55,6 +55,10 @@ let id_sub = [%sedlex.regexp? id_typ, Plus sub_digit]
 
 (* *)
 
+let id_dollar = [%sedlex.regexp? (id_hd | '$'), Star (id_tl | '$')]
+
+(* *)
+
 let hex_digit = [%sedlex.regexp? '0' .. '9' | 'a' .. 'f' | 'A' .. 'F']
 let esc_char = [%sedlex.regexp? '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't']
 let esc_hex = [%sedlex.regexp? 'u', Rep (hex_digit, 4)]
@@ -153,6 +157,7 @@ let rec token_or_comment buffer =
   | id -> return (Id (Buffer.lexeme_utf_8 buffer))
   | id_typ -> return (IdTyp (Buffer.lexeme_utf_8 buffer))
   | id_sub -> return (IdSub (Buffer.lexeme_utf_8 buffer))
+  | id_dollar -> return (IdDollar (Buffer.lexeme_utf_8 buffer))
   (* *)
   | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
   | whitespace -> token_or_comment buffer
