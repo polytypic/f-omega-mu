@@ -258,7 +258,7 @@ let js_codemirror_mode =
       Profiling.Counter.reset_all ();
       let path = Js.to_string path in
       let env = FomToJsC.Env.empty ~fetch () in
-      let def_uses () =
+      let def_uses =
         Field.get Annot.field env |> MVar.get >>- Annot.LocMap.bindings
         >>= List.map_m (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
@@ -272,7 +272,7 @@ let js_codemirror_mode =
       |> try_in
            (fun (typ, deps) ->
              Profiling.Counter.dump_all ();
-             let* defUses = def_uses () in
+             let* defUses = def_uses in
              Cb.invoke on_result
              @@ object%js
                   val typ = typ
@@ -285,7 +285,7 @@ let js_codemirror_mode =
                 end)
            (fun error ->
              Profiling.Counter.dump_all ();
-             let* defUses = def_uses () in
+             let* defUses = def_uses in
              let diagnostics = Diagnostic.of_error error in
              Cb.invoke on_result
              @@ object%js
