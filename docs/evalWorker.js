@@ -1,5 +1,7 @@
 'use strict'
 
+// Error.stackTraceLimit = undefined // Unlimited stack trace on Chrome
+
 const timingStart = () => performance.now()
 const timingEnd = (message, start) => {
   console.log(message + ' took ' + ((performance.now() - start) | 0) + 'ms')
