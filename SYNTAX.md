@@ -14,7 +14,7 @@ typ
   | typ '→' typ                                                // Function type
   | '(' (typ, ',')* ')'                                        // Tuple type
   | '{' (label (':' typ)?, ',')* '}'                           // Product type
-  | '|' ("'" label typ?, '|')*                                 // Sum type
+  | '|'? ("'" label typ?, '|')*                                // Sum type
   | typ typ                                                    // Apply type level function
   | 'λ' tid (':' kind)? '.' typ                                // Type level function
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')                // Existential type
