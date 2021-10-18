@@ -6,7 +6,7 @@ build-sandbox() {
   local TARGET=src/main/FomSandbox/FomSandbox.bc.js
   local OUTPUT=docs/FomSandbox.js
 
-  dune build --root=. --profile release ./$TARGET
+  opam exec -- dune build --root=. --profile release ./$TARGET
 
   echo "'use strict'"           > $OUTPUT
   cat ./_build/default/$TARGET >> $OUTPUT

@@ -43,6 +43,9 @@ if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
       uutf
 fi
 
+folded "Build docs" \
+  script/docs.sh
+
 FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
 
 run_error_examples() {
