@@ -8,4 +8,5 @@ end
 
 module UTF16 : sig
   val of_uchar_array : Uchar.t array -> bytes
+  val to_uchar_array : bytes -> Uchar.t array
 end

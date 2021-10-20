@@ -252,7 +252,8 @@ let js_codemirror_mode =
       in
       format ~atomize:false value |> to_js_string ~max_width
 
-    method offset input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
+    method offset16 input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
+    method offset32 input i = Tokenizer.offset_as_utf_32 (Js.to_string input) i
 
     method check path input max_width (on_result : _ Cb.t) =
       Profiling.Counter.reset_all ();

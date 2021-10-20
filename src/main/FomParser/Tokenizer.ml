@@ -7,6 +7,12 @@ let offset_as_utf_16 input i =
   let n = Array.length input in
   (Array.sub input 0 (min i n) |> UTF.UTF16.of_uchar_array |> Bytes.length) / 2
 
+let offset_as_utf_32 input i =
+  let input = UTF.UTF8.to_uchar_array input |> UTF.UTF16.of_uchar_array in
+  let input = Bytes.sub input 0 (min (i * 2) (Bytes.length input)) in
+  let uchars = UTF.UTF16.to_uchar_array input in
+  Array.length uchars
+
 (* *)
 
 module State = struct

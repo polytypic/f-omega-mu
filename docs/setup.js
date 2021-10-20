@@ -85,8 +85,8 @@ CodeMirror.defineMode('fom', () => ({
     if (token.name === 'error') {
       stream.skipToEnd()
     } else {
-      stream.start += fom.offset(input, token.begins)
-      stream.pos += fom.offset(input, token.ends)
+      stream.start += fom.offset16(input, token.begins)
+      stream.pos += fom.offset16(input, token.ends)
     }
     if (token.name === 'variable' && stream.string[stream.start - 1] === "'")
       return 'property'
@@ -181,14 +181,19 @@ const duAt = (cm, cursor, offset) => {
       token &&
       token.start <= cursor.ch &&
       cursor.ch <= token.end &&
-      get(duMap, file, cursor.line, token.start)
+      get(
+        duMap,
+        file,
+        cursor.line,
+        fom.offset32(cm.getLine(cursor.line), token.start)
+      )
     )
   }
 }
 
 const posAsNative = (cm, {line, ch}) => {
   const input = cm.getLine(line)
-  return {line, ch: fom.offset(input, ch)}
+  return {line, ch: fom.offset16(input, ch)}
 }
 
 const setTyp = (value, {noKeywords} = 0) => {
