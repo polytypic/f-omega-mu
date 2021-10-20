@@ -86,14 +86,11 @@ let testInfersAs name typ exp =
   >>= fun are_equal ->
   if not are_equal then
     let open FomPP in
-    [
-      utf8string "Types not equal";
-      [break_1; Typ.pp expected] |> concat |> nest 2;
-      break_1;
-      utf8string "vs";
-      [break_1; Typ.pp actual] |> concat |> nest 2;
-    ]
-    |> concat |> group |> to_string ~max_width:80 |> failuref "%s"
+    utf8string "Types not equal"
+    ^^ nest 2 (break_1 ^^ Typ.pp expected)
+    ^^ break_1 ^^ utf8string "vs"
+    ^^ nest 2 (break_1 ^^ Typ.pp actual)
+    |> group |> to_string ~max_width:80 |> failuref "%s"
   else
     unit
 
@@ -302,11 +299,9 @@ let testErrors name exp =
        >>> try_in
              (fun (_, unexpected, _) ->
                let open FomPP in
-               [
-                 utf8string "Expected type checking to fail, but got type";
-                 [break_1; Typ.pp unexpected] |> concat |> nest 2;
-               ]
-               |> concat |> group |> to_string ~max_width:80 |> failuref "%s")
+               utf8string "Expected type checking to fail, but got type"
+               ^^ nest 2 (break_1 ^^ Typ.pp unexpected)
+               |> group |> to_string ~max_width:80 |> failuref "%s")
              (fun _ -> unit))
        (fun _ -> failure "parsing failed")
 
