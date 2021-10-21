@@ -83,25 +83,24 @@ let make_sub_and_eq at =
     if 0 <> Core.compare_in_env l_env r_env l r && not (GoalSet.mem g !goals)
     then (
       goals := GoalSet.add g !goals;
-      let rec subset swap ls ms =
+      let rec subset l r flip ls ms =
         match (ls, ms) with
         | [], _ -> unit
         | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
         | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
           let c = Label.compare ll ml in
           if c = 0 then
-            (if swap then sub l_env r_env lt mt else sub l_env r_env mt lt)
-            >> subset swap ls ms
+            flip (sub l_env r_env) mt lt >> subset l r flip ls ms
           else if 0 < c then
-            subset swap lls ms
+            subset l r flip lls ms
           else
             fail @@ `Error_label_missing (at, ll, l, r)
       in
       match (l, r) with
       | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
         sub r_env l_env rd ld >> sub l_env r_env lc rc
-      | `Product (_, lls), `Product (_, rls) -> subset false rls lls
-      | `Sum (_, lls), `Sum (_, rls) -> subset true lls rls
+      | `Product (_, lls), `Product (_, rls) -> subset r l id rls lls
+      | `Sum (_, lls), `Sum (_, rls) -> subset l r Fun.flip lls rls
       | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
         sub l_env r_env l r
       | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
