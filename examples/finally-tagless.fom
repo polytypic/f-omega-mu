@@ -1,0 +1,112 @@
+# Finally Tagless
+
+# This example is inspired by the paper:
+#
+#   Finally Tagless, Partially Evaluated:
+#     Tagless Staged Interpreters for Simpler Typed Languages
+#   by Jacques Carette, Oleg Kiselyov and Chung-chieh Shan
+#   https://okmij.org/ftp/tagless-final/index.html
+#
+# This example differs from the paper mainly in that the interpreter is built
+# compositionally.
+
+let id = Λα.λx: α.x
+
+# Types for the two semantics
+
+type eval = λα.α
+type length = λ_.int
+
+# Integer expressions
+
+type IntExp = λσ.{
+  Int: int → σ int
+  Add: σ int → σ int → σ int
+  Mul: σ int → σ int → σ int
+  Leq: σ int → σ int → σ bool
+}
+
+let IntExp =
+  let eval: IntExp eval = {Int = id[int], Add = +, Mul = *, Leq = ≤}
+  let length: IntExp length = {
+    Int = λ_: int.1
+    Add = λx: int.λy: int.x + y + 1
+    Mul = λx: int.λy: int.x + y + 1
+    Leq = λx: int.λy: int.x + y + 1
+  }
+  {eval, length}
+
+# Boolean expressions
+
+type BoolExp = λσ.{
+  Bool: bool → σ bool
+  If: ∀α.σ bool → (() → σ α) → (() → σ α) → σ α
+}
+
+let BoolExp =
+  let eval: BoolExp eval = {
+    Bool = id[bool]
+    If = Λα.λc: bool.λt: () → α.λe: () → α.if c then t () else e ()
+  }
+  let length: BoolExp length = {
+    Bool = λ_: bool.1
+    If = Λα.λc: int.λt: () → int.λe: () → int.c + t () + e () + 1
+  }
+  {eval, length}
+
+# Lambda expressions
+
+type LamExp = λσ.{
+  Lam: ∀α.∀β.(σ α → σ β) → σ (α → β)
+  App: ∀α.∀β.σ (α → β) → σ α → σ β
+}
+
+let LamExp =
+  let eval: LamExp eval = {Lam = Λα.Λβ.id[α → β], App = Λa.Λb.id[a → b]}
+  let length: LamExp length = {
+    Lam = Λα.Λβ.λf: int → int.f 0 + 1
+    App = Λα.Λβ.λf: int.λx: int.f + x + 1
+  }
+  {eval, length}
+
+# Fixpoint expression
+
+type FixExp = λσ.{Fix: ∀α.(σ α → σ α) → σ α}
+
+let FixExp =
+  let eval: FixExp eval = {Fix = Λα.λf: α → α.μx: α.f x}
+  let length: FixExp length = {Fix = Λα.λf: int → int.f 0 + 1}
+  {eval, length}
+
+# Composition of interpreter
+
+type Exp = IntExp ∧ BoolExp ∧ LamExp ∧ FixExp
+
+let Exp =
+  let eval: Exp eval =
+    let {Int, Add, Mul, Leq} = IntExp.eval
+    let {Bool, If} = BoolExp.eval
+    let {Lam, App} = LamExp.eval
+    let {Fix} = FixExp.eval
+    {Int, Add, Mul, Leq, Bool, If, Lam, App, Fix}
+  let length: Exp length =
+    let {Int, Add, Mul, Leq} = IntExp.length
+    let {Bool, If} = BoolExp.length
+    let {Lam, App} = LamExp.length
+    let {Fix} = FixExp.length
+    {Int, Add, Mul, Leq, Bool, If, Lam, App, Fix}
+  {eval, length}
+
+# An example
+
+let pow_exp = Λσ.λS: Exp σ.
+  S.Lam[int][int → int] λx: σ int.S.Fix[int → int] λpow: σ (int → int).
+    S.Lam[int][int] λn: σ int.
+      S.If[int] ◇ S.Leq n S.Int(0)
+        ◇ λ().S.Int 1
+        ◇ λ().S.Mul x ◁ S.App[int][int] pow ◁ S.Add n S.Int(-1)
+
+let pow = pow_exp[eval] Exp.eval
+let pow_length = pow_exp[length] Exp.length
+
+pow 2 pow_length
