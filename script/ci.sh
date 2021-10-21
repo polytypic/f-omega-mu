@@ -30,17 +30,8 @@ else
 fi
 
 if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
-  folded "Installing packages" \
-    opam install --no-checksums -y \
-      bignum \
-      cohttp-lwt-jsoo \
-      cohttp-lwt-unix \
-      dune \
-      lwt_ssl \
-      menhir \
-      pprint \
-      sedlex \
-      uutf
+  folded "Installing dependencies" \
+    script/install-deps.sh
 fi
 
 folded "Build docs" \
