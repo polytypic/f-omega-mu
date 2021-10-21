@@ -133,6 +133,25 @@ module Row = struct
     labels
     |> List.for_alli @@ fun i (l, _) -> Label.to_string l = Int.to_string (i + 1)
 
+  let rec union_fr lhs rhs both ls rs =
+    match (ls, rs) with
+    | (l, lx) :: ls', (r, rx) :: rs' ->
+      let c = Label.compare l r in
+      if c < 0 then
+        lhs l lx <*> union_fr lhs rhs both ls' rs >>- fun (y, ys) ->
+        (l, y) :: ys
+      else if c > 0 then
+        rhs r rx <*> union_fr lhs rhs both ls rs' >>- fun (y, ys) ->
+        (r, y) :: ys
+      else
+        both l lx rx <*> union_fr lhs rhs both ls' rs' >>- fun (y, ys) ->
+        (l, y) :: ys
+    | (l, lx) :: ls, [] ->
+      lhs l lx <*> union_fr lhs rhs both ls rs >>- fun (y, ys) -> (l, y) :: ys
+    | [], (r, rx) :: rs ->
+      rhs r rx <*> union_fr lhs rhs both ls rs >>- fun (y, ys) -> (r, y) :: ys
+    | [], [] -> return []
+
   let map fn = List.map (Pair.map id fn)
   let map_phys_eq fn = List.map_phys_eq (Pair.map_phys_eq id fn)
   let map_fr fn = List.map_fr @@ Pair.map_fr return fn
@@ -799,43 +818,54 @@ module Exp = struct
   module VarSet = Set.Make (Var)
   module VarMap = Map.Make (Var)
 
+  module Core = struct
+    type ('e, 't, 'k) f =
+      [ `Const of Loc.t * (Bigint.t, 't) Const.t
+      | `Var of Loc.t * Var.t
+      | `Lam of Loc.t * Var.t * 't * 'e
+      | `App of Loc.t * 'e * 'e
+      | `Gen of Loc.t * Typ.Var.t * 'k * 'e
+      | `Inst of Loc.t * 'e * 't
+      | `Mu of Loc.t * 'e
+      | `IfElse of Loc.t * 'e * 'e * 'e
+      | `Product of Loc.t * 'e Row.t
+      | `Select of Loc.t * 'e * 'e
+      | `Inject of Loc.t * Label.t * 'e
+      | `Case of Loc.t * 'e
+      | `Pack of Loc.t * 't * 'e * 't
+      | `UnpackIn of Loc.t * Typ.Var.t * 'k * Var.t * 'e * 'e ]
+
+    type t = (t, Typ.Core.t, Kind.t) f
+
+    let at = function
+      | `Const (at, _)
+      | `Var (at, _)
+      | `Lam (at, _, _, _)
+      | `App (at, _, _)
+      | `Gen (at, _, _, _)
+      | `Inst (at, _, _)
+      | `Mu (at, _)
+      | `IfElse (at, _, _, _)
+      | `Product (at, _)
+      | `Select (at, _, _)
+      | `Inject (at, _, _)
+      | `Case (at, _)
+      | `Pack (at, _, _, _)
+      | `UnpackIn (at, _, _, _, _, _)
+      | `Target (at, _, _) ->
+        at
+  end
+
   type ('e, 't, 'k) f =
-    [ `Const of Loc.t * (Bigint.t, 't) Const.t
-    | `Var of Loc.t * Var.t
-    | `Lam of Loc.t * Var.t * 't * 'e
-    | `App of Loc.t * 'e * 'e
-    | `Gen of Loc.t * Typ.Var.t * 'k * 'e
-    | `Inst of Loc.t * 'e * 't
+    [ ('e, 't, 'k) Core.f
     | `LetIn of Loc.t * Var.t * 'e * 'e
-    | `Mu of Loc.t * 'e
-    | `IfElse of Loc.t * 'e * 'e * 'e
-    | `Product of Loc.t * 'e Row.t
-    | `Select of Loc.t * 'e * 'e
-    | `Inject of Loc.t * Label.t * 'e
-    | `Case of Loc.t * 'e
-    | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Var.t * 'k * Var.t * 'e * 'e ]
+    | `Merge of Loc.t * 'e * 'e ]
 
   type t = (t, Typ.t, Kind.t) f
 
   let at = function
-    | `Const (at, _)
-    | `Var (at, _)
-    | `Lam (at, _, _, _)
-    | `App (at, _, _)
-    | `Gen (at, _, _, _)
-    | `Inst (at, _, _)
-    | `LetIn (at, _, _, _)
-    | `Mu (at, _)
-    | `IfElse (at, _, _, _)
-    | `Product (at, _)
-    | `Select (at, _, _)
-    | `Inject (at, _, _)
-    | `Case (at, _)
-    | `Pack (at, _, _, _)
-    | `UnpackIn (at, _, _, _, _, _)
-    | `Target (at, _, _) ->
-      at
+    | #Core.f as e -> Core.at e
+    | `LetIn (at, _, _, _) | `Merge (at, _, _) -> at
 
   let builtins =
     let mk name fn =

@@ -50,12 +50,16 @@ type label_missing =
 
 type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.Core.t]
 
+type non_disjoint_merge =
+  [`Error_non_disjoint_merge of Loc.t * Typ.Core.t * Typ.Core.t]
+
 type type_errors =
   [ var_unbound
   | typ_mismatch
   | typ_unexpected
   | product_lacks
   | label_missing
-  | typ_var_escapes ]
+  | typ_var_escapes
+  | non_disjoint_merge ]
 
 type t = [io_error | syntax_errors | source_errors | kind_errors | type_errors]

@@ -31,7 +31,7 @@ module Erased = struct
   type t =
     [ `App of t * t
     | `Case of t
-    | `Const of (int32, Typ.t) Exp.Const.t
+    | `Const of (int32, Typ.Core.t) Exp.Const.t
     | `IfElse of t * t * t
     | `Inject of Label.t * t
     | `Lam of Exp.Var.t * t
@@ -273,7 +273,7 @@ module Exp = struct
       | `Select _ -> 8
       | `Var _ -> 9
 
-    let rec compare l r =
+    let rec compare (l : Erased.t) (r : Erased.t) =
       if l == r then
         0
       else
@@ -281,7 +281,8 @@ module Exp = struct
         | `App (fl, xl), `App (fr, xr) ->
           compare xl xr <>? fun () -> compare fl fr
         | `Case l, `Case r | `Mu l, `Mu r -> compare l r
-        | `Const l, `Const r -> Exp.Const.compare' Int32.compare Typ.compare l r
+        | `Const l, `Const r ->
+          Exp.Const.compare' Int32.compare (Typ.compare :> Typ.Core.t cmp) l r
         | `IfElse (cl, tl, el), `IfElse (cr, tr, er) ->
           compare cl cr <>? fun () ->
           compare tl tr <>? fun () -> compare el er
@@ -380,8 +381,7 @@ module Exp = struct
     | `Var (_, i) -> `Var i
     | `Lam (_, i, _, e) -> `Lam (i, erase e)
     | `App (_, f, x) -> `App (erase f, erase x)
-    | `UnpackIn (_, _, _, i, v, e) | `LetIn (_, i, v, e) ->
-      `App (`Lam (i, erase e), erase v)
+    | `UnpackIn (_, _, _, i, v, e) -> `App (`Lam (i, erase e), erase v)
     | `Mu (_, e) -> `Mu (erase e)
     | `IfElse (_, c, t, e) -> `IfElse (erase c, erase t, erase e)
     | `Product (_, fs) -> `Product (fs |> Row.map erase)

@@ -52,6 +52,7 @@ let token_info_utf_8 =
     | Dot -> punctuation
     | DoubleAngleQuoteLhs -> punctuation
     | DoubleAngleQuoteRhs -> punctuation
+    | DoubleComma -> operator
     | EOF -> error
     | Else -> keyword
     | Equal -> operator

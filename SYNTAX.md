@@ -77,6 +77,7 @@ bop
   : '∨' | '∧'                                                  // (L) Logical connectives (*9)
   | ('=' | '≠') '[' typ ']'                                    // (-) Polymorphic equality
   | '>' | '≥' | '<' | '≤'                                      // (-) Comparison
+  | '„'                                                        // (L) Merge (*11)
   | '+' | '-' | '^'                                            // (L) Additive
   | '*' | '/' | '%'                                            // (L) Multiplicative
 
@@ -154,6 +155,8 @@ incs                                                           // Syntax of .fom
 
 10. Structural joins `∨` and meets `∧` are eliminated during type checking and
     are not allowed over arbitrary or unknown types.
+
+11. Disjoint merge `„` is allowed between nested disjoint products.
 
 ### Alternative tokens
 

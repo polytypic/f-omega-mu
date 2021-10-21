@@ -12,6 +12,7 @@ let arrow_right = [%sedlex.regexp? 0x2192 (* → *)]
 let diamond = [%sedlex.regexp? 0x25c7 (* ◇ *)]
 let double_angle_quote_lhs = [%sedlex.regexp? 0x00ab (* « *)]
 let double_angle_quote_rhs = [%sedlex.regexp? 0x00bb (* » *)]
+let double_comma = [%sedlex.regexp? 0x201e (* „ *)]
 let exists = [%sedlex.regexp? 0x2203 (* ∃ *)]
 let for_all = [%sedlex.regexp? 0x2200 (* ∀ *)]
 let greater_equal = [%sedlex.regexp? 0x2265 (* ≥ *)]
@@ -130,6 +131,7 @@ let rec token_or_comment buffer =
   | diamond | "<>" -> return Diamond
   | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
   | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs
+  | double_comma | ",," -> return DoubleComma
   | greater_equal | ">=" -> return GreaterEqual
   | lambda_lower | "fun" -> return LambdaLower
   | lambda_upper | "gen" -> return LambdaUpper

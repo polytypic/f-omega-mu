@@ -207,18 +207,8 @@ end
 
 (* *)
 
-let rec union op os = function
-  | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
-    let c = Label.compare ll rl in
-    if c < 0 then
-      union op ((ll, lt) :: os) (lls, rlls)
-    else if 0 < c then
-      union op ((rl, rt) :: os) (llls, rls)
-    else
-      op lt rt >>= fun t -> union op ((ll, t) :: os) (lls, rls)
-  | (ll, lt) :: lls, [] -> union op ((ll, lt) :: os) (lls, [])
-  | [], (rl, rt) :: rls -> union op ((rl, rt) :: os) ([], rls)
-  | [], [] -> return @@ List.rev os
+let rec union op os (ls, rs) =
+  Row.union_fr (const return) (const return) (const op) ls rs
 
 let rec intersection op os = function
   | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->

@@ -157,7 +157,7 @@ module TypImports = struct
 end
 
 module ExpImports = struct
-  type t = (Exp.Var.t * Exp.t * Typ.Core.t * string list) PathTable.t
+  type t = (Exp.Var.t * Exp.Core.t * Typ.Core.t * string list) PathTable.t
 
   let create () = Hashtbl.create 100
   let field r : t = r#exp_imports
@@ -196,14 +196,14 @@ module Parameters = struct
             `Lam (Exp.Var.at id, id, (typ :> Typ.t), ast))
           ast
 
-  let result_without t =
-    let rec loop t ps =
-      match (t, ps) with
-      | `Arrow (_, _, t), _ :: ps -> loop t ps
-      | t, [] -> t
+  let result_without et =
+    let rec loop et ps =
+      match (et, ps) with
+      | (`Lam (_, _, _, e), `Arrow (_, _, t)), _ :: ps -> loop (e, t) ps
+      | et, [] -> et
       | _ -> failwith "result_without"
     in
-    get () >>- loop t
+    get () >>- loop et
 
   class con =
     object
@@ -476,6 +476,8 @@ let rec elaborate = function
     `LetIn (at, i, x, `App (at, f, `Var (at, i)))
   | `AppR (at, f, x) ->
     elaborate x <*> elaborate f >>- fun (x, f) -> `App (at, f, x)
+  | `Merge (at', l, r) ->
+    elaborate l <*> elaborate r >>- fun (l, r) -> `Merge (at', l, r)
   | `Import (at', p) ->
     let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
@@ -500,7 +502,7 @@ let rec elaborate = function
        let e =
          match t_opt with None -> e | Some t -> annot at' i (t :> Typ.t) e
        in
-       let* t =
+       let* e, t =
          Parameters.taking_in e >>= Exp.infer >>= Parameters.result_without
        in
        let+ parameters = Parameters.get () in
@@ -521,7 +523,7 @@ let elaborate_typ x = elaborate_typ x |> Annot.setup |> Elab.modularly
 
 let elaborate cst =
   (let* ast = elaborate cst |> Annot.setup >>- Exp.initial_exp in
-   let* typ =
+   let* ast, typ =
      Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
    in
    let+ parameters = Parameters.get () in

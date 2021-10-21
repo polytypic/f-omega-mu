@@ -56,6 +56,14 @@ module Row : sig
 
   (* *)
 
+  val union_fr :
+    (Label.t -> 'a -> ('f, 'F, 'c) Applicative.fr) ->
+    (Label.t -> 'b -> ('f, 'F, 'c) Applicative.fr) ->
+    (Label.t -> 'a -> 'b -> ('f, 'F, 'c) Applicative.fr) ->
+    'a t ->
+    'b t ->
+    ('f, 'F, 'c t) Applicative.fr
+
   val map_fr :
     ('a -> ('f, 'F, 'b) Applicative.fr) -> 'a t -> ('f, 'F, 'b t) Applicative.fr
 
@@ -176,7 +184,7 @@ module Typ : sig
 
   (* Type predicates *)
 
-  val is_int : t -> bool
+  val is_int : [> ('t, 'k) Core.f] -> bool
 
   (* Type applications *)
 
@@ -278,7 +286,7 @@ module Exp : sig
 
     (* Typing *)
 
-    val type_of : Loc.t -> ('nat, Typ.t) t -> Typ.t
+    val type_of : Loc.t -> ('nat, ([> ('t, 'k) Typ.Core.f] as 't)) t -> 't
 
     (* Substitution *)
 
@@ -312,26 +320,34 @@ module Exp : sig
   module VarSet : Set.S with type elt = Var.t
   module VarMap : Map.S with type key = Var.t
 
+  module Core : sig
+    type ('e, 't, 'k) f =
+      [ `Const of Loc.t * (Bigint.t, 't) Const.t
+      | `Var of Loc.t * Var.t
+      | `Lam of Loc.t * Var.t * 't * 'e
+      | `App of Loc.t * 'e * 'e
+      | `Gen of Loc.t * Typ.Var.t * 'k * 'e
+      | `Inst of Loc.t * 'e * 't
+      | `Mu of Loc.t * 'e
+      | `IfElse of Loc.t * 'e * 'e * 'e
+      | `Product of Loc.t * 'e Row.t
+      | `Select of Loc.t * 'e * 'e
+      | `Inject of Loc.t * Label.t * 'e
+      | `Case of Loc.t * 'e
+      | `Pack of Loc.t * 't * 'e * 't
+      | `UnpackIn of Loc.t * Typ.Var.t * 'k * Var.t * 'e * 'e ]
+
+    type t = (t, Typ.Core.t, Kind.t) f
+  end
+
   type ('e, 't, 'k) f =
-    [ `Const of Loc.t * (Bigint.t, 't) Const.t
-    | `Var of Loc.t * Var.t
-    | `Lam of Loc.t * Var.t * 't * 'e
-    | `App of Loc.t * 'e * 'e
-    | `Gen of Loc.t * Typ.Var.t * 'k * 'e
-    | `Inst of Loc.t * 'e * 't
+    [ ('e, 't, 'k) Core.f
     | `LetIn of Loc.t * Var.t * 'e * 'e
-    | `Mu of Loc.t * 'e
-    | `IfElse of Loc.t * 'e * 'e * 'e
-    | `Product of Loc.t * 'e Row.t
-    | `Select of Loc.t * 'e * 'e
-    | `Inject of Loc.t * Label.t * 'e
-    | `Case of Loc.t * 'e
-    | `Pack of Loc.t * 't * 'e * 't
-    | `UnpackIn of Loc.t * Typ.Var.t * 'k * Var.t * 'e * 'e ]
+    | `Merge of Loc.t * 'e * 'e ]
 
   type t = (t, Typ.t, Kind.t) f
 
-  val at : ('e, 't, 'k) f -> Loc.t
+  val at : [< ('e, 't, 'k) f] -> Loc.t
 
   val initial_exp :
     (('e, (('t, 'k) Typ.f as 't), ('k Kind.f as 'k)) f as 'e) -> 'e

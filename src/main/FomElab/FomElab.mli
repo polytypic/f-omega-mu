@@ -75,7 +75,7 @@ module ExpImports : sig
     string ->
     ( < exp_imports : t ; .. >,
       [> Error.t],
-      (Exp.Var.t * Exp.t * Typ.Core.t * string list) * Annot.map )
+      (Exp.Var.t * Exp.Core.t * Typ.Core.t * string list) * Annot.map )
     rea
 
   class con :
@@ -129,5 +129,5 @@ val elaborate :
      as
      'r),
     [> Error.t],
-    Exp.t * Typ.Core.t * string list )
+    Exp.Core.t * Typ.Core.t * string list )
   rea

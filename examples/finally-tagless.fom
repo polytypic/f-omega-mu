@@ -82,20 +82,7 @@ let FixExp =
 
 type Exp = IntExp ∧ BoolExp ∧ LamExp ∧ FixExp
 
-let Exp =
-  let eval: Exp eval =
-    let {Int, Add, Mul, Leq} = IntExp.eval
-    let {Bool, If} = BoolExp.eval
-    let {Lam, App} = LamExp.eval
-    let {Fix} = FixExp.eval
-    {Int, Add, Mul, Leq, Bool, If, Lam, App, Fix}
-  let length: Exp length =
-    let {Int, Add, Mul, Leq} = IntExp.length
-    let {Bool, If} = BoolExp.length
-    let {Lam, App} = LamExp.length
-    let {Fix} = FixExp.length
-    {Int, Add, Mul, Leq, Bool, If, Lam, App, Fix}
-  {eval, length}
+let Exp = IntExp „ BoolExp „ LamExp „ FixExp
 
 # An example
 

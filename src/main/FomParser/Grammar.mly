@@ -36,6 +36,7 @@
 %token Dot "."
 %token DoubleAngleQuoteLhs "«"
 %token DoubleAngleQuoteRhs "»"
+%token DoubleComma "„"
 %token Equal "="
 %token Exists "∃"
 %token ForAll "∀"
@@ -73,6 +74,7 @@
 %left "∧"
 %nonassoc "=" "≠" "]"
 %nonassoc "<" "≤" "≥" ">"
+%left "„"
 %left "+" "-" "^"
 %left "*" "/" "%"
 
@@ -258,6 +260,7 @@ exp_inf:
   | f=exp_inf "◁" x=exp_inf                             {`AppR ($loc, f, x)}
   | x=exp_inf "▷" f=exp_inf                             {`AppL ($loc, x, f)}
   | f=exp_inf "◇" x=exp_inf                             {`App ($loc, f, x)}
+  | l=exp_inf "„" r=exp_inf                             {`Merge ($loc, l, r)}
   | l=exp_inf o=bop r=exp_inf                           {`App ($loc, `App ($loc, o, l), r)}
 
 %inline uop:

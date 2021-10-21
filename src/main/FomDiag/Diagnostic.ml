@@ -134,3 +134,15 @@ let of_error = function
         ^^ utf8string "of the expression"
         |> group ),
       [(Typ.Var.at i, utf8string "∃ type variable")] )
+  | `Error_non_disjoint_merge (at, l, r) ->
+    ( ( at,
+        utf8string "Values of type"
+        ^^ nest 2 (break_1 ^^ Typ.pp l)
+        ^^ break_1 ^^ utf8string "and"
+        ^^ nest 2 (break_1 ^^ Typ.pp r)
+        ^^ break_1
+        ^^ utf8string "are not disjoint and cannot be merged" ),
+      [
+        (Typ.at l, utf8string "Conflicting type");
+        (Typ.at r, utf8string "Conflicting type");
+      ] )
