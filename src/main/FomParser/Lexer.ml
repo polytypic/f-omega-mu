@@ -8,23 +8,23 @@ let return_from buffer tok =
   let lhs, rhs = Buffer.loc buffer in
   (tok, lhs, rhs)
 
+let arrow_right = [%sedlex.regexp? 0x2192 (* → *)]
+let diamond = [%sedlex.regexp? 0x25c7 (* ◇ *)]
 let double_angle_quote_lhs = [%sedlex.regexp? 0x00ab (* « *)]
 let double_angle_quote_rhs = [%sedlex.regexp? 0x00bb (* » *)]
+let exists = [%sedlex.regexp? 0x2203 (* ∃ *)]
+let for_all = [%sedlex.regexp? 0x2200 (* ∀ *)]
+let greater_equal = [%sedlex.regexp? 0x2265 (* ≥ *)]
 let lambda_lower = [%sedlex.regexp? 0x03bb (* λ *)]
 let lambda_upper = [%sedlex.regexp? 0x039b (* Λ *)]
-let arrow_right = [%sedlex.regexp? 0x2192 (* → *)]
-let mu_lower = [%sedlex.regexp? 0x03bc (* μ *)]
-let for_all = [%sedlex.regexp? 0x2200 (* ∀ *)]
-let exists = [%sedlex.regexp? 0x2203 (* ∃ *)]
 let less_equal = [%sedlex.regexp? 0x2264 (* ≤ *)]
-let greater_equal = [%sedlex.regexp? 0x2265 (* ≥ *)]
 let logical_and = [%sedlex.regexp? 0x2227 (* ∧ *)]
-let logical_or = [%sedlex.regexp? 0x2228 (* ∨ *)]
 let logical_not = [%sedlex.regexp? 0x00ac (* ¬ *)]
+let logical_or = [%sedlex.regexp? 0x2228 (* ∨ *)]
+let mu_lower = [%sedlex.regexp? 0x03bc (* μ *)]
 let not_equal = [%sedlex.regexp? 0x2260 (* ≠ *)]
 let triangle_lhs = [%sedlex.regexp? 0x25c1 (* ◁ *)]
 let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
-let diamond = [%sedlex.regexp? 0x25c7 (* ◇ *)]
 
 (* *)
 
@@ -127,6 +127,7 @@ let rec token_or_comment buffer =
   | "type" -> return Type
   (* *)
   | arrow_right | "->" -> return ArrowRight
+  | diamond | "<>" -> return Diamond
   | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
   | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs
   | greater_equal | ">=" -> return GreaterEqual
@@ -140,7 +141,6 @@ let rec token_or_comment buffer =
   | not_equal | "!=" -> return NotEqual
   | triangle_lhs | "<|" -> return TriangleLhs
   | triangle_rhs | "|>" -> return TriangleRhs
-  | diamond | "<>" -> return Diamond
   (* *)
   | nat_10 ->
     return

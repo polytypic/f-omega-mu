@@ -38,10 +38,10 @@ let[@warning "-32"] to_string = function
   | Less -> "<"
   | LessEqual -> "≤"
   | Let -> "let"
-  | Local -> "local"
   | LitNat n -> Bigint.to_string n
   | LitString s -> JsonString.to_utf8_json s
   | LitStringPart -> "..."
+  | Local -> "local"
   | LogicalAnd -> "∧"
   | LogicalNot -> "∨"
   | LogicalOr -> "¬"

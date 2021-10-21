@@ -74,10 +74,10 @@ let token_info_utf_8 =
     | Less -> operator
     | LessEqual -> operator
     | Let -> keyword
-    | Local -> keyword
     | LitNat _ -> number
     | LitString _ -> string
     | LitStringPart -> string
+    | Local -> keyword
     | LogicalAnd -> operator
     | LogicalNot -> operator
     | LogicalOr -> operator
