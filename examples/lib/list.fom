@@ -1,6 +1,6 @@
 include "types"
 
-let one = Λα.λx: α.'Some (x, 'None)
+let of = Λα.λx: α.'Some (x, 'None)
 
 let μhas: ∀α.(α → bool) → list α → bool = Λα.λp: α → bool.case {
   None = λ().false
@@ -16,6 +16,11 @@ let μfold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ =
 let rev_to = Λα.fold[list α][α] λxs: list α.λx: α.'Some (x, xs)
 
 let rev = Λα.rev_to[α] 'None
+
+let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
+  xs
+  ▷ fold[list β][α] (λys: list β.λx: α.rev_to[β] ys ◇ xys x) 'None
+  ▷ rev[β]
 
 let filter = Λα.λp: α → bool.λxs: list α.
   xs
@@ -44,4 +49,5 @@ let iota = λn: int.
     if i < n then 'Some (i, loop (i + 1)) else 'None
   loop 0
 
-{one, has, fold, rev_to, rev, filter, reject, concat, infinite_of, take_n, iota}
+{of, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of, take_n,
+ iota}

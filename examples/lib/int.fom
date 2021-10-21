@@ -8,6 +8,8 @@ let compare = λl: int.λr: int.
   else
     'Greater
 
+let equals = (=[int])
+
 let to_string = Target.to_string[int]
 
-{compare, to_string}
+{compare, equals, to_string}

@@ -1,3 +1,5 @@
+let equals = (=[string])
+
 let to_literal = target[string → string] "JSON.stringify"
 
-{to_literal}
+{equals, to_literal}

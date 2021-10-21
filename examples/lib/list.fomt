@@ -1,5 +1,6 @@
 include "types" in {
-  one: ∀α.α → list_of_1 α
+  of: ∀α.α → list_of_1 α
+  chain: ∀α.∀β.(α → list β) → list α → list β
   has: ∀α.(α → bool) → list α → bool
   fold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ
   rev_to: ∀α.list α → list α → list α
