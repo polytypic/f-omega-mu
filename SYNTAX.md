@@ -167,6 +167,7 @@ incs                                                           // Syntax of .fom
 |            `Λ` | `gen`                     |
 |            `λ` | `fun`                     |
 |            `μ` | `rec`                     |
+|            `„` | `,,`                      |
 |            `→` | `->`                      |
 |            `∀` | `forall`                  |
 |            `∃` | `exists`                  |
