@@ -25,7 +25,7 @@ This Fωμ variant has
 - **decidable type checking**, and
 - **phase separation**.
 
-These features make Fωμ both relatively expressive
+These features make Fωμ relatively well-behaved as well as expressive
 ([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-gadt-using-eq-witnesses.fom),
 [\*](https://polytypic.github.io/f-omega-mu/#*examples/hoas-gadt.fom)) and also
 allow a compiler to make good use of untyped compilation targets
