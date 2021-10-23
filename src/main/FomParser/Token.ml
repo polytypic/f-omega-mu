@@ -22,6 +22,7 @@ let[@warning "-32"] to_string = function
   | EOF -> "<EOF>"
   | Else -> "else"
   | Equal -> "="
+  | Escape s -> s
   | Exists -> "∃"
   | ForAll -> "∀"
   | Greater -> ">"

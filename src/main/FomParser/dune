@@ -8,6 +8,7 @@
  (modules Grammar)
  (flags --no-dollars
    --unused-token Comment
+   --unused-token Escape
    --unused-token LitStringPart
    --unused-token IdDollar
    --unused-token IdSub))

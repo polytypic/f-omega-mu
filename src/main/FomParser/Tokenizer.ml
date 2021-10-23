@@ -56,6 +56,7 @@ let token_info_utf_8 =
     | EOF -> error
     | Else -> keyword
     | Equal -> operator
+    | Escape _ -> string
     | Exists -> tag
     | ForAll -> tag
     | Greater -> operator

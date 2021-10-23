@@ -166,6 +166,9 @@ let rec token_or_comment buffer =
   (* *)
   | eof -> return EOF
   (* *)
+  | '\\', Plus ('a' .. 'z' | 'A' .. 'Z') ->
+    return (Escape (Buffer.lexeme_utf_8 buffer))
+  (* *)
   | nat_10, id | '"', Star char | any ->
     raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
   | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)

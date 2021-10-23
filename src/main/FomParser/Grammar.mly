@@ -8,6 +8,8 @@
 %token <string> IdSub
 %token <string> IdTyp
 
+%token <string> Escape
+
 %token <string> Comment
 
 %token And "and"
