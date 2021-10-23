@@ -443,27 +443,13 @@ fomCM.on(
 
 //
 
-const replacements = {
-  '!': '¬',
-  '!=': '≠ ',
-  '&&': '∧ ',
-  ',,': '„ ',
-  '->': '→ ',
-  '<<': '«',
-  '<=': '≤ ',
-  '<>': '◇ ',
-  '<|': '◁ ',
-  '=>': '.',
-  '>=': '≥ ',
-  '>>': '» ',
-  '|>': '▷ ',
-  '||': '∨ ',
-  exists: '∃',
-  forall: '∀',
-  fun: 'λ',
-  gen: 'Λ',
-  rec: 'μ',
-}
+const replacements = {}
+
+fom
+  .synonyms()
+  .forEach(s => (replacements[s.ascii] = s.unicode + (s.bop ? ' ' : '')))
+
+//
 
 fomCM.on('keyup', (_, event) => {
   if (event.key === ' ' && replaceSymbolsInput.checked) {

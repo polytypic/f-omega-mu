@@ -339,6 +339,16 @@ let js_codemirror_mode =
              Cb.invoke on_result @@ Js.string "")
       |> start (FomToJsC.Env.empty ~fetch ())
 
+    method synonyms =
+      Tokenizer.synonyms |> Array.of_list
+      |> Array.map (fun s ->
+             object%js
+               val unicode = Js.string s#unicode
+               val ascii = Js.string s#ascii
+               val bop = s#bop
+             end)
+      |> Js.array
+
     method token input state =
       try
         let {Tokenizer.begins; ends; name; state} =

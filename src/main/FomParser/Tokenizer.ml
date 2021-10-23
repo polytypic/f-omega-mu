@@ -110,3 +110,32 @@ let token_info_utf_8 =
       name = to_name token;
       state = token = LitStringPart;
     }
+
+let synonyms =
+  [
+    (".", "=>", false);
+    ("«", "<<", false);
+    ("¬", "!", false);
+    ("»", ">>", false);
+    ("Λ", "gen", false);
+    ("λ", "fun", false);
+    ("μ", "rec", false);
+    ("„", ",,", true);
+    ("→", "->", true);
+    ("∀", "forall", false);
+    ("∃", "exists", false);
+    ("∧", "&&", true);
+    ("∨", "||", true);
+    ("≠", "!=", true);
+    ("≤", "<=", true);
+    ("≥", ">=", true);
+    ("▷", "|>", true);
+    ("◁", "<|", true);
+    ("◇", "<>", true);
+  ]
+  |> List.map @@ fun (unicode, ascii, bop) ->
+     object
+       method unicode = unicode
+       method ascii = ascii
+       method bop = bop
+     end

@@ -39,6 +39,8 @@ module Tokenizer : sig
   val offset_as_utf_32 : string -> int -> int
   (** Convert UTF-16 character offset to UTF-32 character offset with respect to
       given UTF-8 string. *)
+
+  val synonyms : < unicode : string ; ascii : string ; bop : bool > list
 end
 
 module Grammar : sig
