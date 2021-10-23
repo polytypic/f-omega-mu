@@ -443,11 +443,10 @@ fomCM.on(
 
 //
 
-const replacements = {}
+const alternatives = {}
 
-fom
-  .synonyms()
-  .forEach(s => (replacements[s.ascii] = s.unicode + (s.bop ? ' ' : '')))
+for (const {unicode, ascii, bop} of fom.synonyms())
+  alternatives[ascii] = unicode + (bop ? ' ' : '')
 
 //
 
