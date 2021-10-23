@@ -452,18 +452,20 @@ for (const {unicode, ascii, bop} of fom.synonyms())
 
 fomCM.on('keyup', (_, event) => {
   if (event.key === ' ' && replaceSymbolsInput.checked) {
-    const cursor = fomCM.getCursor()
-    const line = cursor.line
-    const ch = cursor.ch - 1
-    const token = fomCM.getTokenAt({line: line, ch: ch})
-    if (!token || token.end !== ch) return
-    const replacement = replacements[token.string]
-    if (replacement) {
-      fomCM.setSelection(
-        {line: line, ch: token.start},
-        {line: line, ch: ch + 1}
-      )
-      fomCM.replaceSelection(replacement)
+    for (const selection of fomCM.listSelections().reverse()) {
+      const cursor = selection.head
+      const line = cursor.line
+      const ch = cursor.ch - 1
+      const token = fomCM.getTokenAt({line: line, ch: ch})
+      if (!token || token.end !== ch) return
+      const replacement = alternatives[token.string]
+      if (replacement) {
+        fomCM.setSelection(
+          {line: line, ch: token.start},
+          {line: line, ch: ch + 1}
+        )
+        fomCM.replaceSelection(replacement)
+      }
     }
   } else if (event.key === 'F2') {
     const cursor = fomCM.getCursor()
