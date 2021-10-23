@@ -41,6 +41,7 @@ module Tokenizer : sig
       given UTF-8 string. *)
 
   val synonyms : < unicode : string ; ascii : string ; bop : bool > list
+  (** List of unicode symbols and their ascii alternatives. *)
 end
 
 module Grammar : sig
