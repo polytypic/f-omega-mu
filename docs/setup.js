@@ -66,15 +66,17 @@ const getWidth = editor => {
 
 //
 
-const theme = 'dracula'
-
-const jsCM = CodeMirror(jsDiv, {
+const cmConfig = {
   cursorBlinkRate: 0,
+  indentUnit: 2,
   lineNumbers: true,
-  mode: 'javascript',
+  mode: 'fom',
   readOnly: 'nocursor',
-  theme: theme,
-})
+  tabSize: 2,
+  theme: 'dracula',
+}
+
+const jsCM = CodeMirror(jsDiv, {...cmConfig, mode: 'javascript'})
 
 CodeMirror.defineMode('fom', () => ({
   startState: () => ({state: fom.initial}),
@@ -94,31 +96,13 @@ CodeMirror.defineMode('fom', () => ({
   },
 }))
 
-const resultCM = CodeMirror(resultDiv, {
-  cursorBlinkRate: 0,
-  lineNumbers: true,
-  mode: 'fom',
-  readOnly: 'nocursor',
-  theme: theme,
-})
-
+const resultCM = CodeMirror(resultDiv, cmConfig)
 const typCM = CodeMirror(typDiv, {
-  cursorBlinkRate: 0,
-  mode: 'fom',
-  readOnly: 'nocursor',
-  theme: theme,
+  ...cmConfig,
+  lineNumbers: false,
   value: '...',
 })
-
-const fomCM = CodeMirror(fomDiv, {
-  autofocus: true,
-  cursorBlinkRate: 0,
-  indentUnit: 2,
-  lineNumbers: true,
-  mode: 'fom',
-  tabSize: 2,
-  theme: theme,
-})
+const fomCM = CodeMirror(fomDiv, {...cmConfig, readOnly: false})
 
 fomCM.setOption('extraKeys', {
   Tab: () => {
@@ -258,15 +242,7 @@ const updateDeps = () => {
 
         const dd = document.createElement('dd')
         depsDl.appendChild(dd)
-        const depCM = CodeMirror(dd, {
-          cursorBlinkRate: 0,
-          indentUnit: 2,
-          lineNumbers: true,
-          mode: 'fom',
-          readOnly: 'nocursor',
-          tabSize: 2,
-          theme: theme,
-        })
+        const depCM = CodeMirror(dd, cmConfig)
 
         depCM.on('cursorActivity', updateDefUses)
 
