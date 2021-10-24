@@ -135,8 +135,8 @@ let rec infer = function
       | (l, _) :: _, k :: _ when 0 < Label.compare l k ->
         fail @@ `Error_product_lacks (at', p_typ, k)
       | (l, t) :: ls, k :: ks ->
-        Annot.Label.def l t
-        >> Annot.Label.use k (Label.at l)
+        Annot.Label.def k t
+        >> Annot.Label.use l (Label.at k)
         >> let* t_opt =
              match t_opt with
              | None -> return @@ Some t
