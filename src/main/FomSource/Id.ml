@@ -43,6 +43,7 @@ module type S = sig
   type t = {name : Name.t; n : Counter.t; at : Loc.t}
 
   val at : t -> Loc.t
+  val set_at : Loc.t -> t -> t
   val name : t -> Name.t
 
   (* Special *)
@@ -90,6 +91,8 @@ module Make () : S = struct
   let is_numeric {name; _} =
     let s = Name.to_string name in
     0 < String.length s && '0' <= s.[0] && s.[0] <= '9'
+
+  let set_at at {name; n; _} = {at; name; n}
 
   (* Comparison *)
 

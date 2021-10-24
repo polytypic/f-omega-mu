@@ -12,6 +12,7 @@ module type S = sig
   type t = {name : Name.t; n : Counter.t; at : Loc.t}
 
   val at : t -> Loc.t
+  val set_at : Loc.t -> t -> t
   val name : t -> Name.t
 
   (* Special *)
