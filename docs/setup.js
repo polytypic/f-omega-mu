@@ -247,9 +247,7 @@ const updateDeps = () => {
         depCM.on('cursorActivity', updateDefUses)
 
         const xhr = new XMLHttpRequest()
-        xhr.onload = () => {
-          depCM.setValue(xhr.responseText.trim())
-        }
+        xhr.onload = () => depCM.setValue(xhr.responseText.trim())
         xhr.open('GET', dep)
         xhr.send()
 
@@ -465,10 +463,7 @@ fomCM.on('keyup', (_, event) => {
       if (!token || token.end !== ch) return
       const replacement = alternatives[token.string]
       if (replacement) {
-        fomCM.setSelection(
-          {line: line, ch: token.start},
-          {line: line, ch: ch + 1}
-        )
+        fomCM.setSelection({line, ch: token.start}, {line, ch: ch + 1})
         fomCM.replaceSelection(replacement)
       }
     }
