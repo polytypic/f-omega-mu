@@ -162,10 +162,8 @@ const prepareDefUses = () => {
   for (const file in duMap) {
     delete duMap[file]
   }
-  result.defUses.forEach(du => {
-    du.uses.forEach(use => insertDU(use, du))
-    insertDU(du.def, du)
-  })
+  result.defUses.forEach(du => du.uses.forEach(use => insertDU(use, du)))
+  result.defUses.forEach(du => insertDU(du.def, du))
 }
 
 const duMarkers = []
