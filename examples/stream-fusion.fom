@@ -22,7 +22,7 @@ let «stream, Stream» =
     }
   )»: stream α
   let to_list = Λα.λ«s, (xs, next)»: stream α.
-    let to_list = μto_list: s → list α.λxs: s.
+    let μto_list: s → list α = λxs: s.
       next xs ▷ case {
         Done = λ().'None
         Yield = λ(hd: α, tl: s).'Some (hd, to_list tl)
