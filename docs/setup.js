@@ -325,26 +325,29 @@ const prepareDefUses = () => {
 
 const duMarkers = []
 
-const duAt = (cm, cursor, offset) => {
-  if (undefined === offset) {
-    return duAt(cm, cursor, 0) || duAt(cm, cursor, 1)
-  } else {
-    const token = cm.getTokenAt({line: cursor.line, ch: cursor.ch + offset})
-    const file = fileOf(cm)
-    return (
-      file &&
-      token &&
-      token.start <= cursor.ch &&
-      cursor.ch <= token.end &&
-      get(
-        duMap,
-        file,
-        cursor.line,
-        fom.offset32(cm.getLine(cursor.line), token.start)
-      )
+const around = fn => (cm, cursor) => fn(cm, cursor, 0) || fn(cm, cursor, 1)
+
+const duAt = around((cm, cursor, offset) => {
+  const token = cm.getTokenAt({line: cursor.line, ch: cursor.ch + offset})
+  const file = fileOf(cm)
+  return (
+    file &&
+    token &&
+    token.start <= cursor.ch &&
+    cursor.ch <= token.end &&
+    get(
+      duMap,
+      file,
+      cursor.line,
+      fom.offset32(cm.getLine(cursor.line), token.start)
     )
-  }
-}
+  )
+})
+
+const helpAt = around((cm, cursor, offset) => {
+  const token = cm.getTokenAt({line: cursor.line, ch: cursor.ch + offset})
+  return token && help[token.string] && token
+})
 
 const posAsNative = (cm, {line, ch}) => {
   const input = cm.getLine(line)
@@ -364,7 +367,10 @@ const defAnnot = {css: 'background: darkgreen'}
 
 const updateDefUses = throttled(100, cm => {
   clearMarkers(duMarkers)
-  const du = duAt(cm, cm.getCursor())
+
+  const cursor = cm.getCursor()
+
+  const du = duAt(cm, cursor)
   if (du) {
     du.uses.forEach(use => {
       const cm = cmOf(use.file)
@@ -372,10 +378,24 @@ const updateDefUses = throttled(100, cm => {
     })
     const cm = cmOf(du.def.file)
     if (cm) addMarker(duMarkers, cm, du.def, defAnnot)
-    setTyp(du.annot)
-  } else {
-    setTyp(result.typ, {noKeywords: result.diagnostics.length})
+    return setTyp(du.annot)
   }
+
+  const token = helpAt(cm, cursor)
+  if (token) {
+    addMarker(
+      duMarkers,
+      cm,
+      {
+        begins: {line: cursor.line, ch: token.start},
+        ends: {line: cursor.line, ch: token.end},
+      },
+      {css: 'text-decoration: underline'}
+    )
+    return setTyp(help[token.string])
+  }
+
+  return setTyp(result.typ, {noKeywords: result.diagnostics.length})
 })
 
 fomCM.on('cursorActivity', updateDefUses)
