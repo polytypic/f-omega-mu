@@ -190,16 +190,6 @@ const updateDefUses = throttled(100, cm => {
   clearMarkers(duMarkers)
   const du = duAt(cm, cm.getCursor())
   if (du) {
-    const cm = cmOf(du.def.file)
-    if (cm) {
-      duMarkers.push(
-        cm.markText(
-          posAsNative(cm, du.def.begins),
-          posAsNative(cm, du.def.ends),
-          {css: 'background: darkgreen'}
-        )
-      )
-    }
     du.uses.forEach(use => {
       const cm = cmOf(use.file)
       if (cm) {
@@ -210,6 +200,16 @@ const updateDefUses = throttled(100, cm => {
         )
       }
     })
+    const cm = cmOf(du.def.file)
+    if (cm) {
+      duMarkers.push(
+        cm.markText(
+          posAsNative(cm, du.def.begins),
+          posAsNative(cm, du.def.ends),
+          {css: 'background: darkgreen'}
+        )
+      )
+    }
     setTyp(du.annot)
   } else {
     setTyp(result.typ, {noKeywords: result.diagnostics.length})
