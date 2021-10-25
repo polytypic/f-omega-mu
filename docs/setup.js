@@ -312,8 +312,8 @@ const compile = onWorker(
   () => {
     importScripts('FomSandbox.js')
     FomSandbox(self)
-    importScripts('https://unpkg.com/prettier@2.3.0/standalone.js')
-    importScripts('https://unpkg.com/prettier@2.3.0/parser-babel.js')
+    importScripts('https://unpkg.com/prettier@2.4.1/standalone.js')
+    importScripts('https://unpkg.com/prettier@2.4.1/parser-babel.js')
   },
   () => ({
     url,
