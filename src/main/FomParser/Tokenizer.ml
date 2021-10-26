@@ -112,6 +112,8 @@ let token_info_utf_8 =
       state = token = LitStringPart;
     }
 
+(* *)
+
 let synonyms =
   [
     (".", "=>", false);
@@ -140,3 +142,17 @@ let synonyms =
        method ascii = ascii
        method bop = bop
      end
+
+(* *)
+
+module StringSet = Set.Make (String)
+
+let identifiers input =
+  let buffer = Buffer.from_utf_8 input in
+  let rec loop ids =
+    match Res.catch @@ fun () -> token_or_comment buffer with
+    | `Error _ | `Ok (EOF, _, _) -> StringSet.to_seq ids
+    | `Ok (Id id, _, _ | IdTyp id, _, _) -> loop (StringSet.add id ids)
+    | `Ok _ -> loop ids
+  in
+  loop StringSet.empty

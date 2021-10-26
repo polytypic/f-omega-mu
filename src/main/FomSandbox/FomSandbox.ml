@@ -349,6 +349,10 @@ let js_codemirror_mode =
              end)
       |> Js.array
 
+    method identifiers =
+      Js.to_string >>> Tokenizer.identifiers >>> Seq.map Js.string
+      >>> Array.of_seq >>> Js.array
+
     method token input state =
       try
         let {Tokenizer.begins; ends; name; state} =

@@ -4,6 +4,12 @@ FomSandbox(window)
 
 //
 
+const Cmp = {
+  seq: (l, toR) => (l === 0 ? toR() : l),
+}
+
+//
+
 const url = `${location.origin}${location.pathname}examples/*`
 
 //
@@ -128,13 +134,85 @@ const typCM = CodeMirror(typDiv, {
   lineNumbers: false,
   value: '...',
 })
-const fomCM = CodeMirror(fomDiv, {...cmConfig, readOnly: false})
+const fomCM = CodeMirror(fomDiv, {
+  ...cmConfig,
+  extraKeys: {
+    Space() {
+      let replacement = ' '
+      if (replaceSymbolsInput.checked) {
+        const newSelections = []
+        for (const selection of fomCM.listSelections()) {
+          const cursor = selection.head
+          const {line, ch} = cursor
+          const token = fomCM.getTokenAt(cursor)
+          if (!token || token.end !== ch) {
+            replacement = ' '
+            break
+          }
+          const alt = alternatives[token.string]
+          if (!alt || (replacement !== ' ' && replacement !== alt)) {
+            replacement = ' '
+            break
+          }
+          replacement = alt
 
-fomCM.setOption('extraKeys', {
-  Tab: () => {
-    const spaces = Array(fomCM.getOption('indentUnit') + 1).join(' ')
-    fomCM.replaceSelection(spaces)
+          newSelections.push({
+            anchor: {line, ch: token.start},
+            head: {line, ch: token.end},
+          })
+        }
+        if (replacement !== ' ') fomCM.setSelections(newSelections)
+      }
+      fomCM.replaceSelection(replacement)
+    },
+    F2() {
+      const cursor = fomCM.getCursor()
+      const du = duAt(fomCM, cursor)
+      if (du) {
+        const selections = []
+        let primary = 0
+        const at = loc => {
+          if (loc.file === url) {
+            const begins = posAsNative(fomCM, loc.begins)
+            const ends = posAsNative(fomCM, loc.ends)
+            if (
+              cursor.line === begins.line &&
+              begins.ch <= cursor.ch &&
+              cursor.ch <= ends.ch
+            ) {
+              primary = selections.length
+            }
+            selections.push({anchor: begins, head: ends})
+          }
+        }
+        at(du.def)
+        du.uses.forEach(at)
+        fomCM.setSelections(selections, primary)
+      }
+    },
+    Tab() {
+      const cursor = fomCM.getCursor()
+      const token = fomCM.getTokenAt(cursor)
+      if (token && token.type === 'variable' && token.end == cursor.ch) {
+        fomCM.showHint({
+          hint(cm, options) {
+            const cursor = cm.getCursor()
+            const {line} = cursor
+            const {string: t, start, end} = cm.getTokenAt(cursor)
+            const list = identifiers
+              .filter(id => id !== t && id.indexOf(t) !== -1)
+              .sort((l, r) =>
+                Cmp.seq(l.indexOf(t) - r.indexOf(t), () => l.localeCompare(r))
+              )
+            return {list, from: {line, ch: start}, to: {line, ch: end}}
+          },
+        })
+      } else {
+        fomCM.execCommand('defaultTab')
+      }
+    },
   },
+  readOnly: false,
 })
 
 //
@@ -441,6 +519,26 @@ fomCM.on(
 
 //
 
+let identifiers = []
+
+fomCM.on(
+  'change',
+  throttled(
+    100,
+    onWorker(
+      () => {
+        importScripts('FomSandbox.js')
+        FomSandbox(self)
+      },
+      () => fomCM.getValue(),
+      (exp, onResult) => onResult(fom.identifiers(exp)),
+      ids => (identifiers = ids)
+    )
+  )
+)
+
+//
+
 const alternatives = {}
 
 for (const {unicode, ascii, bop} of fom.synonyms())
@@ -476,49 +574,6 @@ for (const [basename, upper, lower, alternate] of [
   alternatives[`\\${basename.toLowerCase()}`] = lower
   if (alternate) alternatives[`\\var${basename.toLowerCase()}`] = alternate
 }
-
-//
-
-fomCM.on('keyup', (_, event) => {
-  if (event.key === ' ' && replaceSymbolsInput.checked) {
-    for (const selection of fomCM.listSelections().reverse()) {
-      const cursor = selection.head
-      const line = cursor.line
-      const ch = cursor.ch - 1
-      const token = fomCM.getTokenAt({line: line, ch: ch})
-      if (!token || token.end !== ch) return
-      const replacement = alternatives[token.string]
-      if (replacement) {
-        fomCM.setSelection({line, ch: token.start}, {line, ch: ch + 1})
-        fomCM.replaceSelection(replacement)
-      }
-    }
-  } else if (event.key === 'F2') {
-    const cursor = fomCM.getCursor()
-    const du = duAt(fomCM, cursor)
-    if (du) {
-      const selections = []
-      let primary = 0
-      const at = loc => {
-        if (loc.file === url) {
-          const begins = posAsNative(fomCM, loc.begins)
-          const ends = posAsNative(fomCM, loc.ends)
-          if (
-            cursor.line === begins.line &&
-            begins.ch <= cursor.ch &&
-            cursor.ch <= ends.ch
-          ) {
-            primary = selections.length
-          }
-          selections.push({anchor: begins, head: ends})
-        }
-      }
-      at(du.def)
-      du.uses.forEach(at)
-      fomCM.setSelections(selections, primary)
-    }
-  }
-})
 
 //
 
