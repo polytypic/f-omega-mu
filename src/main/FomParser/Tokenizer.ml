@@ -147,6 +147,34 @@ let synonyms =
 
 module StringSet = Set.Make (String)
 
+let initial =
+  StringSet.of_list
+    [
+      "and";
+      "bool";
+      "case";
+      "else";
+      "exists";
+      "false";
+      "forall";
+      "fun";
+      "gen";
+      "if";
+      "import";
+      "impure";
+      "in";
+      "include";
+      "int";
+      "let";
+      "local";
+      "rec";
+      "string";
+      "target";
+      "then";
+      "true";
+      "type";
+    ]
+
 let identifiers input =
   let buffer = Buffer.from_utf_8 input in
   let rec loop ids =
@@ -155,4 +183,4 @@ let identifiers input =
     | `Ok (Id id, _, _ | IdTyp id, _, _) -> loop (StringSet.add id ids)
     | `Ok _ -> loop ids
   in
-  loop StringSet.empty
+  loop initial
