@@ -1,0 +1,15 @@
+include "types"
+
+let of = Λα.λx:α.'Some x
+
+let chain = Λα.Λβ.λxyO:α → opt β.case {
+  None = λ().'None
+  Some = λx:α.xyO x
+}
+
+let map = Λα.Λβ.λxy: α → β.case {
+  None = λ().'None
+  Some = λx: α.'Some (xy x)
+}
+
+{of, map, chain}
