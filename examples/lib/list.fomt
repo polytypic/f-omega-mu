@@ -1,5 +1,6 @@
 include "types" in {
   of: ∀α.α → list_of_1 α
+  map: ∀α.∀β.(α → β) → list α → list β
   chain: ∀α.∀β.(α → list β) → list α → list β
   has: ∀α.(α → bool) → list α → bool
   fold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ
@@ -9,5 +10,7 @@ include "types" in {
   concat: ∀α.list α → list α → list α
   infinite_of: ∀α.α → list_of_inf α
   take_n: ∀α.int → list α → list α
+  drop_n: ∀α.int → list α → list α
+  nth: ∀α.int → list α → opt α
   iota: int → list int
 }

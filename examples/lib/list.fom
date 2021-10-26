@@ -17,6 +17,11 @@ let rev_to = Λα.fold[list α][α] λxs: list α.λx: α.'Some (x, xs)
 
 let rev = Λα.rev_to[α] 'None
 
+let map = Λα.Λβ.λxy: α → β.λxs: list α.
+  xs
+  ▷ fold[list β][α] (λys: list β.λx: α.'Some (xy x, ys)) 'None
+  ▷ rev[β]
+
 let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
   xs
   ▷ fold[list β][α] (λys: list β.λx: α.rev_to[β] ys ◇ xys x) 'None
@@ -44,10 +49,24 @@ let μtake_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
       Some = λ(x: α, xs: list α).'Some (x, take_n[α] (n-1) xs)
     }
 
+let μdrop_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
+  if n ≤ 0 then
+    xs
+  else
+    xs ▷ case {
+      None = λ().'None
+      Some = λ(_: α, xs: list α).drop_n[α] (n-1) xs
+    }
+
+let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ case {
+    None = λ().'None
+    Some = λ(x: α, _: list α).'Some x
+  }
+
 let iota = λn: int.
   let μloop: int → list int = λi: int.
     if i < n then 'Some (i, loop (i + 1)) else 'None
   loop 0
 
-{of, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of, take_n,
- iota}
+{of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
+ take_n, drop_n, nth, iota}
