@@ -191,28 +191,54 @@ const fomCM = CodeMirror(fomDiv, {
       }
     },
     Tab() {
-      const cursor = fomCM.getCursor()
-      const token = fomCM.getTokenAt(cursor)
-      if (token && token.type === 'variable' && token.end == cursor.ch) {
-        fomCM.showHint({
-          hint(cm, options) {
-            const cursor = cm.getCursor()
-            const {line} = cursor
-            const {string: t, start, end} = cm.getTokenAt(cursor)
-            const list = identifiers
-              .filter(id => id !== t && id.indexOf(t) !== -1)
-              .sort((l, r) =>
-                Cmp.seq(l.indexOf(t) - r.indexOf(t), () => l.localeCompare(r))
-              )
-            return {list, from: {line, ch: start}, to: {line, ch: end}}
-          },
-        })
-      } else {
-        fomCM.execCommand('defaultTab')
-      }
+      if (!maybeComplete()) fomCM.execCommand('defaultTab')
     },
   },
   readOnly: false,
+})
+
+const maybeComplete = (options = {}) => {
+  if (fomCM.state.completionActive) return false
+
+  const cursor = fomCM.getCursor()
+  const token = fomCM.getTokenAt(cursor)
+
+  if (!token || !token.string || token.end !== cursor.ch) return false
+
+  fomCM.showHint({
+    ...options,
+    hint(cm, options) {
+      const cursor = cm.getCursor()
+      const {line} = cursor
+      const {string: t, start, end} = cm.getTokenAt(cursor)
+      const list = [...identifiers, ...Object.keys(alternatives)]
+        .filter(id => id !== t && id.indexOf(t) !== -1)
+        .sort((l, r) =>
+          Cmp.seq(l.indexOf(t) - r.indexOf(t), () => l.localeCompare(r))
+        )
+      return {list, from: {line, ch: start}, to: {line, ch: end}}
+    },
+  })
+  return true
+}
+
+const ignoredKeys = new Set([
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'Backspace',
+  'Delete',
+  'Enter',
+  'Escape',
+  'Meta',
+  'Shift',
+  'Tab',
+])
+
+fomCM.on('keyup', (_, {key}) => {
+  if (ignoredKeys.has(key)) return
+  maybeComplete({completeSingle: false})
 })
 
 //
