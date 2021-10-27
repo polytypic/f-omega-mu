@@ -441,13 +441,17 @@ const build = throttled(
         url,
         exp,
         width,
-        success => {
+        () => {
           timingEnd('elaborate', start)
+          start = timingStart()
+        },
+        success => {
+          timingEnd('def-use', start)
           onResult(success, true)
           start = timingStart()
         },
         failure => {
-          timingEnd('elaborate', start)
+          timingEnd('defuses', start)
           onResult(failure)
         },
         js => {

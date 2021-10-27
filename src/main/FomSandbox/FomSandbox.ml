@@ -255,8 +255,8 @@ let js_codemirror_mode =
     method offset16 input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
     method offset32 input i = Tokenizer.offset_as_utf_32 (Js.to_string input) i
 
-    method build whole path input max_width (on_pass : Cb.t) (on_fail : Cb.t)
-        (on_js : Cb.t) =
+    method build whole path input max_width (on_elab : Cb.t) (on_pass : Cb.t)
+        (on_fail : Cb.t) (on_js : Cb.t) =
       Profiling.Counter.reset_all ();
       let path = Js.to_string path in
       let env = FomToJsC.Env.empty ~fetch () in
@@ -271,6 +271,7 @@ let js_codemirror_mode =
       |> try_in
            (fun (ast, typ, deps) ->
              Profiling.Counter.dump_all ();
+             let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
              let* typ = pp_typ typ and* defUses = def_uses in
              Cb.invoke on_pass @@ Js.Unsafe.inject
              @@ object%js
@@ -292,6 +293,7 @@ let js_codemirror_mode =
                   (fun _ -> Cb.invoke on_js @@ Js.Unsafe.inject @@ Js.string ""))
            (fun error ->
              Profiling.Counter.dump_all ();
+             let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
              let* defUses = def_uses in
              let diagnostics = Diagnostic.of_error error in
              Cb.invoke on_fail @@ Js.Unsafe.inject
