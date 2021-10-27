@@ -9,6 +9,7 @@ include "types" in {
   filter: ∀α.(α → bool) → list α → list α
   concat: ∀α.list α → list α → list α
   infinite_of: ∀α.α → list_of_inf α
+  head: ∀α.list α → opt α
   take_n: ∀α.int → list α → list α
   drop_n: ∀α.int → list α → list α
   nth: ∀α.int → list α → opt α

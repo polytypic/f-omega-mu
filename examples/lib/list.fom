@@ -1,5 +1,7 @@
 include "types"
 
+let Opt = import "opt"
+
 let of = Λα.λx: α.'Some (x, 'None)
 
 let μhas: ∀α.(α → bool) → list α → bool = Λα.λp: α → bool.case {
@@ -40,6 +42,8 @@ let concat = Λα.λxs: list α.λys: list α.rev[α] xs ▷ rev_to[α] ys
 
 let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Some (x, xs)
 
+let head = Λα.Opt.map[(α, list α)][α] λ(x: α, _: list α).x
+
 let μtake_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
   if n ≤ 0 then
     'None
@@ -58,10 +62,7 @@ let μdrop_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
       Some = λ(_: α, xs: list α).drop_n[α] (n-1) xs
     }
 
-let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ case {
-    None = λ().'None
-    Some = λ(x: α, _: list α).'Some x
-  }
+let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ head[α]
 
 let iota = λn: int.
   let μloop: int → list int = λi: int.
@@ -69,4 +70,4 @@ let iota = λn: int.
   loop 0
 
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
- take_n, drop_n, nth, iota}
+ head, take_n, drop_n, nth, iota}
