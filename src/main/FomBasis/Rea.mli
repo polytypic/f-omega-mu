@@ -29,7 +29,7 @@ module Syntax : sig
     ('r, 'e, 'a) rea ->
     ('r, 'f, 'b) rea
 
-  val catch : ('r, 'e, 'a) rea -> ('r, 'e, ('e, 'a) Res.t) rea
+  val catch : ('r, 'e, 'a) rea -> ('r, 'f, ('e, 'a) Res.t) rea
 
   (* *)
 
