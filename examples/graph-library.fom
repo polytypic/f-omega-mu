@@ -1,0 +1,75 @@
+# Graph library
+
+# This example is inspired by the paper
+#
+#   An extended comparative study of language support for generic programming
+#   by Jaakko Järvi, Andrew Lumsdaine, and Jeremy Siek
+#   https://www.researchgate.net/publication/213880958_An_extended_comparative_study_of_language_support_for_generic_programming
+
+include "lib/types"
+include "lib/algebras"
+
+let List = import "lib/list"
+let Opt = import "lib/opt"
+
+#
+
+type Map = λmap.λκ.{
+  empty: ∀ν.map κ ν
+  get: ∀ν.κ → map κ ν → opt ν
+  put: ∀ν.κ → ν → map κ ν → map κ ν
+}
+
+#
+
+type IncidenceGraph = λgraph.λvertex.λedge.{
+  out_edges: graph → vertex → opt (list edge)
+  source: graph → edge → vertex
+  sink: graph → edge → vertex
+}
+
+type VertexListGraph = λgraph.λvertex.{
+  vertices: graph → list vertex
+  num_vertices: graph → int
+}
+
+#
+
+let AdjacencyListGraph =
+  type vertex = int
+  type edge = (vertex, vertex)
+  type graph = {num_vertices: int, vertices: list (list vertex)}
+  let num_vertices = λg:graph.g.num_vertices
+  let vertices = λg:graph.List.iota g.num_vertices
+  let out_edges = λg:graph.λi: vertex.
+    List.nth[list vertex] i g.vertices
+    ▷ Opt.map[list vertex][list edge] ◇
+        List.map[vertex][edge] λj: vertex.(i, j)
+  let source = λ_:graph.λ(x: vertex, _: vertex).x
+  let sink = λ_:graph.λ(_: vertex, x: vertex).x
+  {num_vertices, vertices, out_edges, source, sink}
+
+#
+
+type BFSVisitor = λmonad.λgraph.λvertex.λedge.
+  type visit = λfeature.graph → feature → monad () in {
+    discover_vertex: visit vertex
+    finish_vertex: visit vertex
+    examine_edge: visit edge
+    tree_edge: visit edge
+    non_tree_edge: visit edge
+    gray_target: visit edge
+    black_target: visit edge
+  }
+
+let bfs = Λmonad.Λmap.Λgraph.Λvertex.Λedge.
+  λMonad: Monad monad.
+  λMap: Map map vertex.
+  λGraph: IncidenceGraph graph vertex edge ∧ VertexListGraph graph vertex.
+  λvisitor: BFSVisitor monad graph vertex edge.
+  λgraph: graph.
+  λsource: vertex.
+  # TODO: Actually implement BFS :)
+  Monad.of[()] ()
+
+bfs

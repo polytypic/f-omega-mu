@@ -1,0 +1,26 @@
+# Comparing Apples to Apples
+
+# This example is inspired by the paper
+#
+#   An extended comparative study of language support for generic programming
+#   by Jaakko Järvi, Andrew Lumsdaine, and Jeremy Siek
+#   https://www.researchgate.net/publication/213880958_An_extended_comparative_study_of_language_support_for_generic_programming
+
+type Comparable = λα.{
+  better: α → α → bool
+}
+
+let pick = Λα.λC: Comparable α.λl: α.λr: α.
+  if C.better l r then l else r
+
+type Apple = {apple: int}
+
+let Apple = {
+  better = λl: Apple.λr: Apple.
+    r.apple < l.apple
+}
+
+let a1 = {apple = 101}
+and a2 = {apple = 42}
+
+pick[Apple] Apple a1 a2
