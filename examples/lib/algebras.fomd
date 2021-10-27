@@ -1,0 +1,113 @@
+local include "types"
+
+# *
+
+type Equals = λτ.{
+  equals: τ → τ → bool
+}
+
+type Less = λτ.{
+  less: τ → τ → bool
+}
+
+type Compare = λτ.{
+  compare: τ → τ → ord
+}
+
+type Concat = λτ.{
+  concat: τ → τ → τ
+}
+
+type Empty = λτ.{
+  empty: τ
+}
+
+type Invert = λτ.{
+  invert: τ → τ
+}
+
+type Monoid = Empty ∧ Concat
+
+type Group = Monoid ∧ Invert
+
+# * → *
+
+type Zero = λ𝐹.{
+  zero: ∀α.𝐹 α
+}
+
+type Of = λ𝐹.{
+  of: ∀α.α → 𝐹 α
+}
+
+type Filter = λ𝐹.{
+  filter: ∀α.(α → bool) → 𝐹 α → 𝐹 α
+}
+
+type Map = λ𝐹.{
+  map: ∀α.∀β.(α → β) → 𝐹 α → 𝐹 β
+}
+
+type Functor = Map
+
+type Ap = λ𝐹.{
+  ap: ∀α.∀β.𝐹 (α → β) → 𝐹 α → 𝐹 β
+}
+
+type Applicative = Of ∧ Ap
+
+type Plus = λ𝐹.{
+  plus: ∀α.𝐹 α → 𝐹 α → 𝐹 α
+}
+
+type Reduce = λ𝐹.{
+  reduce: ∀α.∀β.(α → β → α) → α → 𝐹 β → α
+}
+
+type Extend = λ𝐹.{
+  extend: ∀α.∀β.(𝐹 α → β) → 𝐹 α → 𝐹 β
+}
+
+type Extract = λ𝐹.{
+  extract: ∀α.𝐹 α → α
+}
+
+type Comonad = Extend ∧ Extract
+
+type Contramap = λ𝐹.{
+  contramap: ∀α.∀β.(α → β) → 𝐹 β → 𝐹 α
+}
+
+type Traverse = λ𝑇.{
+  traverse: ∀𝐹.Applicative 𝐹 → ∀α.∀β.(α → 𝐹 β) → 𝑇 α → 𝐹 (𝑇 β)
+}
+
+type Chain = λ𝐹.{
+  chain: ∀α.∀β.(α → 𝐹 β) → 𝐹 α → 𝐹 β
+}
+
+type Monad = Of ∧ Chain
+
+type Traversable = Traverse
+
+# * → * → *
+
+type Id = λ𝐹.{
+  id: ∀α.∀β.𝐹 α β
+}
+
+type Compose = λ𝐹.{
+  compose: ∀α.∀β.∀γ.𝐹 α β → 𝐹 β γ → 𝐹 α γ
+}
+
+type Category = Id ∧ Compose
+
+type Bimap = λ𝐹.{
+  bimap: ∀α.∀β.∀γ.∀δ.(α → β) → (γ → δ) → 𝐹 α γ → 𝐹 β δ
+}
+
+type Promap = λ𝐹.{
+  promap: ∀α.∀β.∀γ.∀δ.(α → β) → (γ → δ) → 𝐹 β γ → 𝐹 α δ
+}
+
+type Profunctor = Promap

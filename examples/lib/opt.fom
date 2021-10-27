@@ -1,4 +1,5 @@
 include "types"
+include "algebras"
 
 let of = Λα.λx:α.'Some x
 
@@ -12,4 +13,12 @@ let map = Λα.Λβ.λxy: α → β.case {
   Some = λx: α.'Some (xy x)
 }
 
-{of, map, chain}
+let traverse = ΛF.λM:Monad F.Λα.Λβ.λxyM:α → F β.case {
+  None = λ().
+    M.of[opt β] 'None
+  Some = λx:α.
+    xyM x ▷ M.chain[β][opt β] λy:β.
+    M.of[opt β] ◁ 'Some y
+}
+
+{of, map, chain, traverse}
