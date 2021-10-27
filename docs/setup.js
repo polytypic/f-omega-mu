@@ -223,6 +223,7 @@ const maybeComplete = (options = {}) => {
 }
 
 const ignoredKeys = new Set([
+  ' ',
   'ArrowDown',
   'ArrowLeft',
   'ArrowRight',
