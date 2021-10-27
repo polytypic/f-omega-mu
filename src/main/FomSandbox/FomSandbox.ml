@@ -144,15 +144,15 @@ end
 let stringify = Js.Unsafe.pure_js_expr "JSON.stringify"
 
 module Cb : sig
-  type 'a t
+  type t
 
-  val invoke : 'a t -> 'a Js.t -> ('r, 'e, unit) rea
+  val invoke : t -> Js.Unsafe.any -> ('r, 'e, unit) rea
 end = struct
-  type 'a t = unit
+  type t = unit
 
   let invoke fn x =
     delay @@ fun () ->
-    Js.Unsafe.fun_call fn [|Js.Unsafe.inject x|] |> ignore;
+    Js.Unsafe.fun_call fn [|x|] |> ignore;
     unit
 end
 
@@ -255,7 +255,8 @@ let js_codemirror_mode =
     method offset16 input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
     method offset32 input i = Tokenizer.offset_as_utf_32 (Js.to_string input) i
 
-    method check path input max_width (on_result : _ Cb.t) =
+    method build whole path input max_width (on_pass : Cb.t) (on_fail : Cb.t)
+        (on_js : Cb.t) =
       Profiling.Counter.reset_all ();
       let path = Js.to_string path in
       let env = FomToJsC.Env.empty ~fetch () in
@@ -267,28 +268,33 @@ let js_codemirror_mode =
       input |> Js.to_string
       |> Parser.parse_utf_8 Grammar.mods Lexer.offside ~path
       >>= FomElab.elaborate
-      >>= (fun (_, t, deps) ->
-            let+ t = pp_typ t in
-            (utf8string "type:" ^^ t |> to_js_string ~max_width, deps))
       |> try_in
-           (fun (typ, deps) ->
+           (fun (ast, typ, deps) ->
              Profiling.Counter.dump_all ();
-             let* defUses = def_uses in
-             Cb.invoke on_result
+             let* typ = pp_typ typ and* defUses = def_uses in
+             Cb.invoke on_pass @@ Js.Unsafe.inject
              @@ object%js
-                  val typ = typ
+                  val typ = utf8string "type:" ^^ typ |> to_js_string ~max_width
                   val defUses = defUses
 
                   val dependencies =
                     deps |> Array.of_list |> Array.map Js.string |> Js.array
 
                   val diagnostics = Js.array [||]
-                end)
+                end
+             >> (if whole then
+                   FomToJsC.whole_program_to_js
+                else
+                  FomToJsC.modules_to_js)
+                  ast deps
+             |> try_in
+                  (Js.string >>> Js.Unsafe.inject >>> Cb.invoke on_js)
+                  (fun _ -> Cb.invoke on_js @@ Js.Unsafe.inject @@ Js.string ""))
            (fun error ->
              Profiling.Counter.dump_all ();
              let* defUses = def_uses in
              let diagnostics = Diagnostic.of_error error in
-             Cb.invoke on_result
+             Cb.invoke on_fail @@ Js.Unsafe.inject
              @@ object%js
                   val typ =
                     match diagnostics with
@@ -322,22 +328,6 @@ let js_codemirror_mode =
                       |> Js.array
                 end)
       |> start env
-
-    method compile whole path input (on_result : _ Cb.t) =
-      let path = Js.to_string path in
-      input |> Js.to_string
-      |> Parser.parse_utf_8 Grammar.mods Lexer.offside ~path
-      >>= FomElab.elaborate
-      >>= (fun (ast, _, paths) ->
-            (if whole then
-               FomToJsC.whole_program_to_js
-            else
-              FomToJsC.modules_to_js)
-              ast paths)
-      >>- Js.string
-      |> try_in (Cb.invoke on_result) (fun _ ->
-             Cb.invoke on_result @@ Js.string "")
-      |> start (FomToJsC.Env.empty ~fetch ())
 
     method synonyms =
       Tokenizer.synonyms |> Array.of_list

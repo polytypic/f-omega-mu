@@ -28,7 +28,8 @@ const onWorker = (init, before, onWorker, after) => {
   const code = `(() => {
   (${init})()
   const onWorker = ${onWorker}
-  onmessage = ({data}) => onWorker(data, postMessage)
+  onmessage = ({data}) =>
+    onWorker(data, (data, continues = false) => postMessage({data, continues}))
 })()`
 
   let working = false
@@ -43,9 +44,9 @@ const onWorker = (init, before, onWorker, after) => {
     if (worker === undefined) {
       worker = new Worker('evalWorker.js')
       worker.postMessage(code)
-      worker.onmessage = message => {
-        working = false
-        after(message.data)
+      worker.onmessage = ({data: {data, continues}}) => {
+        working = continues
+        after(data)
       }
     }
     working = true
@@ -413,116 +414,113 @@ const run = onWorker(
 
 //
 
-const compile = onWorker(
-  () => {
-    importScripts('FomSandbox.js')
-    FomSandbox(self)
-    importScripts('https://unpkg.com/prettier@2.4.1/standalone.js')
-    importScripts('https://unpkg.com/prettier@2.4.1/parser-babel.js')
-  },
-  () => ({
-    url,
-    whole: wholeSelect.checked,
-    exp: fomCM.getValue(),
-    width: getWidth(fomCM),
-  }),
-  (params, onResult) => {
-    const start = timingStart()
-    fom.compile(params.whole, params.url, params.exp, js => {
-      timingEnd('compile', start)
-      try {
-        onResult(
-          prettier
-            .format(js, {
-              arrowParens: 'avoid',
-              bracketSpacing: false,
-              printWidth: params.width,
-              parser: 'babel',
-              plugins: [prettierPlugins.babel],
-              singleQuote: true,
-              trailingComma: 'none',
-            })
-            .trim()
-        )
-      } catch (error) {
-        console.error('Prettier failed with error:', error)
-      }
-    })
-  },
-  js => {
-    jsCM.setValue(js)
-    run(js)
-  }
-)
-
-//
-
 const diagnosticMarkers = []
 
-const check = throttled(
+const build = throttled(
   200,
   onWorker(
     () => {
       importScripts('FomSandbox.js')
       FomSandbox(self)
+      importScripts('https://unpkg.com/prettier@2.4.1/standalone.js')
+      importScripts('https://unpkg.com/prettier@2.4.1/parser-babel.js')
     },
     () => {
       clearMarkers(diagnosticMarkers)
-      const width = Math.min(80, (getWidth(fomCM) * 0.85) | 0)
-      return {url, exp: fomCM.getValue(), width: width}
+      return {
+        url,
+        whole: wholeSelect.checked,
+        exp: fomCM.getValue(),
+        width: getWidth(fomCM),
+      }
     },
-    (params, onResult) => {
-      const start = timingStart()
-      fom.check(params.url, params.exp, params.width, result => {
-        timingEnd('check', start)
-        onResult(result)
-      })
+    ({url, whole, exp, width}, onResult) => {
+      let start = timingStart()
+      fom.build(
+        whole,
+        url,
+        exp,
+        width,
+        success => {
+          timingEnd('elaborate', start)
+          onResult(success, true)
+          start = timingStart()
+        },
+        failure => {
+          timingEnd('elaborate', start)
+          onResult(failure)
+        },
+        js => {
+          timingEnd('compile', start)
+          try {
+            onResult(
+              prettier
+                .format(js, {
+                  arrowParens: 'avoid',
+                  bracketSpacing: false,
+                  printWidth: width,
+                  parser: 'babel',
+                  plugins: [prettierPlugins.babel],
+                  singleQuote: true,
+                  trailingComma: 'none',
+                })
+                .trim()
+            )
+          } catch (error) {
+            console.error('Prettier failed with error:', error)
+            onResult('')
+          }
+        }
+      )
     },
     data => {
-      result = data
-
-      if (result.diagnostics.length) {
-        resultCM.setValue('')
-        jsCM.setValue('')
-
-        result.diagnostics.forEach(diagnostic => {
-          const cm = cmOf(diagnostic.file)
-          if (cm) {
-            const css = cm.getAllMarks().length
-              ? 'text-shadow: 0px 0px 10px orange'
-              : 'text-shadow: 0px 0px 10px red'
-            diagnosticMarkers.push(
-              cm.markText(
-                posAsNative(cm, diagnostic.begins),
-                posAsNative(cm, diagnostic.ends),
-                {className: 'marker', css, title: diagnostic.message}
-              )
-            )
-          }
-        })
+      if (typeof data === 'string') {
+        jsCM.setValue(data)
+        run(data)
       } else {
-        compile()
+        result = data
+
+        if (result.diagnostics.length) {
+          resultCM.setValue('')
+          jsCM.setValue('')
+
+          result.diagnostics.forEach(diagnostic => {
+            const cm = cmOf(diagnostic.file)
+            if (cm) {
+              const css = cm.getAllMarks().length
+                ? 'text-shadow: 0px 0px 10px orange'
+                : 'text-shadow: 0px 0px 10px red'
+              diagnosticMarkers.push(
+                cm.markText(
+                  posAsNative(cm, diagnostic.begins),
+                  posAsNative(cm, diagnostic.ends),
+                  {className: 'marker', css, title: diagnostic.message}
+                )
+              )
+            }
+          })
+        }
+
+        prepareDefUses()
+        updateDefUses(fomCM)
+
+        updateDeps()
       }
-
-      prepareDefUses()
-      updateDefUses(fomCM)
-
-      updateDeps()
     }
   )
 )
 
-check()
+build()
 
-fomCM.on('change', check)
-wholeSelect.onclick = check
+fomCM.on('change', build)
+wholeSelect.onclick = build
 
 let lastWidth = getWidth(fomCM)
 window.onresize = () => {
   const width = getWidth(fomCM)
   if (lastWidth !== width) {
     lastWidth = width
-    check()
+    build()
   }
 }
 
