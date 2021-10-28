@@ -83,6 +83,21 @@ let size = foldExp[Int] {
   tapp = Λα.λf: int.Λ_.λinst: α → int.f + 1
 }
 
+# Implementation of nf
+
+type Bools = (bool, bool)
+type KBools = λ_.Bools
+
+let nf =
+  let S = {
+    abs = Λ_.Λ_.λf: Bools → Bools.((f (true, true)).1, false)
+    app = Λ_.Λ_.λf: Bools. λx: Bools.(f.2 ∧ x.1, f.2 ∧ x.1)
+    tabs = Λα.λstrip: Strip KBools α. λf: α.
+      ((strip[Bools] (Λα.λx: Bools.x) f).1, false)
+    tapp = Λα.λf: Bools.Λ_.λinst: α → Bools.(f.2, f.2)
+  }
+  Λα.λe: Exp α.(foldExp[KBools] S [α] e).1
+
 # Implementation of cps
 
 type Ct = λα.∀β.(α → β) → β
@@ -102,4 +117,5 @@ let cps = foldExp[Ct] {
   unquote = unquote[rep_id_to_id] rep_id_to_id
   size = size[rep_id_to_id] rep_id_to_id
   cps = cps[rep_id] rep_id
+  nf = nf[rep_id_to_id] rep_id_to_id
 }
