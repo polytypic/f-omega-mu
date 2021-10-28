@@ -65,7 +65,7 @@ let foldExp = ΛF.λS: Semantics F.Λα.λe: Exp α.e[F] S
 
 type Id = λα: *.α
 
-let unquote = foldExp[Id] {
+let unquote: ∀α.Exp α → α Id = foldExp[Id] {
   abs = Λα.Λβ.λf: α → β.f
   app = Λα.Λβ.λf: α → β.λx: α.f x
   tabs = Λα.λs: Strip Id α.λf: α.f
@@ -76,7 +76,7 @@ let unquote = foldExp[Id] {
 
 type Int = λ_: *.int
 
-let size = foldExp[Int] {
+let size: ∀α.Exp α → int = foldExp[Int] {
   abs = Λ_.Λ_.λf: int → int.f 1 + 1
   app = Λ_.Λ_.λf: int.λx: int.f + x + 1
   tabs = Λα.λstrip: Strip Int α.λf: α.strip[int] (Λ_.λx: int.x) f + 1
@@ -86,9 +86,9 @@ let size = foldExp[Int] {
 # Implementation of nf
 
 type Bools = (bool, bool)
-type KBools = λ_.Bools
+type KBools = λ_: *.Bools
 
-let nf =
+let nf: ∀α.Exp α → bool =
   let S = {
     abs = Λ_.Λ_.λf: Bools → Bools.((f (true, true)).1, false)
     app = Λ_.Λ_.λf: Bools. λx: Bools.(f.2 ∧ x.1, f.2 ∧ x.1)
@@ -103,7 +103,7 @@ let nf =
 type Ct = λα.∀β.(α → β) → β
 type CPS = λα.Ct (α Ct)
 
-let cps = foldExp[Ct] {
+let cps: ∀α.Exp α → CPS α = foldExp[Ct] {
   abs = Λα.Λβ.λf: Ct α → Ct β.ΛV.λk: (Ct α → Ct β) → V.k f
   app = Λα.Λβ.λf: Ct (Ct α → Ct β).λx: Ct α.ΛV.λk: β → V.
     f[V] λg: Ct α → Ct β.g x [V] k
