@@ -138,6 +138,11 @@ to e.g. perform unnecessary coercions.
 
 ## Why?
 
+Greg Morrisett has called Fω
+["the workhorse of modern compilers"](https://dl.acm.org/doi/abs/10.1145/2837614.2837623).
+Fωμ adds equirecursive types to Fω bringing it closer to practical programming
+languages.
+
 [Typed λ-calculi](https://en.wikipedia.org/wiki/Typed_lambda_calculus), and
 [System F](https://en.wikipedia.org/wiki/System_F) in particular, are popular
 elaboration targets for programming languages. Here are a couple of papers using
@@ -167,7 +172,7 @@ make an interesting object of study on its own:
     <dd>Jeremy Yallop, Leo White<br><a href="https://github.com/ocamllabs/fomega">System Fω interpreter for use in Advanced Functional Programming course</a><dd>
   </dl>
   <dl>
-    <dt><a href="https://www.semanticscholar.org/paper/Breaking-through-the-normalization-barrier%3A-a-for-Brown-Palsberg/ef79fc5e43d2df0d43e635de5f5a1a2913f4f645">Breaking Through the Normalization Barrier: A Self-Interpreter for F-omega</a></dt>
+    <dt><a href="https://dl.acm.org/doi/abs/10.1145/2837614.2837623">Breaking Through the Normalization Barrier: A Self-Interpreter for F-omega</a></dt>
     <dd>Matt Brown, Jens Palsberg<dd>
   </dl>
 </blockquote>
