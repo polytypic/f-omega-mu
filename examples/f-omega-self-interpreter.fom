@@ -83,9 +83,23 @@ let size = foldExp[Int] {
   tapp = Λα.λf: int.Λ_.λinst: α → int.f + 1
 }
 
+# Implementation of cps
+
+type Ct = λα.∀β.(α → β) → β
+type CPS = λα.Ct (α Ct)
+
+let cps = foldExp[Ct] {
+  abs = Λα.Λβ.λf: Ct α → Ct β.ΛV.λk: (Ct α → Ct β) → V.k f
+  app = Λα.Λβ.λf: Ct (Ct α → Ct β).λx: Ct α.ΛV.λk: β → V.
+    f[V] λg: Ct α → Ct β.g x [V] k
+  tabs = Λα.λstrip: Strip Ct α.λf: α.ΛV.λk: α → V.k f
+  tapp = Λα.λf: Ct α.Λβ.λinst: α → Ct β.ΛV.λk: β → V.f[V] λe: α.inst e [V] k
+}
+
 # Applying operations to sample representations:
 
 {
   unquote = unquote[rep_id_to_id] rep_id_to_id
   size = size[rep_id_to_id] rep_id_to_id
+  cps = cps[rep_id] rep_id
 }
