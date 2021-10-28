@@ -1,0 +1,91 @@
+# A self-interpreter for the Fω subset
+
+# This example is based on the paper
+#
+#   Breaking Through the Normalization Barrier: A Self-Interpreter for F-omega
+#   by Matt Brown and Jens Palsberg
+#   https://dl.acm.org/doi/abs/10.1145/2837614.2837623
+#
+# The implementation in this example differs from the paper in that a `Semantics
+# F` record is used pass the semantics to expressions.  Kind inference in Fωμ
+# eliminates need for kind annotations and they are only used to explicitly
+# constrain kinds to correspond to the paper.  There is also no need to encode
+# primitive types like `Nat` used in semantics.
+
+# Representation helpers
+
+type Star = ∀α.α
+
+type Strip = λF.λα.∀β.(∀γ: *.F γ → β) → α → β
+
+type Semantics = λF.{
+  abs: ∀α.∀β.(F α → F β) → F (F α → F β)
+  app: ∀α.∀β.F (F α → F β) → F α →F β
+  tabs: ∀α.Strip F α → α → F α
+  tapp: ∀α.F α → ∀β.(α → F β) → F β
+}
+
+type Exp = λα.∀F.Semantics F → F (α F)
+
+let strip = ΛF.Λσ.Λτ.Λα.λf: ∀β.F β → α.λx: ∀γ.F (τ γ).f[τ σ] x[σ]
+
+# Representation of the type: λα.α → α
+
+type rep_id_fun = λF.λα: *.F α → F α
+
+# Representation of the type: ∀α.α → α
+
+type rep_id = λF.∀α.F (rep_id_fun F α)
+
+# Representation of the term: Λα.λx: α.x
+
+let rep_id: Exp rep_id =
+  ΛF.λS: Semantics F.
+    S.tabs[rep_id F] strip[F][Star][rep_id_fun F]
+      Λα.S.abs[α][α] λx: F α.x
+
+# Representation of the term: λx: ∀α.α → α.x [∀α.α → α] x
+
+type rep_id_to_id = λF.F (rep_id F) → F (rep_id F)
+
+let rep_id_to_id: Exp rep_id_to_id =
+  ΛF.λS: Semantics F.
+    S.abs[rep_id F][rep_id F]
+      λx: F (rep_id F).
+        S.app[rep_id F][rep_id F]
+          (S.tapp[rep_id F] x [F (rep_id F) → F (rep_id F)]
+              λx: rep_id F.x[rep_id F])
+          x
+
+# Operation on representations
+
+let foldExp = ΛF.λS: Semantics F.Λα.λe: Exp α.e[F] S
+
+# Implementation of unquote
+
+type Id = λα: *.α
+
+let unquote = foldExp[Id] {
+  abs = Λα.Λβ.λf: α → β.f
+  app = Λα.Λβ.λf: α → β.λx: α.f x
+  tabs = Λα.λs: Strip Id α.λf: α.f
+  tapp = Λα.λf: α.Λβ.λg: α → β.g f
+}
+
+# Implementation of size
+
+type Int = λ_: *.int
+
+let size = foldExp[Int] {
+  abs = Λ_.Λ_.λf: int → int.f 1 + 1
+  app = Λ_.Λ_.λf: int.λx: int.f + x + 1
+  tabs = Λα.λstrip: Strip Int α.λf: α.strip[int] (Λ_.λx: int.x) f + 1
+  tapp = Λα.λf: int.Λ_.λinst: α → int.f + 1
+}
+
+# Applying operations to sample representations:
+
+{
+  unquote = unquote[rep_id_to_id] rep_id_to_id
+  size = size[rep_id_to_id] rep_id_to_id
+}

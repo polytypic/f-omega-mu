@@ -27,8 +27,9 @@ This Fωμ variant has
 
 These features make Fωμ relatively well-behaved as well as expressive
 ([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-gadt-using-eq-witnesses.fom),
-[\*](https://polytypic.github.io/f-omega-mu/#*examples/hoas-gadt.fom)) and also
-allow a compiler to make good use of untyped compilation targets
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/hoas-gadt.fom),
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/f-omega-self-interpreter.fom))
+and also allow a compiler to make good use of untyped compilation targets
 ([\*](https://polytypic.github.io/f-omega-mu/#*examples/equirecursive-fixpoint-combinator.fom),
 [\*](https://polytypic.github.io/f-omega-mu/#*examples/object-oriented-sets.fom))
 such as JavaScript.
