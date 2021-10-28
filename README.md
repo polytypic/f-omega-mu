@@ -157,11 +157,16 @@ Perhaps a practical System Fωμ implementation could serve as a reusable buildi
 block or as a forkable boilerplate when exploring such programming language
 designs.
 
-System Fω might also be a good language for teaching functional programming:
+System Fω might also be a good language for teaching functional programming and
+make an interesting object of study on its own:
 
 <blockquote>
   <dl>
     <dt><a href="https://dl.acm.org/doi/abs/10.1145/3342713">Lambda: the ultimate sublanguage (experience report)</a></dt>
     <dd>Jeremy Yallop, Leo White<br><a href="https://github.com/ocamllabs/fomega">System Fω interpreter for use in Advanced Functional Programming course</a><dd>
+  </dl>
+  <dl>
+    <dt><a href="https://www.semanticscholar.org/paper/Breaking-through-the-normalization-barrier%3A-a-for-Brown-Palsberg/ef79fc5e43d2df0d43e635de5f5a1a2913f4f645">Breaking Through the Normalization Barrier: A Self-Interpreter for F-omega</a></dt>
+    <dd>Matt Brown, Jens Palsberg<dd>
   </dl>
 </blockquote>
