@@ -291,12 +291,36 @@ const insertDU = (loc, du) => {
   line[begins.ch] = du
 }
 
+const unusedMarkers = []
+const unusedAnnot = {
+  css: 'font-style: italic',
+  title: 'Unused binding',
+}
+
 const prepareDefUses = () => {
+  clearMarkers(unusedMarkers)
   for (const file in duMap) {
     delete duMap[file]
   }
   result.defUses.forEach(du => du.uses.forEach(use => insertDU(use, du)))
-  result.defUses.forEach(du => insertDU(du.def, du))
+  result.defUses.forEach(du => {
+    insertDU(du.def, du)
+    if (
+      0 <= du.def.begins.line &&
+      !du.annot.startsWith('_:') &&
+      du.uses.every(
+        use =>
+          use.file === du.def.file &&
+          use.begins.line === du.def.begins.line &&
+          use.begins.ch === du.def.begins.ch &&
+          use.ends.line === du.def.ends.line &&
+          use.ends.ch === du.def.ends.ch
+      )
+    ) {
+      const cm = cmOf(du.def.file)
+      if (cm) addMarker(unusedMarkers, cm, du.def, unusedAnnot)
+    }
+  })
 }
 
 const duMarkers = []
