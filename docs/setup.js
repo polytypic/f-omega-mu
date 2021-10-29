@@ -54,6 +54,11 @@ const onWorker = (init, before, onWorker, after) => {
   }
 }
 
+const addMarker = (markers, cm, pos, annot) =>
+  markers.push(
+    cm.markText(posAsNative(cm, pos.begins), posAsNative(cm, pos.ends), annot)
+  )
+
 const clearMarkers = markers => {
   markers.forEach(mark => mark.clear())
   markers.length = 0
@@ -330,30 +335,19 @@ const setTyp = (value, {noKeywords} = 0) => {
   }
 }
 
+const useAnnot = {css: 'background: blue'}
+const defAnnot = {css: 'background: darkgreen'}
+
 const updateDefUses = throttled(100, cm => {
   clearMarkers(duMarkers)
   const du = duAt(cm, cm.getCursor())
   if (du) {
     du.uses.forEach(use => {
       const cm = cmOf(use.file)
-      if (cm) {
-        duMarkers.push(
-          cm.markText(posAsNative(cm, use.begins), posAsNative(cm, use.ends), {
-            css: 'background: blue',
-          })
-        )
-      }
+      if (cm) addMarker(duMarkers, cm, use, useAnnot)
     })
     const cm = cmOf(du.def.file)
-    if (cm) {
-      duMarkers.push(
-        cm.markText(
-          posAsNative(cm, du.def.begins),
-          posAsNative(cm, du.def.ends),
-          {css: 'background: darkgreen'}
-        )
-      )
-    }
+    if (cm) addMarker(duMarkers, cm, du.def, defAnnot)
     setTyp(du.annot)
   } else {
     setTyp(result.typ, {noKeywords: result.diagnostics.length})
@@ -503,16 +497,14 @@ const build = throttled(
           result.diagnostics.forEach(diagnostic => {
             const cm = cmOf(diagnostic.file)
             if (cm) {
-              const css = cm.getAllMarks().length
+              const css = diagnosticMarkers.length
                 ? 'text-shadow: 0px 0px 10px orange'
                 : 'text-shadow: 0px 0px 10px red'
-              diagnosticMarkers.push(
-                cm.markText(
-                  posAsNative(cm, diagnostic.begins),
-                  posAsNative(cm, diagnostic.ends),
-                  {className: 'marker', css, title: diagnostic.message}
-                )
-              )
+              addMarker(diagnosticMarkers, cm, diagnostic, {
+                className: 'marker',
+                css,
+                title: diagnostic.message,
+              })
             }
           })
         }
