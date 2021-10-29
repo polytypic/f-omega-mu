@@ -14,6 +14,7 @@ module Kind : sig
   type t = t f
 
   val at : t -> Loc.t
+  val set_at : Loc.t -> t -> t
 
   (* *)
 
