@@ -294,7 +294,9 @@ let rec elaborate_def = function
       | None -> unit
     in
     let* i's, avoiding = to_avoid_captures is in
-    let bs = List.map2 (fun i (_, k, t) -> (i, k, t)) i's bs in
+    let bs =
+      List.map2 (fun i (_, k, t) -> (i, Kind.set_at (Typ.Var.at i) k, t)) i's bs
+    in
     let* () = bs |> List.iter_fr (fun (i, k, _) -> Annot.Typ.def i k) in
     let* assoc =
       bs
@@ -338,8 +340,9 @@ and elaborate_typ = function
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', i, k, t) ->
     avoid i @@ fun i ->
-    elaborate_typ t |> Typ.VarMap.adding i @@ `Kind k >>- fun t ->
-    `Lam (at', i, k, t)
+    let k = Kind.set_at (Typ.Var.at i) k in
+    Annot.Typ.def i k >> elaborate_typ t |> Typ.VarMap.adding i @@ `Kind k
+    >>- fun t -> `Lam (at', i, k, t)
   | `App (at', f, x) ->
     elaborate_typ f <*> elaborate_typ x >>- fun (f, x) -> `App (at', f, x)
   | `ForAll (at', t) -> elaborate_typ t >>- fun t -> `ForAll (at', t)
@@ -398,7 +401,9 @@ let rec elaborate = function
     elaborate f <*> elaborate x >>- fun (f, x) -> `App (at, f, x)
   | `Gen (at, i, k, e) ->
     avoid i @@ fun i ->
-    elaborate e |> Typ.VarMap.adding i @@ `Kind k >>- fun e -> `Gen (at, i, k, e)
+    let k = Kind.set_at (Typ.Var.at i) k in
+    Annot.Typ.def i k >> elaborate e |> Typ.VarMap.adding i @@ `Kind k
+    >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     elaborate e <*> elaborate_typ t >>- fun (e, t) -> `Inst (at, e, t)
   | `LetIn (at, i, v, e) ->
@@ -427,13 +432,14 @@ let rec elaborate = function
   | `UnpackIn (at, ti, k, ei, v, e) ->
     let* v = elaborate v in
     avoid ti @@ fun ti ->
+    let k = Kind.set_at (Typ.Var.at ti) k in
     Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LetPatPar (at, [(`Pack (_, `Id (_, ei, _), ti, _), tO, v)], e) ->
     let* v = elaborate v in
     let* v = maybe_annot v tO in
-    let k = Kind.fresh (Typ.Var.at ti) in
     avoid ti @@ fun ti ->
+    let k = Kind.fresh (Typ.Var.at ti) in
     Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LetPatPar (at, [(p, tO, v)], e) ->

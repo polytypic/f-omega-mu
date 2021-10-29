@@ -498,13 +498,10 @@ let rec infer = function
   | `Var (at', i) as t -> (
     let* i_kind_opt = VarMap.find_opt i in
     match i_kind_opt with
-    | Some (`Kind i_kind) ->
-      Annot.Typ.use i (Kind.at i_kind) >> return (t, i_kind)
+    | Some (`Kind i_kind) -> return (t, i_kind)
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
-    let+ r, r_kind =
-      Annot.Typ.def d d_kind >> infer r |> VarMap.adding d @@ `Kind d_kind
-    in
+    let+ r, r_kind = infer r |> VarMap.adding d @@ `Kind d_kind in
     (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
   | `App (at', f, x) ->
     let* f, f_kind = infer f and* x, d_kind = infer x in
