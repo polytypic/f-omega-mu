@@ -38,7 +38,7 @@ type 𝟛 = Succ 𝟚
 
 # Lists
 
-type Nil = λn.λc.n
+type Nil = λn.λ_.n
 type Cons = λh.λt.λn.λc.c h (t n c)
 
 type Map = λf.λxs.λn.λc.xs n λx.c (f x)

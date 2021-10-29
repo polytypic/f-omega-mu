@@ -68,7 +68,7 @@ type Id = λα: *.α
 let unquote: ∀α.Exp α → α Id = foldExp[Id] {
   abs = Λα.Λβ.λf: α → β.f
   app = Λα.Λβ.λf: α → β.λx: α.f x
-  tabs = Λα.λs: Strip Id α.λf: α.f
+  tabs = Λα.λ_: Strip Id α.λf: α.f
   tapp = Λα.λf: α.Λβ.λg: α → β.g f
 }
 
@@ -80,7 +80,7 @@ let size: ∀α.Exp α → int = foldExp[Int] {
   abs = Λ_.Λ_.λf: int → int.f 1 + 1
   app = Λ_.Λ_.λf: int.λx: int.f + x + 1
   tabs = Λα.λstrip: Strip Int α.λf: α.strip[int] (Λ_.λx: int.x) f + 1
-  tapp = Λα.λf: int.Λ_.λinst: α → int.f + 1
+  tapp = Λα.λf: int.Λ_.λ_: α → int.f + 1
 }
 
 # Implementation of nf
@@ -93,8 +93,8 @@ let nf: ∀α.Exp α → bool =
     abs = Λ_.Λ_.λf: Bools → Bools.((f (true, true)).1, false)
     app = Λ_.Λ_.λf: Bools. λx: Bools.(f.2 ∧ x.1, f.2 ∧ x.1)
     tabs = Λα.λstrip: Strip KBools α. λf: α.
-      ((strip[Bools] (Λα.λx: Bools.x) f).1, false)
-    tapp = Λα.λf: Bools.Λ_.λinst: α → Bools.(f.2, f.2)
+      ((strip[Bools] (Λ_.λx: Bools.x) f).1, false)
+    tapp = Λα.λf: Bools.Λ_.λ_: α → Bools.(f.2, f.2)
   }
   Λα.λe: Exp α.(foldExp[KBools] S [α] e).1
 
@@ -107,7 +107,7 @@ let cps: ∀α.Exp α → CPS α = foldExp[Ct] {
   abs = Λα.Λβ.λf: Ct α → Ct β.ΛV.λk: (Ct α → Ct β) → V.k f
   app = Λα.Λβ.λf: Ct (Ct α → Ct β).λx: Ct α.ΛV.λk: β → V.
     f[V] λg: Ct α → Ct β.g x [V] k
-  tabs = Λα.λstrip: Strip Ct α.λf: α.ΛV.λk: α → V.k f
+  tabs = Λα.λ_: Strip Ct α.λf: α.ΛV.λk: α → V.k f
   tapp = Λα.λf: Ct α.Λβ.λinst: α → Ct β.ΛV.λk: β → V.f[V] λe: α.inst e [V] k
 }
 

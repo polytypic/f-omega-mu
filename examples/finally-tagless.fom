@@ -50,7 +50,7 @@ let BoolExp =
   }
   let length: BoolExp length = {
     Bool = λ_: bool.1
-    If = Λα.λc: int.λt: () → int.λe: () → int.c + t () + e () + 1
+    If = Λ_.λc: int.λt: () → int.λe: () → int.c + t () + e () + 1
   }
   {eval, length}
 
@@ -64,8 +64,8 @@ type LamExp = λσ.{
 let LamExp =
   let eval: LamExp eval = {Lam = Λα.Λβ.id[α → β], App = Λa.Λb.id[a → b]}
   let length: LamExp length = {
-    Lam = Λα.Λβ.λf: int → int.f 0 + 1
-    App = Λα.Λβ.λf: int.λx: int.f + x + 1
+    Lam = Λ_.Λ_.λf: int → int.f 0 + 1
+    App = Λ_.Λ_.λf: int.λx: int.f + x + 1
   }
   {eval, length}
 
@@ -75,7 +75,7 @@ type FixExp = λσ.{Fix: ∀α.(σ α → σ α) → σ α}
 
 let FixExp =
   let eval: FixExp eval = {Fix = Λα.λf: α → α.μx: α.f x}
-  let length: FixExp length = {Fix = Λα.λf: int → int.f 0 + 1}
+  let length: FixExp length = {Fix = Λ_.λf: int → int.f 0 + 1}
   {eval, length}
 
 # Composition of interpreter
