@@ -129,6 +129,17 @@ CodeMirror.defineMode('fom', () => ({
   },
 }))
 
+const getTokenEndingAt = (cm, cursor) => {
+  const token = fomCM.getTokenAt(cursor)
+  if (!token || token.end < cursor.ch || cursor.ch <= token.start)
+    return undefined
+  if (token.end !== cursor.ch) {
+    token.string = token.string.slice(0, cursor.ch - token.end)
+    token.end = cursor.ch
+  }
+  return token
+}
+
 const resultCM = CodeMirror(resultDiv, cmConfig)
 const typCM = CodeMirror(typDiv, {
   ...cmConfig,
@@ -145,8 +156,8 @@ const fomCM = CodeMirror(fomDiv, {
         for (const selection of fomCM.listSelections()) {
           const cursor = selection.head
           const {line, ch} = cursor
-          const token = fomCM.getTokenAt(cursor)
-          if (!token || token.end !== ch) {
+          const token = getTokenEndingAt(fomCM, cursor)
+          if (!token) {
             replacement = ' '
             break
           }
@@ -202,16 +213,17 @@ const maybeComplete = (options = {}) => {
   if (fomCM.state.completionActive) return false
 
   const cursor = fomCM.getCursor()
-  const token = fomCM.getTokenAt(cursor)
+  const token = getTokenEndingAt(fomCM, cursor)
 
-  if (!token || !token.string || token.end !== cursor.ch) return false
+  if (!token) return false
 
   fomCM.showHint({
     ...options,
     hint(cm, options) {
       const cursor = cm.getCursor()
       const {line} = cursor
-      const {string: t, start, end} = cm.getTokenAt(cursor)
+      const {string: t, start, end} = getTokenEndingAt(fomCM, cursor)
+
       const list = [...identifiers, ...Object.keys(alternatives)]
         .filter(id => id !== t && id.indexOf(t) !== -1)
         .sort((l, r) =>
