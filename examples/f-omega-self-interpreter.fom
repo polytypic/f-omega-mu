@@ -8,7 +8,7 @@
 #
 # The implementation in this example differs from the paper in that a `Semantics
 # F` record is used pass the semantics to expressions.  Kind inference in Fωμ
-# eliminates need for kind annotations and they are only used to explicitly
+# eliminates the need for kind annotations and they are only used to explicitly
 # constrain kinds to correspond to the paper.  There is also no need to encode
 # primitive types like `Nat` used in semantics.
 
