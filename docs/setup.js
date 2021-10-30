@@ -293,7 +293,7 @@ const insertDU = (loc, du) => {
 
 const unusedMarkers = []
 const unusedAnnot = {
-  css: 'font-style: italic',
+  css: 'text-decoration: underline tomato 2px',
   title: 'Unused binding',
 }
 
