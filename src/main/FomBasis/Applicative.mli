@@ -21,7 +21,8 @@ module Syntax : sig
   (* *)
 
   val unit : ('f, 'F, unit) fr
-  val if_then : bool -> ('f, 'F, unit) fr -> ('f, 'F, unit) fr
+  val do_unless : bool -> ('f, 'F, unit) fr -> ('f, 'F, unit) fr
+  val do_when : bool -> ('f, 'F, unit) fr -> ('f, 'F, unit) fr
 
   (* *)
 

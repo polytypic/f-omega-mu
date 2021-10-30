@@ -22,7 +22,8 @@ module Syntax = struct
   (* *)
 
   let unit : (_, _, _) fr = fun f -> f#return ()
-  let if_then c uM = if c then uM else unit
+  let do_unless c uM = if c then unit else uM
+  let do_when c uM = if c then uM else unit
 
   (* *)
 
