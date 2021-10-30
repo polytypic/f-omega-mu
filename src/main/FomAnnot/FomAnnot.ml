@@ -43,14 +43,16 @@ module Annot = struct
       lhs rhs
 
   let add_def at annot =
-    let* locmap = get field in
-    MVar.mutate locmap @@ LocMap.update at
-    @@ function None -> Some (make at LocSet.empty annot) | some -> some
+    do_unless (Loc.is_dummy at)
+    @@ let* locmap = get field in
+       MVar.mutate locmap @@ LocMap.update at
+       @@ function None -> Some (make at LocSet.empty annot) | some -> some
 
   let add_use use def =
-    let* locmap = get field in
-    MVar.mutate locmap @@ LocMap.update def @@ Option.map
-    @@ fun o -> make o#def (LocSet.add use o#uses) o#annot
+    do_unless (Loc.is_dummy use)
+    @@ let* locmap = get field in
+       MVar.mutate locmap @@ LocMap.update def @@ Option.map
+       @@ fun o -> make o#def (LocSet.add use o#uses) o#annot
 
   module Label = struct
     open Label
