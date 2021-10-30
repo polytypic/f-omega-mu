@@ -9,7 +9,7 @@ type Stack = λstack.{
 }
 
 let «stack, Stack» = «list, {
-  empty = Λα.'None
+  empty = Λ_.'None
   push = Λα.λx: α.λxs: list α.'Some (x, xs)
   pop = Λα.λxs: list α.xs
 }»: ∃(Stack)
