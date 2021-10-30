@@ -242,7 +242,7 @@ let rec mu_of_norm at = function
         let+ t' = drop_legs mu' t' in
         let t' = List.fold_left (fun t (i, k) -> `Lam (at, i, k, t)) t' iks in
         `Lam (at', i, k, t')
-      | _ -> return f
+      | _ -> unfold_at_jms i t t >>- fun t' -> `Lam (at', i, k, t')
     in
     if compare f f' = 0 then
       return @@ `Mu (at, f)
@@ -253,6 +253,23 @@ let rec mu_of_norm at = function
 and jm_op_of = function
   | `Join (at, _, _) -> join_of_norm at
   | `Meet (at, _, _) -> meet_of_norm at
+
+and unfold_at_jms x f = function
+  | #Core.f as t -> map_eq_fr (unfold_at_jms x f) t
+  | (`Join (at, l, r) | `Meet (at, l, r)) as t ->
+    let* l = unfold_at_jms x f l and* r = unfold_at_jms x f r in
+    let op = jm_op_of t in
+    let+ t' =
+      match (unapp l, unapp r) with
+      | (`Var (_, lf), lxs), _ when Var.equal lf x ->
+        apps_of_norm at f lxs >>= fun l ->
+        op l r >>= unfold_at_jms x f |> memoing t
+      | _, (`Var (_, rf), rxs) when Var.equal rf x ->
+        apps_of_norm at f rxs >>= fun r ->
+        op l r >>= unfold_at_jms x f |> memoing t
+      | _ -> op l r
+    in
+    keep_phys_eq' t t'
 
 and drop_legs x = function
   | (`Join (_, l, r) | `Meet (_, l, r)) as t ->

@@ -6,7 +6,8 @@ include "map"
   type kv = λν.{key: κ, val: ν}
 
   type μtree = λν.'Lf | 'Br (br ν)
-  and μbr = λν.kv ν ∧ {lt: tree ν, gt: tree ν}
+  and μbr = kv ∧ lg
+  and μlg = λν.{lt: tree ν, gt: tree ν}
 
   type map = λν.Compare κ ∧ {root: tree ν}
 
@@ -50,7 +51,7 @@ include "map"
         Br = λbr: br ν.
           compare key br.key ▷ case {
             Lt = λ().'Br ((br: kv ν) „ {lt = put br.lt, gt = br.gt})
-            Eq = λ().'Br {key, val, lt = br.lt, gt = br.gt}
+            Eq = λ().'Br ({key, val} „ (br: lg ν))
             Gt = λ().'Br ((br: kv ν) „ {lt = br.lt, gt = put br.gt})
           }
       }

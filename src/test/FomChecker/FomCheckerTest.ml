@@ -319,6 +319,31 @@ let () =
        higher: (foo ∨ bar) bool int}).
       {first = higher, higher = first}
     |};
+  testInfersAs "recursive type product with ∨"
+    {|
+    type μfoo = 'Foo ∨ bar
+     and μbar = 'Bar ∨ foo
+    foo
+    |}
+    {|
+    type Pair = λl.λr.λf.f l r
+    type Fst = λp.p λl.λ_.l
+    type Snd = λp.p λ_.λr.r
+    type μfoo_bar =
+      Pair ('Foo ∨ Snd foo_bar)
+           ('Bar ∨ Fst foo_bar)
+    μx:Fst foo_bar.x
+    |};
+  testInfersAs "recursive types with ∧" "()"
+    {|
+    type kv = λκ.λν.{key: κ, val: ν}
+
+    type μtree = λκ.λν.'Lf | 'Br (br κ ν)
+    and μbr = kv ∧ lg
+    and μlg = λκ.λν.{lt: tree κ ν, gt: tree κ ν}
+
+    ()
+    |};
   ()
 
 let testErrors name exp =
