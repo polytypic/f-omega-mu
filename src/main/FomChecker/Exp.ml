@@ -1,4 +1,5 @@
 open FomBasis
+open FomSource
 open FomAnnot
 
 (* *)
@@ -182,6 +183,7 @@ let rec infer = function
     else
       return (`UnpackIn (at', tid, k, id, v, e), e_typ)
   | `Merge (at', l, r) ->
+    let select e l = `Select (Loc.dummy, e, atom (Label.set_at Loc.dummy l)) in
     let binding v t e =
       let i = Var.fresh at' in
       let+ e = e @@ `Var (at', i) in
@@ -191,12 +193,11 @@ let rec infer = function
       match (lt, rt) with
       | `Product (_, ls), `Product (_, rs) ->
         Row.union_fr
-          (fun l _ -> return @@ `Select (at', le, atom l))
-          (fun l _ -> return @@ `Select (at', re, atom l))
+          (fun l _ -> return @@ select le l)
+          (fun l _ -> return @@ select re l)
           (fun l lt rt ->
-            let l = atom l in
-            binding (`Select (at', le, l)) lt @@ fun le ->
-            binding (`Select (at', re, l)) rt @@ fun re -> merge le re lt rt)
+            binding (select le l) lt @@ fun le ->
+            binding (select re l) rt @@ fun re -> merge le re lt rt)
           ls rs
         >>- fun fs -> `Product (at', fs)
       | _ -> fail @@ `Error_non_disjoint_merge (at', lt, rt)
