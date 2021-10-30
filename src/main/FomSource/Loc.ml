@@ -13,6 +13,9 @@ let path ((l : Pos.t), _) = l.pos_fname
 let compare (ll, lr) (rl, rr) =
   Pos.compare ll rl <>? fun () -> Pos.compare lr rr
 
+let equal l r = compare l r = 0
+let is_dummy = equal dummy
+
 let pp ((lhs, rhs) : t) =
   let format_range lhs rhs =
     if lhs = rhs then

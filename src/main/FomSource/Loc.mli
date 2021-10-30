@@ -5,6 +5,8 @@ type t = Pos.t * Pos.t
 (* Comparison *)
 
 val compare : t -> t -> int
+val equal : t -> t -> bool
+val is_dummy : t -> bool
 
 (* Constructors *)
 
