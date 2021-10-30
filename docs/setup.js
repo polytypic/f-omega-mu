@@ -359,7 +359,7 @@ const setTyp = (value, {noKeywords} = 0) => {
   }
 }
 
-const useAnnot = {css: 'background: blue'}
+const useAnnot = {css: 'background: saddlebrown'}
 const defAnnot = {css: 'background: darkgreen'}
 
 const updateDefUses = throttled(100, cm => {
