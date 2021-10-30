@@ -307,7 +307,7 @@ const prepareDefUses = () => {
     insertDU(du.def, du)
     if (
       0 <= du.def.begins.line &&
-      !du.annot.startsWith('_:') &&
+      !du.annot.startsWith('_') &&
       du.uses.every(
         use =>
           use.file === du.def.file &&
