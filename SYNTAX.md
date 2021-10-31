@@ -181,3 +181,7 @@ incs                                                           // Syntax of .fom
 |            `▷` | <code>&#124;&gt;</code>   |
 |            `◁` | <code>&lt;&#124;</code>   |
 |            `◇` | `<>`                      |
+
+Additionally, in the [online editor](https://polytypic.github.io/f-omega-mu/), a
+backslash `\` followed by a symbol name, e.g. `\alpha`, is considered an escape
+to be replaced with a unicode character, e.g. `α`, on space.
