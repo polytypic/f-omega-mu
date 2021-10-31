@@ -1,7 +1,12 @@
 %token <Bigint.t> LitNat
-%token <FomBasis.JsonString.t> LitString
 
-%token LitStringPart
+%token TstrStrPart
+
+%token TstrOpenRaw
+%token <string> TstrOpen
+%token <FomBasis.JsonString.t> TstrStr
+%token <string> TstrEsc
+%token TstrClose
 
 %token <string> Id
 %token <string> IdDollar
@@ -121,10 +126,15 @@ lab_list(item):
 
 //
 
+lit_string:
+  | TstrOpenRaw s=TstrStr TstrClose                     {s}
+
+//
+
 typ_def:
   | "type" bs=list_1(typ_par_def, "and")                {`TypPar ($loc, bs)}
   | "type" bs=list_1(typ_mu_def, "and")                 {`TypRec ($loc, bs)}
-  | "include" p=LitString                               {`Include ($loc, p)}
+  | "include" p=lit_string                              {`Include ($loc, p)}
 
 typ_mu_def:
   | "μ" b=typ_bind "=" t=typ                            {(fst b, snd b, t)}
@@ -168,7 +178,7 @@ typ_atom:
   | "μ" "(" t=typ ")"                                   {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                                   {`Exists ($loc, t)}
   | "∀" "(" t=typ ")"                                   {`ForAll ($loc, t)}
-  | "import" p=LitString                                {`Import ($loc, p)}
+  | "import" p=lit_string                               {`Import ($loc, p)}
 
 lab_typ_atom:
   | t=typ_atom                                          {t}
@@ -231,18 +241,26 @@ exp_bid:
   | "_"                                                 {Exp.Var.underscore $loc}
   | i=exp_rid                                           {i}
 
+exp_tstr_rest:
+  | TstrClose                                           {[]}
+  | l=TstrEsc v=exp s=TstrStr es=exp_tstr_rest          {`Exp (Label.of_string $loc(l) l, v) :: `Str s :: es}
+
+exp_tstr:
+  | TstrOpenRaw s=TstrStr es=exp_tstr_rest              {`Tstr ($loc, Exp.raw, `Str s :: es)}
+  | i=TstrOpen s=TstrStr es=exp_tstr_rest               {`Tstr ($loc, Exp.Var.of_string $loc(i) i, `Str s :: es)}
+
 exp_atom:
   | i=exp_rid                                           {`Var ($loc, i)}
   | l=LitNat                                            {`Const ($loc, `LitNat l)}
-  | l=LitString                                         {`Const ($loc, `LitString l)}
+  | s=exp_tstr                                          {s}
   | "(" es=list_n(exp, ",") ")"                         {Exp.tuple $loc es}
   | "{" fs=lab_list(lab_exp) "}"                        {`Product ($loc, fs)}
   | f=exp_atom "_(" xs=list_n(exp, ",") ")"             {`App ($loc, f, Exp.tuple $loc xs)}
   | f=exp_atom "_[" x=typ "]"                           {`Inst ($loc, f, x)}
   | e=exp_atom "." l=label                              {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                        {`Select ($loc, e, i)}
-  | "target" "[" t=typ "]" c=LitString                  {`Const ($loc, `Target (t, c))}
-  | "import" p=LitString                                {`Import ($loc, p)}
+  | "target" "[" t=typ "]" c=lit_string                 {`Const ($loc, `Target (t, c))}
+  | "import" p=lit_string                               {`Import ($loc, p)}
 
 lab_exp_atom:
   | e=exp_atom                                          {e}

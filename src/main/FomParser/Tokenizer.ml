@@ -16,9 +16,9 @@ let offset_as_utf_32 input i =
 (* *)
 
 module State = struct
-  type t = bool
+  type t = bool * Buffer.state
 
-  let initial = false
+  let initial = (false, [])
 end
 
 type token_info = {begins : int; ends : int; name : string; state : State.t}
@@ -77,8 +77,6 @@ let token_info_utf_8 =
     | LessEqual -> operator
     | Let -> keyword
     | LitNat _ -> number
-    | LitString _ -> string
-    | LitStringPart -> string
     | Local -> keyword
     | LogicalAnd -> operator
     | LogicalNot -> operator
@@ -99,18 +97,33 @@ let token_info_utf_8 =
     | Tick -> punctuation
     | TriangleLhs -> punctuation
     | TriangleRhs -> punctuation
+    | TstrClose -> string
+    | TstrEsc _ -> string
+    | TstrOpen _ -> string
+    | TstrOpenRaw -> string
+    | TstrStr _ -> string
+    | TstrStrPart -> string
     | Type -> keyword
     | Underscore -> variable
+  and to_deltas = function
+    | TstrOpenRaw | TstrOpen _ -> (0, 1)
+    | TstrEsc _ -> (-1, 0)
+    | _ -> (0, 0)
   in
-  fun state ->
-    let lexer = if state then string_continuation else token_or_comment in
-    Buffer.from_utf_8 >>> lexer >>> fun (token, lhs, rhs) ->
-    {
-      begins = lhs.pos_cnum;
-      ends = rhs.pos_cnum;
-      name = to_name token;
-      state = token = LitStringPart;
-    }
+  fun (in_string, state) ->
+    let lexer = if in_string then string_continuation else token_or_comment in
+    fun input ->
+      let buffer = Buffer.from_utf_8 input in
+      buffer.state <- state;
+      match lexer buffer with
+      | token, lhs, rhs ->
+        let db, de = to_deltas token in
+        {
+          begins = lhs.pos_cnum + db;
+          ends = rhs.pos_cnum + de;
+          name = to_name token;
+          state = (token = TstrStrPart, buffer.state);
+        }
 
 (* *)
 

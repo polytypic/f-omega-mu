@@ -112,9 +112,67 @@ incs                                                           // Syntax of .fom
   immediately followed by a newline. The following line will then be considered
   to come from the specified file and line.
 
-- String literals are JSON strings with the addition of Standard ML style
-  `\ws+\` ignored escape sequences where `ws+` is a non-empty sequence of
-  whitespace allowing string literals to span multiple source lines.
+- String literals are JSON strings with a couple of additions:
+
+  1. Standard ML style `\ws+\` ignored escape sequences where `ws+` is a
+     non-empty sequence of whitespace allowing string literals to span multiple
+     source lines and indented.
+
+     For example, the binding
+
+     ```
+     let expression = "if (condition) {\n  action()\n}"
+     ```
+
+     could also be written as
+
+     ```
+     let expression =
+       "if (condition) {\n\
+       \  action()\n\
+       \}"
+     ```
+
+  2. Templating with programmable semantics performing a fold over the string
+     fragments.
+
+     For example, the expression
+
+     ```
+     semantics"prefix\specifier(expression)suffix"
+     ```
+
+     is equivalent to
+
+     ```
+     semantics.begin
+     ▷ semantics.text "prefix"
+     ▷ semantics.specifier (expression)
+     ▷ semantics.text "suffix"
+     ▷ semantics.finish
+     ```
+
+     No space is allowed between the semantics identifier and the beginning
+     quotation mark.
+
+     The standard escape sequences `\b`, `\f`, `\n`, `\r`, and `\t` are
+     interpreted eagerly meaning that custom specifiers cannot start with any of
+     those characters.
+
+     The empty specifier `\(` is equivalent to `\string(`.
+
+     The default semantics
+
+     ```
+     let raw = {
+       begin = ""
+       finish = λs: string.s
+       string = λs: string.λp: string.p ^ s
+       text = λs: string.λp: string.p ^ s
+     }
+     ```
+
+     does not handle any other specifiers.
 
 1. Type variables are distinct from value variables.
 

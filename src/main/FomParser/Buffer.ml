@@ -1,9 +1,10 @@
 open FomBasis
 
-type t = Sedlexing.lexbuf
+type state = [`Initial | `OpenParen | `TstrStr | `TstrEsc | `TstrExp] list
+type t = {mutable state : state; lexbuf : Sedlexing.lexbuf}
 
-let loc = Sedlexing.lexing_positions
-let lexeme_utf_8 = Sedlexing.Utf8.lexeme
+let loc {lexbuf; _} = Sedlexing.lexing_positions lexbuf
+let lexeme_utf_8 {lexbuf; _} = Sedlexing.Utf8.lexeme lexbuf
 
 let init path lexbuf =
   Sedlexing.set_filename lexbuf path;
@@ -13,4 +14,4 @@ let init path lexbuf =
 let from_utf_8 ?(path = "") input =
   let lexbuf = input |> UTF.UTF8.to_uchar_array |> Sedlexing.from_uchar_array in
   init path lexbuf;
-  lexbuf
+  {state = []; lexbuf}

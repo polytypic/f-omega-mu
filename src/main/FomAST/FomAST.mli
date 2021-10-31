@@ -46,7 +46,14 @@ module Kind : sig
   val to_string : ?numbering:Numbering.t -> t -> string
 end
 
-module Label : Id.S
+module Label : sig
+  include Id.S
+
+  val begin' : t
+  val finish' : t
+  val string' : t
+  val text' : t
+end
 
 module Row : sig
   type 't t = (Label.t * 't) list
@@ -349,6 +356,10 @@ module Exp : sig
   type t = (t, Typ.t, Kind.t) f
 
   val at : [< ('e, 't, 'k) f] -> Loc.t
+
+  (* *)
+
+  val raw : Var.t
 
   val initial_exp :
     (('e, (('t, 'k) Typ.f as 't), ('k Kind.f as 'k)) f as 'e) -> 'e

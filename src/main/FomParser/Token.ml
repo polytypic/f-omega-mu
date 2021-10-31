@@ -41,8 +41,6 @@ let[@warning "-32"] to_string = function
   | LessEqual -> "≤"
   | Let -> "let"
   | LitNat n -> Bigint.to_string n
-  | LitString s -> JsonString.to_utf8_json s
-  | LitStringPart -> "..."
   | Local -> "local"
   | LogicalAnd -> "∧"
   | LogicalNot -> "∨"
@@ -63,5 +61,11 @@ let[@warning "-32"] to_string = function
   | Tick -> "'"
   | TriangleLhs -> "◁"
   | TriangleRhs -> "▷"
+  | TstrClose -> "\"...\""
+  | TstrEsc _ -> "\"...\""
+  | TstrOpen _ -> "\"...\""
+  | TstrOpenRaw -> "\"...\""
+  | TstrStr _ -> "\"...\""
+  | TstrStrPart -> "\"...\""
   | Type -> "type"
   | Underscore -> "_"

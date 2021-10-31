@@ -1,6 +1,7 @@
 open FomBasis
 open FomSource
 open Grammar
+open Buffer
 
 exception Exn_lexeme of Loc.t * string
 
@@ -77,109 +78,153 @@ let line_directive = [%sedlex.regexp? "#line ", nat_10, ' ', string, line_end]
 
 (* *)
 
-let rec token_or_comment buffer =
+let rec token_or_comment ({lexbuf; _} as buffer) =
   let return = return_from buffer in
-  match%sedlex buffer with
-  | line_directive ->
-    Scanf.sscanf (Buffer.lexeme_utf_8 buffer) "#line %d %[^\n\r]"
-    @@ fun line filename_literal ->
-    let open JsonString in
-    let filename = filename_literal |> of_utf8_json |> to_utf8 in
-    let _, pos = Sedlexing.lexing_positions buffer in
-    Sedlexing.set_filename buffer filename;
-    Sedlexing.set_position buffer {pos with pos_lnum = line};
-    token_or_comment buffer
-  (* *)
-  | "%" -> return Percent
-  | "'" -> return Tick
-  | "(" -> return ParenLhs
-  | ")" -> return ParenRhs
-  | "*" -> return Star
-  | "+" -> return Plus
-  | "," -> return Comma
-  | "-" -> return Minus
-  | "." | "=>" -> return Dot
-  | "/" -> return Slash
-  | ":" -> return Colon
-  | "<" -> return Less
-  | "=" -> return Equal
-  | ">" -> return Greater
-  | "[" -> return BracketLhs
-  | "]" -> return BracketRhs
-  | "^" -> return Caret
-  | "{" -> return BraceLhs
-  | "|" -> return Pipe
-  | "}" -> return BraceRhs
-  (* *)
-  | "_" -> return Underscore
-  | "and" -> return And
-  | "case" -> return Case
-  | "else" -> return Else
-  | "exists" | exists -> return Exists
-  | "forall" | for_all -> return ForAll
-  | "if" -> return If
-  | "import" -> return Import
-  | "in" -> return In
-  | "include" -> return Include
-  | "let" -> return Let
-  | "local" -> return Local
-  | "target" -> return Target
-  | "then" -> return Then
-  | "type" -> return Type
-  (* *)
-  | arrow_right | "->" -> return ArrowRight
-  | diamond | "<>" -> return Diamond
-  | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
-  | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs
-  | double_comma | ",," -> return DoubleComma
-  | greater_equal | ">=" -> return GreaterEqual
-  | lambda_lower | "fun" -> return LambdaLower
-  | lambda_upper | "gen" -> return LambdaUpper
-  | less_equal | "<=" -> return LessEqual
-  | logical_and | "&&" -> return LogicalAnd
-  | logical_not | "!" -> return LogicalNot
-  | logical_or | "||" -> return LogicalOr
-  | mu_lower | "rec" -> return MuLower
-  | not_equal | "!=" -> return NotEqual
-  | triangle_lhs | "<|" -> return TriangleLhs
-  | triangle_rhs | "|>" -> return TriangleRhs
-  (* *)
-  | nat_10 ->
-    return
-      (LitNat
-         (Buffer.lexeme_utf_8 buffer
-         |> String.filter (( <> ) '_')
-         |> Bigint.of_string))
-  (* *)
-  | string ->
-    return
-      (LitString (Buffer.lexeme_utf_8 buffer |> JsonString.of_utf8_json_literal))
-  | '"', Star char, '\\', Opt whitespace, eof -> return LitStringPart
-  (* *)
-  | id -> return (Id (Buffer.lexeme_utf_8 buffer))
-  | id_typ -> return (IdTyp (Buffer.lexeme_utf_8 buffer))
-  | id_sub -> return (IdSub (Buffer.lexeme_utf_8 buffer))
-  | id_dollar -> return (IdDollar (Buffer.lexeme_utf_8 buffer))
-  (* *)
-  | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
-  | whitespace -> token_or_comment buffer
-  (* *)
-  | eof -> return EOF
-  (* *)
-  | '\\', Plus ('a' .. 'z' | 'A' .. 'Z') ->
-    return (Escape (Buffer.lexeme_utf_8 buffer))
-  (* *)
-  | nat_10, id | '"', Star char | any ->
-    raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
-  | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+  match buffer.state with
+  | ((`Initial | `OpenParen) :: _ | []) as state -> (
+    match%sedlex lexbuf with
+    | line_directive ->
+      Scanf.sscanf (Buffer.lexeme_utf_8 buffer) "#line %d %[^\n\r]"
+      @@ fun line filename_literal ->
+      let open JsonString in
+      let filename = filename_literal |> of_utf8_json |> to_utf8 in
+      let _, pos = Sedlexing.lexing_positions lexbuf in
+      Sedlexing.set_filename lexbuf filename;
+      Sedlexing.set_position lexbuf {pos with pos_lnum = line};
+      token_or_comment buffer
+    (* *)
+    | "%" -> return Percent
+    | "'" -> return Tick
+    | "(" ->
+      buffer.state <- `OpenParen :: state;
+      return ParenLhs
+    | ")" -> (
+      match buffer.state with
+      | `OpenParen :: state | `Initial :: (`TstrStr :: _ as state) ->
+        buffer.state <- state;
+        return ParenRhs
+      | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+      )
+    | "*" -> return Star
+    | "+" -> return Plus
+    | "," -> return Comma
+    | "-" -> return Minus
+    | "." | "=>" -> return Dot
+    | "/" -> return Slash
+    | ":" -> return Colon
+    | "<" -> return Less
+    | "=" -> return Equal
+    | ">" -> return Greater
+    | "[" -> return BracketLhs
+    | "]" -> return BracketRhs
+    | "^" -> return Caret
+    | "{" -> return BraceLhs
+    | "|" -> return Pipe
+    | "}" -> return BraceRhs
+    (* *)
+    | "_" -> return Underscore
+    | "and" -> return And
+    | "case" -> return Case
+    | "else" -> return Else
+    | "exists" | exists -> return Exists
+    | "forall" | for_all -> return ForAll
+    | "if" -> return If
+    | "import" -> return Import
+    | "in" -> return In
+    | "include" -> return Include
+    | "let" -> return Let
+    | "local" -> return Local
+    | "target" -> return Target
+    | "then" -> return Then
+    | "type" -> return Type
+    (* *)
+    | arrow_right | "->" -> return ArrowRight
+    | diamond | "<>" -> return Diamond
+    | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
+    | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs
+    | double_comma | ",," -> return DoubleComma
+    | greater_equal | ">=" -> return GreaterEqual
+    | lambda_lower | "fun" -> return LambdaLower
+    | lambda_upper | "gen" -> return LambdaUpper
+    | less_equal | "<=" -> return LessEqual
+    | logical_and | "&&" -> return LogicalAnd
+    | logical_not | "!" -> return LogicalNot
+    | logical_or | "||" -> return LogicalOr
+    | mu_lower | "rec" -> return MuLower
+    | not_equal | "!=" -> return NotEqual
+    | triangle_lhs | "<|" -> return TriangleLhs
+    | triangle_rhs | "|>" -> return TriangleRhs
+    (* *)
+    | nat_10 ->
+      return
+        (LitNat
+           (Buffer.lexeme_utf_8 buffer
+           |> String.filter (( <> ) '_')
+           |> Bigint.of_string))
+    (* *)
+    | Opt id, '"' ->
+      buffer.state <- `TstrStr :: state;
+      let tok =
+        match Buffer.lexeme_utf_8 buffer with
+        | "\"" -> TstrOpenRaw
+        | s -> TstrOpen (String.sub s 0 (String.length s - 1))
+      and lhs, rhs = Buffer.loc buffer in
+      (tok, lhs, Pos.sub_cnum 1 rhs)
+    | Opt id, '"', Star char, '\\', Opt whitespace, eof ->
+      buffer.state <- `TstrStr :: state;
+      return TstrStrPart
+    (* *)
+    | id -> return (Id (Buffer.lexeme_utf_8 buffer))
+    | id_typ -> return (IdTyp (Buffer.lexeme_utf_8 buffer))
+    | id_sub -> return (IdSub (Buffer.lexeme_utf_8 buffer))
+    | id_dollar -> return (IdDollar (Buffer.lexeme_utf_8 buffer))
+    (* *)
+    | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
+    | whitespace -> token_or_comment buffer
+    (* *)
+    | eof -> return EOF
+    (* *)
+    | '\\', Plus ('a' .. 'z' | 'A' .. 'Z') ->
+      return (Escape (Buffer.lexeme_utf_8 buffer))
+    (* *)
+    | nat_10, id | any ->
+      raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+    | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
+  | `TstrStr :: state -> (
+    match%sedlex lexbuf with
+    | Star char ->
+      buffer.state <- `TstrEsc :: state;
+      return
+        (TstrStr
+           (Buffer.lexeme_utf_8 buffer |> Printf.sprintf "\"%s\""
+          |> JsonString.of_utf8_json_literal))
+    | Star char, '\\', Opt whitespace, eof -> return TstrStrPart
+    | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
+  | `TstrEsc :: state -> (
+    match%sedlex lexbuf with
+    | '\\', Opt id ->
+      buffer.state <- `TstrExp :: state;
+      let tok =
+        match Buffer.lexeme_utf_8 buffer with
+        | "\\" -> TstrEsc "string"
+        | s -> TstrEsc (String.sub s 1 (String.length s - 1))
+      and lhs, rhs = Buffer.loc buffer in
+      (tok, Pos.add_cnum 1 lhs, rhs)
+    | '"' ->
+      buffer.state <- state;
+      return TstrClose
+    | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
+  | `TstrExp :: state -> (
+    match%sedlex lexbuf with
+    | '(' ->
+      buffer.state <- `Initial :: `TstrStr :: state;
+      return ParenLhs
+    | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
 
-let string_continuation buffer =
+let string_continuation ({lexbuf; _} as buffer) =
   let return = return_from buffer in
-  match%sedlex buffer with
-  | Opt whitespace, '\\', Star char, '\\', Opt whitespace, eof ->
-    return LitStringPart
-  | Opt whitespace, '\\', Star char, '"', Opt whitespace, eof ->
-    return (LitString (JsonString.of_utf8_json "\"\""))
+  match%sedlex lexbuf with
+  | Opt whitespace, '\\' -> return TstrOpenRaw
   | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
 
 let rec token buffer =

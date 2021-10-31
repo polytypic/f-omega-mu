@@ -484,6 +484,22 @@ let rec elaborate = function
     elaborate x <*> elaborate f >>- fun (x, f) -> `App (at, f, x)
   | `Merge (at', l, r) ->
     elaborate l <*> elaborate r >>- fun (l, r) -> `Merge (at', l, r)
+  | `Tstr (at', semantics, fragments) ->
+    let semantics = Exp.var semantics in
+    let select l = `Select (Label.at l, semantics, Exp.atom l) in
+    let app f x = `App (Exp.at f, f, x) in
+    let app2 f x y = app (app f x) y in
+    let+ e =
+      fragments
+      |> List.fold_left_fr
+           (fun e -> function
+             | `Str s ->
+               return
+               @@ app2 (select Label.text') (`Const (at', `LitString s)) e
+             | `Exp (l, v) -> elaborate v >>- fun v -> app2 (select l) v e)
+           (select Label.begin')
+    in
+    app (select Label.finish') e
   | `Import (at', p) ->
     let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in

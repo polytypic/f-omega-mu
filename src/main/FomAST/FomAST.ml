@@ -134,6 +134,12 @@ module Label = struct
       let rhs = to_string rhs in
       try int_of_string lhs - int_of_string rhs
       with Failure _ -> String.compare lhs rhs
+
+  let mk s = of_string (Loc.of_path s) s
+  let begin' = mk "begin"
+  let finish' = mk "finish"
+  let string' = mk "string"
+  let text' = mk "text"
 end
 
 module Row = struct
@@ -879,22 +885,6 @@ module Exp = struct
     | #Core.f as e -> Core.at e
     | `LetIn (at, _, _, _) | `Merge (at, _, _) -> at
 
-  let builtins =
-    let mk name fn =
-      let at = Loc.of_path name in
-      (Var.of_string at name, fn at)
-    in
-    [
-      mk "true" (fun at -> `Const (at, `LitBool true));
-      mk "false" (fun at -> `Const (at, `LitBool false));
-      mk "keep" (fun at ->
-          let t = Typ.Var.of_string (Loc.of_path "α") "α" in
-          `Gen (at, t, `Star at, `Const (at, `Keep (Typ.var t))));
-    ]
-
-  let initial_exp e =
-    builtins |> List.fold_left (fun e (i, v) -> `LetIn (Var.at i, i, v, e)) e
-
   (* *)
 
   let var i = `Var (Var.at i, i)
@@ -906,4 +896,47 @@ module Exp = struct
 
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
+
+  (* *)
+
+  let raw = Var.of_string (Loc.of_path "raw") "_"
+
+  let builtins =
+    let mk name fn =
+      let at = Loc.of_path name in
+      (Var.of_string at name, fn at)
+    in
+    [
+      mk "true" (fun at -> `Const (at, `LitBool true));
+      mk "false" (fun at -> `Const (at, `LitBool false));
+      mk "keep" (fun at ->
+          let t = Typ.Var.of_string (Loc.of_path "α") "α" in
+          `Gen (at, t, `Star at, `Const (at, `Keep (Typ.var t))));
+      ( raw,
+        let at' = Var.at raw in
+        let at = Loc.dummy in
+        let s = Var.of_string at "s"
+        and p = Var.of_string at "p"
+        and string = `Const (at, `String) in
+        let lam i t e = `Lam (at, i, t, e)
+        and app f x = `App (at, f, x)
+        and empty = `Const (at, `LitString (JsonString.of_utf8 "")) in
+        let rev_cat =
+          lam s string
+            (lam p string
+               (app (app (`Const (at, `OpStringCat)) (var p)) (var s)))
+        in
+        `Product
+          ( at',
+            [
+              (Label.begin', empty);
+              (Label.finish', lam s string (var s));
+              (Label.string', rev_cat);
+              (Label.text', rev_cat);
+            ] ) );
+    ]
+
+  let initial_exp e =
+    builtins |> List.rev
+    |> List.fold_left (fun e (i, v) -> `LetIn (Var.at i, i, v, e)) e
 end

@@ -85,6 +85,8 @@ module Exp = struct
       | ps -> `Product (at, ps |> Tuple.labels at |> Row.map @@ fun p -> `Pat p)
   end
 
+  type 'e tstr_elem = [`Exp of Label.t * 'e | `Str of JsonString.t]
+
   type 'e f =
     [ ('e, Typ.t, Kind.t) Exp.f
     | `AppL of Loc.t * 'e * 'e
@@ -94,6 +96,7 @@ module Exp = struct
     | `LetPatPar of Loc.t * (Pat.t * Typ.t option * 'e) list * 'e
     | `LetPatRec of Loc.t * (Pat.t * 'e) list * 'e
     | `LamPat of Loc.t * Pat.t * 'e
+    | `Tstr of Loc.t * Var.t * 'e tstr_elem list
     | `Annot of Loc.t * 'e * Typ.t ]
 
   type t = t f

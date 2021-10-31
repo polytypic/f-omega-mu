@@ -7,6 +7,7 @@ type t = Pos.t * Pos.t
 val compare : t -> t -> int
 val equal : t -> t -> bool
 val is_dummy : t -> bool
+val is_empty : t -> bool
 
 (* Constructors *)
 
