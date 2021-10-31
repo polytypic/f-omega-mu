@@ -57,22 +57,22 @@
     <div>
       <input id="editInput" type="checkbox" checked />
       <label for="editInput">Allow editing</label>
-      <input id="replaceSymbolsInput" type="checkbox" checked />
-      <label for="replaceSymbolsInput">
-        Replace
-        <a
-          target="_blank"
-          href="https://github.com/polytypic/f-omega-mu/blob/main/SYNTAX.md#alternative-tokens"
-          >ASCII mnemonics with Unicode symbols</a
-        >
-        on space
-      </label>
-    </div>
-    <div>
+      <span id="replaceSymbolsSpan">
+        <input id="replaceSymbolsInput" type="checkbox" checked />
+        <label for="replaceSymbolsInput">
+          Replace
+          <a
+            target="_blank"
+            href="https://github.com/polytypic/f-omega-mu/blob/main/SYNTAX.md#alternative-tokens"
+            >mnemonics with symbols</a
+          >
+          on space
+        </label>
+      </span>
       <input id="wholeSelect" type="checkbox" checked />
       <label for="wholeSelect">Whole program compilation</label>
       <input id="jsSelect" type="checkbox" checked />
-      <label for="jsSelect">Show transpiled JavaScript</label>
+      <label for="jsSelect">Show JavaScript</label>
       <div id="jsDiv"></div>
     </div>
     <div id="depsDiv" style="display: none">

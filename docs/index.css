@@ -29,6 +29,7 @@ select {
   margin-bottom: 0.5em;
 }
 
+#editInput:not(:checked) ~ #replaceSymbolsSpan,
 #depsSelect:not(:checked) ~ #depsDl,
 #jsSelect:not(:checked) ~ #jsDiv {
   display: none;
