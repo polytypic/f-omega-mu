@@ -196,6 +196,12 @@ module Exp = struct
       | `OpArithSub, x, `App (`Const `OpArithMinus, y) ->
         Some (`App (`App (`Const `OpArithAdd, x), y))
       (* *)
+      | `OpStringCat, `Const (`LitString l), `Const (`LitString r) ->
+        Some
+          (`Const
+            (`LitString
+              (Stdlib.( ^ ) (JsonString.to_utf8 l) (JsonString.to_utf8 r)
+              |> JsonString.of_utf8)))
       | _ -> None
   end
 
