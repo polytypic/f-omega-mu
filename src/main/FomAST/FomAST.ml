@@ -573,8 +573,10 @@ module Typ = struct
 
   let prec_min = 0
   let prec_arrow = 1
-  let prec_app = 2
-  let prec_max = 3
+  let prec_join = 2
+  let prec_meet = 3
+  let prec_app = 4
+  let prec_max = 5
 
   (* *)
 
@@ -633,6 +635,10 @@ module Typ = struct
   and tupled config labels =
     labels |> List.map (snd >>> pp config prec_min) |> separate comma_break_1
 
+  and infix config prec_outer prec op l r =
+    pp config prec l ^^ space ^^ op ^^ space ^^ pp config prec r
+    |> if prec < prec_outer then egyptian parens 2 else id
+
   and pp config prec_outer typ =
     match typ with
     | `Const (_, const) -> Const.pp const
@@ -665,12 +671,8 @@ module Typ = struct
         :: (xs |> List.map (pp config (prec_app + 1) >>> group))
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
-    | `Join (_, l, r) ->
-      pp config prec_app l ^^ space ^^ logical_or ^^ space
-      ^^ pp config prec_app r
-    | `Meet (_, l, r) ->
-      pp config prec_app l ^^ space ^^ logical_and ^^ space
-      ^^ pp config prec_app r
+    | `Join (_, l, r) -> infix config prec_outer prec_join logical_or l r
+    | `Meet (_, l, r) -> infix config prec_outer prec_meet logical_and l r
 
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
