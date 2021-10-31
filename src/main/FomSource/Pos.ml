@@ -11,3 +11,8 @@ let compare (l : t) (r : t) =
   String.compare l.pos_fname r.pos_fname
 
 let equal l r = compare l r = 0
+
+(* *)
+
+let add_cnum d (p : t) = {p with pos_cnum = p.pos_cnum + d}
+let sub_cnum d (p : t) = {p with pos_cnum = p.pos_cnum - d}

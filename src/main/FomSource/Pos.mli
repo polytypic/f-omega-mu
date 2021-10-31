@@ -12,3 +12,8 @@ val column_of : t -> int
 
 val compare : t -> t -> int
 val equal : t -> t -> bool
+
+(* *)
+
+val add_cnum : int -> t -> t
+val sub_cnum : int -> t -> t
