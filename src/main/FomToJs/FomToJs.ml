@@ -202,6 +202,10 @@ module Exp = struct
             (`LitString
               (Stdlib.( ^ ) (JsonString.to_utf8 l) (JsonString.to_utf8 r)
               |> JsonString.of_utf8)))
+      | `OpStringCat, x, `Const (`LitString empty)
+      | `OpStringCat, `Const (`LitString empty), x
+        when JsonString.is_empty empty ->
+        Some x
       | _ -> None
   end
 

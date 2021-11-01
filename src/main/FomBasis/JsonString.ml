@@ -137,3 +137,8 @@ let to_utf8 lit =
 (* *)
 
 let of_utf8_json_literal = of_utf8_json >>> to_utf8 >>> of_utf8
+
+(* *)
+
+let empty = of_utf8_json "\"\""
+let is_empty x = x = empty
