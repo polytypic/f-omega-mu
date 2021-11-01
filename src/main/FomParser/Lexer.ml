@@ -31,7 +31,7 @@ let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
 (* *)
 
 let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
-let whitespace = [%sedlex.regexp? Plus (Chars " \t\n\r")]
+let white = [%sedlex.regexp? Plus (Chars " \t\n\r")]
 let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star (Opt '_', Plus '0' .. '9')]
 
 (* *)
@@ -61,11 +61,15 @@ let id_dollar = [%sedlex.regexp? (id_hd | '$'), Star (id_tl | '$')]
 
 (* *)
 
+let line_end = [%sedlex.regexp? '\r' | '\n' | "\r\n" | "\n\r"]
+
+(* *)
+
 let hex_digit = [%sedlex.regexp? '0' .. '9' | 'a' .. 'f' | 'A' .. 'F']
 let esc_char = [%sedlex.regexp? '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't']
 let esc_hex = [%sedlex.regexp? 'u', Rep (hex_digit, 4)]
 let char_escaped = [%sedlex.regexp? '\\', (esc_char | esc_hex)]
-let char_continued = [%sedlex.regexp? '\\', whitespace, '\\']
+let char_continued = [%sedlex.regexp? ('\\', white | line_end, Opt white), '\\']
 let control_chars = [%sedlex.regexp? 0x0000 .. 0x001f | 0x007f .. 0x009f]
 let char_unescaped = [%sedlex.regexp? Compl (control_chars | '"' | '\\')]
 let char = [%sedlex.regexp? char_unescaped | char_escaped | char_continued]
@@ -73,7 +77,6 @@ let string = [%sedlex.regexp? '"', Star char, '"']
 
 (* *)
 
-let line_end = [%sedlex.regexp? '\r' | '\n' | "\r\n" | "\n\r"]
 let line_directive = [%sedlex.regexp? "#line ", nat_10, ' ', string, line_end]
 
 (* *)
@@ -172,7 +175,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
         | s -> TstrOpen (String.sub s 0 (String.length s - 1))
       and lhs, rhs = Buffer.loc buffer in
       (tok, lhs, Pos.sub_cnum 1 rhs)
-    | Opt id, '"', Star char, '\\', Opt whitespace, eof ->
+    | Opt id, '"', Star char, Opt ('\\', Opt white), eof ->
       buffer.state <- `TstrStr :: state;
       return TstrStrPart
     (* *)
@@ -182,7 +185,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | id_dollar -> return (IdDollar (Buffer.lexeme_utf_8 buffer))
     (* *)
     | comment -> return (Comment (Buffer.lexeme_utf_8 buffer))
-    | whitespace -> token_or_comment buffer
+    | white -> token_or_comment buffer
     (* *)
     | eof -> return EOF
     (* *)
@@ -200,7 +203,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
         (TstrStr
            (Buffer.lexeme_utf_8 buffer |> Printf.sprintf "\"%s\""
           |> JsonString.of_utf8_json_literal))
-    | Star char, '\\', Opt whitespace, eof -> return TstrStrPart
+    | Star char, Opt ('\\', Opt white), eof -> return TstrStrPart
     | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
   | `TstrEsc :: state -> (
     match%sedlex lexbuf with
@@ -229,7 +232,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
 let string_continuation ({lexbuf; _} as buffer) =
   let return = return_from buffer in
   match%sedlex lexbuf with
-  | Opt whitespace, '\\' -> return TstrOpenRaw
+  | Opt white, '\\' -> return TstrOpenRaw
   | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
 
 let rec token buffer =

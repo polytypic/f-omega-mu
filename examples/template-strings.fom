@@ -8,18 +8,30 @@ include "lib/types"
 # them to be formatted and constructed more conveniently.
 
 # First of all, multiline literals can use Standard ML style `\ws+\` ignored
-# escapes to break and align a multiline literal over multiple lines.
+# escapes.  Alternatively, a string literal can include a newline followed by
+# ignored whitespace and a `\` to continue the literal.  Both of these allow to
+# break and align a literal over multiple lines.
 
 # For example, the binding
 
 let expression = "if (condition) {\n  action()\n}"
 
-# can also be equivalently written as
+# can also be expressed equivalently using SML style escapes as
 
 let expression =
   "if (condition) {\n\
   \  action()\n\
   \}"
+
+# and using newline escapes as
+
+let expression =
+  "if (condition) {
+  \  action()
+  \}"
+
+# The SML style escapes allow to break a literal over multiple lines without
+# inserting newlines to the resulting string.
 
 # Fωμ also implements a syntax for string interpolation or template strings.
 
@@ -55,14 +67,14 @@ let message = λsubstitution: string.
   raw.begin
   ▷ raw.text "Hello, "
   ▷ raw.string (substitution)
-  ▷ raw.string ""
+  ▷ raw.string "!"
   ▷ raw.finish
 
 # and all features can, of course, be used in a single template
 
 let expression = λcondition: string.λaction: string.
-  raw"if (\(condition)) {\n\
-     \  \(action)()\n\
+  raw"if (\(condition)) {
+     \  \(action)()
      \}"
 
 # Specifiers or tags beyond the standard `\string(` can also be provided as long

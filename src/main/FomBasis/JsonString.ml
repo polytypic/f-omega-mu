@@ -95,6 +95,9 @@ let to_utf8 lit =
              (`Escaped, i + 1)
            else if Uchar.of_char '"' = c then
              (`Unescaped, i + 1)
+           else if Uchar.of_char '\n' = c || Uchar.of_char '\r' = c then (
+             Uutf.encode encoder @@ `Uchar (Uchar.of_char '\n') |> ignore;
+             (`Escaped, i + 1))
            else
              encode c
          | `Escaped, `Uchar c ->
