@@ -83,7 +83,7 @@ const cmConfig = {
   indentUnit: 2,
   lineNumbers: true,
   mode: 'fom',
-  readOnly: 'nocursor',
+  readOnly: true,
   tabSize: 2,
   theme: 'dracula',
 }
@@ -659,8 +659,7 @@ depsSelect.onchange = () => {
 
 //
 
-editInput.onchange = () =>
-  fomCM.setOption('readOnly', editInput.checked ? false : 'nocursor')
+editInput.onchange = () => fomCM.setOption('readOnly', !editInput.checked)
 
 //
 
