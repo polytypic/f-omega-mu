@@ -164,6 +164,19 @@ Perhaps a practical System Fωμ implementation could serve as a reusable buildi
 block or as a forkable boilerplate when exploring such programming language
 designs.
 
+Here are a couple of papers about using a Fωμ variant as an IR:
+
+<blockquote>
+  <dl>
+    <dt><a href="https://homepages.inf.ed.ac.uk/wadler/topics/iohk.html">Unraveling Recursion: Compiling an IR with Recursion to System F</a></dt>
+    <dd>Michael Peyton Jones, Vasilis Gkoumas, Roman Kireev, Kenneth MacKenzie, Chad Nester, and Philip Wadler<dd>
+  </dl>
+  <dl>
+    <dt><a href="https://homepages.inf.ed.ac.uk/wadler/topics/iohk.html">System F in Agda, for fun and profit</a></dt>
+    <dd>James Chapman, Roman Kireev, Chad Nester, and Philip Wadler<dd>
+  </dl>
+</blockquote>
+
 System Fω might also be a good language for teaching functional programming and
 make an interesting object of study on its own:
 
