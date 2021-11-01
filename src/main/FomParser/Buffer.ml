@@ -1,6 +1,6 @@
 open FomBasis
 
-type state = [`Initial | `OpenParen | `TstrStr | `TstrEsc | `TstrExp] list
+type state = [`Initial | `Open | `TstrStr | `TstrEsc | `TstrExp] list
 type t = {mutable state : state; lexbuf : Sedlexing.lexbuf}
 
 let loc {lexbuf; _} = Sedlexing.lexing_positions lexbuf

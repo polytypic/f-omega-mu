@@ -80,8 +80,18 @@ let line_directive = [%sedlex.regexp? "#line ", nat_10, ' ', string, line_end]
 
 let rec token_or_comment ({lexbuf; _} as buffer) =
   let return = return_from buffer in
+  let opening tok =
+    buffer.state <- `Open :: buffer.state;
+    return tok
+  and closing tok =
+    match buffer.state with
+    | `Open :: state | `Initial :: (`TstrStr :: _ as state) ->
+      buffer.state <- state;
+      return tok
+    | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
+  in
   match buffer.state with
-  | ((`Initial | `OpenParen) :: _ | []) as state -> (
+  | ((`Initial | `Open) :: _ | []) as state -> (
     match%sedlex lexbuf with
     | line_directive ->
       Scanf.sscanf (Buffer.lexeme_utf_8 buffer) "#line %d %[^\n\r]"
@@ -95,16 +105,8 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     (* *)
     | "%" -> return Percent
     | "'" -> return Tick
-    | "(" ->
-      buffer.state <- `OpenParen :: state;
-      return ParenLhs
-    | ")" -> (
-      match buffer.state with
-      | `OpenParen :: state | `Initial :: (`TstrStr :: _ as state) ->
-        buffer.state <- state;
-        return ParenRhs
-      | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)
-      )
+    | "(" -> opening ParenLhs
+    | ")" -> closing ParenRhs
     | "*" -> return Star
     | "+" -> return Plus
     | "," -> return Comma
@@ -118,9 +120,9 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | "[" -> return BracketLhs
     | "]" -> return BracketRhs
     | "^" -> return Caret
-    | "{" -> return BraceLhs
+    | "{" -> opening BraceLhs
     | "|" -> return Pipe
-    | "}" -> return BraceRhs
+    | "}" -> closing BraceRhs
     (* *)
     | "_" -> return Underscore
     | "and" -> return And
@@ -215,10 +217,13 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
       return TstrClose
     | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
   | `TstrExp :: state -> (
-    match%sedlex lexbuf with
-    | '(' ->
+    let return tok =
       buffer.state <- `Initial :: `TstrStr :: state;
-      return ParenLhs
+      return tok
+    in
+    match%sedlex lexbuf with
+    | '(' -> return ParenLhs
+    | '{' -> return BraceLhs
     | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
 
 let string_continuation ({lexbuf; _} as buffer) =
