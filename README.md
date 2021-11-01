@@ -1,8 +1,9 @@
 # Fωμ type checker and compiler
 
 A type checker and compiler
-([\*](https://polytypic.github.io/f-omega-mu/#*examples/stream-fusion.fom)) for
-Fωμ _restricted to non-nested types_
+([\*](https://polytypic.github.io/f-omega-mu/#*examples/stream-fusion.fom),
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/template-strings.fom))
+for Fωμ _restricted to non-nested types_
 ([\*](https://polytypic.github.io/f-omega-mu/#*examples/errors/nested.fom)).
 This Fωμ variant has
 
