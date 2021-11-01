@@ -3,9 +3,9 @@
 include "lib/types"
 
 # The syntax of string literals in Fωμ is an extension of JSON strings.  A valid
-# JSON string literal is also a valid string literal in Fωμ.  By tapping into
-# invalid escape sequences of JSON string, Fωμ extends the syntax of literals to
-# allow them to be formatted and constructed more conveniently.
+# JSON string is also a valid string literal in Fωμ.  By tapping into invalid
+# escape sequences of JSON strings, Fωμ extends the syntax of literals to allow
+# them to be formatted and constructed more conveniently.
 
 # First of all, multiline literals can use Standard ML style `\ws+\` ignored
 # escapes to break and align a multiline literal over multiple lines.
