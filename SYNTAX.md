@@ -174,6 +174,9 @@ incs                                                           // Syntax of .fom
 
      does not handle any other specifiers.
 
+  See
+  [example in sandbox](https://polytypic.github.io/f-omega-mu/#*examples/template-strings.fom).
+
 1. Type variables are distinct from value variables.
 
    `_` is allowed in place of a variable in bindings.

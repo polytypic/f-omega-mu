@@ -1,0 +1,117 @@
+# Template strings
+
+include "lib/types"
+
+# The syntax of string literals in Fωμ is an extension of JSON strings.  A valid
+# JSON string literal is also a valid string literal in Fωμ.  By tapping into
+# invalid escape sequences of JSON string, Fωμ extends the syntax of literals to
+# allow them to be formatted and constructed more conveniently.
+
+# First of all, multiline literals can use Standard ML style `\ws+\` ignored
+# escapes to break and align a multiline literal over multiple lines.
+
+# For example, the binding
+
+let expression = "if (condition) {\n  action()\n}"
+
+# can also be equivalently written as
+
+let expression =
+  "if (condition) {\n\
+  \  action()\n\
+  \}"
+
+# Fωμ also implements a syntax for string interpolation or template strings.
+
+# In the basic form one can use the `\(` escape as an alternative to string
+# concatenation:
+
+let message = λsubstitution: string.
+  "Hello, \(substitution)!"
+
+# Template strings actually elaborate to a fold over the fragments, i.e.
+# literal strings and tagged expressions `\specifier(expression)`, of the
+# template string.
+
+# The semantics of the fold can be provided as a named record.  The default
+# semantics is implemented equivalently to the record
+
+let raw = {
+  begin = ""
+  finish = λaccum: string.accum
+  string = λvalue: string.λaccum: string.accum ^ value
+  text = λliteral: string.λaccum: string.accum ^ literal
+}
+
+# and the empty tag `\(` is interpreted as `\string(`.  So the message function
+# could be more explicitly and equivalently written as
+
+let message = λsubstitution: string.
+  raw"Hello, \string(substitution)!"
+
+# which is elaborated to
+
+let message = λsubstitution: string.
+  raw.begin
+  ▷ raw.text "Hello, "
+  ▷ raw.string (substitution)
+  ▷ raw.string ""
+  ▷ raw.finish
+
+# and all features can, of course, be used in a single template
+
+let expression = λcondition: string.λaction: string.
+  raw"if (\(condition)) {\n\
+     \  \(action)()\n\
+     \}"
+
+# Specifiers or tags beyond the standard `\string(` can also be provided as long
+# as they don't collide with the standard JSON escape sequences `\b`, `\f`,
+# `\n`, `\r`, and `\t` as they are interpreted eagerly to remain compatible with
+# JSON strings.  For example, one could create a semantics with specifiers for
+# integers and booleans as
+
+let Int = import "lib/int" and Bool = import "lib/bool"
+
+let fmt = raw „ {
+  D = λvalue: int.λaccum: string.accum ^ Int.to_string value
+  B = λvalue: bool.λaccum: string.accum ^ Bool.to_string value
+}
+
+let _ = fmt"The \B(true) meaning of life is \D(42)."
+
+# A specifier can be passed multiple arguments by using a tuple.
+
+let fmt = fmt „ {
+  I = λ({base: int}, value: int).λaccum: string.
+    accum ^ target[int → int → string] "b => v => v.toString(b)" base value
+}
+
+let _ = fmt"The \B(true) meaning of life is \I({base = 2}, 42)."
+
+# A semantics can, of course, build more than just strings as output.  For
+# example, to build prepared SQL statements, one could write a semantics that
+# inserts placeholders to the SQL statement and collects the arguments as a
+# separate list
+
+let List = import "lib/list"
+
+let sql =
+  type sql = string
+  type arg = string
+  type args = list arg
+  {
+    begin = {sql = "", args = 'None}
+    finish = λ{sql: sql, args: args}.
+      {sql, args = List.rev[arg] args}
+    string = λ(arg: arg).λ{sql: sql, args: args}.
+      {sql = "\(sql)?", args = 'Some (arg, args)}
+    text = λtext: string.λ{sql: string, args: args}.
+      {sql = sql ^ text, args}
+  }
+
+let feature = "template strings"
+let status = "experimental"
+
+sql"INSERT INTO language\n\
+   \VALUES (\(feature), \(status))"
