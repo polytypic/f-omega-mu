@@ -357,6 +357,8 @@ module Exp = struct
         [pp t; dot; Label.pp l] |> concat
       | `Select (t, l) -> [pp t; dot; pp l |> egyptian parens 2] |> concat
       | `Var v -> Var.pp v
+
+    let[@warning "-32"] to_string = pp >>> FomPP.to_string
   end
 
   let coerce_to_int exp = str "(" ^ exp ^ str ") | 0"
@@ -487,37 +489,40 @@ module Exp = struct
   let app f = List.fold_left (fun f x -> `App (f, x)) f
 
   let rec is_total e =
-    let* seen = get Seen.field in
-    if Seen.mem e seen then
-      return false
-    else
-      Seen.adding e
-        (match unapp e with
-        | (`Const _ | `Var _ | `Lam _), [] -> return true
-        | `IfElse (c, t, e), xs ->
-          is_total c &&& is_total (app t xs) &&& is_total (app e xs)
-        | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
-        | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> VarMap.adding i e
-        | `Select (e, l), [] -> is_total e &&& is_total l
-        | `Inject (_, e), _ -> is_total e
-        | `Var f, xs -> (
-          let* f_opt = VarMap.find_opt f in
-          match f_opt with
-          | None -> return false
-          | Some f -> is_total (app f xs))
-        | `Lam (i, e), x :: xs ->
-          is_total x
-          &&& (is_total e |> VarMap.adding i x)
-          &&& (is_total (app e xs) |> VarMap.adding i x)
-        | `Const c, xs ->
-          return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
-        | `Case (`Product fs), x :: xs ->
-          is_total x
-          &&& (fs
-              |> List.for_all_fr (fun (_, f) ->
-                     is_total (app f (dummy_var :: xs))))
-        | `Case e, [] -> is_total e
-        | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
+    match e with
+    | `Const _ | `Var _ | `Lam _ -> return true
+    | _ ->
+      let* seen = get Seen.field in
+      if Seen.mem e seen then
+        return false
+      else
+        Seen.adding e
+          (match unapp e with
+          | (`Const _ | `Var _ | `Lam _), [] -> return true
+          | `IfElse (c, t, e), xs ->
+            is_total c &&& is_total (app t xs) &&& is_total (app e xs)
+          | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
+          | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> VarMap.adding i e
+          | `Select (e, l), [] -> is_total e &&& is_total l
+          | `Inject (_, e), _ -> is_total e
+          | `Var f, xs -> (
+            let* f_opt = VarMap.find_opt f in
+            match f_opt with
+            | None -> return false
+            | Some f -> is_total (app f xs))
+          | `Lam (i, e), x :: xs ->
+            is_total x
+            &&& (is_total e |> VarMap.adding i x)
+            &&& (is_total (app e xs) |> VarMap.adding i x)
+          | `Const c, xs ->
+            return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
+          | `Case (`Product fs), x :: xs ->
+            is_total x
+            &&& (fs
+                |> List.for_all_fr (fun (_, f) ->
+                       is_total (app f (dummy_var :: xs))))
+          | `Case e, [] -> is_total e
+          | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
 
   let rec is_immediately_evaluated i' e =
     match unapp e with
@@ -751,6 +756,9 @@ module Exp = struct
       in
       fs |> Row.map (fun v -> `App (`Lam (f, v), fn)) |> fun fs ->
       `App (`Lam (i, fn), `Mu (`Lam (i, `Product fs))) |> simplify
+    | `Mu (`Lam (i, e) as lam) ->
+      let+ e = simplify e |> VarMap.adding i e in
+      if is_free i e then `Mu (keep_phys_eq' lam @@ `Lam (i, e)) else e
     | `Mu e -> (
       let+ e = simplify e in
       match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
