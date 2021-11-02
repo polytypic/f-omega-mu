@@ -164,6 +164,10 @@ module Exp = struct
         Some (`App (`App (`Const `OpArithSub, x), y))
       | `OpArithAdd, `Var i, `Var j when Var.equal i j ->
         Some (`App (`App (`Const `OpArithMul, `Const (`LitNat 2l)), `Var i))
+      | `OpArithAdd, x, `Const (`LitNat y)
+        when y < Int32.of_int 0 && y <> Int32.min_int ->
+        Some
+          (`App (`App (`Const `OpArithSub, x), `Const (`LitNat (Int32.neg y))))
       (* / *)
       | `OpArithDiv, _, `Const (`LitNat 0l)
       | `OpArithDiv, `Const (`LitNat 0l), _ ->
