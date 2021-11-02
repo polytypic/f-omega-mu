@@ -705,7 +705,10 @@ module Exp = struct
           apply ()
           |> try_in
                (fun applied ->
-                 if size applied * 3 < size defaulted * 4 then
+                 if
+                   size applied * 3 < size defaulted * 4
+                   && Erased.compare applied defaulted <> 0
+                 then
                    return applied
                  else
                    return defaulted)
