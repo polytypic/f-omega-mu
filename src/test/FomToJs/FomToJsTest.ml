@@ -43,4 +43,5 @@ let () =
     let fact = Z[int][int] λfact:int → int.
       λn:int.if n ≤ 0 then 1 else n*fact(n-1)
     fact 5
-    |eof}
+    |eof};
+  ()
