@@ -395,6 +395,7 @@ module Exp = struct
     include Set.Make (Erased)
 
     let field r = r#seen
+    let adding e = mapping field (add e)
 
     class con =
       object
@@ -490,7 +491,7 @@ module Exp = struct
     if Seen.mem e seen then
       return false
     else
-      mapping Seen.field (Seen.add e)
+      Seen.adding e
         (match unapp e with
         | (`Const _ | `Var _ | `Lam _), [] -> return true
         | `IfElse (c, t, e), xs ->
@@ -616,7 +617,7 @@ module Exp = struct
       get Limit.field
       >>= Option.iter_fr (fun limit ->
               if limit < size e then fail `Limit else unit)
-      >> mapping Seen.field (Seen.add e) (simplify_base e >>- keep_phys_eq' e)
+      >> Seen.adding e (simplify_base e >>- keep_phys_eq' e)
 
   and simplify_base = function
     | (`Const _ | `Var _) as e -> return e
