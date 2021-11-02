@@ -210,6 +210,21 @@ module Exp = struct
       | `OpStringCat, `Const (`LitString empty), x
         when JsonString.is_empty empty ->
         Some x
+      (* *)
+      | `OpLogicalAnd, x, `Const (`LitBool true)
+      | `OpLogicalAnd, `Const (`LitBool true), x
+      | `OpLogicalOr, x, `Const (`LitBool false)
+      | `OpLogicalOr, `Const (`LitBool false), x ->
+        Some x
+      | `OpLogicalOr, `Const (`LitBool true), _
+      | `OpLogicalOr, `Var _, `Const (`LitBool true) ->
+        Some (`Const (`LitBool true))
+      | `OpLogicalAnd, `Const (`LitBool false), _
+      | `OpLogicalAnd, `Var _, `Const (`LitBool false) ->
+        Some (`Const (`LitBool false))
+      | (`OpLogicalOr | `OpLogicalAnd), `Var x, `Var y when Var.equal x y ->
+        Some (`Var x)
+      (* *)
       | _ -> None
   end
 
@@ -744,9 +759,30 @@ module Exp = struct
       let* c = simplify c in
       match c with
       | `Const (`LitBool c) -> simplify (if c then t else e)
-      | _ ->
-        let+ t = simplify t and+ e = simplify e in
-        `IfElse (c, t, e))
+      | _ -> (
+        simplify t <*> simplify e >>= function
+        | `Const (`LitBool true), e ->
+          simplify @@ `App (`App (`Const `OpLogicalOr, c), e)
+        | t, `Const (`LitBool false) ->
+          simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
+        | `Const (`LitBool false), `Const (`LitBool true) ->
+          return @@ `App (`Const `OpLogicalNot, c)
+        | t, e ->
+          let default () = return @@ `IfElse (c, t, e) in
+          if Erased.compare t e = 0 then
+            is_total c >>- function
+            | true -> t
+            | _ -> `App (`Lam (Var.fresh Loc.dummy, t), c)
+          else if Erased.compare c t = 0 then
+            is_total c >>= function
+            | true -> simplify @@ `App (`App (`Const `OpLogicalOr, c), e)
+            | false -> default ()
+          else if Erased.compare c e = 0 then
+            is_total c >>= function
+            | true -> simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
+            | false -> default ()
+          else
+            default ()))
     | `Product fs ->
       let+ fs = fs |> Row.map_phys_eq_fr simplify in
       `Product fs
