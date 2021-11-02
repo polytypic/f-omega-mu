@@ -141,6 +141,8 @@ module Exp = struct
       | `OpLogicalNot, `Const (`LitBool v) -> Some (`Const (`LitBool (not v)))
       | _ -> None
 
+    let compare l r = compare' Int32.compare (Typ.compare :> Typ.Core.t cmp) l r
+
     (* TODO: More comprehensive constant folding rules *)
     let simplify_bop = function
       (* + *)
@@ -210,6 +212,18 @@ module Exp = struct
       | `OpStringCat, `Const (`LitString empty), x
         when JsonString.is_empty empty ->
         Some x
+      (* *)
+      | `OpEq _, `Const x, `Const y ->
+        Some (`Const (`LitBool (compare x y = 0)))
+      | `OpEqNot _, `Const x, `Const y ->
+        Some (`Const (`LitBool (compare x y <> 0)))
+      (* *)
+      | `OpCmpLt, `Const (`LitNat x), `Const (`LitNat y)
+      | `OpCmpGt, `Const (`LitNat y), `Const (`LitNat x) ->
+        Some (`Const (`LitBool (Int32.compare x y < 0)))
+      | `OpCmpLtEq, `Const (`LitNat x), `Const (`LitNat y)
+      | `OpCmpGtEq, `Const (`LitNat y), `Const (`LitNat x) ->
+        Some (`Const (`LitBool (Int32.compare x y <= 0)))
       (* *)
       | `OpLogicalAnd, x, `Const (`LitBool true)
       | `OpLogicalAnd, `Const (`LitBool true), x
