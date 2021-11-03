@@ -483,7 +483,7 @@ module Exp = struct
     in
     loop [] t
 
-  let app f = List.fold_left (fun f x -> `App (f, x)) f
+  let apps f = List.fold_left (fun f x -> `App (f, x)) f
 
   let unlam t =
     let rec loop is = function
@@ -492,7 +492,7 @@ module Exp = struct
     in
     loop [] t
 
-  let relam is = List.fold_right (fun i e -> `Lam (i, e)) is
+  let lams is = List.fold_right (fun i e -> `Lam (i, e)) is
 
   let rec always_applied_to_inject i' e =
     let f, xs = unapp e in
@@ -526,27 +526,27 @@ module Exp = struct
           (match unapp e with
           | (`Const _ | `Var _ | `Lam _), [] -> return true
           | `IfElse (c, t, e), xs ->
-            is_total c &&& is_total (app t xs) &&& is_total (app e xs)
+            is_total c &&& is_total (apps t xs) &&& is_total (apps e xs)
           | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
-          | `Mu (`Lam (i, e)), xs -> is_total (app e xs) |> VarMap.adding i e
+          | `Mu (`Lam (i, e)), xs -> is_total (apps e xs) |> VarMap.adding i e
           | `Select (e, l), [] -> is_total e &&& is_total l
           | `Inject (_, e), _ -> is_total e
           | `Var f, xs -> (
             let* f_opt = VarMap.find_opt f in
             match f_opt with
             | None -> return false
-            | Some f -> is_total (app f xs))
+            | Some f -> is_total (apps f xs))
           | `Lam (i, e), x :: xs ->
             is_total x
             &&& (is_total e |> VarMap.adding i x)
-            &&& (is_total (app e xs) |> VarMap.adding i x)
+            &&& (is_total (apps e xs) |> VarMap.adding i x)
           | `Const c, xs ->
             return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
           | `Case (`Product fs), x :: xs ->
             is_total x
             &&& (fs
                 |> List.for_all_fr (fun (_, f) ->
-                       is_total (app f (dummy_var :: xs))))
+                       is_total (apps f (dummy_var :: xs))))
           | `Case e, [] -> is_total e
           | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
 
@@ -558,14 +558,14 @@ module Exp = struct
     | `Lam (i, e), x :: xs ->
       is_immediately_evaluated i' x
       || List.exists (is_immediately_evaluated i') xs
-      || ((not (Var.equal i i')) && is_immediately_evaluated i' (app e xs))
+      || ((not (Var.equal i i')) && is_immediately_evaluated i' (apps e xs))
     | `IfElse (c, t, e), xs ->
       is_immediately_evaluated i' c
       || List.exists (is_immediately_evaluated i') xs
       ||
       let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
-      is_immediately_evaluated i' (app t xs)
-      || is_immediately_evaluated i' (app e xs)
+      is_immediately_evaluated i' (apps t xs)
+      || is_immediately_evaluated i' (apps e xs)
     | `Product fs, _ -> fs |> List.exists (snd >>> is_immediately_evaluated i')
     | `Select (e, l), [] ->
       is_immediately_evaluated i' e || is_immediately_evaluated i' l
@@ -575,7 +575,7 @@ module Exp = struct
       List.exists (is_immediately_evaluated i') xs
       ||
       let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
-      cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (app f xs))
+      cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (apps f xs))
     | _ -> true
 
   let rec is_lam_or_case = function
@@ -789,14 +789,14 @@ module Exp = struct
                    `Lam
                      ( v,
                        `App
-                         ( app
+                         ( apps
                              (`Select (`Var i, `Inject (l, unit)))
                              (is |> List.map (fun i -> `Var i)),
                            `Var v ) ) ))
-          |> fun fs -> relam is @@ `Case (`Product fs)
+          |> fun fs -> lams is @@ `Case (`Product fs)
         in
         fs |> Row.map (fun v -> `App (`Lam (f, v), fn)) |> fun fs ->
-        `App (`Lam (i, fn), `Mu (`Lam (i, `Product (fs |> Row.map (relam is)))))
+        `App (`Lam (i, fn), `Mu (`Lam (i, `Product (fs |> Row.map (lams is)))))
         |> simplify
       | _ ->
         let+ e = simplify e |> VarMap.adding f e in
