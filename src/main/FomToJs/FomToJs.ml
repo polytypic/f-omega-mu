@@ -809,9 +809,7 @@ module Exp = struct
             | false -> default ()
           else
             default ()))
-    | `Product fs ->
-      let+ fs = fs |> Row.map_phys_eq_fr simplify in
-      `Product fs
+    | `Product fs -> Row.map_phys_eq_fr simplify fs >>- fun fs -> `Product fs
     | `Select (e, l) -> (
       let* e = simplify e and* l = simplify l in
       let default () = return @@ `Select (e, l) in
@@ -827,12 +825,8 @@ module Exp = struct
         else
           default ()
       | _ -> default ())
-    | `Case cs ->
-      let+ cs = simplify cs in
-      `Case cs
-    | `Inject (l, e) ->
-      let+ e = simplify e in
-      `Inject (l, e)
+    | `Case cs -> simplify cs >>- fun cs -> `Case cs
+    | `Inject (l, e) -> simplify e >>- fun e -> `Inject (l, e)
 
   let simplify e =
     simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
