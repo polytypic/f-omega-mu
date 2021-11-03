@@ -22,13 +22,13 @@ let «stream, Stream» =
     }
   )»: stream α
   let to_list = Λα.λ«s, (xs, next)»: stream α.
-    let μto_list: s → list α = λxs: s.
+    let μto_list: list α → s → list α = λys: list α.λxs: s.
       next xs ▷ case {
-        Done = λ().'None
-        Yield = λ(hd: α, tl: s).'Some (hd, to_list tl)
-        Skip = to_list
+        Done = λ().List.rev[α] ys
+        Yield = λ(hd: α, tl: s).to_list ('Some (hd, ys)) tl
+        Skip = to_list ys
       }
-    to_list xs
+    to_list 'None xs
   let map = Λα.Λβ.λfn: α → β.λ«s, (xs, next)»: stream α.«s, (
       xs,
       λxs: s.

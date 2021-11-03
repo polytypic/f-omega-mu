@@ -470,23 +470,6 @@ module Exp = struct
     | `Select (`Var i, l) when Var.equal i i' -> always_selected i' l
     | `Select (e, l) -> always_selected i' e || always_selected i' l
 
-  let rec always_applied_to_inject i' = function
-    | `Const _ -> true
-    | `Var i -> not (Var.equal i' i)
-    | `Lam (i, e) -> Var.equal i' i || always_applied_to_inject i' e
-    | `App (`Var i, `Inject (_, e)) when Var.equal i' i ->
-      always_applied_to_inject i' e
-    | `App (f, x) ->
-      always_applied_to_inject i' f && always_applied_to_inject i' x
-    | `IfElse (c, t, e) ->
-      always_applied_to_inject i' c
-      && always_applied_to_inject i' t
-      && always_applied_to_inject i' e
-    | `Product fs -> fs |> List.for_all (snd >>> always_applied_to_inject i')
-    | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject i' e
-    | `Select (e, l) ->
-      always_applied_to_inject i' e && always_applied_to_inject i' l
-
   let dummy_var = `Var (Var.fresh Loc.dummy)
 
   let lam fn =
@@ -501,6 +484,35 @@ module Exp = struct
     loop [] t
 
   let app f = List.fold_left (fun f x -> `App (f, x)) f
+
+  let unlam t =
+    let rec loop is = function
+      | `Lam (i, e) -> loop (i :: is) e
+      | e -> (List.rev is, e)
+    in
+    loop [] t
+
+  let relam is = List.fold_right (fun i e -> `Lam (i, e)) is
+
+  let rec always_applied_to_inject i' e =
+    let f, xs = unapp e in
+    List.for_all (always_applied_to_inject i') xs
+    &&
+    match f with
+    | `Const _ -> true
+    | `Var i -> (
+      (not (Var.equal i' i))
+      || match List.rev xs with `Inject _ :: _ -> true | _ -> false)
+    | `Lam (i, e) -> Var.equal i' i || always_applied_to_inject i' e
+    | `App _ -> failwith "always_applied_to_inject"
+    | `IfElse (c, t, e) ->
+      always_applied_to_inject i' c
+      && always_applied_to_inject i' t
+      && always_applied_to_inject i' e
+    | `Product fs -> fs |> List.for_all (snd >>> always_applied_to_inject i')
+    | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject i' e
+    | `Select (e, l) ->
+      always_applied_to_inject i' e && always_applied_to_inject i' l
 
   let rec is_total e =
     match e with
@@ -763,19 +775,32 @@ module Exp = struct
       | `Var _, c when may_inline_continuation c ->
         simplify @@ inline_continuation c f
       | _ -> default ())
-    | `Mu (`Lam (f, `Case (`Product fs)))
-      when fs |> List.for_all (snd >>> always_applied_to_inject f) ->
-      let i = Var.fresh Loc.dummy in
-      let unit = `Product [] in
-      let fn =
-        fs |> List.map (fun (l, _) -> (l, `Select (`Var i, `Inject (l, unit))))
-        |> fun fs -> `Case (`Product fs)
-      in
-      fs |> Row.map (fun v -> `App (`Lam (f, v), fn)) |> fun fs ->
-      `App (`Lam (i, fn), `Mu (`Lam (i, `Product fs))) |> simplify
-    | `Mu (`Lam (i, e) as lam) ->
-      let+ e = simplify e |> VarMap.adding i e in
-      if is_free i e then `Mu (keep_phys_eq' lam @@ `Lam (i, e)) else e
+    | `Mu (`Lam (f, e) as lam) -> (
+      match unlam e with
+      | is, `Case (`Product fs)
+        when List.for_all (snd >>> always_applied_to_inject f) fs ->
+        let i = Var.fresh Loc.dummy in
+        let v = Var.fresh Loc.dummy in
+        let unit = `Product [] in
+        let fn =
+          fs
+          |> List.map (fun (l, _) ->
+                 ( l,
+                   `Lam
+                     ( v,
+                       `App
+                         ( app
+                             (`Select (`Var i, `Inject (l, unit)))
+                             (is |> List.map (fun i -> `Var i)),
+                           `Var v ) ) ))
+          |> fun fs -> relam is @@ `Case (`Product fs)
+        in
+        fs |> Row.map (fun v -> `App (`Lam (f, v), fn)) |> fun fs ->
+        `App (`Lam (i, fn), `Mu (`Lam (i, `Product (fs |> Row.map (relam is)))))
+        |> simplify
+      | _ ->
+        let+ e = simplify e |> VarMap.adding f e in
+        if is_free f e then `Mu (keep_phys_eq' lam @@ `Lam (f, e)) else e)
     | `Mu e -> (
       let+ e = simplify e in
       match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
