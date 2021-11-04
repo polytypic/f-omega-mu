@@ -31,6 +31,7 @@ select {
 
 #editInput:not(:checked) ~ #replaceSymbolsSpan,
 #depsSelect:not(:checked) ~ #depsDl,
+#jsSelect:not(:checked) ~ #terserSpan,
 #jsSelect:not(:checked) ~ #prettifySpan,
 #jsSelect:not(:checked) ~ #jsDiv {
   display: none;

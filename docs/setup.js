@@ -454,6 +454,7 @@ const build = throttled(
       FomSandbox(self)
       importScripts('https://unpkg.com/prettier@2.4.1/standalone.js')
       importScripts('https://unpkg.com/prettier@2.4.1/parser-babel.js')
+      importScripts('https://unpkg.com/terser@5.9.0/dist/bundle.min.js')
     },
     () => {
       clearMarkers(diagnosticMarkers)
@@ -461,11 +462,12 @@ const build = throttled(
         url,
         whole: wholeSelect.checked,
         exp: fomCM.getValue(),
+        terser: terserInput.checked,
         prettify: prettifyInput.checked,
         width: getWidth(fomCM),
       }
     },
-    ({url, whole, exp, prettify, width}, onResult) => {
+    ({url, whole, exp, terser, prettify, width}, onResult) => {
       let start = timingStart()
       fom.build(
         whole,
@@ -485,9 +487,23 @@ const build = throttled(
           timingEnd('defuses', start)
           onResult(failure)
         },
-        js => {
+        async js => {
           timingEnd('compile', start)
           try {
+            if (terser)
+              js = (
+                await Terser.minify(js, {
+                  compress: {
+                    expression: true,
+                    keep_fargs: false,
+                    pure_getters: true,
+                  },
+                  mangle: {
+                    toplevel: true,
+                  },
+                  ecma: 2015,
+                })
+              ).code
             if (prettify)
               js = prettier
                 .format(js, {
@@ -547,6 +563,7 @@ build()
 
 fomCM.on('change', build)
 wholeSelect.onclick = build
+terserInput.onclick = build
 prettifyInput.onclick = build
 
 let lastWidth = getWidth(fomCM)
