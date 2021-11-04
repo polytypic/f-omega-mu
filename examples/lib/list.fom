@@ -64,10 +64,10 @@ let μdrop_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
 
 let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ head[α]
 
-let iota = λn: int.
-  let μloop: int → list int = λi: int.
-    if i < n then 'Some (i, loop (i + 1)) else 'None
-  loop 0
+let iota =
+  let μloop: list int → int → list int = λxs: list int.λn: int.
+    if 0 < n then let n = n - 1 in loop ('Some (n, xs)) n else xs
+  loop 'None
 
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
  head, take_n, drop_n, nth, iota}
