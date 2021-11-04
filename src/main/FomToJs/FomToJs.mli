@@ -23,7 +23,8 @@ val simplify : Erased.t -> ('r, 'e, Erased.t) rea
 (** Simplify erased expression. *)
 
 val to_js :
-  ?top:[`Const of Exp.Var.t | `Return | `Top] ->
+  ?top:
+    [`Const of Exp.Var.t | `Return | `Top | `Tail of Exp.Var.t * Exp.Var.t list] ->
   Erased.t ->
   ('r, 'e, Cats.t) rea
 (** Transpile erased expression to JavaScript. *)

@@ -492,6 +492,13 @@ module Exp = struct
     in
     loop [] t
 
+  let and_uncase (is, e) =
+    match e with
+    | `Case _ as e ->
+      let i = Var.fresh Loc.dummy in
+      (is @ [i], `App (e, `Var i))
+    | _ -> (is, e)
+
   let lams is = List.fold_right (fun i e -> `Lam (i, e)) is
 
   let rec always_applied_to_inject i' e =
@@ -513,6 +520,18 @@ module Exp = struct
     | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject i' e
     | `Select (e, l) ->
       always_applied_to_inject i' e && always_applied_to_inject i' l
+
+  let rec called_at_tail n f' e =
+    match unapp e with
+    | `Var i, xs -> Var.equal i f' && List.length xs = n
+    | `App _, _ -> failwith "called_at_tail"
+    | `IfElse (c, t, e), [] -> called_at_tail n f' t || called_at_tail n f' e
+    | `Lam (i, e), [_] -> (not (Var.equal i f')) && called_at_tail n f' e
+    | `Case (`Product fs), [_] ->
+      let v = `Var (Var.fresh Loc.dummy) in
+      fs |> List.exists (fun (_, f) -> called_at_tail n f' (`App (f, v)))
+    | `Mu e, [] -> false
+    | _ -> false
 
   let rec is_total e =
     match e with
@@ -950,16 +969,39 @@ module Exp = struct
   let is_const = function `Const _ -> true | _ -> false
 
   let to_return = function
-    | `Return -> str "return "
+    | `Return | `Tail _ -> str "return "
     | `Top -> str " "
     | `Const _ -> failwith "bug"
 
-  let rec to_js_stmts finish ids exp =
+  let to_assignments is vs =
+    match (is, vs) with
+    | i :: is, v :: vs ->
+      List.fold_left2
+        (fun e i v -> e ^ str ", " ^ Var.to_js i ^ str " = " ^ v)
+        (Var.to_js i ^ str " = " ^ v)
+        is vs
+    | _ -> failwith "to_assignments"
+
+  let rec lam_bind_to_js_expr f b =
+    let is, b' = unlam b |> and_uncase in
+    if called_at_tail (List.length is) f b' then
+      let i's = List.map Var.freshen is in
+      let+ b = to_js_stmts (`Tail (f, i's)) VarSet.empty b' in
+      let b =
+        str "{for (;;) {const "
+        ^ to_assignments is (List.map Var.to_js i's)
+        ^ str ";" ^ b ^ str "}}"
+      in
+      List.fold_right (fun i b -> Var.to_js i ^ str " => " ^ b) i's b
+    else
+      to_js_expr b
+
+  and to_js_stmts finish ids exp =
     let default () =
       match exp with
       | `Product [] -> (
         match finish with
-        | `Top | `Return -> return @@ str ""
+        | `Top | `Return | `Tail _ -> return @@ str ""
         | `Const i -> return @@ str "const " ^ Var.to_js i ^ str " = void 0;")
       | exp -> (
         let+ e = to_js_expr exp in
@@ -967,109 +1009,121 @@ module Exp = struct
         | `Const i -> str "const " ^ Var.to_js i ^ str " = " ^ e ^ str ";"
         | _ -> to_return finish ^ e ^ str ";")
     in
-    match exp with
-    | `App (`Lam (i, e), v) -> (
-      if VarSet.mem i ids then
-        let i' = Var.freshen i in
-        let vi' = `Var i' in
-        to_js_stmts finish ids @@ `App (`Lam (i', subst i vi' e), v)
-      else
-        let body v =
-          let b =
-            if is_free i e then
-              str "const " ^ Var.to_js i ^ str " = "
-            else
-              str ""
+    match (unapp exp, finish) with
+    | (`Var i, xs), `Tail (i', is)
+      when Var.equal i i' && List.length xs = List.length is ->
+      let+ vs = List.map_fr to_js_expr xs in
+      to_assignments is vs ^ str "; continue"
+    | _ -> (
+      match exp with
+      | `App (`Lam (i, e), v) -> (
+        if VarSet.mem i ids then
+          let i' = Var.freshen i in
+          let vi' = `Var i' in
+          to_js_stmts finish ids @@ `App (`Lam (i', subst i vi' e), v)
+        else
+          let body v =
+            let b =
+              if is_free i e then
+                str "const " ^ Var.to_js i ^ str " = "
+              else
+                str ""
+            in
+            let+ e = to_js_stmts finish (VarSet.add i ids) e in
+            b ^ v ^ str "; " ^ e
           in
-          let+ e = to_js_stmts finish (VarSet.add i ids) e in
-          b ^ v ^ str "; " ^ e
+          match v with
+          | `Mu (`Lam (f, (`Product fs as b)))
+            when fs |> List.for_all (snd >>> is_lam_or_case)
+                 && always_selected f b
+                 && (Var.equal i f || always_selected f e) ->
+            let is =
+              fs
+              |> List.map @@ fun (l, _) ->
+                 let i = Var.of_label l in
+                 if VarSet.mem i ids || is_free i exp then Var.freshen i else i
+            in
+            let fs' =
+              `Product (List.map2 (fun (l, _) i -> (l, `Var i)) fs is)
+            in
+            let* e =
+              simplify (subst i fs' e)
+              >>= to_js_stmts finish (VarSet.union ids (VarSet.of_list is))
+            in
+            let+ bs =
+              List.fold_left2_fr
+                (fun b i (_, v) ->
+                  let* v = simplify (subst f fs' v) in
+                  lam_bind_to_js_expr i v >>- fun v ->
+                  b ^ str "const " ^ Var.to_js i ^ str " = " ^ v ^ str ";")
+                (str "") is fs
+            in
+            bs ^ e
+          | `Mu (`Lam (f, (`Lam _ as b)))
+            when (not (is_free i v)) && is_free i e ->
+            lam_bind_to_js_expr i (subst f (`Var i) b) >>= body
+          | `Mu (`Lam (f, b))
+            when (not (is_immediately_evaluated f b))
+                 && (not (is_free i v))
+                 && is_free i e ->
+            to_js_expr (subst f (`Var i) b) >>= body
+          | _ -> to_js_expr v >>= body)
+      | `IfElse (c, t, e) when not (is_const finish) ->
+        let+ c = to_js_expr c
+        and+ t = to_js_stmts finish VarSet.empty t
+        and+ e = to_js_stmts finish VarSet.empty e in
+        str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
+      | `App (`Case (`Product fs), x) when not (is_const finish) ->
+        let i0 = Var.fresh Loc.dummy in
+        let i1 = Var.fresh Loc.dummy in
+        let v1 = `Var i1 in
+        let fs =
+          fs
+          |> List.fold_left
+               (fun cs (l, e) ->
+                 cs
+                 |> ErasedMap.update e @@ function
+                    | None -> Some [l]
+                    | Some ls -> Some (l :: ls))
+               ErasedMap.empty
         in
-        match v with
-        | `Mu (`Lam (f, (`Product fs as b)))
-          when fs |> List.for_all (snd >>> is_lam_or_case)
-               && always_selected f b
-               && (Var.equal i f || always_selected f e) ->
-          let is =
-            fs
-            |> List.map @@ fun (l, _) ->
-               let i = Var.of_label l in
-               if VarSet.mem i ids || is_free i exp then
-                 Var.freshen i
-               else
-                 i
-          in
-          let fs' = `Product (List.map2 (fun (l, _) i -> (l, `Var i)) fs is) in
-          let* e =
-            simplify (subst i fs' e)
-            >>= to_js_stmts finish (VarSet.union ids (VarSet.of_list is))
-          in
-          let+ bs =
-            List.fold_left2_fr
-              (fun b i (_, v) ->
-                let+ v = simplify (subst f fs' v) >>= to_js_expr in
-                b ^ str "const " ^ Var.to_js i ^ str " = " ^ v ^ str "\n")
-              (str "") is fs
-          in
-          bs ^ e
-        | `Mu (`Lam (f, b))
-          when (not (is_immediately_evaluated f b))
-               && (not (is_free i v))
-               && is_free i e ->
-          to_js_expr (subst f (`Var i) b) >>= body
-        | _ -> to_js_expr v >>= body)
-    | `IfElse (c, t, e) when not (is_const finish) ->
-      let+ c = to_js_expr c
-      and+ t = to_js_stmts finish VarSet.empty t
-      and+ e = to_js_stmts finish VarSet.empty e in
-      str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
-    | `App (`Case (`Product fs), x) when not (is_const finish) ->
-      let i0 = Var.fresh Loc.dummy in
-      let i1 = Var.fresh Loc.dummy in
-      let v1 = `Var i1 in
-      let fs =
-        fs
-        |> List.fold_left
-             (fun cs (l, e) ->
-               cs
-               |> ErasedMap.update e @@ function
-                  | None -> Some [l]
-                  | Some ls -> Some (l :: ls))
-             ErasedMap.empty
-      in
-      let+ x = to_js_expr x
-      and+ fs =
-        fs |> ErasedMap.bindings
-        |> List.sort (Compare.the (snd >>> List.length >>> ( ~- )) Int.compare)
-        |> (function (e, _) :: cs -> List.rev_append cs [(e, [])] | [] -> [])
-        |> List.map_fr @@ fun (e, ls) ->
-           let* e = simplify @@ `App (e, v1) in
-           let+ e = to_js_stmts finish VarSet.empty e in
-           let cs =
-             match ls with
-             | [] -> str "default: {"
-             | ls ->
-               ls
-               |> List.fold_left
-                    (fun s l -> str "case " ^ Label.to_js_atom l ^ str ": " ^ s)
-                    (str " {")
-           in
-           cs ^ e ^ str "}"
-      in
-      str "const [" ^ Var.to_js i0 ^ str ", " ^ Var.to_js i1 ^ str "] = " ^ x
-      ^ str "; switch (" ^ Var.to_js i0 ^ str ") "
-      ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
-      ^ str "}"
-    | `App (`Case cs, x) when not (is_const finish) ->
-      let i = Var.fresh Loc.dummy in
-      let+ x = to_js_expr x and+ cs = to_js_expr cs in
-      str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; " ^ to_return finish
-      ^ cs ^ str "[" ^ Var.to_js i ^ str "[0]](" ^ Var.to_js i ^ str "[1])"
-    | `Mu (`Lam (f, e))
-      when (not (is_const finish)) && not (is_immediately_evaluated f e) ->
-      let+ e = to_js_expr e in
-      str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";" ^ to_return finish
-      ^ Var.to_js f
-    | _ -> default ()
+        let+ x = to_js_expr x
+        and+ fs =
+          fs |> ErasedMap.bindings
+          |> List.sort
+               (Compare.the (snd >>> List.length >>> ( ~- )) Int.compare)
+          |> (function
+               | (e, _) :: cs -> List.rev_append cs [(e, [])] | [] -> [])
+          |> List.map_fr @@ fun (e, ls) ->
+             let* e = simplify @@ `App (e, v1) in
+             let+ e = to_js_stmts finish VarSet.empty e in
+             let cs =
+               match ls with
+               | [] -> str "default: {"
+               | ls ->
+                 ls
+                 |> List.fold_left
+                      (fun s l ->
+                        str "case " ^ Label.to_js_atom l ^ str ": " ^ s)
+                      (str " {")
+             in
+             cs ^ e ^ str "}"
+        in
+        str "const [" ^ Var.to_js i0 ^ str ", " ^ Var.to_js i1 ^ str "] = " ^ x
+        ^ str "; switch (" ^ Var.to_js i0 ^ str ") "
+        ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
+        ^ str "}"
+      | `App (`Case cs, x) when not (is_const finish) ->
+        let i = Var.fresh Loc.dummy in
+        let+ x = to_js_expr x and+ cs = to_js_expr cs in
+        str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; " ^ to_return finish
+        ^ cs ^ str "[" ^ Var.to_js i ^ str "[0]](" ^ Var.to_js i ^ str "[1])"
+      | `Mu (`Lam (f, e))
+        when (not (is_const finish)) && not (is_immediately_evaluated f e) ->
+        let+ e = to_js_expr e in
+        str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";" ^ to_return finish
+        ^ Var.to_js f
+      | _ -> default ())
 
   and to_js_expr exp =
     match exp with
