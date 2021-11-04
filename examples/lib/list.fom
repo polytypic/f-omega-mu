@@ -44,14 +44,17 @@ let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Some (x, xs)
 
 let head = Λα.Opt.map[(α, list α)][α] λ(x: α, _: list α).x
 
-let μtake_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
-  if n ≤ 0 then
-    'None
-  else
-    xs ▷ case {
-      None = λ().'None
-      Some = λ(x: α, xs: list α).'Some (x, take_n[α] (n-1) xs)
-    }
+let take_n = Λα.λn: int.λxs: list α.
+  let μtake_n: list α → int → list α → list α =
+    λys: list α.λn: int.λxs: list α.
+      if n ≤ 0 then
+        ys
+      else
+        xs ▷ case {
+          None = λ().ys
+          Some = λ(x: α, xs: list α).take_n ('Some (x, ys)) (n - 1) xs
+        }
+  take_n 'None n xs ▷ rev[α]
 
 let μdrop_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
   if n ≤ 0 then
