@@ -461,10 +461,11 @@ const build = throttled(
         url,
         whole: wholeSelect.checked,
         exp: fomCM.getValue(),
+        prettify: prettifyInput.checked,
         width: getWidth(fomCM),
       }
     },
-    ({url, whole, exp, width}, onResult) => {
+    ({url, whole, exp, prettify, width}, onResult) => {
       let start = timingStart()
       fom.build(
         whole,
@@ -487,8 +488,8 @@ const build = throttled(
         js => {
           timingEnd('compile', start)
           try {
-            onResult(
-              prettier
+            if (prettify)
+              js = prettier
                 .format(js, {
                   arrowParens: 'avoid',
                   bracketSpacing: false,
@@ -499,7 +500,7 @@ const build = throttled(
                   trailingComma: 'none',
                 })
                 .trim()
-            )
+            onResult(js)
           } catch (error) {
             console.error('Prettier failed with error:', error)
             onResult('')
@@ -546,6 +547,7 @@ build()
 
 fomCM.on('change', build)
 wholeSelect.onclick = build
+prettifyInput.onclick = build
 
 let lastWidth = getWidth(fomCM)
 window.onresize = () => {
