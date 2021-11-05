@@ -174,7 +174,11 @@ let js_codemirror_mode =
           utf8format "%.16g" float
         | _ -> utf8string @@ Js.to_string value
       in
-      let rec format_object obj =
+      let check_fuel fuel k =
+        if 0 < fuel then k (fuel - 1) else utf8string "..."
+      in
+      let rec format_object ~fuel obj =
+        check_fuel fuel @@ fun fuel ->
         let keys = Js.object_keys obj |> Js.to_array |> Array.to_list in
         if
           keys
@@ -183,25 +187,27 @@ let js_codemirror_mode =
           |> FomAST.Row.is_tuple
         then
           keys
-          |> List.map (Js.Unsafe.get obj >>> format ~atomize:false)
+          |> List.map (Js.Unsafe.get obj >>> format ~atomize:false ~fuel)
           |> separate comma_break_1 |> egyptian parens 2
         else
           keys
           |> List.map (fun key ->
                  utf8string (Js.to_string key)
                  ^^ space_equals_space
-                 ^^ format ~atomize:false (Js.Unsafe.get obj key)
+                 ^^ format ~atomize:false ~fuel (Js.Unsafe.get obj key)
                  |> group)
           |> separate comma_break_1 |> egyptian braces 2
-      and format_array ~atomize array =
+      and format_array ~atomize ~fuel array =
+        check_fuel fuel @@ fun fuel ->
         let label = format_label (Js.Unsafe.get array 0) in
         let value = Js.Unsafe.get array 1 in
         match Js.typeof value |> Js.to_string with
         | "undefined" -> tick ^^ label
         | _ ->
-          tick ^^ label ^^ space ^^ format ~atomize:true value
+          tick ^^ label ^^ space ^^ format ~atomize:true ~fuel value
           |> if atomize then egyptian parens 2 else id
-      and format ~atomize value =
+      and format ~atomize ~fuel value =
+        check_fuel fuel @@ fun fuel ->
         match JsHashtbl.find_opt known value with
         | None ->
           let n = JsHashtbl.length known + 1 in
@@ -211,9 +217,9 @@ let js_codemirror_mode =
             match Js.typeof value |> Js.to_string with
             | "object" | "undefined" ->
               if Js.instanceof value JsType.array' then
-                format_array ~atomize value
+                format_array ~atomize ~fuel value
               else if Js.instanceof value JsType.object' then
-                format_object value
+                format_object ~fuel value
               else
                 utf8string "()"
             | "number" ->
@@ -227,7 +233,7 @@ let js_codemirror_mode =
                 |> Js.to_string)
             | "function" ->
               if Js.instanceof value JsType.array' then
-                format_array ~atomize value
+                format_array ~atomize ~fuel value
               else if Js.instanceof value JsType.function' then
                 let name =
                   match
@@ -238,7 +244,7 @@ let js_codemirror_mode =
                 in
                 lambda_lower ^^ name
               else
-                format_object value
+                format_object ~fuel value
             | _ -> utf8string "unknown"
           in
           JsHashtbl.remove known value;
@@ -250,7 +256,7 @@ let js_codemirror_mode =
           used := true;
           alpha_lower ^^ subscript n
       in
-      format ~atomize:false value |> to_js_string ~max_width
+      format ~atomize:false ~fuel:500 value |> to_js_string ~max_width
 
     method offset16 input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
     method offset32 input i = Tokenizer.offset_as_utf_32 (Js.to_string input) i
