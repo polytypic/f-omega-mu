@@ -282,7 +282,7 @@ const fileOf = targetCM => {
 
 //
 
-const duMap = {}
+const duMap = Object.create(null)
 
 const insertDU = (loc, du) => {
   const file = duMap[loc.file] || (duMap[loc.file] = [])
@@ -620,7 +620,7 @@ fomCM.on(
 
 //
 
-const alternatives = {}
+const alternatives = Object.create(null)
 
 for (const {unicode, ascii, bop} of fom.synonyms())
   alternatives[ascii] = unicode + (bop ? ' ' : '')
