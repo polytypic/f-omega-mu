@@ -14,6 +14,35 @@ const timed = (message, thunk) => {
   return result
 }
 
+class ErrorWithContext extends Error {
+  constructor(error, context) {
+    super(`${error.message} (${context})`)
+    this.error = error
+  }
+
+  get name() {
+    return this.error.name
+  }
+}
+
+const withContext = (context, thunk) => {
+  try {
+    return thunk()
+  } catch (error) {
+    throw new ErrorWithContext(error, context)
+  }
+}
+
+const tryIn = (thunk, onSuccess, onFailure) => {
+  let result
+  try {
+    result = thunk()
+  } catch (error) {
+    return onFailure(error)
+  }
+  return onSuccess(result)
+}
+
 onmessage = message => {
   onmessage = null
   eval(message.data)

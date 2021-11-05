@@ -428,14 +428,19 @@ const run = onWorker(
     importScripts('prelude.js')
   },
   () => ({js: jsCM.getValue(), width: getWidth(fomCM)}),
-  (params, onResult) => {
-    try {
-      const result = timed('eval', () => eval(params.js))
-      onResult(timed('format', () => fom.format(result, params.width)))
-    } catch (error) {
-      onResult(error.toString())
-    }
-  },
+  (params, onResult) =>
+    tryIn(
+      () => {
+        const result = withContext('running Fωμ', () =>
+          timed('eval', () => eval(params.js))
+        )
+        return withContext('formatting output', () =>
+          timed('format', () => fom.format(result, params.width))
+        )
+      },
+      onResult,
+      error => onResult(error.toString())
+    ),
   result => {
     if (typeof result !== 'string') result = ''
     resultCM.setValue(result)
