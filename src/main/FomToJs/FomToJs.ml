@@ -670,6 +670,9 @@ module Exp = struct
       >> Seen.adding e (simplify_base e >>- keep_phys_eq' e)
 
   and simplify_base = function
+    | `Const (`Target (_, l)) when Js.is_identity l ->
+      let i = Var.fresh Loc.dummy in
+      return @@ `Lam (i, `Var i)
     | (`Const _ | `Var _) as e -> return e
     | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
       when Var.equal i x && Var.equal j y && Const.is_commutative c ->

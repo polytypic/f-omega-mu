@@ -1,3 +1,7 @@
+open FomBasis
+
+let is_identity = ( = ) (JsonString.of_utf8 "x => x") (* TODO *)
+
 module StringSet = Set.Make (String)
 
 (* See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar *)
