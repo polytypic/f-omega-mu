@@ -118,9 +118,9 @@ let make_sub_and_eq at =
           sub l_env r_env (Core.unfold la lf lmu lxs) r
         | _, ((`Mu (ra, rf) as rmu), rxs) ->
           sub l_env r_env l (Core.unfold ra rf rmu rxs)
-        | (lf, (_ :: _ as lxs)), (rf, (_ :: _ as rxs))
-          when List.length lxs = List.length rxs ->
-          eq l_env r_env lf rf >> List.iter2_fr (eq l_env r_env) lxs rxs
+        | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
+          when Var.equal lf rf && List.length lxs = List.length rxs ->
+          List.iter2_fr (eq l_env r_env) lxs rxs
         | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
     else
       unit
