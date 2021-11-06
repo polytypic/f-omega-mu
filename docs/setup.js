@@ -478,7 +478,7 @@ const build = throttled(
         whole,
         url,
         exp,
-        width,
+        Math.min(width, 80),
         () => {
           timingEnd('elaborate', start)
           start = timingStart()
