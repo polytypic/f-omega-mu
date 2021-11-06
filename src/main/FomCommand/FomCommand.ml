@@ -113,8 +113,9 @@ let process filename =
   |> try_in return @@ function
      | `Stop -> unit
      | #Error.t as error ->
-       error |> Diagnostic.of_error |> Diagnostic.pp
-       |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
+       let+ diagnostic = Diagnostic.of_error error |> replace_env env in
+       diagnostic |> Diagnostic.pp |> FomPP.to_string ~max_width
+       |> Printf.printf "%s\n";
        exit 1
 
 let doc msg default = "    (default: " ^ default ^ ")\n\n    " ^ msg ^ "\n"

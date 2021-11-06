@@ -301,7 +301,7 @@ let js_codemirror_mode =
              Profiling.Counter.dump_all ();
              let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
              let* defUses = def_uses in
-             let diagnostics = Diagnostic.of_error error in
+             let* diagnostics = Diagnostic.of_error error in
              Cb.invoke on_fail @@ Js.Unsafe.inject
              @@ object%js
                   val typ = Diagnostic.pp diagnostics |> to_js_string ~max_width
