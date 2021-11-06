@@ -4,7 +4,7 @@ open FomParser
 open FomAST
 open FomAnnot
 open FomChecker
-open FomDiag
+open FomError
 
 (* *)
 

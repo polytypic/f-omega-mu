@@ -1,7 +1,7 @@
 (executable
  (name FomSandbox)
  (modes js)
- (libraries FomElab FomParser FomToJsC cohttp-lwt-jsoo)
+ (libraries FomElab FomParser FomToJsC FomDiag cohttp-lwt-jsoo)
  (preprocess (pps js_of_ocaml-ppx))
  (js_of_ocaml
   (flags ; --debug-info

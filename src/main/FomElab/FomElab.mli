@@ -2,7 +2,7 @@ open FomBasis
 open FomSource
 open FomAnnot
 open FomAST
-open FomDiag
+open FomError
 open FomChecker
 
 module Path : sig

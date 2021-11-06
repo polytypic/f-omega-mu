@@ -1,6 +1,6 @@
 open FomBasis
 open FomCST
-open FomDiag
+open FomError
 
 module Buffer : sig
   type t

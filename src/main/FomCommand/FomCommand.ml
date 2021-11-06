@@ -1,5 +1,6 @@
 open FomBasis
 open FomSource
+open FomError
 open FomDiag
 
 (* *)

@@ -1,0 +1,3 @@
+(library
+ (name FomError)
+ (libraries FomAST))

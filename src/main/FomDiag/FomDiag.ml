@@ -1,2 +1,2 @@
-module Error = Error
+module Typ = Typ
 module Diagnostic = Diagnostic

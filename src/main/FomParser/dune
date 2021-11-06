@@ -1,6 +1,6 @@
 (library
  (name FomParser)
- (libraries FomCST FomDiag menhirLib sedlex uutf)
+ (libraries FomCST FomError menhirLib sedlex uutf)
  (preprocess
   (pps sedlex.ppx)))
 

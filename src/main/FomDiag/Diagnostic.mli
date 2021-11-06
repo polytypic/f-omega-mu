@@ -1,5 +1,6 @@
 open FomSource
 open FomPP
+open FomError
 
 type t = Loc.t * document
 

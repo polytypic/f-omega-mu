@@ -1,7 +1,7 @@
 open FomBasis
 
 module Error = struct
-  open FomDiag
+  open FomError
 
   type t = [Error.lexeme | Error.grammar]
 end
