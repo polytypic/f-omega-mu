@@ -1,3 +1,4 @@
+open FomBasis
 include PPrint
 
 (* Constants *)
@@ -33,6 +34,15 @@ let braces = (lbrace, rbrace)
 let brackets = (lbracket, rbracket)
 let double_angle_quotes = (double_angle_quote_lhs, double_angle_quote_rhs)
 let parens = (lparen, rparen)
+
+(* *)
+
+let softbreak_1 = group (break 1)
+
+let text =
+  String.split_on_char ' ' >>> List.map utf8string >>> separate softbreak_1
+
+let textf fmt = Printf.ksprintf text fmt
 
 (* Rendering *)
 
@@ -73,6 +83,7 @@ let colon_break_1 = colon ^^ break_1
 let colon_break_1_0 = colon_break_1 ^^ break_0
 let comma_break_1 = comma ^^ break_1
 let comma_break_1_or_break_0 = ifflat comma_break_1 break_0
+let comma_break_1_or_break_0_0 = ifflat comma_break_1 break_0_0
 let let_space = let' ^^ space
 let space_arrow_right = space ^^ arrow_right
 let space_arrow_right_break_1 = space_arrow_right ^^ break_1

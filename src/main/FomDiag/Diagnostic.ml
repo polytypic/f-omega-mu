@@ -10,14 +10,15 @@ module Exp = FomAST.Exp
 
 type t = Loc.t * document
 
+let nested d = nest 2 (break_1_0 ^^ d) ^^ break_1_0
+
 let cyclic kind new_at filename old_at =
   return
     ( ( new_at,
-        utf8string "The file"
-        ^^ nest 2 (break_1 ^^ utf8format "\"%s\"" filename)
-        ^^ break_1
-        ^^ utf8format "is part of an %s cycle" kind ),
-      [(old_at, utf8format "Start of cyclic %s chain" kind)] )
+        text "The file"
+        ^^ nested (utf8format "\"%s\"" filename)
+        ^^ textf "is part of an %s cycle " kind ),
+      [(old_at, textf "Start of cyclic %s chain" kind)] )
 
 let of_error = function
   (* IO errors *)
@@ -26,32 +27,28 @@ let of_error = function
   (* Syntax errors *)
   | `Error_lexeme (at, lexeme) | `Error_grammar (at, lexeme) -> (
     match lexeme with
-    | "" -> return ((at, utf8string "Syntax error"), [])
-    | lexeme -> return ((at, utf8format "Syntax error: %s" lexeme), []))
+    | "" -> return ((at, text "Syntax error"), [])
+    | lexeme -> return ((at, textf "Syntax error: %s" lexeme), []))
   | `Error_duplicated_label (at, l) ->
     return
-      ( (at, utf8string "Duplicated label" ^^ nest 2 (break_1_0 ^^ Label.pp l)),
-        [(Label.at l, utf8string "Initial"); (at, utf8string "Duplicate")] )
+      ( (at, text "Duplicated label" ^^ nested (Label.pp l)),
+        [(Label.at l, text "Initial"); (at, text "Duplicate")] )
   | `Error_duplicated_typ_bind (at, i) ->
     return
-      ( ( at,
-          utf8string "Duplicated type binding"
-          ^^ nest 2 (break_1_0 ^^ Typ.Var.pp i) ),
-        [(Typ.Var.at i, utf8string "Initial"); (at, utf8string "Duplicate")] )
+      ( (at, text "Duplicated type binding" ^^ nested (Typ.Var.pp i)),
+        [(Typ.Var.at i, text "Initial"); (at, text "Duplicate")] )
   | `Error_duplicated_bind (at, i) ->
     return
-      ( ( at,
-          utf8string "Duplicated binding" ^^ nest 2 (break_1_0 ^^ Exp.Var.pp i)
-        ),
-        [(Exp.Var.at i, utf8string "Initial"); (at, utf8string "Duplicate")] )
+      ( (at, text "Duplicated binding" ^^ nested (Exp.Var.pp i)),
+        [(Exp.Var.at i, text "Initial"); (at, text "Duplicate")] )
   (* Source errors *)
   | `Error_file_doesnt_exist (at, filename) ->
     return
       ( ( at,
-          utf8string "File"
-          ^^ nest 2 (break_1_0 ^^ utf8format "\"%s\"" filename)
-          ^^ break_1_0 ^^ utf8string "doesn't exist" ),
-        [(at, utf8format "File doesn't exist")] )
+          text "File"
+          ^^ nested (utf8format "\"%s\"" filename)
+          ^^ text "doesn't exist " ),
+        [(at, text "File doesn't exist")] )
   | `Error_cyclic_includes (new_at, filename, old_at) ->
     cyclic "include" new_at filename old_at
   | `Error_cyclic_imports (new_at, filename, old_at) ->
@@ -60,117 +57,99 @@ let of_error = function
   | `Error_kind_mismatch (at, expected_kind, actual_kind) ->
     return
       ( ( at,
-          utf8string "Expected type to have kind"
-          ^^ nest 2 (break_1_0 ^^ Kind.pp expected_kind)
-          ^^ break_1_0
-          ^^ utf8string "but the type has kind"
-          ^^ nest 2 (break_1_0 ^^ Kind.pp actual_kind) ),
+          text "Expected type to have kind"
+          ^^ nested (Kind.pp expected_kind)
+          ^^ text "but the type has kind"
+          ^^ nested (Kind.pp actual_kind) ),
         [
-          (at, utf8string "Kind mismatch");
-          (Kind.at expected_kind, utf8string "Expected type");
+          (at, text "Kind mismatch");
+          (Kind.at expected_kind, text "Expected type");
         ] )
   | `Error_cyclic_kind at ->
-    return ((at, utf8string "Cyclic kind"), [(at, utf8string "Cyclic kind")])
+    return ((at, text "Cyclic kind"), [(at, text "Cyclic kind")])
   | `Error_mu_nested (at, typ, arg) ->
     return
       ( ( at,
-          utf8string "Nested types like"
-          ^^ nest 2 (break_1_0 ^^ Typ.pp typ)
-          ^^ break_1_0
-          ^^ utf8string "are not allowed to keep type checking decidable" ),
-        [
-          (Typ.at arg, utf8string "Nested argument passed to μ type constructor");
-        ] )
+          text "Nested types like"
+          ^^ nested (Typ.pp typ)
+          ^^ text "are not allowed to keep type checking decidable " ),
+        [(Typ.at arg, text "Nested argument passed to μ type constructor")] )
   | `Error_mu_non_contractive (at, typ, arg) ->
     return
       ( ( at,
-          utf8string "Non-contractive types like"
-          ^^ nest 2 (break_1_0 ^^ Typ.pp typ)
-          ^^ break_1_0
-          ^^ utf8string "are not allowed" ),
-        [(Typ.at arg, utf8string "Non-contractive apply of μ type constructor")]
-      )
+          text "Non-contractive types like"
+          ^^ nested (Typ.pp typ)
+          ^^ text "are not allowed " ),
+        [(Typ.at arg, text "Non-contractive apply of μ type constructor")] )
   | `Error_typ_var_unbound (at, id) ->
     return
-      ( (at, utf8string "Unbound type variable " ^^ Typ.Var.pp id),
-        [(Typ.Var.at id, utf8string "Unbound type variable")] )
+      ( (at, text "Unbound type variable" ^^ nested (Typ.Var.pp id)),
+        [(Typ.Var.at id, text "Unbound type variable")] )
   (* Type errors *)
   | `Error_var_unbound (at, id) ->
     return
-      ( (at, utf8string "Unbound variable " ^^ Exp.Var.pp id),
-        [(Exp.Var.at id, FomPP.utf8string "Unbound variable")] )
+      ( (at, text "Unbound variable" ^^ nested (Exp.Var.pp id)),
+        [(Exp.Var.at id, FomPP.text "Unbound variable")] )
   | `Error_typ_mismatch (at, expected_typ, actual_typ) ->
     return
       ( ( at,
-          utf8string "Expected expression to have type"
-          ^^ nest 2 (break_1_0 ^^ Typ.pp expected_typ)
-          ^^ break_1_0
-          ^^ utf8string "but the expression has type"
-          ^^ nest 2 (break_1_0 ^^ Typ.pp actual_typ) ),
+          text "Expected expression to have type"
+          ^^ nested (Typ.pp expected_typ)
+          ^^ text "but the expression has type"
+          ^^ nested (Typ.pp actual_typ) ),
         [
-          (at, utf8string "Type mismatch");
-          (Typ.at expected_typ, utf8string "Expected type");
+          (at, text "Type mismatch"); (Typ.at expected_typ, text "Expected type");
         ] )
   | `Error_typ_unexpected (at, mnemo, typ) ->
     let+ typ = Typ.contract typ in
     ( ( at,
-        utf8format "Expected a %s type but the expression has type" mnemo
-        ^^ nest 2 (break_1_0 ^^ Typ.pp typ) ),
-      [(at, utf8format "Expected a %s type" mnemo)] )
+        textf "Expected a %s type but the expression has type" mnemo
+        ^^ nested (Typ.pp typ) ),
+      [(at, textf "Expected a %s type" mnemo)] )
   | `Error_product_lacks (at, typ, label) ->
     let+ typ = Typ.contract typ in
     ( ( at,
-        utf8string "Expected expression to have a type of the form"
-        ^^ nest 2
-             (break_1_0 ^^ utf8string "{" ^^ Label.pp label
-            ^^ utf8string ": _, _}")
-        ^^ break_1_0
-        ^^ utf8string "but the expression has type"
-        ^^ nest 2 (break_1_0 ^^ Typ.pp typ) ),
-      [(at, utf8string "Product lacks label")] )
+        text "Expected expression to have a type of the form"
+        ^^ nested (text "{" ^^ Label.pp label ^^ text ": _, _}")
+        ^^ text "but the expression has type"
+        ^^ nested (Typ.pp typ) ),
+      [(at, text "Product lacks label")] )
   | `Error_label_missing (at, label, l_typ, m_typ) ->
     let+ l_typ = Typ.contract l_typ and+ r_typ = Typ.contract m_typ in
     ( ( at,
-        utf8string "Label"
-        ^^ nest 2 (break_1_0 ^^ Label.pp label)
-        ^^ break_1_0
-        ^^ utf8string "missing from type"
-        ^^ nest 2 (break_1_0 ^^ Typ.pp m_typ)
-        ^^ break_1_0
-        ^^ utf8string "to match the type"
-        ^^ nest 2 (break_1_0 ^^ Typ.pp l_typ) ),
-      [(Typ.at m_typ, utf8string "Label missing")] )
+        text "Label"
+        ^^ nested (Label.pp label)
+        ^^ text "missing from type"
+        ^^ nested (Typ.pp m_typ)
+        ^^ text "to match the type"
+        ^^ nested (Typ.pp l_typ) ),
+      [(Typ.at m_typ, text "Label missing")] )
   | `Error_typ_var_escapes (at, i, t) ->
     let+ t = Typ.contract t in
     ( ( at,
-        utf8string "The ∃ type variable"
-        ^^ nest 2 (break_1_0 ^^ Typ.Var.pp i)
-        ^^ break_1_0
-        ^^ utf8string "escapes as part of the type"
-        ^^ nest 2 (break_1_0 ^^ Typ.pp t)
-        ^^ break_1_0
-        ^^ utf8string "of the expression" ),
-      [(Typ.Var.at i, utf8string "∃ type variable")] )
+        text "The ∃ type variable"
+        ^^ nested (Typ.Var.pp i)
+        ^^ text "escapes as part of the type"
+        ^^ nested (Typ.pp t)
+        ^^ text "of the expression " ),
+      [(Typ.Var.at i, text "∃ type variable")] )
   | `Error_non_disjoint_merge (at, l, r) ->
     let+ l = Typ.contract l and+ r = Typ.contract r in
     ( ( at,
-        utf8string "Values of type"
-        ^^ nest 2 (break_1_0 ^^ Typ.pp l)
-        ^^ break_1_0 ^^ utf8string "and"
-        ^^ nest 2 (break_1_0 ^^ Typ.pp r)
-        ^^ break_1_0
-        ^^ utf8string "are not disjoint and cannot be merged" ),
-      [
-        (Typ.at l, utf8string "Conflicting type");
-        (Typ.at r, utf8string "Conflicting type");
-      ] )
+        text "Values of type"
+        ^^ nested (Typ.pp l)
+        ^^ text "and"
+        ^^ nested (Typ.pp r)
+        ^^ text "are not disjoint and cannot be merged " ),
+      [(Typ.at l, text "Conflicting type"); (Typ.at r, text "Conflicting type")]
+    )
 
 let pp = function
-  | (loc, overview), [] -> gnest 2 (overview ^^ break_0_0 ^^ Loc.pp loc ^^ dot)
+  | (loc, overview), [] -> gnest 2 (overview ^^ Loc.pp loc ^^ dot)
   | (loc, overview), details ->
-    overview ^^ break_0_0 ^^ Loc.pp loc ^^ dot ^^ break_0_0
+    overview ^^ Loc.pp loc ^^ dot ^^ break_0_0
     ^^ (details
        |> List.map (fun (loc, msg) ->
-              gnest 2
-                (utf8string "Also " ^^ Loc.pp loc ^^ colon_break_1 ^^ msg ^^ dot))
+              text "Also" ^^ softbreak_1 ^^ Loc.pp loc
+              ^^ gnest 2 (colon_break_1 ^^ msg ^^ dot))
        |> separate break_0_0)
