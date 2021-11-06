@@ -1,4 +1,5 @@
 open FomBasis
+open FomSource
 open FomDiag
 
 (* *)
@@ -82,7 +83,7 @@ let run_process_with_input at command input =
        (error_io at)
 
 let process filename =
-  let at = FomSource.Loc.of_path (Sys.getcwd () ^ "/.") in
+  let at = Loc.of_path (Sys.getcwd () ^ "/.") in
   let p = JsonString.of_utf8 filename in
   let env = FomToJsC.Env.empty ~fetch () in
   let cst = `Import (at, p) in
@@ -111,24 +112,8 @@ let process filename =
   |> try_in return @@ function
      | `Stop -> unit
      | #Error.t as error ->
-       let message =
-         let open FomPP in
-         match Diagnostic.of_error error with
-         | (loc, overview), [] ->
-           gnest 2 (FomSource.Loc.pp loc ^^ colon_break_1_0 ^^ overview)
-           |> to_string ~max_width
-         | (loc, overview), details ->
-           FomSource.Loc.pp loc ^^ colon
-           ^^ gnest 2 (break_1_0 ^^ overview ^^ colon)
-           ^^ nest 2
-                (break_0_0
-                ^^ (details
-                   |> List.map (fun (loc, msg) ->
-                          gnest 2 (FomSource.Loc.pp loc ^^ colon_break_1 ^^ msg))
-                   |> separate break_0_0))
-           |> to_string ~max_width
-       in
-       Printf.printf "%s\n" message;
+       error |> Diagnostic.of_error |> Diagnostic.pp
+       |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
        exit 1
 
 let doc msg default = "    (default: " ^ default ^ ")\n\n    " ^ msg ^ "\n"

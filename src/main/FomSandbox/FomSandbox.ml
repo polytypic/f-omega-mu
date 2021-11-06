@@ -304,21 +304,7 @@ let js_codemirror_mode =
              let diagnostics = Diagnostic.of_error error in
              Cb.invoke on_fail @@ Js.Unsafe.inject
              @@ object%js
-                  val typ =
-                    match diagnostics with
-                    | (loc, overview), [] ->
-                      gnest 2 (Loc.pp loc ^^ colon_break_1 ^^ overview)
-                      |> to_js_string ~max_width
-                    | (_, overview), details ->
-                      overview ^^ colon_break_1
-                      ^^ nest 2
-                           (break_0
-                           ^^ (details
-                              |> List.map (fun (loc, msg) ->
-                                     gnest 2 (Loc.pp loc ^^ colon_break_1 ^^ msg))
-                              |> separate break_0_0))
-                      |> to_js_string ~max_width
-
+                  val typ = Diagnostic.pp diagnostics |> to_js_string ~max_width
                   val defUses = defUses
                   val dependencies = Js.array [||]
 
