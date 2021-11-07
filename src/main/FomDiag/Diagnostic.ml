@@ -27,8 +27,9 @@ let of_error = function
   (* Syntax errors *)
   | `Error_lexeme (at, lexeme) | `Error_grammar (at, lexeme) -> (
     match lexeme with
-    | "" -> return ((at, text "Syntax error"), [])
-    | lexeme -> return ((at, textf "Syntax error: %s" lexeme), []))
+    | "" -> return ((at, text "Syntax error "), [])
+    | lexeme ->
+      return ((at, text "Syntax error" ^^ nested (utf8string lexeme)), []))
   | `Error_duplicated_label (at, l) ->
     return
       ( (at, text "Duplicated label" ^^ nested (Label.pp l)),
@@ -145,7 +146,7 @@ let of_error = function
     )
 
 let pp = function
-  | (loc, overview), [] -> gnest 2 (overview ^^ Loc.pp loc ^^ dot)
+  | (loc, overview), [] -> overview ^^ Loc.pp loc ^^ dot
   | (loc, overview), details ->
     overview ^^ Loc.pp loc ^^ dot ^^ break_0_0
     ^^ (details
