@@ -104,14 +104,15 @@ let make_sub_and_eq at =
       | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
         sub l_env r_env l r
       | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-        let l_env, r_env =
+        let v, l_env, r_env =
           if Var.equal li ri then
-            (l_env |> VarMap.remove li, r_env |> VarMap.remove ri)
+            (li, l_env |> VarMap.remove li, r_env |> VarMap.remove ri)
           else
             let v = Var.fresh Loc.dummy in
-            (l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
+            (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
         in
         Kind.unify at lk rk >> sub l_env r_env lt rt
+        |> VarMap.adding v @@ `Kind lk
       | _ -> (
         match (unapp l, unapp r) with
         | ((`Mu (la, lf) as lmu), lxs), _ ->
@@ -119,8 +120,11 @@ let make_sub_and_eq at =
         | _, ((`Mu (ra, rf) as rmu), rxs) ->
           sub l_env r_env l (Core.unfold ra rf rmu rxs)
         | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
-          when Var.equal lf rf && List.length lxs = List.length rxs ->
-          List.iter2_fr (eq l_env r_env) lxs rxs
+          when Var.equal lf rf && List.length lxs = List.length rxs -> (
+          let* k_opt = VarMap.find_opt lf in
+          match k_opt with
+          | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
+          | _ -> fail @@ `Error_typ_var_unbound (at, lf))
         | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
     else
       unit
