@@ -23,6 +23,14 @@ val fold_left2_fr :
   'c t ->
   ('f, 'F, 'a) Monad.fr
 
+val fold_left3_fr :
+  ('a -> 'b -> 'c -> 'd -> ('f, 'F, 'a) Monad.fr) ->
+  'a ->
+  'b t ->
+  'c t ->
+  'd t ->
+  ('f, 'F, 'a) Monad.fr
+
 (* *)
 
 val iter_fr : ('a -> ('f, 'F, unit) Monad.fr) -> 'a t -> ('f, 'F, unit) Monad.fr
@@ -31,6 +39,13 @@ val iter2_fr :
   ('a -> 'b -> ('f, 'F, unit) Monad.fr) ->
   'a t ->
   'b t ->
+  ('f, 'F, unit) Monad.fr
+
+val iter3_fr :
+  ('a -> 'b -> 'c -> ('f, 'F, unit) Monad.fr) ->
+  'a t ->
+  'b t ->
+  'c t ->
   ('f, 'F, unit) Monad.fr
 
 (* *)

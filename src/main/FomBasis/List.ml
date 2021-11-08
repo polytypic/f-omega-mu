@@ -62,6 +62,13 @@ let rec fold_left2_fr xyzx x ys zs =
   | [], [] -> return x
   | _ -> raise @@ Invalid_argument "fold_left2_fr"
 
+let rec fold_left3_fr xyzwx x ys zs ws =
+  match (ys, zs, ws) with
+  | y :: ys, z :: zs, w :: ws ->
+    xyzwx x y z w >>= fun x -> fold_left3_fr xyzwx x ys zs ws
+  | [], [], [] -> return x
+  | _ -> raise @@ Invalid_argument "fold_left3_fr"
+
 (* *)
 
 let rec iter_fr xy = function
@@ -69,13 +76,19 @@ let rec iter_fr xy = function
   | [] -> unit
 
 let iter_fr_ = iter_fr
-let iter2_fr yzu = fold_left2_fr (Fun.const yzu) ()
 
 let rec iter2_fr xyuF xs ys =
   match (xs, ys) with
   | x :: xs, y :: ys -> xyuF x y >>= fun () -> iter2_fr xyuF xs ys
   | [], [] -> unit
-  | _, _ -> raise @@ Invalid_argument "iter2_fr"
+  | _ -> raise @@ Invalid_argument "iter2_fr"
+
+let rec iter3_fr xywuF xs ys ws =
+  match (xs, ys, ws) with
+  | x :: xs, y :: ys, w :: ws ->
+    xywuF x y w >>= fun () -> iter3_fr xywuF xs ys ws
+  | [], [], [] -> unit
+  | _ -> raise @@ Invalid_argument "iter3_fr"
 
 (* *)
 
