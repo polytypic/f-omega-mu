@@ -3,6 +3,9 @@ open Grammar
 let[@warning "-32"] to_string = function
   | And -> "and"
   | ArrowRight -> "→"
+  | ArrowRightMinus -> "→₋"
+  | ArrowRightPlus -> "→₊"
+  | ArrowRightZero -> "→₀"
   | BraceLhs -> "{"
   | BraceLhsNS -> "{"
   | BraceRhs -> "}"

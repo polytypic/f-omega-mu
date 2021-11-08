@@ -122,7 +122,13 @@ let make_sub_and_eq at =
           when Var.equal lf rf && List.length lxs = List.length rxs -> (
           let* k_opt = VarMap.find_opt lf in
           match k_opt with
-          | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
+          | Some (`Kind k) when List.length lxs = Kind.min_arity k ->
+            List.iter3_fr
+              (function
+                | `Co -> sub l_env r_env
+                | `Contra -> Fun.flip @@ sub r_env l_env
+                | `Bi | `In -> eq l_env r_env)
+              (Kind.variances k) lxs rxs
           | _ -> fail @@ `Error_typ_var_unbound (at, lf))
         | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
     else
@@ -143,7 +149,31 @@ let is_equal_of_norm l r = as_predicate check_equal_of_norm l r
 
 (* *)
 
-let rec kind_of = function
+let rec variance i' = function
+  | `Mu (_, f) -> variance i' f
+  | `Const (_, _) -> return `Bi
+  | `Var (_, i) -> return @@ if Var.equal i i' then `Co else `Bi
+  | `Lam (_, i, k, t) ->
+    if Var.equal i i' then
+      return `Bi
+    else
+      variance i' t |> VarMap.adding i (`Kind k)
+  | `App (_, f, x) -> (
+    variance i' f <*> variance i' x >>= fun (f', x') ->
+    kind_of f >>= Kind.resolve >>- function
+    | `Arrow (_, _, v, _) -> Variance.meet f' (Variance.cross v x')
+    | _ -> Variance.meet f' x')
+  | `ForAll (_, f) | `Exists (_, f) -> variance i' f
+  | `Arrow (_, d, c) ->
+    variance i' d <*> variance i' c >>- fun (d, c) ->
+    Variance.meet (Variance.neg d) c
+  | `Product (_, ls) | `Sum (_, ls) ->
+    ls
+    |> List.fold_left_fr (fun v -> snd >>> variance i' >-> Variance.meet v) `Bi
+  | `Join (_, l, r) | `Meet (_, l, r) ->
+    variance i' l <*> variance i' r >>- fun (l, r) -> Variance.meet l r
+
+and kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
@@ -152,8 +182,8 @@ let rec kind_of = function
     | Some (`Kind i_kind) -> i_kind
     | _ -> failwithf "kind_of %s" @@ Var.to_string i)
   | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
-    `Arrow (at', d_kind, r_kind)
+    kind_of r <*> variance d r |> VarMap.adding d @@ `Kind d_kind
+    >>- fun (r_kind, d_var) -> `Arrow (at', d_kind, d_var, r_kind)
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)
   | `Exists (at', _)
@@ -167,7 +197,7 @@ and kind_of_cod checked_typ =
   let+ f_kind = kind_of checked_typ >>= Kind.resolve in
   match f_kind with
   | `Star _ | `Unk (_, _) -> failwith "kind_of_cod"
-  | `Arrow (_, _, c_kind) -> c_kind
+  | `Arrow (_, _, _, c_kind) -> c_kind
 
 let kind_of t = kind_of t >>= Kind.resolve
 
@@ -487,20 +517,23 @@ let resolve t =
 (* *)
 
 let rec infer = function
-  | `Mu (at', f) as typ ->
+  | `Mu (at', f) as typ -> (
     let* f, f_kind = infer f in
-    let kind = Kind.fresh at' in
-    Kind.unify at' (`Arrow (at', kind, kind)) f_kind
-    >> let* arity = Kind.resolve kind >>- Kind.min_arity in
-       find_opt_nested_arg_mu at' f arity
-       >>= Option.iter_fr (fun typ' ->
-               let* typ = resolve typ and* typ' = resolve typ' in
-               fail @@ `Error_mu_nested (at', typ, typ'))
-       >> (find_opt_non_contractive_mu at' f arity
-          >>= Option.iter_fr (fun typ' ->
-                  let* typ = resolve typ and* typ' = resolve typ' in
-                  fail @@ `Error_mu_non_contractive (at', typ, typ')))
-       >> (mu_of_norm at' f <*> return kind)
+    let* f_kind = Kind.resolve f_kind in
+    match f_kind with
+    | `Arrow (_, d, _, c) ->
+      let* kind = Kind.unify at' d c >> Kind.resolve c in
+      let arity = Kind.min_arity kind in
+      find_opt_nested_arg_mu at' f arity
+      >>= Option.iter_fr (fun typ' ->
+              let* typ = resolve typ and* typ' = resolve typ' in
+              fail @@ `Error_mu_nested (at', typ, typ'))
+      >> (find_opt_non_contractive_mu at' f arity
+         >>= Option.iter_fr (fun typ' ->
+                 let* typ = resolve typ and* typ' = resolve typ' in
+                 fail @@ `Error_mu_non_contractive (at', typ, typ')))
+      >> (mu_of_norm at' f <*> return kind)
+    | _ -> fail @@ `Error_kind_mismatch (at', f_kind, f_kind))
   | `Const (at', c) as t -> return @@ (t, Const.kind_of at' c)
   | `Var (at', i) as t -> (
     let* i_kind_opt = VarMap.find_opt i in
@@ -508,13 +541,21 @@ let rec infer = function
     | Some (`Kind i_kind) -> return (t, i_kind)
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
-    let+ r, r_kind = infer r |> VarMap.adding d @@ `Kind d_kind in
-    (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
+    infer r <*> variance d r |> VarMap.adding d @@ `Kind d_kind
+    >>- fun ((r, r_kind), d_var) ->
+    (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, d_var, r_kind))
   | `App (at', f, x) ->
-    let* f, f_kind = infer f and* x, d_kind = infer x in
-    let c_kind = Kind.fresh at' in
-    Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
-    >> (app_of_norm at' f x <*> return c_kind)
+    let* f, f_kind = infer f and* x, x_kind = infer x in
+    let* f_kind = Kind.resolve f_kind in
+    let* d_kind, c_kind =
+      match f_kind with
+      | `Arrow (_, d_kind, _, c_kind) -> return (d_kind, c_kind)
+      | _ ->
+        let c_kind = Kind.fresh at' in
+        let k = `Arrow (at', x_kind, `In, c_kind) in
+        Kind.unify at' f_kind k >> return (x_kind, c_kind)
+    in
+    Kind.unify at' d_kind x_kind >> (app_of_norm at' f x <*> return c_kind)
   | `ForAll (at', f) -> infer_quantifier at' f @@ fun at' f -> `ForAll (at', f)
   | `Exists (at', f) -> infer_quantifier at' f @@ fun at' f -> `Exists (at', f)
   | `Arrow (at', d, c) ->
@@ -537,7 +578,7 @@ and infer_row at' ls con =
 and infer_quantifier at' f con =
   let* f, f_kind = infer f in
   let d_kind = Kind.fresh at' and c_kind = `Star at' in
-  Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
+  Kind.unify at' (`Arrow (at', d_kind, `In, c_kind)) f_kind
   >> return (con at' f, c_kind)
 
 and check expected t =

@@ -2,18 +2,53 @@ open FomBasis
 open FomPP
 open FomSource
 
+module Variance = struct
+  type t = [`Bi | `Co | `Contra | `In]
+
+  let index = function `Bi -> 0 | `Co -> 1 | `Contra -> 2 | `In -> 3
+
+  let compare l r =
+    match (l, r) with
+    | `Bi, `Bi | `Co, `Co | `Contra, `Contra | `In, `In -> 0
+    | _ -> index l - index r
+
+  let meet (v1 : t) (v2 : t) =
+    match (v1, v2) with
+    | `Bi, v | v, `Bi -> v
+    | `Co, `Co -> `Co
+    | `Contra, `Contra -> `Contra
+    | `Co, `Contra | `Contra, `Co | `In, _ | _, `In -> `In
+
+  let cross (v1 : t) (v2 : t) =
+    match (v1, v2) with
+    | `Bi, _ | _, `Bi -> `Bi
+    | `In, _ | _, `In -> `In
+    | `Co, `Co | `Contra, `Contra -> `Co
+    | _ -> `Contra
+
+  let neg = function `Co -> `Contra | `Contra -> `Co | v -> v
+
+  let pp = function
+    | `Bi -> sub_zero
+    | `Co -> sub_plus
+    | `Contra -> sub_minus
+    | `In -> empty
+
+  let to_string = pp >>> to_string
+end
+
 module Kind = struct
   module Unk = Id.Make ()
   module UnkMap = Map.Make (Unk)
 
   module Core = struct
-    type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
+    type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * Variance.t * 'k]
 
-    let at = function `Star at -> at | `Arrow (at, _, _) -> at
+    let at = function `Star at -> at | `Arrow (at, _, _, _) -> at
 
     let set_at at = function
       | `Star _ -> `Star at
-      | `Arrow (_, d, c) -> `Arrow (at, d, c)
+      | `Arrow (_, d, v, c) -> `Arrow (at, d, v, c)
   end
 
   type 'k f = ['k Core.f | `Unk of Loc.t * Unk.t]
@@ -39,7 +74,9 @@ module Kind = struct
     else
       match (lhs, rhs) with
       | `Star _, `Star _ -> 0
-      | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
+      | ( `Arrow (_, lhs_dom, lhs_var, lhs_cod),
+          `Arrow (_, rhs_dom, rhs_var, rhs_cod) ) ->
+        Variance.compare lhs_var rhs_var <>? fun () ->
         compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
       | `Unk (_, l), `Unk (_, r) -> Unk.compare l r
       | _ -> index lhs - index rhs
@@ -48,16 +85,23 @@ module Kind = struct
 
   let rec min_arity n = function
     | `Star _ | `Unk _ -> n
-    | `Arrow (_, _, c) -> min_arity (n + 1) c
+    | `Arrow (_, _, _, c) -> min_arity (n + 1) c
 
   let min_arity k = min_arity 0 k
+
+  let variances k =
+    let rec loop vs = function
+      | `Star _ | `Unk _ -> List.rev vs
+      | `Arrow (_, _, v, c) -> loop (v :: vs) c
+    in
+    loop [] k
 
   (* *)
 
   let eq l r =
     match (l, r) with
     | `Star l, `Star r -> l == r
-    | `Arrow l, `Arrow r -> eq'3 l r
+    | `Arrow l, `Arrow r -> eq'4 l r
     | `Unk l, `Unk r -> eq'2 l r
     | _ -> false
 
@@ -71,7 +115,7 @@ module Kind = struct
   let rec freshen env =
     keep_phys_eq @@ function
     | `Star _ as inn -> inn
-    | `Arrow (at', d, c) -> `Arrow (at', freshen env d, freshen env c)
+    | `Arrow (at', d, v, c) -> `Arrow (at', freshen env d, v, freshen env c)
     | `Unk (at', i) -> (
       match UnkMap.find_opt i !env with
       | None ->
@@ -95,10 +139,9 @@ module Kind = struct
       let open FomPP in
       match kind with
       | `Star _ -> star
-      | `Arrow (_, dom, cod) ->
-        let dom = pp true dom in
-        let cod = pp false cod in
-        dom ^^ space_arrow_right_break_1 ^^ cod
+      | `Arrow (_, dom, var, cod) ->
+        let dom = pp true dom and cod = pp false cod in
+        dom ^^ space ^^ arrow_right ^^ Variance.pp var ^^ break_1 ^^ cod
         |> if atomize then egyptian parens 2 else id
       | `Unk (_, i) ->
         let n =
@@ -469,14 +512,14 @@ module Typ = struct
 
   let initial_env =
     let star at = `Star at in
-    let arrow d c at = `Arrow (at, d at, c at) in
+    let arrow d v c at = `Arrow (at, d at, v, c at) in
     let alias name const =
       let at = Loc.of_path name in
       (Var.of_string at name, `Typ (`Const (at, const)))
     in
     VarMap.of_list
       [
-        (impure, `Kind (arrow star star (Var.at impure)));
+        (impure, `Kind (arrow star `In star (Var.at impure)));
         alias "bool" `Bool;
         alias "int" `Int;
         alias "string" `String;

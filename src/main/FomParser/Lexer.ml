@@ -25,6 +25,9 @@ let logical_not = [%sedlex.regexp? 0x00ac (* ¬ *)]
 let logical_or = [%sedlex.regexp? 0x2228 (* ∨ *)]
 let mu_lower = [%sedlex.regexp? 0x03bc (* μ *)]
 let not_equal = [%sedlex.regexp? 0x2260 (* ≠ *)]
+let sub_minus = [%sedlex.regexp? 0x208b (* ₋ *)]
+let sub_plus = [%sedlex.regexp? 0x208a (* ₊ *)]
+let sub_zero = [%sedlex.regexp? 0x2080 (* ₀ *)]
 let triangle_lhs = [%sedlex.regexp? 0x25c1 (* ◁ *)]
 let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
 
@@ -144,6 +147,9 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | "type" -> return Type
     (* *)
     | arrow_right | "->" -> return ArrowRight
+    | arrow_right, sub_minus | "->-" -> return ArrowRightMinus
+    | arrow_right, sub_plus | "->+" -> return ArrowRightPlus
+    | arrow_right, sub_zero | "->0" -> return ArrowRightZero
     | diamond | "<>" -> return Diamond
     | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
     | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs

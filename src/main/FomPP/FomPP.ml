@@ -17,6 +17,12 @@ let not_equal = utf8string "≠"
 let pipe = utf8string "|"
 let tick = utf8string "'"
 
+(* *)
+
+let sub_minus = utf8string "₋"
+let sub_plus = utf8string "₊"
+let sub_zero = utf8string "₀"
+
 (* Greek *)
 
 let alpha_lower = utf8format "α"

@@ -31,6 +31,9 @@
 %token Type "type"
 
 %token ArrowRight "→"
+%token ArrowRightMinus "→₋"
+%token ArrowRightPlus "→₊"
+%token ArrowRightZero "→₀"
 %token BraceLhs "{"
 %token BraceLhsNS "_{"
 %token BraceRhs "}"
@@ -114,7 +117,10 @@ kind_atom:
 
 kind:
   | k=kind_atom                                     {k}
-  | d=kind_atom "→" c=kind                          {`Arrow ($loc, d, c)}
+  | d=kind_atom "→" c=kind                          {`Arrow ($loc, d, `In, c)}
+  | d=kind_atom "→₊" c=kind                         {`Arrow ($loc, d, `Co, c)}
+  | d=kind_atom "→₋" c=kind                         {`Arrow ($loc, d, `Contra, c)}
+  | d=kind_atom "→₀" c=kind                         {`Arrow ($loc, d, `Bi, c)}
 
 //
 

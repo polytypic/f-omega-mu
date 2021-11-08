@@ -26,9 +26,9 @@ let rec resolve k =
   let+ k' =
     match k with
     | `Star _ as k -> return k
-    | `Arrow (at', d, c) ->
+    | `Arrow (at', d, v, c) ->
       let+ d' = resolve d and+ c' = resolve c in
-      `Arrow (at', d', c')
+      `Arrow (at', d', v, c')
     | `Unk (_, v) as k -> (
       let* k_opt = UnkMap.find_opt v in
       match k_opt with
@@ -46,19 +46,19 @@ let rec ground k =
   k
   |> keep_phys_eq @@ function
      | `Star _ as k -> k
-     | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
+     | `Arrow (at', d, v, c) -> `Arrow (at', ground d, v, ground c)
      | `Unk (at', _) -> `Star at'
 
 let rec occurs_check at' v = function
   | `Star _ -> unit
-  | `Arrow (_, d, c) -> occurs_check at' v d >> occurs_check at' v c
+  | `Arrow (_, d, _, c) -> occurs_check at' v d >> occurs_check at' v c
   | `Unk (_, v') ->
     if Unk.equal v v' then fail @@ `Error_cyclic_kind at' else unit
 
 let rec unify at' lhs rhs =
   match (lhs, rhs) with
   | `Star _, `Star _ -> unit
-  | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+  | `Arrow (_, ld, lv, lc), `Arrow (_, rd, rv, rc) (*when lv = rv*) ->
     unify at' ld rd
     >> let* lc = resolve lc and* rc = resolve rc in
        unify at' lc rc

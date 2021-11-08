@@ -38,6 +38,9 @@ let token_info_utf_8 =
   let to_name = function
     | And -> keyword
     | ArrowRight -> operator
+    | ArrowRightMinus -> operator
+    | ArrowRightPlus -> operator
+    | ArrowRightZero -> operator
     | BraceLhs -> punctuation
     | BraceLhsNS -> punctuation
     | BraceRhs -> punctuation
@@ -139,6 +142,9 @@ let synonyms =
     ("μ", "rec", false);
     ("„", ",,", true);
     ("→", "->", true);
+    ("→₀", "->0", true);
+    ("→₊", "->+", true);
+    ("→₋", "->-", true);
     ("∀", "forall", false);
     ("∃", "exists", false);
     ("∧", "&&", true);

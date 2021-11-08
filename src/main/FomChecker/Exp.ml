@@ -64,7 +64,7 @@ module Typ = struct
     | `ForAll (_, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
-      | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
+      | `Arrow (_, d_kind, _, `Star _) -> return (f_con, d_kind)
       | _ -> failwith "check_for_all")
     | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
@@ -73,7 +73,7 @@ module Typ = struct
     | `Exists (_, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
-      | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
+      | `Arrow (_, d_kind, _, `Star _) -> return (f_con, d_kind)
       | _ -> failwith "check_exists")
     | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 end

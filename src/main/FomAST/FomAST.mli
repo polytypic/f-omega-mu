@@ -2,12 +2,23 @@ open FomBasis
 open FomSource
 open FomPP
 
+module Variance : sig
+  type t = [`Bi | `Co | `Contra | `In]
+
+  val compare : t cmp
+  val meet : t bop
+  val cross : t bop
+  val neg : ([> `Co | `Contra] as 'v) -> 'v
+  val pp : t -> document
+  val to_string : t -> string
+end
+
 module Kind : sig
   module Unk : Id.S
   module UnkMap : Map.S with type key = Unk.t
 
   module Core : sig
-    type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
+    type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * Variance.t * 'k]
   end
 
   type 'k f = ['k Core.f | `Unk of Loc.t * Unk.t]
@@ -27,6 +38,7 @@ module Kind : sig
   (* *)
 
   val min_arity : t -> int
+  val variances : t -> Variance.t list
 
   (* *)
 

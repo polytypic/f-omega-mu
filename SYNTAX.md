@@ -7,7 +7,7 @@ Below is an _approximation_ of the detailed
 kind
   : '(' kind ')'
   | '*'                                                   // Type
-  | kind '→' kind                                         // Type constructor
+  | (kind | '?' | '+' | '-') '→' kind                     // Type constructor
 
 typ
   : tid                                                   // Type variable (*1)
