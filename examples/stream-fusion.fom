@@ -72,7 +72,11 @@ let «stream, Stream» =
     append: ∀α.stream α → stream α → stream α
   }
 
-# Example usage
+# Thanks to the non-recursive implementation and a couple of optimizations, the
+# Fωμ toy compiler is able to fuse stream operations, eliminate intermediate
+# stream data structures, and translate the stream expression to a collection of
+# loops.
+
 let xs = List.iota 5
 Stream.append[int] ◇ Stream.of_list[int] xs ◇ Stream.of_list[int] xs
 ▷ Stream.map[int][int] λx: int.x + 1
