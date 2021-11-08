@@ -11,14 +11,8 @@ module UnkMap = struct
   let empty () = MVar.create empty
   let field r = r#kind_env
   let resetting op = setting field (empty ()) op
-
-  let find_opt i =
-    let+ env = get field >>= MVar.get in
-    UnkMap.find_opt i env
-
-  let add i k =
-    let* env = get field in
-    MVar.mutate env @@ UnkMap.add i k
+  let find_opt i = get field >>= MVar.get >>- UnkMap.find_opt i
+  let add i k = get field >>= fun env -> MVar.mutate env @@ UnkMap.add i k
 
   class con =
     object
