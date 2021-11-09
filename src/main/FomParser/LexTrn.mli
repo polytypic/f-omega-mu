@@ -22,7 +22,7 @@ val unget : 't t -> ('t, unit) fr
 
 val emit : 't t -> ('t, unit) fr
 val emit_if : bool -> 't t -> ('t, unit) fr
-val emit_before : 't t -> 't -> ('t, unit) fr
+val emit_before : 't -> 't t -> ('t, unit) fr
 
 (* *)
 

@@ -258,7 +258,55 @@ module Offside = struct
 
   (* *)
 
-  let rec initial tok = match tok_of tok with _ -> nest tok >>= initial
+  let rec nest tok =
+    (match tok_of tok with
+    | ForAll | Exists | MuLower ->
+      get >>= fun tok ->
+      if tok_of tok <> ParenLhs then emit_before ParenLhs tok else unget tok
+    | If | LambdaLower | LambdaUpper | DoubleAngleQuoteLhs ->
+      emit (set ParenLhs tok)
+    | _ -> unit)
+    >> (match tok with
+       | BracketLhs, l, _ -> (
+         let* t, _, r = last_tok in
+         match t with
+         | (Id _ | BracketRhs | ParenRhs) when l = r ->
+           emit (set BracketLhsNS tok)
+         | _ -> emit tok)
+       | ParenLhs, l, _ -> (
+         let* t, _, r = last_tok in
+         match t with
+         | (Id _ | BracketRhs | ParenRhs) when l = r ->
+           emit (set ParenLhsNS tok)
+         | _ -> emit tok)
+       | _ -> emit tok)
+    >> (match tok_of tok with
+       | BraceLhs -> with_indent (inside_braces false)
+       | ParenLhs -> get >>= nest_until ParenRhs
+       | DoubleAngleQuoteLhs ->
+         as_typ (get >>= nest_until Comma)
+         >> get
+         >>= nest_until DoubleAngleQuoteRhs
+         >> get
+         >>= fun tok ->
+         if tok_of tok = Colon then
+           nest tok >>= emit_before ParenRhs
+         else
+           emit_before ParenRhs tok
+       | BracketLhs -> as_typ (get >>= nest_until BracketRhs)
+       | Include -> get >>= insert_in false (col_of tok)
+       | Type -> as_typ (binding tok)
+       | Let -> binding tok
+       | Colon -> as_typ (with_indent (inside_block unget))
+       | LambdaLower | LambdaUpper -> get >>= inside_binder
+       | ForAll | Exists | MuLower ->
+         get >>= fun tok ->
+         if tok_of tok <> ParenLhs then inside_binder tok else unget tok
+       | If ->
+         get >>= nest_until Then >> get >>= nest_until Else
+         >> with_indent (inside_block (emit_before ParenRhs))
+       | _ -> unit)
+    >> get
 
   and inside_braces insert indent tok =
     match tok_of tok with
@@ -292,132 +340,43 @@ module Offside = struct
     | _ ->
       let* new_line = new_line tok in
       if new_line && col_of tok <= indent then
-        emit_before tok In
+        emit_before In tok
       else
         nest tok >>= insert_in is_rec indent
 
   and inside_binder tok =
     match tok_of tok with
     | Colon ->
-      emit tok >> as_typ (with_indent inside_annot) >> get >>= inside_binder
-    | Dot -> emit tok >> with_indent inside_body
+      emit tok
+      >> as_typ (with_indent (inside_block unget))
+      >> get >>= inside_binder
+    | Dot -> emit tok >> with_indent (inside_block (emit_before ParenRhs))
     | _ -> nest tok >>= inside_binder
 
-  and inside_annot indent tok =
-    match tok_of tok with
-    | BraceRhs | BracketRhs | Comma | Dot | DoubleAngleQuoteRhs | EOF | Equal
-    | In | ParenRhs ->
-      unget tok
-    | _ ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok < indent then
-        unget tok
-      else
-        nest tok >>= inside_annot indent
-
-  and inside_body indent tok =
+  and inside_block on_exit indent tok =
     let* is_typ = is_typ in
     match tok_of tok with
     | And | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | Else
     | In | ParenRhs ->
-      emit_before tok ParenRhs
-    | (Dot | Equal) when is_typ -> emit_before tok ParenRhs
+      on_exit tok
+    | (Dot | Equal) when is_typ -> on_exit tok
     | _ ->
       let* new_line = new_line tok in
       if new_line && col_of tok < indent then
-        emit_before tok ParenRhs
+        on_exit tok
       else
-        nest tok >>= inside_body indent
+        nest tok >>= inside_block on_exit indent
 
-  and inside_if indent tok =
-    match tok_of tok with
-    | Then -> emit tok >> with_indent inside_then
-    | _ -> nest tok >>= inside_if indent
-
-  and inside_then indent tok =
-    match tok_of tok with
-    | Else -> emit tok >> with_indent inside_else
-    | _ -> nest tok >>= inside_then indent
-
-  and inside_else indent tok =
-    match tok_of tok with
-    | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | ParenRhs ->
-      emit_before tok ParenRhs
-    | _ ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok < indent then
-        emit_before tok ParenRhs
-      else
-        nest tok >>= inside_else indent
+  and binding tok =
+    let indent = col_of tok in
+    get >>= fun tok ->
+    if tok_of tok = MuLower then
+      emit tok >> get >>= insert_in true indent
+    else
+      insert_in false indent tok
 
   and nest_until closing tok =
-    if tok_of tok = closing then
-      emit tok
-    else
-      nest tok >>= nest_until closing
-
-  and nest tok =
-    (match tok_of tok with
-    | ForAll | Exists | MuLower ->
-      get >>= fun tok ->
-      if tok_of tok <> ParenLhs then emit_before tok ParenLhs else unget tok
-    | If | LambdaLower | LambdaUpper | DoubleAngleQuoteLhs ->
-      emit (set ParenLhs tok)
-    | _ -> unit)
-    >> (match tok with
-       | BracketLhs, l, _ -> (
-         let* t, _, r = last_tok in
-         match t with
-         | (Id _ | BracketRhs | ParenRhs) when l = r ->
-           emit (set BracketLhsNS tok)
-         | _ -> emit tok)
-       | ParenLhs, l, _ -> (
-         let* t, _, r = last_tok in
-         match t with
-         | (Id _ | BracketRhs | ParenRhs) when l = r ->
-           emit (set ParenLhsNS tok)
-         | _ -> emit tok)
-       | _ -> emit tok)
-    >> (match tok_of tok with
-       | BraceLhs -> with_indent (inside_braces false)
-       | ParenLhs -> get >>= nest_until ParenRhs
-       | DoubleAngleQuoteLhs ->
-         as_typ (get >>= nest_until Comma)
-         >> get
-         >>= nest_until DoubleAngleQuoteRhs
-         >> get
-         >>= fun tok ->
-         if tok_of tok = Colon then
-           nest tok >>= fun tok -> emit_before tok ParenRhs
-         else
-           emit_before tok ParenRhs
-       | BracketLhs -> as_typ (get >>= nest_until BracketRhs)
-       | Include -> get >>= insert_in false (col_of tok)
-       | Type ->
-         let indent = col_of tok in
-         get >>= fun tok ->
-         if tok_of tok = MuLower then
-           as_typ (emit tok >> get >>= insert_in true indent)
-         else
-           as_typ (insert_in false indent tok)
-       | Let ->
-         let indent = col_of tok in
-         get >>= fun tok ->
-         if tok_of tok = MuLower then
-           emit tok >> get >>= insert_in true indent
-         else
-           insert_in false indent tok
-       | Colon -> as_typ (with_indent inside_annot)
-       | LambdaLower | LambdaUpper -> get >>= inside_binder
-       | ForAll | Exists | MuLower ->
-         get >>= fun tok ->
-         if tok_of tok <> ParenLhs then
-           inside_binder tok
-         else
-           unget tok
-       | If -> with_indent inside_if
-       | _ -> unit)
-    >> get
+    if tok_of tok = closing then emit tok else nest tok >>= nest_until closing
 end
 
-let offside : t = LexTrn.init token (LexTrn.get >>= Offside.initial)
+let offside : t = LexTrn.init token (LexTrn.get >>= Offside.nest_until EOF)

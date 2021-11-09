@@ -79,7 +79,7 @@ let unget tok _ =
 
 let emit tok _ = inj @@ fun _ _ state -> (Emit (tok, unit'), state)
 let emit_if bool tok = if bool then emit tok else unit
-let emit_before tok token = unget tok >> emit (set token tok)
+let emit_before token tok = unget tok >> emit (set token tok)
 
 (* *)
 
