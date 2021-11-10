@@ -47,9 +47,8 @@ module Kind = struct
   (* *)
 
   let rec min_arity n = function
-    | `Star _ -> n
+    | `Star _ | `Unk _ -> n
     | `Arrow (_, _, c) -> min_arity (n + 1) c
-    | `Unk _ -> 1
 
   let min_arity k = min_arity 0 k
 
