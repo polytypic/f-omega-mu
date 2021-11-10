@@ -1,4 +1,4 @@
-module Row = Row
-module Kind = Kind
-module Typ = Typ
 module Exp = Exp
+module Kind = Kind
+module Row = Row
+module Typ = Typ
