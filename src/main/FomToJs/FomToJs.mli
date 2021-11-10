@@ -1,7 +1,7 @@
 open FomBasis
 open FomAST
 
-module Erased : sig
+module Lam : sig
   type t =
     [ `App of t * t
     | `Case of t
@@ -15,16 +15,16 @@ module Erased : sig
     | `Var of Exp.Var.t ]
 end
 
-val erase : Exp.Core.t -> Erased.t
+val erase : Exp.Core.t -> Lam.t
 (** Erase (most) types from given Fωμ expression.  Note that this does not type
     check the expression. *)
 
-val simplify : Erased.t -> ('r, 'e, Erased.t) rea
+val simplify : Lam.t -> ('r, 'e, Lam.t) rea
 (** Simplify erased expression. *)
 
 val to_js :
   ?top:
     [`Const of Exp.Var.t | `Return | `Top | `Tail of Exp.Var.t * Exp.Var.t list] ->
-  Erased.t ->
+  Lam.t ->
   ('r, 'e, Cats.t) rea
 (** Transpile erased expression to JavaScript. *)

@@ -20,7 +20,7 @@ module Env = struct
     Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports
 end
 
-let mods_simplified : (string, (Zero.t, FomToJs.Erased.t) LVar.t) Hashtbl.t =
+let mods_simplified : (string, (Zero.t, FomToJs.Lam.t) LVar.t) Hashtbl.t =
   Hashtbl.create 100
 
 let topological_deps paths =
