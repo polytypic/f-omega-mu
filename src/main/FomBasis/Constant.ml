@@ -42,20 +42,18 @@ let of_monoid m =
 (* *)
 
 let or_lm =
-  let identity = lazy false
-  and combine l r =
-    if Lazy.is_val l then
-      if Lazy.force_val l then l else r
-    else if Lazy.is_val r then
-      if Lazy.force_val r then r else l
-    else
-      lazy (Lazy.force l || Lazy.force r)
-  in
-  object
-    method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
-    method return : 'a. ('a, _) Applicative.return = inj'0 identity
-    method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair combine
-  end
+  of_monoid
+  @@ object
+       method identity = lazy false
+
+       method combine l r =
+         if Lazy.is_val l then
+           if Lazy.force_val l then l else r
+         else if Lazy.is_val r then
+           if Lazy.force_val r then r else l
+         else
+           lazy (Lazy.force l || Lazy.force r)
+     end
 
 let option_lm =
   let identity = lazy None
