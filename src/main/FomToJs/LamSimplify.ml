@@ -135,23 +135,23 @@ let rec always_applied_to_inject i' e =
   | `Select (e, l) ->
     always_applied_to_inject i' e && always_applied_to_inject i' l
 
-let rec occurs_once_in_total_position i' e =
+let rec occurs_in_total_position ~once i' e =
   match unapp e with
   | `Var i, [] -> return @@ Var.equal i' i
   | `Const c, xs when Const.is_total c ->
-    occurs_once_in_total_position_of_list i' xs
-  | f, xs when is_lam_or_case f && not (is_free i' f) ->
-    occurs_once_in_total_position_of_list i' xs
+    occurs_in_total_position_of_list ~once i' xs
+  | f, xs when is_lam_or_case f && ((not once) || not (is_free i' f)) ->
+    occurs_in_total_position_of_list ~once i' xs
   | _ -> return false
 
-and occurs_once_in_total_position_of_list i' = function
+and occurs_in_total_position_of_list ~once i' = function
   | [] -> return false
   | x :: xs ->
-    occurs_once_in_total_position i' x
-    &&& return (List.for_all (is_free i' >>> not) xs)
-    ||| (return (not (is_free i' x))
+    occurs_in_total_position ~once i' x
+    &&& return ((not once) || List.for_all (is_free i' >>> not) xs)
+    ||| (return ((not once) || not (is_free i' x))
         &&& is_total x
-        &&& occurs_once_in_total_position_of_list i' xs)
+        &&& occurs_in_total_position_of_list ~once i' xs)
 
 let to_lam continue k i e =
   let i, e =
@@ -278,7 +278,7 @@ and simplify_base = function
       let* may_subst =
         is_total x
         &&& return ((not (is_mu x)) || not (is_free i e))
-        ||| occurs_once_in_total_position i e
+        ||| occurs_in_total_position ~once:true i e
       in
       if may_subst then
         apply ()
