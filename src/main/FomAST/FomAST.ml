@@ -429,14 +429,12 @@ module Typ = struct
   let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
   let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
 
-  let map_reduce plus zero one t =
-    map_constant
-      (Constant.of_monoid
-      @@ object
-           method identity = zero
-           method combine = plus
-         end)
-      one t
+  let map_reduce plus zero =
+    map_constant @@ Constant.of_monoid
+    @@ object
+         method identity = zero
+         method combine = plus
+       end
 
   let exists fn =
     map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
