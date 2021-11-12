@@ -13,6 +13,7 @@ module UnkMap = struct
   let resetting op = setting field (empty ()) op
   let find_opt i = read field >>- UnkMap.find_opt i
   let add i k = mutate field @@ UnkMap.add i k
+  let cloning op = read field >>= fun v -> setting field (MVar.create v) op
 
   class con =
     object

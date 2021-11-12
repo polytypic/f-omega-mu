@@ -135,7 +135,9 @@ let check_sub_of_norm at = fst (make_sub_and_eq at) VarMap.empty VarMap.empty
 let check_equal_of_norm at = snd (make_sub_and_eq at) VarMap.empty VarMap.empty
 
 let as_predicate check l r =
-  check Loc.dummy l r |> try_in (const @@ return true) (const @@ return false)
+  check Loc.dummy l r
+  |> try_in (const @@ return true) (const @@ return false)
+  |> Kind.UnkMap.cloning
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
 let is_equal_of_norm l r = as_predicate check_equal_of_norm l r
