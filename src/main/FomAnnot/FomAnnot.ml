@@ -44,15 +44,13 @@ module Annot = struct
 
   let add_def at annot =
     do_unless (Loc.is_empty at)
-    @@ let* locmap = get field in
-       MVar.mutate locmap @@ LocMap.update at
-       @@ function None -> Some (make at LocSet.empty annot) | some -> some
+      (mutate field @@ LocMap.update at
+      @@ function None -> Some (make at LocSet.empty annot) | some -> some)
 
   let add_use use def =
     do_unless (Loc.is_empty use)
-    @@ let* locmap = get field in
-       MVar.mutate locmap @@ LocMap.update def @@ Option.map
-       @@ fun o -> make o#def (LocSet.add use o#uses) o#annot
+      (mutate field @@ LocMap.update def @@ Option.map
+      @@ fun o -> make o#def (LocSet.add use o#uses) o#annot)
 
   module Label = struct
     open Label
@@ -90,16 +88,15 @@ module Annot = struct
     open Typ.Var
 
     let resolve resolve_kind =
-      let* annot = get field in
-      MVar.try_mutate annot @@ fun annot ->
-      annot |> LocMap.bindings
-      |> List.map_m (fun (at, v) ->
-             match v#annot with
-             | `TypId (id, kind) ->
-               let+ kind = resolve_kind kind in
-               (at, make v#def v#uses @@ `TypId (id, kind))
-             | _ -> return (at, v))
-      >>- LocMap.of_list
+      try_mutate field
+        (LocMap.bindings
+        >>> List.map_m (fun (at, v) ->
+                match v#annot with
+                | `TypId (id, kind) ->
+                  let+ kind = resolve_kind kind in
+                  (at, make v#def v#uses @@ `TypId (id, kind))
+                | _ -> return (at, v))
+        >-> LocMap.of_list)
 
     let def id kind = add_def (at id) @@ `TypId (id, kind)
     let use id = add_use @@ at id

@@ -111,23 +111,19 @@ module PathTable = struct
          (let* (hashtbl : _ t) = env_as field in
           match Hashtbl.find_opt hashtbl path with
           | None ->
-            let* var =
-              LVar.create
-                (Annot.setup compute <*> (get Annot.field >>= MVar.get))
-            in
+            let* var = LVar.create (Annot.setup compute <*> read Annot.field) in
             Hashtbl.replace hashtbl path var;
-            LVar.get var
-          | Some var -> LVar.get var)
+            LVar.eval var
+          | Some var -> LVar.eval var)
      in
-     let* annot = get Annot.field in
-     MVar.mutate annot (Annot.merge inner) >> return result)
+     mutate Annot.field (Annot.merge inner) >> return result)
     |> ImportChain.with_path at path
 
   let get field key =
     let* hashtbl = env_as field in
     match Hashtbl.find_opt hashtbl key with
     | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
-    | Some var -> LVar.get var |> map_error @@ fun (#Error.t as e) -> e
+    | Some var -> LVar.eval var |> map_error @@ fun (#Error.t as e) -> e
 end
 
 module TypIncludes = struct
@@ -178,12 +174,8 @@ module Parameters = struct
   let empty () = MVar.create empty
   let field r : (t, _) Field.t = r#parameters
   let resetting op = setting field (empty ()) op
-
-  let add filename =
-    let* ps = get field in
-    MVar.mutate ps (add filename)
-
-  let get () = get field >>= MVar.get >>- elements
+  let add filename = mutate field (add filename)
+  let get () = read field >>- elements
 
   let taking_in ast =
     let* imports = env_as ExpImports.field in
@@ -191,7 +183,7 @@ module Parameters = struct
     >>= List.fold_left_fr
           (fun ast filename ->
             let+ (id, _, typ, _), _ =
-              Hashtbl.find imports filename |> LVar.get
+              Hashtbl.find imports filename |> LVar.eval
             in
             `Lam (Exp.Var.at id, id, (typ :> Typ.t), ast))
           ast

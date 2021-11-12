@@ -1,5 +1,6 @@
 open Higher.Syntax
 open Fun.Syntax
+open Monad.Syntax
 
 type ('e, 'a) cod = [('e, 'a) Res.t | `Async of (('e, 'a) Res.t -> unit) -> unit]
 
@@ -205,7 +206,7 @@ module Syntax = struct
                             | _ -> failwith "LVar.create" ) ));
              Return var)
 
-    let get (var : _ t) : (_, _, _) rea =
+    let eval (var : _ t) : (_, _, _) rea =
      fun _ ->
       inj
       @@
@@ -260,7 +261,7 @@ module Syntax = struct
         push @@ k ok
       | _ -> failwith "MVar.fill"
 
-    let get (var : 'v t) : (_, _, 'v) rea =
+    let read (var : 'v t) : (_, _, 'v) rea =
      fun _ ->
       inj
       @@ Bind
@@ -269,7 +270,7 @@ module Syntax = struct
                fill var v;
                Return v )
 
-    let mutate (var : _ t) fn : (_, _, _) rea =
+    let mutate fn (var : _ t) : (_, _, _) rea =
      fun _ ->
       inj
       @@ Bind
@@ -278,7 +279,7 @@ module Syntax = struct
                fill var (fn v);
                Return () )
 
-    let try_mutate (var : _ t) fn : (_, _, _) rea =
+    let try_mutate fn (var : _ t) : (_, _, _) rea =
      fun _ ->
       inj
       @@ Bind
@@ -293,7 +294,7 @@ module Syntax = struct
                      fill var v;
                      Fail e ) )
 
-    let try_modify (var : _ t) fn : (_, _, _) rea =
+    let try_modify fn (var : _ t) : (_, _, _) rea =
      fun _ ->
       inj
       @@ Bind
@@ -308,4 +309,8 @@ module Syntax = struct
                      fill var v;
                      Fail e ) )
   end
+
+  let read v = get v >>= MVar.read
+  let mutate v fn = get v >>= MVar.mutate fn
+  let try_mutate v fn = get v >>= MVar.try_mutate fn
 end

@@ -265,9 +265,8 @@ let js_codemirror_mode =
         (on_fail : Cb.t) (on_js : Cb.t) =
       Profiling.Counter.reset_all ();
       let path = Js.to_string path in
-      let env = FomToJsC.Env.empty ~fetch () in
       let def_uses =
-        Field.get Annot.field env |> MVar.get >>- Annot.LocMap.bindings
+        read Annot.field >>- Annot.LocMap.bindings
         >>= List.map_m (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in
@@ -321,7 +320,7 @@ let js_codemirror_mode =
                              end)
                       |> Js.array
                 end)
-      |> start env
+      |> start (FomToJsC.Env.empty ~fetch ())
 
     method synonyms =
       Tokenizer.synonyms |> Array.of_list

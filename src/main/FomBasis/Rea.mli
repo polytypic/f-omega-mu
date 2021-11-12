@@ -57,16 +57,26 @@ module Syntax : sig
     type ('e, 'a) t
 
     val create : ('r, 'e, 'a) rea -> ('r, 'f, ('e, 'a) t) rea
-    val get : ('e, 'a) t -> ('r, 'e, 'a) rea
+    val eval : ('e, 'a) t -> ('r, 'e, 'a) rea
   end
 
   module MVar : sig
     type 'v t
 
     val create : 'v -> 'v t
-    val get : 'v t -> ('r, 'e, 'v) rea
-    val mutate : 'v t -> ('v -> 'v) -> ('r, 'e, unit) rea
-    val try_mutate : 'v t -> ('v -> ('r, 'e, 'v) rea) -> ('r, 'e, unit) rea
-    val try_modify : 'v t -> ('v -> ('r, 'e, 'v * 'a) rea) -> ('r, 'e, 'a) rea
+    val read : 'v t -> ('r, 'e, 'v) rea
+    val mutate : ('v -> 'v) -> 'v t -> ('r, 'e, unit) rea
+    val try_mutate : ('v -> ('r, 'e, 'v) rea) -> 'v t -> ('r, 'e, unit) rea
+    val try_modify : ('v -> ('r, 'e, 'v * 'a) rea) -> 'v t -> ('r, 'e, 'a) rea
   end
+
+  val read : ('r -> ('v MVar.t, 'r) Field.t) -> ('r, 'e, 'v) rea
+
+  val mutate :
+    ('r -> ('v MVar.t, 'r) Field.t) -> ('v -> 'v) -> ('r, 'e, unit) rea
+
+  val try_mutate :
+    ('r -> ('v MVar.t, 'r) Field.t) ->
+    ('v -> ('r, 'e, 'v) rea) ->
+    ('r, 'e, unit) rea
 end

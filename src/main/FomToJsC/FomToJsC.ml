@@ -44,11 +44,11 @@ let erase_and_simplify_all paths =
      let* (id, ast, _, _), _ = FomElab.ExpImports.get path in
      let+ erased =
        match Hashtbl.find_opt mods_simplified path with
-       | Some var -> LVar.get var |> generalize_error
+       | Some var -> LVar.eval var |> generalize_error
        | None ->
          let* var = LVar.create (ast |> FomToJs.erase |> FomToJs.simplify) in
          Hashtbl.replace mods_simplified path var;
-         LVar.get var |> generalize_error
+         LVar.eval var |> generalize_error
      in
      (id, path, erased)
 
@@ -66,7 +66,7 @@ let compile_to_js_all paths =
   paths |> erase_and_simplify_all
   >>= List.map_fr @@ fun (id, path, erased) ->
       match Hashtbl.find_opt mods_in_js path with
-      | Some var -> LVar.get var |> generalize_error
+      | Some var -> LVar.eval var |> generalize_error
       | None ->
         let* var =
           LVar.create
@@ -74,7 +74,7 @@ let compile_to_js_all paths =
               str "// " ^ str path ^ str "\n" ^ js )
         in
         Hashtbl.replace mods_in_js path var;
-        LVar.get var |> generalize_error
+        LVar.eval var |> generalize_error
 
 let modules_to_js ast paths =
   let* paths = topological_deps paths in
