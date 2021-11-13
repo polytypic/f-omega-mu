@@ -104,6 +104,9 @@ list_n(elem, sep):
   | option(sep)                                         {[]}
   | es=rev_list_1(elem, sep) option(sep)                {List.rev es}
 
+between(lhs, elem, rhs):
+  | lhs x=elem rhs                                      {fun f -> f $loc x}
+
 //
 
 kind_atom:
@@ -255,7 +258,7 @@ exp_atom:
   | s=exp_tstr                                          {s}
   | "(" es=list_n(exp, ",") ")"                         {Exp.tuple $loc es}
   | "{" fs=lab_list(lab_exp) "}"                        {`Product ($loc, fs)}
-  | f=exp_atom "_(" xs=list_n(exp, ",") ")"             {`App ($loc, f, Exp.tuple $loc xs)}
+  | f=exp_atom xs=between("_(", list_n(exp, ","), ")")  {`App ($loc, f, xs Exp.tuple)}
   | f=exp_atom "_[" x=typ "]"                           {`Inst ($loc, f, x)}
   | e=exp_atom "." l=label                              {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                        {`Select ($loc, e, i)}
