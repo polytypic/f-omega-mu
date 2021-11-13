@@ -178,6 +178,7 @@ typ_atom:
   | i=typ_rid                                           {Typ.var i}
   | "(" ts=list_n(typ, ",") ")"                         {Typ.tuple $loc ts}
   | "{" fs=lab_list(lab_typ) "}"                        {Typ.product $loc fs}
+  | f=typ_atom xs=between("_(", list_n(typ, ","), ")")  {`App ($loc, f, xs Typ.tuple)}
   | "μ" "(" t=typ ")"                                   {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                                   {`Exists ($loc, t)}
   | "∀" "(" t=typ ")"                                   {`ForAll ($loc, t)}
