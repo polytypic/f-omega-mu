@@ -105,9 +105,6 @@ list_n(elem, sep):
   | option(sep)                                         {[]}
   | es=rev_list_1(elem, sep) option(sep)                {List.rev es}
 
-between(lhs, elem, rhs):
-  | lhs x=elem rhs                                      {fun f -> f $loc x}
-
 //
 
 kind_atom:
@@ -124,9 +121,6 @@ kind:
 label:
   | i=Id                                                {Label.of_string $loc i}
   | n=LitNat                                            {Label.of_string $loc (Bigint.to_string n)}
-
-lab_list(item):
-  | ls=list_n(item, ",")                                {ls}
 
 //
 
@@ -162,8 +156,7 @@ lab_typ:
 tick_lab_typ:
   | "'" l=label                                         {(l, Typ.product $loc [])}
   | "'" l=label t=typ_atom_tick                         {(l, t)}
-  | "'" l=label e=between("_(", list_n(typ, ","), ")")  {(l, e Typ.tuple)}
-  | "'" l=label e=between("_{", lab_list(lab_typ), "}") {(l, e Typ.product)}
+  | "'" l=label t=typ_high_prec                         {(l, t)}
 
 typ_rid:
   | i=Id                                                {Typ.Var.of_string $loc i}
@@ -177,12 +170,15 @@ typ_bind:
   | i=typ_bid                                           {(i, Kind.fresh $loc)}
   | i=typ_bid ":" k=kind                                {(i, k)}
 
+typ_high_prec:
+  | "_(" xs=list_n(typ, ",") ")"                        {Typ.tuple $loc xs}
+  | "_{" fs=list_n(lab_typ, ",") "}"                    {Typ.product $loc fs}
+
 typ_atom:
   | i=typ_rid                                           {Typ.var i}
   | "(" ts=list_n(typ, ",") ")"                         {Typ.tuple $loc ts}
-  | "{" fs=lab_list(lab_typ) "}"                        {Typ.product $loc fs}
-  | f=typ_atom x=between("_(", list_n(typ, ","), ")")   {`App ($loc, f, x Typ.tuple)}
-  | f=typ_atom x=between("_{", lab_list(lab_typ), "}")  {`App ($loc, f, x Typ.product)}
+  | "{" fs=list_n(lab_typ, ",") "}"                     {Typ.product $loc fs}
+  | f=typ_atom x=typ_high_prec                          {`App ($loc, f, x)}
   | "μ" "(" t=typ ")"                                   {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                                   {`Exists ($loc, t)}
   | "∀" "(" t=typ ")"                                   {`ForAll ($loc, t)}
@@ -190,8 +186,7 @@ typ_atom:
 
 typ_tick:
   | "'" l=label                                         {Typ.atom l}
-  | "'" l=label e=between("_(", list_n(typ, ","), ")")  {Typ.sum $loc [(l, e Typ.tuple)]}
-  | "'" l=label e=between("_{", lab_list(lab_typ), "}") {Typ.sum $loc [(l, e Typ.product)]}
+  | "'" l=label t=typ_high_prec                         {Typ.sum $loc [(l, t)]}
 
 typ_atom_tick:
   | t=typ_atom                                          {t}
@@ -238,7 +233,7 @@ lab_pat(annot):
 pat(annot):
   | i=exp_bid a=annot                                   {`Id ($loc, i, a)}
   | "(" ps=list_n(pat(annot), ",") ")"                  {Exp.Pat.tuple $loc ps}
-  | "{" fs=lab_list(lab_pat(annot)) "}"                 {`Product ($loc, fs)}
+  | "{" fs=list_n(lab_pat(annot), ",") "}"              {`Product ($loc, fs)}
   | "«" t=typ_bid "," p=pat(annot_let) "»" e=annot      {`Pack ($loc, p, t, e)}
 
 //
@@ -262,14 +257,17 @@ exp_tstr:
   | TstrOpenRaw s=TstrStr es=exp_tstr_rest              {`Tstr ($loc, Exp.raw, `Str s :: es)}
   | i=TstrOpen s=TstrStr es=exp_tstr_rest               {`Tstr ($loc, Exp.Var.of_string $loc(i) i, `Str s :: es)}
 
+exp_high_prec:
+  | "_(" xs=list_n(exp, ",") ")"                        {Exp.tuple $loc xs}
+  | "_{" fs=list_n(lab_exp, ",") "}"                    {Exp.product $loc fs}
+
 exp_atom:
   | i=exp_rid                                           {`Var ($loc, i)}
   | l=LitNat                                            {`Const ($loc, `LitNat l)}
   | s=exp_tstr                                          {s}
   | "(" es=list_n(exp, ",") ")"                         {Exp.tuple $loc es}
-  | "{" fs=lab_list(lab_exp) "}"                        {`Product ($loc, fs)}
-  | f=exp_atom x=between("_(", list_n(exp, ","), ")")   {`App ($loc, f, x Exp.tuple)}
-  | f=exp_atom x=between("_{", lab_list(lab_exp), "}")  {`App ($loc, f, x Exp.product)}
+  | "{" fs=list_n(lab_exp, ",") "}"                     {`Product ($loc, fs)}
+  | f=exp_atom x=exp_high_prec                          {`App ($loc, f, x)}
   | f=exp_atom "_[" x=typ "]"                           {`Inst ($loc, f, x)}
   | e=exp_atom "." l=label                              {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                        {`Select ($loc, e, i)}
@@ -278,8 +276,7 @@ exp_atom:
 
 exp_tick:
   | "'" l=label                                         {Exp.atom l}
-  | "'" l=label e=between("_(", list_n(exp, ","), ")")  {`Inject ($loc, l, e Exp.tuple)}
-  | "'" l=label e=between("_{", lab_list(lab_exp), "}") {`Inject ($loc, l, e Exp.product)}
+  | "'" l=label e=exp_high_prec                         {`Inject ($loc, l, e)}
 
 exp_atom_tick:
   | e=exp_atom                                          {e}
