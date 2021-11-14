@@ -31,4 +31,4 @@ let μlookup: ∀κ.∀ν.Trie κ ν → κ → opt ν = match[λκ.λν.κ → 
 
 let aTrie = Alt[int][()][()] Unit[int]('Some 101) Unit[int]('Some 42)
 
-lookup[alt () ()][int] aTrie ('In2 ())
+lookup[alt () ()][int] aTrie 'In2
