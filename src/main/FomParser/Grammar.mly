@@ -160,7 +160,8 @@ lab_typ:
 
 tick_lab_typ:
   | "'" l=label                                         {(l, Typ.product $loc [])}
-  | "'" l=label t=lab_typ_atom                          {(l, t)}
+  | "'" l=label t=typ_atom_tick                         {(l, t)}
+  | "'" l=label e=between("_(", list_n(typ, ","), ")")  {(l, e Typ.tuple)}
 
 typ_rid:
   | i=Id                                                {Typ.Var.of_string $loc i}
@@ -178,19 +179,23 @@ typ_atom:
   | i=typ_rid                                           {Typ.var i}
   | "(" ts=list_n(typ, ",") ")"                         {Typ.tuple $loc ts}
   | "{" fs=lab_list(lab_typ) "}"                        {Typ.product $loc fs}
-  | f=typ_atom xs=between("_(", list_n(typ, ","), ")")  {`App ($loc, f, xs Typ.tuple)}
+  | f=typ_atom x=between("_(", list_n(typ, ","), ")")   {`App ($loc, f, x Typ.tuple)}
   | "μ" "(" t=typ ")"                                   {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                                   {`Exists ($loc, t)}
   | "∀" "(" t=typ ")"                                   {`ForAll ($loc, t)}
   | "import" p=lit_string                               {`Import ($loc, p)}
 
-lab_typ_atom:
-  | t=typ_atom                                          {t}
+typ_tick:
   | "'" l=label                                         {Typ.atom l}
+  | "'" l=label e=between("_(", list_n(typ, ","), ")")  {Typ.sum $loc [(l, e Typ.tuple)]}
+
+typ_atom_tick:
+  | t=typ_atom                                          {t}
+  | t=typ_tick                                          {t}
 
 typ_app:
   | t=typ_atom                                          {t}
-  | f=typ_app x=lab_typ_atom                            {`App ($loc, f, x)}
+  | f=typ_app x=typ_atom_tick                           {`App ($loc, f, x)}
 
 typ_inf:
   | option("|") s=list_1(tick_lab_typ, "|")             {Typ.sum $loc s}
@@ -259,27 +264,31 @@ exp_atom:
   | s=exp_tstr                                          {s}
   | "(" es=list_n(exp, ",") ")"                         {Exp.tuple $loc es}
   | "{" fs=lab_list(lab_exp) "}"                        {`Product ($loc, fs)}
-  | f=exp_atom xs=between("_(", list_n(exp, ","), ")")  {`App ($loc, f, xs Exp.tuple)}
+  | f=exp_atom x=between("_(", list_n(exp, ","), ")")   {`App ($loc, f, x Exp.tuple)}
   | f=exp_atom "_[" x=typ "]"                           {`Inst ($loc, f, x)}
   | e=exp_atom "." l=label                              {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                        {`Select ($loc, e, i)}
   | "target" "[" t=typ "]" c=lit_string                 {`Const ($loc, `Target (t, c))}
   | "import" p=lit_string                               {`Import ($loc, p)}
 
-lab_exp_atom:
-  | e=exp_atom                                          {e}
+exp_tick:
   | "'" l=label                                         {Exp.atom l}
+  | "'" l=label e=between("_(", list_n(exp, ","), ")")  {`Inject ($loc, l, e Exp.tuple)}
+
+exp_atom_tick:
+  | e=exp_atom                                          {e}
+  | e=exp_tick                                          {e}
 
 exp_app:
   | e=exp_atom                                          {e}
-  | f=exp_app x=lab_exp_atom                            {`App ($loc, f, x)}
+  | f=exp_app x=exp_atom_tick                           {`App ($loc, f, x)}
   | f=exp_app "[" x=typ "]"                             {`Inst ($loc, f, x)}
   | "case" cs=exp_atom                                  {`Case ($loc, cs)}
 
 exp_inf:
-  | "'" l=label                                         {Exp.atom l}
-  | "'" l=label e=lab_exp_atom                          {`Inject ($loc, l, e)}
   | e=exp_app                                           {e}
+  | e=exp_tick                                          {e}
+  | "'" l=label e=exp_atom_tick                         {`Inject ($loc, l, e)}
   | f=uop x=exp_app                                     {`App ($loc, f, x)}
   | f=exp_inf "◁" x=exp_inf                             {`AppR ($loc, f, x)}
   | x=exp_inf "▷" f=exp_inf                             {`AppL ($loc, x, f)}

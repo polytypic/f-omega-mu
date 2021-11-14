@@ -52,7 +52,7 @@ let take_n = Λα.λn: int.λxs: list α.
       else
         xs ▷ case {
           None = λ().ys
-          Some = λ(x: α, xs: list α).take_n ('Some (x, ys)) (n - 1) xs
+          Some = λ(x: α, xs: list α).take_n 'Some(x, ys) (n - 1) xs
         }
   take_n 'None n xs ▷ rev[α]
 
@@ -69,7 +69,7 @@ let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ head[α]
 
 let iota =
   let μiota: list int → int → list int = λxs: list int.λn: int.
-    if 0 < n then let n = n - 1 in iota ('Some (n, xs)) n else xs
+    if 0 < n then let n = n - 1 in iota 'Some(n, xs) n else xs
   iota 'None
 
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,

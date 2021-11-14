@@ -5,11 +5,11 @@ let «eq, Eq» = import "lib/leibniz"
 type μNat = λn.
   | 'Zero  (Zero n)
   | 'Succ ∃(Succ n)
-and μZero = λn.    eq  'Z    n
-and μSucc = λn.λm.(eq ('S m) n, Nat m)
+and μZero = λn.    eq 'Z    n
+and μSucc = λn.λm.(eq 'S(m) n, Nat m)
 
 let Zero = 'Zero Eq.refl['Z]
-let Succ = Λm.λm: Nat m.'Succ «m, (Eq.refl['S m], m)»: ∃(Succ ('S m))
+let Succ = Λm.λm: Nat m.'Succ «m, (Eq.refl['S m], m)»: ∃(Succ 'S(m))
 
 let from = λn: int.
   if n < 0 then

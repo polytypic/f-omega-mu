@@ -114,7 +114,7 @@ let «_, sql» =
   let rev0 = λys: list arg.λ_: list arg.ys
   let rev1 = λrev: rev.λys: list arg.case {
       None = λ().ys
-      Some = λ(arg: arg, args: args).rev ('Some (arg, ys)) args
+      Some = λ(arg: arg, args: args).rev 'Some(arg, ys) args
     }
   «{sql, args, rev}, {
     begin = {sql = "", args = 'None, rev = rev0}

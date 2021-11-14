@@ -25,7 +25,7 @@ let «stream, Stream» =
     let μto_list: list α → s → list α = λys: list α.λxs: s.
       next xs ▷ case {
         Done = λ().List.rev[α] ys
-        Yield = λ(hd: α, tl: s).to_list ('Some (hd, ys)) tl
+        Yield = λ(hd: α, tl: s).to_list 'Some(hd, ys) tl
         Skip = to_list ys
       }
     to_list 'None xs
@@ -53,14 +53,14 @@ let «stream, Stream» =
       'S1 xs1,
       case {
         S1 = λs1: s1.next1 s1 ▷ case {
-          Done = λ().'Skip ('S2 xs2)
+          Done = λ().'Skip 'S2(xs2)
           Yield = λ(hd: α, tl: s1).'Yield (hd, 'S1 tl)
-          Skip = λs1: s1.'Skip ('S1 s1)
+          Skip = λs1: s1.'Skip 'S1(s1)
         }
         S2 = λs2: s2.next2 s2 ▷ case {
           Done = λ().'Done
           Yield = λ(hd: α, tl: s2).'Yield (hd, 'S2 tl)
-          Skip = λs2: s2.'Skip ('S2 s2)
+          Skip = λs2: s2.'Skip 'S2(s2)
         }
       }
     )»: stream α

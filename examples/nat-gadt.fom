@@ -4,7 +4,7 @@ type μNat = λn.∀r.Cases r → r n
 
 and μCases = λr.{
   Zero:            r 'Z
-  Succ: ∀n.Nat n → r ('S n)
+  Succ: ∀n.Nat n → r 'S(n)
 }
 
 let Zero =             Λr.λcs: Cases r.cs.Zero
