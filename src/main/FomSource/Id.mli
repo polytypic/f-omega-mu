@@ -36,6 +36,7 @@ module type S = sig
   val underscore : Loc.t -> t
   val of_string : Loc.t -> string -> t
   val of_name : Loc.t -> Name.t -> t
+  val of_number : Loc.t -> Bigint.t -> t
 
   (* Generated *)
 

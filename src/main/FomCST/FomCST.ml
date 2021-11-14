@@ -14,20 +14,20 @@ module Typ = struct
 
   module Def = struct
     type 't f =
-      [ `TypPar of Loc.t * (Var.t * Kind.t * 't) list
-      | `TypRec of Loc.t * (Var.t * Kind.t * 't) list
+      [ `TypPar of (Var.t * Kind.t * 't) list
+      | `TypRec of (Var.t * Kind.t * 't) list
       | `Include of Loc.t * JsonString.t ]
   end
 
   type 't f =
     [ ('t, Kind.t) Typ.f
-    | `LetDefIn of Loc.t * 't Def.f * 't
+    | `Let of Loc.t * 't Def.f * 't
     | `Import of Loc.t * JsonString.t ]
 
   type t = t f
 
   let at = function
-    | `LetDefIn (at, _, _) | `Import (at, _) -> at
+    | `Let (at, _, _) | `Import (at, _) -> at
     | #Typ.f as ast -> Typ.at ast
 
   module Defs = struct
@@ -87,14 +87,19 @@ module Exp = struct
 
   type 'e tstr_elem = [`Exp of Label.t * 'e | `Str of JsonString.t]
 
+  module Def = struct
+    type 'e f =
+      [ Typ.t Typ.Def.f
+      | `PatPar of (Pat.t * Typ.t option * 'e) list
+      | `PatRec of (Pat.t * 'e) list ]
+  end
+
   type 'e f =
     [ ('e, Typ.t, Kind.t) Exp.f
     | `AppL of Loc.t * 'e * 'e
     | `AppR of Loc.t * 'e * 'e
-    | `LetDefIn of Loc.t * Typ.t Typ.Def.f * 'e
+    | `Let of Loc.t * 'e Def.f * 'e
     | `Import of Loc.t * JsonString.t
-    | `LetPatPar of Loc.t * (Pat.t * Typ.t option * 'e) list * 'e
-    | `LetPatRec of Loc.t * (Pat.t * 'e) list * 'e
     | `LamPat of Loc.t * Pat.t * 'e
     | `Tstr of Loc.t * Var.t * 'e tstr_elem list
     | `Annot of Loc.t * 'e * Typ.t ]
@@ -104,10 +109,8 @@ module Exp = struct
   let at = function
     | `AppL (at, _, _)
     | `AppR (at, _, _)
-    | `LetDefIn (at, _, _)
+    | `Let (at, _, _)
     | `Import (at, _)
-    | `LetPatPar (at, _, _)
-    | `LetPatRec (at, _, _)
     | `LamPat (at, _, _)
     | `Annot (at, _, _) ->
       at

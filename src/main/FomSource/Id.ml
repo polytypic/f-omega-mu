@@ -67,6 +67,7 @@ module type S = sig
   val underscore : Loc.t -> t
   val of_string : Loc.t -> string -> t
   val of_name : Loc.t -> Name.t -> t
+  val of_number : Loc.t -> Bigint.t -> t
 
   (* Generated *)
 
@@ -129,6 +130,7 @@ module Make () : S = struct
     {name; n; at}
 
   let of_string at s = of_name at (Name.of_string s)
+  let of_number at n = of_string at (Bigint.to_string n)
 
   (* Generated *)
 
