@@ -886,6 +886,7 @@ module Exp = struct
 
   let var i = `Var (Var.at i, i)
   let tuple at = function [e] -> e | es -> `Product (at, Tuple.labels at es)
+  let product at fs = `Product (at, fs)
 
   let atom l =
     let at = Label.at l in

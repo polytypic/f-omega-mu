@@ -269,10 +269,12 @@ module Offside = struct
     >> (let ns l tok_ns =
           let* t, _, r = last_tok in
           match t with
-          | (Id _ | BracketRhs | ParenRhs) when l = r -> emit (set tok_ns tok)
+          | (Id _ | BraceRhs | BracketRhs | ParenRhs) when l = r ->
+            emit (set tok_ns tok)
           | _ -> emit tok
         in
         match tok with
+        | BraceLhs, l, _ -> ns l BraceLhsNS
         | BracketLhs, l, _ -> ns l BracketLhsNS
         | ParenLhs, l, _ -> ns l ParenLhsNS
         | _ -> emit tok)

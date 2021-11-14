@@ -97,10 +97,10 @@ incs                                                      // Syntax of .fomd inc
   keywords, and parentheses around binding constructs ( `Λ`, `λ`, `μ`, `∃`, and
   `∀` ) are automatically inserted based on layout.
 
-- An identifier, right bracket `]`, or right paren `)` followed without space by
-  a left bracket `[` or a left paren `(` is treated as a _high precedence
-  instantiation or application_, respectively. For example, `(o.f x).g y` can
-  also be written as `o.f(x).g(y)`.
+- An identifier, right brace `}`, right bracket `]`, or right paren `)` followed
+  without space by a left brace `{`, left bracket `[` or a left paren `(` is
+  treated as a _high precedence instantiation, application, or introduction_.
+  For example, `(o.f x).g y` can also be written as `o.f(x).g(y)`.
 
 - Binary operators are listed above in order from lowest to highest precedence
   and with associativity {`L`, `-`, `R`}.

@@ -32,6 +32,7 @@
 
 %token ArrowRight "→"
 %token BraceLhs "{"
+%token BraceLhsNS "_{"
 %token BraceRhs "}"
 %token BracketLhs "["
 %token BracketLhsNS "_["
@@ -162,6 +163,7 @@ tick_lab_typ:
   | "'" l=label                                         {(l, Typ.product $loc [])}
   | "'" l=label t=typ_atom_tick                         {(l, t)}
   | "'" l=label e=between("_(", list_n(typ, ","), ")")  {(l, e Typ.tuple)}
+  | "'" l=label e=between("_{", lab_list(lab_typ), "}") {(l, e Typ.product)}
 
 typ_rid:
   | i=Id                                                {Typ.Var.of_string $loc i}
@@ -180,6 +182,7 @@ typ_atom:
   | "(" ts=list_n(typ, ",") ")"                         {Typ.tuple $loc ts}
   | "{" fs=lab_list(lab_typ) "}"                        {Typ.product $loc fs}
   | f=typ_atom x=between("_(", list_n(typ, ","), ")")   {`App ($loc, f, x Typ.tuple)}
+  | f=typ_atom x=between("_{", lab_list(lab_typ), "}")  {`App ($loc, f, x Typ.product)}
   | "μ" "(" t=typ ")"                                   {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                                   {`Exists ($loc, t)}
   | "∀" "(" t=typ ")"                                   {`ForAll ($loc, t)}
@@ -188,6 +191,7 @@ typ_atom:
 typ_tick:
   | "'" l=label                                         {Typ.atom l}
   | "'" l=label e=between("_(", list_n(typ, ","), ")")  {Typ.sum $loc [(l, e Typ.tuple)]}
+  | "'" l=label e=between("_{", lab_list(lab_typ), "}") {Typ.sum $loc [(l, e Typ.product)]}
 
 typ_atom_tick:
   | t=typ_atom                                          {t}
@@ -265,6 +269,7 @@ exp_atom:
   | "(" es=list_n(exp, ",") ")"                         {Exp.tuple $loc es}
   | "{" fs=lab_list(lab_exp) "}"                        {`Product ($loc, fs)}
   | f=exp_atom x=between("_(", list_n(exp, ","), ")")   {`App ($loc, f, x Exp.tuple)}
+  | f=exp_atom x=between("_{", lab_list(lab_exp), "}")  {`App ($loc, f, x Exp.product)}
   | f=exp_atom "_[" x=typ "]"                           {`Inst ($loc, f, x)}
   | e=exp_atom "." l=label                              {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                        {`Select ($loc, e, i)}
@@ -274,6 +279,7 @@ exp_atom:
 exp_tick:
   | "'" l=label                                         {Exp.atom l}
   | "'" l=label e=between("_(", list_n(exp, ","), ")")  {`Inject ($loc, l, e Exp.tuple)}
+  | "'" l=label e=between("_{", lab_list(lab_exp), "}") {`Inject ($loc, l, e Exp.product)}
 
 exp_atom_tick:
   | e=exp_atom                                          {e}

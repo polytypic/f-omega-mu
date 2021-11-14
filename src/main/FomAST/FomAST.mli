@@ -368,6 +368,7 @@ module Exp : sig
 
   val var : Var.t -> [> `Var of Loc.t * Var.t]
   val tuple : Loc.t -> ([> `Product of Loc.t * 'e Row.t] as 'e) list -> 'e
+  val product : Loc.t -> 'e Row.t -> [> `Product of Loc.t * 'e Row.t]
 
   val atom :
     Label.t -> [> `Inject of Loc.t * Label.t * [> `Product of Loc.t * 't Row.t]]

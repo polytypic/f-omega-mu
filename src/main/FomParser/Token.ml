@@ -5,6 +5,7 @@ let[@warning "-32"] to_string = function
   | And -> "and"
   | ArrowRight -> "→"
   | BraceLhs -> "{"
+  | BraceLhsNS -> "{"
   | BraceRhs -> "}"
   | BracketLhs -> "["
   | BracketLhsNS -> "["
