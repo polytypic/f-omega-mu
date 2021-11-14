@@ -266,20 +266,16 @@ module Offside = struct
     | If | LambdaLower | LambdaUpper | DoubleAngleQuoteLhs ->
       emit (set ParenLhs tok)
     | _ -> unit)
-    >> (match tok with
-       | BracketLhs, l, _ -> (
-         let* t, _, r = last_tok in
-         match t with
-         | (Id _ | BracketRhs | ParenRhs) when l = r ->
-           emit (set BracketLhsNS tok)
-         | _ -> emit tok)
-       | ParenLhs, l, _ -> (
-         let* t, _, r = last_tok in
-         match t with
-         | (Id _ | BracketRhs | ParenRhs) when l = r ->
-           emit (set ParenLhsNS tok)
-         | _ -> emit tok)
-       | _ -> emit tok)
+    >> (let ns l tok_ns =
+          let* t, _, r = last_tok in
+          match t with
+          | (Id _ | BracketRhs | ParenRhs) when l = r -> emit (set tok_ns tok)
+          | _ -> emit tok
+        in
+        match tok with
+        | BracketLhs, l, _ -> ns l BracketLhsNS
+        | ParenLhs, l, _ -> ns l ParenLhsNS
+        | _ -> emit tok)
     >> (match tok_of tok with
        | BraceLhs -> with_indent (inside_braces false)
        | ParenLhs -> get >>= nest_until ParenRhs
