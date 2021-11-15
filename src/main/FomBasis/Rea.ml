@@ -2,8 +2,6 @@ open Higher.Syntax
 open Fun.Syntax
 open Monad.Syntax
 
-type ('e, 'a) cod = [('e, 'a) Res.t | `Async of (('e, 'a) Res.t -> unit) -> unit]
-
 type (-'r, +'e, +'a) t =
   | Fail : 'e -> ('r, 'e, 'a) t
   | Return : 'a -> ('r, 'e, 'a) t

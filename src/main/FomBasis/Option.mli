@@ -1,4 +1,3 @@
-open Misc.Syntax
 include module type of Stdlib.Option
 
 val iter_fr :

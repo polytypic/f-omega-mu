@@ -1,7 +1,6 @@
 open FomBasis
 open FomSource
 open FomAnnot
-open FomAST
 open FomError
 open FomChecker
 

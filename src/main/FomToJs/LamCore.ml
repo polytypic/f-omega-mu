@@ -5,10 +5,6 @@ open FomAST
 
 (* *)
 
-open Cats
-
-(* *)
-
 module Var = Exp.Var
 module VarSet = Set.Make (Var)
 

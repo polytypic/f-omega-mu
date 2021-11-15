@@ -53,6 +53,9 @@ val iter3_fr :
 val for_all_fr :
   ('a -> ('f, 'F, bool) Monad.fr) -> 'a t -> ('f, 'F, bool) Monad.fr
 
+val exists_fr :
+  ('a -> ('f, 'F, bool) Monad.fr) -> 'a t -> ('f, 'F, bool) Monad.fr
+
 (* *)
 
 val find_opt_fr :

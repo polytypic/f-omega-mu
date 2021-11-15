@@ -1,6 +1,3 @@
-open Higher.Syntax
-open Applicative.Syntax
-
 type ('c, 'a) t
 
 external from : 'c -> ('c, 'a) t = "%identity"
@@ -25,11 +22,6 @@ let inj'1 xy x = inj'0 @@ xy x
 
 let ( let+ ) _ xF = from @@ eval xF
 let pair combine xF yF = from (combine (eval xF) (eval yF))
-
-let methods =
-  object
-    method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
-  end
 
 let of_monoid m =
   let identity = m#identity and combine = m#combine in

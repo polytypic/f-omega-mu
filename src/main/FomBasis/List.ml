@@ -75,8 +75,6 @@ let rec iter_fr xy = function
   | x :: xs -> xy x >>= fun () -> iter_fr xy xs
   | [] -> unit
 
-let iter_fr_ = iter_fr
-
 let rec iter2_fr xyuF xs ys =
   match (xs, ys) with
   | x :: xs, y :: ys -> xyuF x y >>= fun () -> iter2_fr xyuF xs ys

@@ -105,12 +105,11 @@ let rec called_at_tail n f' e =
   match unapp e with
   | `Var i, xs -> Var.equal i f' && List.length xs = n
   | `App _, _ -> failwith "called_at_tail"
-  | `IfElse (c, t, e), [] -> called_at_tail n f' t || called_at_tail n f' e
+  | `IfElse (_, t, e), [] -> called_at_tail n f' t || called_at_tail n f' e
   | `Lam (i, e), [_] -> (not (Var.equal i f')) && called_at_tail n f' e
   | `Case (`Product fs), [_] ->
     let v = `Var (Var.fresh Loc.dummy) in
     fs |> List.exists (fun (_, f) -> called_at_tail n f' (`App (f, v)))
-  | `Mu e, [] -> false
   | _ -> false
 
 let rec always_selected i' = function

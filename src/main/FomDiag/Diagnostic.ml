@@ -116,7 +116,7 @@ let of_error = function
         ^^ nested (Typ.pp typ) ),
       [(at, text "Product lacks label")] )
   | `Error_label_missing (at, label, l_typ, m_typ) ->
-    let+ l_typ = Typ.contract l_typ and+ r_typ = Typ.contract m_typ in
+    let+ l_typ = Typ.contract l_typ and+ m_typ = Typ.contract m_typ in
     ( ( at,
         text "Label"
         ^^ nested (Label.pp label)

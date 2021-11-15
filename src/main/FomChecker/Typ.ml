@@ -1,5 +1,4 @@
 open FomSource
-open FomAnnot
 open FomBasis
 
 (* *)
@@ -212,19 +211,22 @@ end
 
 (* *)
 
-let rec union op os (ls, rs) =
+let union op (ls, rs) =
   Row.union_fr (const return) (const return) (const op) ls rs
 
-let rec intersection op os = function
-  | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
-    let c = Label.compare ll rl in
-    if c < 0 then
-      intersection op os (lls, rlls)
-    else if 0 < c then
-      intersection op os (llls, rls)
-    else
-      op lt rt >>= fun t -> intersection op ((ll, t) :: os) (lls, rls)
-  | [], _ | _, [] -> return @@ List.rev os
+let intersection op =
+  let rec loop os = function
+    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
+      let c = Label.compare ll rl in
+      if c < 0 then
+        loop os (lls, rlls)
+      else if 0 < c then
+        loop os (llls, rls)
+      else
+        op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
+    | [], _ | _, [] -> return @@ List.rev os
+  in
+  loop []
 
 let rec mu_of_norm at = function
   | `Lam (_, i, _, t) when not (is_free i t) -> return t
@@ -322,9 +324,9 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
       lower ld rd <*> upper lc rc >>- fun (d, c) -> `Arrow (at', d, c)
     | `Product (_, lls), `Product (_, rls) ->
-      product upper [] (lls, rls) >>- fun ls -> `Product (at', ls)
+      product upper (lls, rls) >>- fun ls -> `Product (at', ls)
     | `Sum (_, lls), `Sum (_, rls) ->
-      sum upper [] (lls, rls) >>- fun ls -> `Sum (at', ls)
+      sum upper (lls, rls) >>- fun ls -> `Sum (at', ls)
     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
       let* i, lt, rt =
         if Var.equal li ri then
@@ -342,8 +344,8 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
           and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
           (i, lt, rt)
       in
-      upper lt rt |> VarMap.adding i @@ `Kind lk >>- fun t ->
-      `Lam (at', i, lk, t)
+      Kind.unify at' lk rk >> upper lt rt |> VarMap.adding i @@ `Kind lk
+      >>- fun t -> `Lam (at', i, lk, t)
     | `ForAll (_, lt), `ForAll (_, rt) ->
       upper lt rt >>- fun t -> `ForAll (at', t)
     | `Exists (_, lt), `Exists (_, rt) ->

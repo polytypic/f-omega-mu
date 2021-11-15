@@ -1,5 +1,4 @@
 open Higher.Syntax
-open Monad.Syntax
 
 type 'a t = 'a
 
