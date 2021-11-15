@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -eo pipefail
+
+find src \( -name '*.ml' -o -name '*.mli' \) -print0 \
+  | xargs -0 ocamlformat --inplace
