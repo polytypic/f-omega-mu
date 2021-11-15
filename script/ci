@@ -49,21 +49,27 @@ run_error_examples() {
 }
 
 build_and_test() {
-  folded "Build in $PROFILE" \
-    opam exec -- dune build --root=. --profile "$PROFILE"
+  OPTS=(--root=.)
 
-  folded "Test in $PROFILE" \
-    opam exec -- dune test --root=. --profile "$PROFILE"
+  if [ -n "$PROFILE" ]; then
+     OPTS+=(--profile "$PROFILE")
+  fi
 
-  folded "Run examples in $PROFILE" \
+  folded "Building" \
+    opam exec -- dune build "${OPTS[@]}"
+
+  folded "Testing" \
+    opam exec -- dune test "${OPTS[@]}"
+
+  folded "Running examples" \
     $FOM_COMMAND examples/*.fom
 
-  folded "Run error examples in $PROFILE" \
+  folded "Running error examples" \
     run_error_examples
 }
 
 if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
-  PROFILE=debug build_and_test
+  PROFILE='' build_and_test
   folded "Cleaning" \
     opam exec -- dune clean
 fi
