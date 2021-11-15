@@ -37,9 +37,10 @@ let () =
   >>- (fun () ->
         if !n_failures = 0 then
           Printf.printf "Ran %d tests.  No failures.\n" !n_tests
-        else
+        else (
           Printf.printf "Ran %d tests:\n- %d successes, and\n- %d failures.\n"
-            !n_tests !n_successes !n_failures)
+            !n_tests !n_successes !n_failures;
+          exit 1))
   |> start ()
 
 let test name effect =
