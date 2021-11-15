@@ -52,12 +52,14 @@ let erase_and_simplify_all paths =
      in
      (id, path, erased)
 
+let use_strict js = str "'use strict';\n\n" ^ js
+
 let whole_program_to_js ast paths =
   paths |> topological_deps >>= erase_and_simplify_all
   >>- List.fold_left
         (fun prg (id, _, erased) -> `App (`Lam (id, prg), erased))
         (FomToJs.erase ast)
-  >>= FomToJs.simplify >>= FomToJs.to_js >>- to_string
+  >>= FomToJs.simplify >>= FomToJs.to_js >>- use_strict >>- to_string
 
 let mods_in_js : (string, (Zero.t, Cats.t) LVar.t) Hashtbl.t =
   Hashtbl.create 100
@@ -82,4 +84,4 @@ let modules_to_js ast paths =
   let+ prg = ast |> FomToJs.erase |> FomToJs.simplify >>= FomToJs.to_js in
   modules
   |> List.fold_left (fun prg js -> js ^ str "\n\n" ^ prg) (str "// main\n" ^ prg)
-  |> to_string
+  |> use_strict |> to_string
