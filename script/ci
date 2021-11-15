@@ -31,11 +31,11 @@ fi
 
 if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
   folded "Installing dependencies" \
-    script/install-deps.sh
+    script/install-deps
 fi
 
 folded "Build docs" \
-  script/docs.sh
+  script/docs
 
 FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
 

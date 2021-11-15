@@ -18,6 +18,6 @@ tmux select-pane -t 1
 tmux send-keys "npx serve docs" C-m
 
 tmux select-pane -t 2
-tmux send-keys "script/watch-test.sh" C-m
+tmux send-keys "script/watch-test" C-m
 
 tmux attach-session -t $SESSION

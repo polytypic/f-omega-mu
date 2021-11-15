@@ -10,11 +10,11 @@ cd f-omega-mu
 
 git checkout -b gh-pages
 
-script/ci.sh
+script/ci
 
 rm docs/.gitignore
 
-script/docs.sh
+script/docs
 
 git add docs
 git commit -m 'Built GitHub pages'

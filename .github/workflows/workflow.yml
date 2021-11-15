@@ -25,4 +25,4 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
 
-      - run: ./script/ci.sh
+      - run: ./script/ci
