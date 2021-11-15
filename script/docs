@@ -28,5 +28,6 @@ build-examples() {
   echo "]" >> $OUTPUT
 }
 
-build-sandbox
-build-examples
+build-sandbox &
+build-examples &
+wait
