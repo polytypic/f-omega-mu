@@ -40,9 +40,9 @@ let fetch at filename =
           Cohttp_lwt.Body.to_string body
         else
           Lwt.fail @@ HttpError (code, `GET, uri))
-    |> try_in return @@ function
-       | HttpError (404, _, _) -> fail @@ `Error_file_doesnt_exist (at, filename)
-       | exn -> fail @@ `Error_io (at, exn)
+    |> map_error @@ function
+       | HttpError (404, _, _) -> `Error_file_doesnt_exist (at, filename)
+       | exn -> `Error_io (at, exn)
   else
     of_lwt (fun () ->
         let open Lwt.Syntax in
@@ -50,10 +50,10 @@ let fetch at filename =
         Lwt.finalize
           (fun () -> Lwt_io.read channel)
           (fun () -> Lwt_io.close channel))
-    |> try_in return @@ function
+    |> map_error @@ function
        | Unix.Unix_error (Unix.ENOENT, _, _) ->
-         fail @@ `Error_file_doesnt_exist (at, filename)
-       | exn -> error_io at exn
+         `Error_file_doesnt_exist (at, filename)
+       | exn -> `Error_io (at, exn)
 
 (* *)
 
