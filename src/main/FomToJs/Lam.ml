@@ -22,13 +22,13 @@ module VarMap = struct
 end
 
 module Limit = struct
-  type t = int option
+  type t = int
 
   let field r = r#limit
 
   class con =
     object
-      val limit : t = None
+      val limit : t = 0
       method limit = Field.make limit (fun v -> {<limit = v>})
     end
 end

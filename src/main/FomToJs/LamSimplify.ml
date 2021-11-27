@@ -195,10 +195,11 @@ let rec simplify e =
   if Seen.mem e seen then
     fail `Seen
   else
-    get Limit.field
-    >>= Option.iter_fr (fun limit ->
-            if limit < size e then fail `Limit else unit)
-    >> Seen.adding e (simplify_base e >>- keep_phys_eq' e)
+    let* limit = get Limit.field in
+    if limit < size e then
+      fail `Limit
+    else
+      Seen.adding e (simplify_base e >>- keep_phys_eq' e)
 
 and simplify_base = function
   | `Const (`Target (_, l)) when Js.is_identity l ->
@@ -267,13 +268,7 @@ and simplify_base = function
     | `Lam (i, e), x -> (
       let* defaulted = default () in
       let apply () =
-        let* limit = get Limit.field in
-        let e = subst i x e in
-        match limit with
-        | None ->
-          let new_limit = max (size e * 2) (size defaulted * 2) in
-          setting Limit.field (Some new_limit) (simplify e)
-        | Some _ -> simplify e
+        simplify (subst i x e) |> mapping Limit.field (fun v -> v / 16 * 15)
       in
       let* may_subst =
         is_total x
@@ -409,8 +404,15 @@ and simplify_base = function
 let once e = simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
 
 let rec to_fixed_point e =
-  let* e' = once e in
-  if e == e' then
-    return e'
+  let* limit = get Limit.field in
+  if limit < size e then
+    return e
   else
-    to_fixed_point e'
+    let* e' = once e in
+    if e == e' then
+      return e'
+    else
+      to_fixed_point e' |> mapping Limit.field (fun v -> v / 16 * 15)
+
+let to_fixed_point e = to_fixed_point e |> setting Limit.field (size e * 8)
+let once e = once e |> setting Limit.field (size e * 4)

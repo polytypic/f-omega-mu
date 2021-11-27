@@ -44,4 +44,13 @@ let () =
       λn:int.if n ≤ 0 then 1 else n*fact(n-1)
     fact 5
     |eof};
+  testCompiles "inf non-terminating fix"
+    {eof|
+    let Z = Λa.Λb.λf:(a → b) → a → b.
+      let z = λx:μt.t → a → b.f (x x)
+      z z
+    let fact = Z[int][int] λfact:int → int.
+      λn:int.if n =[int] 0 then 1 else n*fact(n-1)
+    fact (-5)
+    |eof};
   ()
