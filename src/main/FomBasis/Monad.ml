@@ -21,13 +21,8 @@ module Syntax = struct
 
   (* *)
 
-  let ( &&& ) lhs rhs =
-    let* lhs = lhs in
-    if lhs then rhs else return false
-
-  let ( ||| ) lhs rhs =
-    let* lhs = lhs in
-    if lhs then return true else rhs
+  let ( &&& ) lhs rhs = lhs >>= fun lhs -> if lhs then rhs else return false
+  let ( ||| ) lhs rhs = lhs >>= fun lhs -> if lhs then return true else rhs
 
   (* *)
 
