@@ -264,7 +264,6 @@ and simplify_base = function
           (j, f)
       in
       simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
-    | `Lam (i, `Var i'), x when Var.equal i i' -> return x
     | `Lam (i, e), x -> (
       let* defaulted = default () in
       let apply () =
