@@ -611,8 +611,14 @@ fomCM.on(
         importScripts('FomSandbox.js')
         FomSandbox(self)
       },
-      () => fomCM.getValue(),
-      (exp, onResult) => onResult(fom.identifiers(exp)),
+      () => ({
+        current: getTokenEndingAt(fomCM, fomCM.getCursor()),
+        text: fomCM.getValue(),
+      }),
+      ({current, text}, onResult) => {
+        const ids = fom.identifiers(text)
+        onResult(current ? ids.filter(id => id !== current.string) : ids)
+      },
       ids => (identifiers = ids)
     )
   )
