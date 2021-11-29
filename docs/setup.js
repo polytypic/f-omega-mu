@@ -439,7 +439,7 @@ const run = onWorker(
         )
       },
       onResult,
-      error => onResult(error.toString())
+      error => onResult(`${error}`)
     ),
   result => {
     if (typeof result !== 'string') result = ''

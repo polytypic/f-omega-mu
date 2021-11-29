@@ -16,12 +16,13 @@ const timed = (message, thunk) => {
 
 class ErrorWithContext extends Error {
   constructor(error, context) {
-    super(`${error.message} (${context})`)
+    super(`${error instanceof Error ? error.message : error} (${context})`)
     this.error = error
   }
 
   get name() {
-    return this.error.name
+    const error = this.error
+    return error instanceof Error ? error.name : ''
   }
 }
 
