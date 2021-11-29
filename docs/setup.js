@@ -227,13 +227,20 @@ const maybeComplete = (options = {}) => {
     hint(cm, options) {
       const cursor = cm.getCursor()
       const {line} = cursor
-      const {string: t, start, end} = getTokenEndingAt(fomCM, cursor)
+      const {string: pat, start, end} = getTokenEndingAt(fomCM, cursor)
 
       const list = [...identifiers, ...Object.keys(alternatives)]
-        .filter(id => id !== t && id.indexOf(t) !== -1)
-        .sort((l, r) =>
-          Cmp.seq(l.indexOf(t) - r.indexOf(t), () => l.localeCompare(r))
+        .map(txt => [
+          fom.distances(pat, txt, pat.toUpperCase(), txt.toUpperCase()),
+          txt,
+        ])
+        .sort(([ds_l, txt_l], [ds_r, txt_r]) =>
+          Cmp.seq(fom.distancesCompare(ds_l, ds_r), () =>
+            txt_l.localeCompare(txt_r)
+          )
         )
+        .slice(0, 10)
+        .map(([_, txt]) => txt)
       return {list, from: {line, ch: start}, to: {line, ch: end}}
     },
   })

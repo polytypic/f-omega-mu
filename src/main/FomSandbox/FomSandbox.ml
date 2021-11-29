@@ -345,6 +345,15 @@ let js_codemirror_mode =
       with _ -> js_token 0 0 "error" state
 
     val initial = Tokenizer.State.initial
+
+    method distancesCompare l r =
+      Uchar.compare_distances (Js.to_array l) (Js.to_array r)
+
+    method distances pat txt pat_uc txt_uc =
+      let to_array = Js.to_string >>> UTF.UTF8.to_uchar_array in
+      Uchar.distances ~pat:(to_array pat) ~txt:(to_array txt)
+        ~pat_uc:(to_array pat_uc) ~txt_uc:(to_array txt_uc)
+      |> Js.array
   end
 
 let () = Js.Unsafe.global##.fom := js_codemirror_mode

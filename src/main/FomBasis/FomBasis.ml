@@ -21,6 +21,7 @@ module Rea = Rea
 module Res = Res
 module String = String
 module UTF = UTF
+module Uchar = Uchar
 module Zero = Zero
 
 (* *)

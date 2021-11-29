@@ -27,3 +27,24 @@ let () =
   let xs = [3; 1; 4; 1] in
   let* ys = xs |> List.map_fr (( + ) 1 >>> return) in
   verify (List.map (( + ) 1) xs = ys)
+
+let () =
+  test "Uchar.edit_distance_search" @@ fun () ->
+  let actual =
+    Uchar.distances
+      ~pat:(UTF.UTF8.to_uchar_array "annuAl")
+      ~txt:(UTF.UTF8.to_uchar_array "annealing")
+      ~pat_uc:(UTF.UTF8.to_uchar_array "annual")
+      ~txt_uc:(UTF.UTF8.to_uchar_array "annealing")
+  in
+  let expected = [|3; 5; 12; 11; 8; 6; 6; 5; 3; 5; 7; 9|] in
+  if
+    Array.length actual <> Array.length expected
+    || Array.exists2 ( <> ) actual expected
+  then
+    failuref "Expected: %s\nActual:  %s\n"
+      (expected |> Array.map Int.to_string |> Array.to_list
+     |> String.concat ", ")
+      (actual |> Array.map Int.to_string |> Array.to_list |> String.concat ", ")
+  else
+    unit
