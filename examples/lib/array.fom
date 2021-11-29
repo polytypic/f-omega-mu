@@ -20,7 +20,8 @@ let sub = Λα.λxs: array α.λi: int.
   target[array α → int → impure α]
     "a => i => {
     \  if (i < 0 || a.length <= i)
-    \    throw `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`
+    \    throw new Error(
+    \      `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`)
     \  return a[i]
     \}"
     xs i
@@ -30,7 +31,8 @@ let update = Λα.λxs: array α.λi: int.λx: α.
   target[array α → int → α → impure ()]
     "a => i => v => {
     \  if (i < 0 || a.length <= i)
-    \    throw `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`
+    \    throw new Error(
+    \      `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`)
     \  a[i] = v
     \}"
     xs i x
