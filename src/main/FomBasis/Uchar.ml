@@ -1,8 +1,7 @@
 include Stdlib.Uchar
 open Compare.Syntax
 
-let distances ~(pat : t array) ~(txt : t array) ~(pat_uc : t array)
-    ~(txt_uc : t array) =
+let distances ~pat ~txt ~pat_uc ~txt_uc =
   let pat_n = Array.length pat and txt_n = Array.length txt in
   let cost = Array.init pat_n (fun i -> (i + 1) * 2) in
   let ds = Array.make (txt_n + 3) (2 * pat_n) in
@@ -30,7 +29,7 @@ let distances ~(pat : t array) ~(txt : t array) ~(pat_uc : t array)
   done;
   ds
 
-let compare_distances (ls : int array) (rs : int array) =
+let compare_distances ls rs =
   Int.compare ls.(0) rs.(0) <>? fun () ->
   Int.compare ls.(1) rs.(1) <>? fun () ->
   let ls_n = Array.length ls and rs_n = Array.length rs in
