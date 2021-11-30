@@ -2,6 +2,7 @@ module Applicative = Applicative
 module Cats = Cats
 module Compare = Compare
 module Constant = Constant
+module EditDistance = EditDistance
 module Exn = Exn
 module Field = Field
 module Filename = Filename
@@ -21,7 +22,6 @@ module Rea = Rea
 module Res = Res
 module String = String
 module UTF = UTF
-module Uchar = Uchar
 module Zero = Zero
 
 (* *)

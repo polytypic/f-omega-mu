@@ -29,9 +29,9 @@ let () =
   verify (List.map (( + ) 1) xs = ys)
 
 let () =
-  test "Uchar.edit_distance_search" @@ fun () ->
+  test "EditDistance" @@ fun () ->
   let actual =
-    Uchar.distances
+    EditDistance.distances
       ~pat:(UTF.UTF8.to_uchar_array "annuAl")
       ~txt:(UTF.UTF8.to_uchar_array "annealing")
       ~pat_uc:(UTF.UTF8.to_uchar_array "annual")

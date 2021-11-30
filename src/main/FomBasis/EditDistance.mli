@@ -1,7 +1,7 @@
-include module type of Stdlib.Uchar
+type t = int array
 
 val distances :
-  pat:t array -> txt:t array -> pat_uc:t array -> txt_uc:t array -> int array
+  pat:'c array -> txt:'c array -> pat_uc:'c array -> txt_uc:'c array -> t
 (** Computes a special array of distances between pattern `pat` and text `txt`.
  * `pat_uc` must be `pat` and `txt_uc` must be `txt` in uniform case.
  * At index 0 is the minimum distance over the whole text.
@@ -10,12 +10,12 @@ val distances :
  * Starting at index 3 are distances between pattern and text.
  *)
 
-val compare_distances : int array -> int array -> int
+val compare : t -> t -> int
 (** Compare distances computed by `distances`.  This is almost a lexicographic
  * comparison except that the shorter array is extended to match the longer
  * array as if the corresponding text would have continued with non-matching
  * characters.
  *)
 
-val are_unrelated : int array -> bool
+val are_unrelated : t -> bool
 (** Determine whether distances seem to indicate pattern doesn't match text. *)

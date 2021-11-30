@@ -1,5 +1,6 @@
-include Stdlib.Uchar
 open Compare.Syntax
+
+type t = int array
 
 let distances ~pat ~txt ~pat_uc ~txt_uc =
   let pat_n = Array.length pat and txt_n = Array.length txt in
@@ -29,7 +30,7 @@ let distances ~pat ~txt ~pat_uc ~txt_uc =
   done;
   ds
 
-let compare_distances ls rs =
+let compare ls rs =
   Int.compare ls.(0) rs.(0) <>? fun () ->
   Int.compare ls.(1) rs.(1) <>? fun () ->
   let ls_n = Array.length ls and rs_n = Array.length rs in
