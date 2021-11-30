@@ -161,33 +161,27 @@ let synonyms =
 
 module StringSet = Set.Make (String)
 
-let initial =
-  StringSet.of_list
-    [
-      "and";
-      "bool";
-      "case";
-      "else";
-      "exists";
-      "false";
-      "forall";
-      "fun";
-      "gen";
-      "if";
-      "import";
-      "impure";
-      "in";
-      "include";
-      "int";
-      "let";
-      "local";
-      "rec";
-      "string";
-      "target";
-      "then";
-      "true";
-      "type";
-    ]
+let keywords =
+  [
+    "case";
+    "else";
+    "exists";
+    "forall";
+    "fun";
+    "gen";
+    "if";
+    "import";
+    "in";
+    "include";
+    "let";
+    "local";
+    "rec";
+    "target";
+    "then";
+    "type";
+  ]
+
+let pervasives = ["and"; "bool"; "false"; "impure"; "int"; "string"; "true"]
 
 let identifiers input =
   let buffer = Buffer.from_utf_8 input in
@@ -197,4 +191,4 @@ let identifiers input =
     | `Ok (Id id, _, _ | IdTyp id, _, _) -> loop (StringSet.add id ids)
     | `Ok _ -> loop ids
   in
-  loop initial
+  loop StringSet.empty

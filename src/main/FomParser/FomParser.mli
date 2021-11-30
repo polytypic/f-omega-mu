@@ -43,6 +43,12 @@ module Tokenizer : sig
   val synonyms : < unicode : string ; ascii : string ; bop : bool > list
   (** List of unicode symbols and their ascii alternatives. *)
 
+  val keywords : string list
+  (** List of keywords. *)
+
+  val pervasives : string list
+  (** List of identifiers implicitly available in every module. *)
+
   val identifiers : string -> string Seq.t
   (** Parse a list of all identifiers in the given string. *)
 end

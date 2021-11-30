@@ -229,7 +229,17 @@ const maybeComplete = (options = {}) => {
       const {line} = cursor
       const {string: pat, start, end} = getTokenEndingAt(fomCM, cursor)
 
-      const list = [...identifiers, ...Object.keys(alternatives)]
+      const uniqueIds = new Set([
+        ...identifiers.filter(s => s.length > 1),
+        ...fom.keywords,
+        ...fom.pervasives,
+        ...Object.keys(alternatives),
+        ...currentDeps.flatMap(entry =>
+          entry.identifiers.filter(s => s.length > 1)
+        ),
+      ])
+
+      const list = Array.from(uniqueIds)
         .map(txt => [
           fom.distances(pat, txt, pat.toUpperCase(), txt.toUpperCase()),
           txt,
@@ -415,12 +425,18 @@ const updateDeps = () => {
 
         depCM.on('cursorActivity', updateDefUses)
 
+        const entry = {file: dep, cm: depCM, identifiers: []}
+
         const xhr = new XMLHttpRequest()
-        xhr.onload = () => depCM.setValue(xhr.responseText.trim())
+        xhr.onload = () => {
+          const text = xhr.responseText.trim()
+          entry.identifiers = fom.identifiers(text)
+          depCM.setValue(text)
+        }
         xhr.open('GET', dep)
         xhr.send()
 
-        currentDeps.push({file: dep, cm: depCM})
+        currentDeps.push(entry)
       }
     }
   }
@@ -565,7 +581,7 @@ const build = throttled(
         prepareDefUses()
         updateDefUses(fomCM)
 
-        updateDeps()
+        if (!result.diagnostics.length) updateDeps()
       }
     }
   )

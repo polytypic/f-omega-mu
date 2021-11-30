@@ -336,6 +336,12 @@ let js_codemirror_mode =
       Js.to_string >>> Tokenizer.identifiers >>> Seq.map Js.string
       >>> Array.of_seq >>> Js.array
 
+    val pervasives =
+      Tokenizer.pervasives |> Array.of_list |> Array.map Js.string |> Js.array
+
+    val keywords =
+      Tokenizer.keywords |> Array.of_list |> Array.map Js.string |> Js.array
+
     method token input state =
       try
         let {Tokenizer.begins; ends; name; state} =
