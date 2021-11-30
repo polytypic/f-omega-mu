@@ -398,7 +398,10 @@ and simplify_base = function
         default ()
     | _ -> default ())
   | `Case cs -> simplify cs >>- fun cs -> `Case cs
-  | `Inject (l, e) -> simplify e >>- fun e -> `Inject (l, e)
+  | `Inject (l, e) -> (
+    simplify e >>- function
+    | `App (`Lam (i, b), v) -> `App (`Lam (i, `Inject (l, b)), v)
+    | e -> `Inject (l, e))
 
 let once e = simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
 
