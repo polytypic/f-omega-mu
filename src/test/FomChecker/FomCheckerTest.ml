@@ -101,7 +101,7 @@ let testInfersAs name typ exp =
 
 let () =
   testInfersAs "fact" "int"
-    {eof|
+    {|
     let fact =
       rec fact: int -> int =>
         fun n: int =>
@@ -109,9 +109,9 @@ let () =
           then 1
           else n * fact (n - 1)
     fact 5
-    |eof};
+    |};
   testInfersAs "list encoding" "int"
-    {eof|
+    {|
     type list = λt.μlist.∀r.{nil: r, cons: t → list → r} → r
     let nil = Λt.Λr.λc:{nil: r, cons: t → list t → r}.c.nil
     let cons = Λt.λhd:t.λtl:list t.Λr.λc:{nil: r, cons: t → list t → r}.c.cons hd tl
@@ -119,28 +119,28 @@ let () =
       xs[r] {nil = z, cons = λx:t.λxs:list t.fold fn (fn x z) xs}
     let pi_digits = cons[int] 3 (cons[int] 1 (cons[int] 4 (cons[int] 1 (nil[int]))))
     fold[int][int] (λx:int.λs:int.x + s) 0 pi_digits
-    |eof};
+    |};
   testInfersAs "generic fold"
-    {eof|∀f.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|eof}
-    {eof|
+    {|∀f.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|}
+    {|
     type Functor = λf.∀a.∀b.(a → b) → (f a → f b)
     Λf.λfmap: Functor f.
       Λa.λalgebra: f a → a.
         μdoFold: μ(f) → a.
           λv: μ(f).
             algebra (fmap[μ(f)][a] doFold v)
-    |eof};
+    |};
   testInfersAs "existential silly" "∃t.{an: t, do: t → t}"
-    {eof|
+    {|
     type doan = ∃t.{do: t → t, an: t}
     let x = «int, {do = λx:int.x+1, an = 1}»: doan
     let «t, r» = x
     «t, {do = r.do, an = r.do r.an}»: doan
-    |eof};
+    |};
   testInfersAs "hungry function" "(μt.int → t) → μt.int → t"
     "λf:μt.int → t.f 1 2 3";
   testInfersAs "stack ADT" "μlist.'nil | 'cons {hd: int, tl: list}"
-    {eof|
+    {|
     type option = λv.'none | 'some v
     type list = λv.μlist.'nil | 'cons {hd: v, tl: list}
     type Stack = ∃t.{
@@ -167,12 +167,12 @@ let () =
           'cons {hd = r.value, tl = to_list r.stack} : list v
       }
     to_list[int] a_stack
-    |eof};
+    |};
   testInfersAs "target" "string"
     "type str = string in target[str] \"'a string'\"";
   testInfersAs "type in const" "bool" "type t = int in 1 =[t] 2 || 3 !=[t] 4";
   testInfersAs "mutual rec" "()"
-    {eof|
+    {|
     type opt = λt.'none | 'some t
     type μstream = λt.() → opt (t, stream t)
     let μeven: int → stream int =
@@ -180,13 +180,13 @@ let () =
     and μodd: int → stream int =
       λx:int.λ().'some (x, even (x+1))
     in ()
-    |eof};
+    |};
   testInfersAs "unions" "{x: int, y: int} → 'x int | 'y int"
     "if true then λ{x:int}.'x x else λ{y:int}.'y y";
   testInfersAs "intersections" "(|) → {}"
     "if true then λx:'x int.{x} else λy:'y int.{y}";
   testInfersAs "trie" "()"
-    {eof|
+    {|
     type opt = λα.'none | 'some α
     type alt = λα.λβ.'In1 α | 'In2 β
     type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
@@ -212,22 +212,22 @@ let () =
         }
     }
     ()
-    |eof};
+    |};
   testInfersAs "fix via μ type" "int"
-    {eof|
+    {|
     type t = λa.λb.μt.t → a → b
     let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) λx:t a b.λn:a.f (x x) n
     let fact = λfact:int → int.λn:int.if n =[int] 0 then 1 else n*fact (n-1)
     fix[int][int] fact 5
-    |eof};
+    |};
   testInfersAs "μ join and meet" "bool → (μd.'B d) → μc.'A | 'B c | 'C"
-    {eof|
+    {|
     type μx = 'A | 'B x
     type μy = 'B y | 'C
     λb:bool.if b then λx:x.x else λy:y.y
-    |eof};
+    |};
   testInfersAs "SKI combinators" "μL.L → L"
-    {eof|
+    {|
     type K = λx.λy.x in
     type S = λx.λy.λz.x z (y z) in
     type I = S K K in
@@ -236,11 +236,11 @@ let () =
     let S = λx:L.λy:L.λz:L.x z (x z) in
     let I = S K K in
     I
-    |eof};
+    |};
   testInfersAs "offside in «_, _»" "()"
     "let «t, v» = «λx.x, λx:int.x»: ∃t.t (int → int) in ()";
   testInfersAs "higher-order join and meet"
-    {eof|
+    {|
     (
       (∀t.{map: ∀x.∀y.(x → y) → t x → t y}) → ∃t.{
         return: ∀x.x → t x
@@ -259,8 +259,8 @@ let () =
         apply: ∀x.∀y.t (x → y) → t x → t y
       }
     ) → ∃t.()
-    |eof}
-    {eof|
+    |}
+    {|
     type functor = λt.{
       map: ∀x.∀y.(x → y) → t x → t y
     }
@@ -271,16 +271,16 @@ let () =
     λfunctor:∀(functor)→∃(applicative).
     λapplicative:∀(applicative)→∃(functor).
     if true then functor else applicative
-    |eof};
+    |};
   testInfersAs "μ type variable scoping" "()"
-    {eof|
+    {|
     let «T, x» = «(), ()»: ∃t.t
     type U = T
     type μT = {x: U}
     {x} ▷ λx:T.()
-    |eof};
+    |};
   testInfersAs "another μ type variable scoping" "()"
-    {eof|
+    {|
     let «Shadowed, shadowed» = «(), ()»: ∃t.t
     type Alias = Shadowed
     type μType = λτ.
@@ -288,37 +288,37 @@ let () =
       | 'Alias Alias
     and μShadowed = λτ.τ
     'Shadowed shadowed ▷ λ_:Type Alias.()
-    |eof};
+    |};
   testInfersAs "duplicate wildcard bindings" "()"
     "let («_, _», «_, _») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()";
   testInfersAs "duplicate wildcard μ bindings" "()"
     "let μ_:int=1 and μ_:int=1 in ()";
   testInfersAs "self recursive ∨" "'Soft int | 'Hard string"
-    {eof|
+    {|
     type μhard = λt.λu.'Soft t ∨ 'Hard u ∨ hard t u
     μx:hard int string.x
-    |eof};
+    |};
   testInfersAs "mutually recursive ∨" "'Foo | 'Bar"
-    {eof|
+    {|
     type μfoo = 'Foo ∨ bar
      and μbar = 'Bar ∨ foo
     μx:foo.x
-    |eof};
+    |};
   testInfersAs "higher-order and first-order ∨"
-    {eof|
+    {|
     type μfoo = λt.λu.'Foo (foo t u) | 'T (t, u)
     type μbar = λt.λu.'Bar (bar t u) | 'U (t, u)
     type both = 'Foo (foo bool int) | 'T (bool, int)
               | 'Bar (bar bool int) | 'U (bool, int)
     {first: both, higher: both}
-    |eof}
-    {eof|
+    |}
+    {|
     type μfoo = λt.λu.'Foo (foo t u) | 'T (t, u)
     type μbar = λt.λu.'Bar (bar t u) | 'U (t, u)
     μ({first: foo bool int ∨ bar bool int,
        higher: (foo ∨ bar) bool int}).
       {first = higher, higher = first}
-    |eof};
+    |};
   ()
 
 let testErrors name exp =
@@ -339,34 +339,34 @@ let testErrors name exp =
 
 let () =
   testErrors "non contractive case"
-    {eof|
+    {|
     type μnon_contractive = λt.non_contractive t
     λx:non_contractive int.x ▷ case {}
-    |eof};
+    |};
   testErrors "free variable in def and Λ"
     "type def = λt.x in Λx.λ_:def int.λ_:def string.()";
   testErrors "free variable in def and «_, _»"
-    {eof|
+    {|
     type r = λt.x
     let «x, _» = «(), ()»: ∃t.t
     (λ_:r int.λ_:r string.(), 1).2
-    |eof};
+    |};
   testErrors "free variable in def and «_, _» inside pattern"
-    {eof|
+    {|
     type r = λt.x
     let («x, _», _)= («(), ()»: ∃t.t, 101)
     (λ_:r int.λ_:r string.(), 1).2
-    |eof};
+    |};
   testErrors "kind error with type"
-    {eof|
+    {|
     type Apply = λf:(_ → _) → _.λx.f x
     type x = Apply (λx.x → int) int in ()
-    |eof};
+    |};
   testErrors "kind error with type μ"
-    {eof|
+    {|
     type Apply = λf:(_ → _) → _.λx.f x
     type x = Apply (λx.x → int) int in ()
-    |eof};
+    |};
   testErrors "duplicate produce label" "{x = 1, y = true, x = ()}";
   testErrors "duplicate product type label" "λ_:{y: bool, x: int, y: string}.()";
   testErrors "duplicate sum type label" "λ_: 'Y bool | 'X int | 'Y string.()";
