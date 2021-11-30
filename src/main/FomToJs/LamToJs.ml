@@ -72,6 +72,10 @@ let to_return = function
   | `Top -> str " "
   | `Const _ -> failwith "bug"
 
+let to_case = function
+  | `Tail (f, xs, `Exit) -> `Tail (f, xs, `Case)
+  | other -> other
+
 let to_assignments is vs =
   match (is, vs) with
   | i :: is, v :: vs ->
@@ -85,7 +89,7 @@ let rec lam_bind_to_js_expr f b =
   let is, b' = unlam b |> and_uncase in
   if called_at_tail (List.length is) f b' then
     let i's = List.map Var.freshen is in
-    let+ b = to_js_stmts (`Tail (f, i's)) VarSet.empty b' in
+    let+ b = to_js_stmts (`Tail (f, i's, `Exit)) VarSet.empty b' in
     let b =
       str "{for (;;) {const "
       ^ to_assignments is (List.map Var.to_js i's)
@@ -109,10 +113,13 @@ and to_js_stmts finish ids exp =
       | _ -> to_return finish ^ e ^ str ";")
   in
   match (unapp exp, finish) with
-  | (`Var i, xs), `Tail (i', is)
-    when Var.equal i i' && List.length xs = List.length is ->
+  | (`Var i, xs), `Tail (i', is, ft)
+    when Var.equal i i' && List.length xs = List.length is -> (
     let+ vs = List.map_fr to_js_expr xs in
-    to_assignments is vs ^ str "; continue"
+    let assignments = to_assignments is vs in
+    match ft with
+    | `Case -> assignments ^ str "; continue"
+    | `Exit -> assignments)
   | _ -> (
     match exp with
     | `App (`Lam (i, e), v) -> (
@@ -216,7 +223,7 @@ and to_js_stmts finish ids exp =
           cs
           |> List.map_fr @@ fun (e, ls) ->
              let* e = LamSimplify.once @@ `App (e, v1) in
-             let+ e = to_js_stmts finish VarSet.empty e in
+             let+ e = to_js_stmts (to_case finish) VarSet.empty e in
              let cs =
                match ls with
                | [] -> str "default: {"

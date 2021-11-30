@@ -24,7 +24,10 @@ val simplify : Lam.t -> ('r, 'e, Lam.t) rea
 
 val to_js :
   ?top:
-    [`Const of Exp.Var.t | `Return | `Top | `Tail of Exp.Var.t * Exp.Var.t list] ->
+    [ `Const of Exp.Var.t
+    | `Return
+    | `Top
+    | `Tail of Exp.Var.t * Exp.Var.t list * [`Exit | `Case] ] ->
   Lam.t ->
   ('r, 'e, Cats.t) rea
 (** Transpile erased expression to JavaScript. *)
