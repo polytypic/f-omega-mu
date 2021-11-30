@@ -1,6 +1,8 @@
 type id = λα.α
 
-type ord = 'Less | 'Equal | 'Greater
+type ord = 'Lt | 'Eq | 'Gt
+
+type cmp = λα.α → α → ord
 
 type opt = λα.'None | 'Some α
 

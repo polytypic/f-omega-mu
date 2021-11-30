@@ -1,0 +1,9 @@
+local include "types"
+
+type Map = λκ.λmap.{
+  count: ∀ν.map ν → int
+  empty: ∀ν.map ν
+  entries: ∀ν.map ν → list (κ, ν)
+  get: ∀ν.map ν → κ → opt ν
+  put: ∀ν.κ → ν → map ν → map ν
+}

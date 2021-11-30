@@ -1,0 +1,4 @@
+include "algebras"
+include "map"
+
+∀κ.Compare κ → ∃(Map κ)

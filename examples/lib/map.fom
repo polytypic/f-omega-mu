@@ -1,0 +1,59 @@
+include "algebras"
+include "types"
+include "map"
+
+Λκ.λkey: Compare κ.
+  type kv = λν.{key: κ, val: ν}
+
+  type μtree = λν.'Lf | 'Br (br ν)
+  and μbr = λν.kv ν ∧ {lt: tree ν, gt: tree ν}
+
+  type map = λν.Compare κ ∧ {root: tree ν}
+
+  let count = Λν.λmap: map ν.
+    let μcount: tree ν → int = case {
+        Lf = λ().0
+        Br = λbr: br ν.count br.lt + count br.gt + 1
+      }
+    count map.root
+
+  let empty = Λ_.key „ {root = 'Lf}
+
+  let entries = Λν.λ{root: tree ν}.
+    let μprepend: tree ν → list (κ, ν) → list (κ, ν) =
+      λnode: tree ν.λes: list (κ, ν).
+        node ▷ case {
+          Lf = λ().es
+          Br = λbr: br ν.
+            es
+            ▷ prepend br.gt
+            ▷ λes: list (κ, ν).'Some ((br.key, br.val), es)
+            ▷ prepend br.lt
+        }
+    prepend root 'None
+
+  let get = Λν.λ{compare: κ → κ → ord, root: tree ν}.λkey: κ.
+    let μget: tree ν → opt ν = case {
+      Lf = λ().'None
+      Br = λbr: br ν.
+        compare key br.key ▷ case {
+          Lt = λ().get br.lt
+          Eq = λ().'Some br.val
+          Gt = λ().get br.gt
+        }
+    }
+    get root
+
+  let put = Λν.λkey: κ.λval: ν.λ{compare: cmp κ, root: tree ν}.
+    let μput: tree ν → tree ν = case {
+        Lf = λ().'Br {key, val, lt = 'Lf, gt = 'Lf}
+        Br = λbr: br ν.
+          compare key br.key ▷ case {
+            Lt = λ().'Br ((br: kv ν) „ {lt = put br.lt, gt = br.gt})
+            Eq = λ().'Br {key, val, lt = br.lt, gt = br.gt}
+            Gt = λ().'Br ((br: kv ν) „ {lt = br.lt, gt = put br.gt})
+          }
+      }
+    {compare, root = put root}
+
+  «map, {count, empty, entries, get, put}»: ∃(Map κ)
