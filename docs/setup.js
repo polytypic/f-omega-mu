@@ -244,6 +244,7 @@ const maybeComplete = (options = {}) => {
           fom.distances(pat, txt, pat.toUpperCase(), txt.toUpperCase()),
           txt,
         ])
+        .filter(([ds]) => !fom.distancesUnrelated(ds))
         .sort(([ds_l, txt_l], [ds_r, txt_r]) =>
           Cmp.seq(fom.distancesCompare(ds_l, ds_r), () =>
             txt_l.localeCompare(txt_r)

@@ -16,3 +16,6 @@ val compare_distances : int array -> int array -> int
  * array as if the corresponding text would have continued with non-matching
  * characters.
  *)
+
+val are_unrelated : int array -> bool
+(** Determine whether distances seem to indicate pattern doesn't match text. *)

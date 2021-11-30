@@ -48,3 +48,5 @@ let compare_distances ls rs =
       0
   in
   lp 3
+
+let are_unrelated ds = Array.length ds < 3 || ds.(2) = ds.(0)

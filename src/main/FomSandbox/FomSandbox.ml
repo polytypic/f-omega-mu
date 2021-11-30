@@ -355,6 +355,8 @@ let js_codemirror_mode =
     method distancesCompare l r =
       Uchar.compare_distances (Js.to_array l) (Js.to_array r)
 
+    method distancesUnrelated d = Uchar.are_unrelated (Js.to_array d)
+
     method distances pat txt pat_uc txt_uc =
       let to_array = Js.to_string >>> UTF.UTF8.to_uchar_array in
       Uchar.distances ~pat:(to_array pat) ~txt:(to_array txt)
