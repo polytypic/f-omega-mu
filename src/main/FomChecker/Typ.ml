@@ -53,8 +53,6 @@ module Core = struct
        | `Lam (at', i, k, t) -> `Lam (at', i, Kind.ground k, ground t)
        | t -> map_eq ground t
 
-  let ground = Profiling.Counter.wrap'1 "ground" ground
-
   (* *)
 
   let rec resolve t =
@@ -477,12 +475,6 @@ let rec resolve t =
     | t -> map_eq_fr resolve t
   in
   keep_phys_eq' t t'
-
-let resolve_counter = Profiling.Counter.register "resolve"
-
-let resolve t =
-  Profiling.Counter.inc resolve_counter;
-  resolve t
 
 (* *)
 

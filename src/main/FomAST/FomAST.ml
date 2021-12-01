@@ -461,7 +461,6 @@ module Typ = struct
     | t -> map_constant union_m free t
 
   let rec free t = free' free t
-  let free = Profiling.Counter.wrap'1 "free" free
 
   (* *)
 
@@ -569,8 +568,6 @@ module Typ = struct
   let compare =
     Profiling.Counter.wrap'2 "compare"
       (compare_in_env VarMap.empty VarMap.empty)
-
-  let compare_in_env = Profiling.Counter.wrap'4 "compare_in_env" compare_in_env
 
   (* Formatting *)
 
