@@ -27,7 +27,7 @@ val to_js :
     [ `Const of Exp.Var.t
     | `Return
     | `Top
-    | `Tail of Exp.Var.t * Exp.Var.t list * [`Exit | `Case] ] ->
+    | `Tail of Exp.Var.t * Exp.Var.t list * Exp.Var.t list * [`Exit | `Case] ] ->
   Lam.t ->
   ('r, 'e, Cats.t) rea
 (** Transpile erased expression to JavaScript. *)

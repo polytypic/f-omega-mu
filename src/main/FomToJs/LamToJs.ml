@@ -73,28 +73,26 @@ let to_return = function
   | `Const _ -> failwith "bug"
 
 let to_case = function
-  | `Tail (f, xs, `Exit) -> `Tail (f, xs, `Case)
+  | `Tail (f, is, i's, `Exit) -> `Tail (f, is, i's, `Case)
   | other -> other
 
-let to_assignments is vs =
-  match (is, vs) with
-  | i :: is, v :: vs ->
-    List.fold_left2
-      (fun e i v -> e ^ str ", " ^ Var.to_js i ^ str " = " ^ v)
-      (Var.to_js i ^ str " = " ^ v)
-      is vs
-  | _ -> failwith "to_assignments"
+let rec to_assignments is i's vs =
+  List.fold_left3_fr
+    (fun e i i' v ->
+      match v with
+      | `Var j' when Var.equal i j' -> return e
+      | _ ->
+        let+ v = to_js_expr v in
+        (if e = str "" then e else e ^ str ", ") ^ Var.to_js i' ^ str " = " ^ v)
+    (str "") is i's vs
 
-let rec lam_bind_to_js_expr f b =
+and lam_bind_to_js_expr f b =
   let is, b' = unlam b |> and_uncase in
   if called_at_tail (List.length is) f b' then
     let i's = List.map Var.freshen is in
-    let+ b = to_js_stmts (`Tail (f, i's, `Exit)) VarSet.empty b' in
-    let b =
-      str "{for (;;) {const "
-      ^ to_assignments is (List.map Var.to_js i's)
-      ^ str ";" ^ b ^ str "}}"
-    in
+    let+ b = to_js_stmts (`Tail (f, is, i's, `Exit)) VarSet.empty b'
+    and+ inits = to_assignments is is (List.map (fun i' -> `Var i') i's) in
+    let b = str "{for (;;) {const " ^ inits ^ str ";" ^ b ^ str "}}" in
     List.fold_right (fun i b -> Var.to_js i ^ str " => " ^ b) i's b
   else
     to_js_expr b
@@ -113,10 +111,9 @@ and to_js_stmts finish ids exp =
       | _ -> to_return finish ^ e ^ str ";")
   in
   match (unapp exp, finish) with
-  | (`Var i, xs), `Tail (i', is, ft)
-    when Var.equal i i' && List.length xs = List.length is -> (
-    let+ vs = List.map_fr to_js_expr xs in
-    let assignments = to_assignments is vs in
+  | (`Var i, xs), `Tail (i', is, i's, ft)
+    when Var.equal i i' && List.length xs = List.length i's -> (
+    let+ assignments = to_assignments is i's xs in
     match ft with
     | `Case -> assignments ^ str "; continue"
     | `Exit -> assignments)
