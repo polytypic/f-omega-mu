@@ -13,6 +13,11 @@ val share_phys_eq : 'a bop -> 'a list bop
 
 (* *)
 
+val fold_left3 :
+  ('a -> 'b -> 'c -> 'd -> 'a) -> 'a -> 'b list -> 'c list -> 'd list -> 'a
+
+(* *)
+
 val fold_left_fr :
   ('a -> 'b -> ('f, 'F, 'a) Monad.fr) -> 'a -> 'b t -> ('f, 'F, 'a) Monad.fr
 

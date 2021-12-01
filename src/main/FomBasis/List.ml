@@ -52,6 +52,14 @@ let find_dup_opt cmp xs =
 
 (* *)
 
+let rec fold_left3 xyzwx x ys zs ws =
+  match (ys, zs, ws) with
+  | y :: ys, z :: zs, w :: ws -> fold_left3 xyzwx (xyzwx x y z w) ys zs ws
+  | [], [], [] -> x
+  | _ -> raise @@ Invalid_argument "fold_left3"
+
+(* *)
+
 let rec fold_left_fr xyx x = function
   | [] -> return x
   | y :: ys -> xyx x y >>= fun x -> fold_left_fr xyx x ys
