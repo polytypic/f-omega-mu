@@ -145,8 +145,7 @@ let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
-    let+ i_kind_opt = VarMap.find_opt i in
-    match i_kind_opt with
+    VarMap.find_opt i >>- function
     | Some (`Kind i_kind) -> i_kind
     | _ -> failwithf "kind_of %s" @@ Var.to_string i)
   | `Lam (at', d, d_kind, r) ->
@@ -310,9 +309,7 @@ and classify t =
   | `Arrow _, _ -> return @@ Some `Arrow
   | `Product _, _ -> return @@ Some `Product
   | `Sum _, _ -> return @@ Some `Sum
-  | `Join (_, l, r), _ -> (
-    classify l >>= function None -> classify r | some -> return some)
-  | `Meet (_, l, r), _ -> (
+  | `Join (_, l, r), _ | `Meet (_, l, r), _ -> (
     classify l >>= function None -> classify r | some -> return some)
   | `App _, _ -> failwith "classify"
 
@@ -391,10 +388,8 @@ and meet_of_norm at' l r =
 and subst_of_norm env t =
   let+ t' =
     match t with
-    | `Var (_, i) as inn -> (
-      match FomAST.Typ.VarMap.find_opt i env with
-      | None -> return inn
-      | Some t -> return t)
+    | `Var (_, i) as inn ->
+      FomAST.Typ.VarMap.find_opt i env |> Option.value ~default:inn |> return
     | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
@@ -505,8 +500,7 @@ let rec infer = function
        >> (mu_of_norm at' f <*> return kind)
   | `Const (at', c) as t -> return @@ (t, Const.kind_of at' c)
   | `Var (at', i) as t -> (
-    let* i_kind_opt = VarMap.find_opt i in
-    match i_kind_opt with
+    VarMap.find_opt i >>= function
     | Some (`Kind i_kind) -> return (t, i_kind)
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
