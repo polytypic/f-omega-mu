@@ -250,23 +250,19 @@ let rec mu_of_norm at = function
       mu_of_norm at f'
   | f -> return @@ `Mu (at, f)
 
+and jm_op_of = function
+  | `Join (at, _, _) -> join_of_norm at
+  | `Meet (at, _, _) -> meet_of_norm at
+
 and drop_legs x = function
-  | `Join (at', l, r) ->
+  | (`Join (_, l, r) | `Meet (_, l, r)) as t ->
     let* r = drop_legs x r in
     if compare x l = 0 then
       return r
     else if compare x r = 0 then
       return l
     else
-      join_of_norm at' l r
-  | `Meet (at', l, r) ->
-    let* r = drop_legs x r in
-    if compare x l = 0 then
-      return r
-    else if compare x r = 0 then
-      return l
-    else
-      meet_of_norm at' l r
+      jm_op_of t l r
   | t -> return t
 
 and lam_of_norm at i k = function
@@ -397,12 +393,9 @@ and subst_of_norm env t =
     | `App (at, f, x) ->
       subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
       app_of_norm at f x
-    | `Join (at, l, r) ->
+    | (`Join (_, l, r) | `Meet (_, l, r)) as t ->
       subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
-      join_of_norm at l r
-    | `Meet (at, l, r) ->
-      subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
-      meet_of_norm at l r
+      jm_op_of t l r
     | t -> map_eq_fr (subst_of_norm env) t
   in
   keep_phys_eq' t t'
@@ -514,12 +507,9 @@ let rec infer = function
     check star d <*> check star c >>- fun (d, c) -> (`Arrow (at', d, c), star)
   | `Product (at', ls) -> infer_row at' ls @@ fun at' ls -> `Product (at', ls)
   | `Sum (at', ls) -> infer_row at' ls @@ fun at' ls -> `Sum (at', ls)
-  | `Join (at', l, r) ->
+  | (`Join (at', l, r) | `Meet (at', l, r)) as t ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
-    Kind.unify at' lk rk >> (join_of_norm at' l r <*> return lk)
-  | `Meet (at', l, r) ->
-    infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
-    Kind.unify at' lk rk >> (meet_of_norm at' l r <*> return lk)
+    Kind.unify at' lk rk >> (jm_op_of t l r <*> return lk)
 
 and infer_row at' ls con =
   let star = `Star at' in
