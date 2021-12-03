@@ -41,7 +41,15 @@ definitions. Value `import`s can be separately compiled. HTTPS URLs and relative
 paths are allowed as references.
 
 Please note that this is a hobby project and still very much Work-in-Progress
-with tons of missing features and probably more bugs than one could imagine.
+with tons of missing features, such as
+
+- [partial type inference](https://github.com/polytypic/f-omega-mu/projects/1#card-65813070),
+  and
+- [variance or polarized types](https://github.com/polytypic/f-omega-mu/projects/1#card-74126731),
+
+and probably more
+[bugs](https://github.com/polytypic/f-omega-mu/projects/1#card-65813251) than
+one could imagine.
 
 ## Next steps
 
