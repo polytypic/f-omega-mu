@@ -15,13 +15,17 @@ module Make (Ord : OrderedType) = struct
 end
 
 let prefer_lhs _ l r =
-  match (l, r) with Some l, _ -> Some l | _, Some r -> Some r | _, _ -> None
+  match (l, r) with
+  | (Some _ as some), _ | _, (Some _ as some) -> some
+  | _, _ -> None
 
 let prefer_rhs _ l r =
-  match (l, r) with _, Some r -> Some r | Some l, _ -> Some l | _, _ -> None
+  match (l, r) with
+  | _, (Some _ as some) | (Some _ as some), _ -> some
+  | _, _ -> None
 
 let combining_with plus _ l r =
   match (l, r) with
   | Some l, Some r -> Some (plus l r)
-  | None, Some r | Some r, None -> Some r
+  | None, (Some _ as some) | (Some _ as some), None -> some
   | None, None -> None

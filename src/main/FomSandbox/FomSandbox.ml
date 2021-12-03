@@ -113,14 +113,10 @@ let pp_typ t =
 let js_use_def ?(max_width = 60) (def, o) =
   let+ annot =
     (match o#annot with
-    | `Label (id, typ) ->
-      let+ typ = pp_typ typ in
-      FomAST.Label.pp id ^^ colon ^^ typ
-    | `ExpId (id, typ) ->
-      let+ typ = pp_typ typ in
-      FomAST.Exp.Var.pp id ^^ colon ^^ typ
-    | `TypId (id, kind) ->
-      return @@ gnest 2 (Typ.Var.pp id ^^ colon_break_1 ^^ FomAST.Kind.pp kind))
+    | `Label (i, t) -> pp_typ t >>- fun t -> FomAST.Label.pp i ^^ colon ^^ t
+    | `ExpId (i, t) -> pp_typ t >>- fun t -> FomAST.Exp.Var.pp i ^^ colon ^^ t
+    | `TypId (i, k) ->
+      return @@ gnest 2 (Typ.Var.pp i ^^ colon_break_1 ^^ FomAST.Kind.pp k))
     >>- to_js_string ~max_width
   in
   object%js

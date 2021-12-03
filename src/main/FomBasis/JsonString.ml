@@ -122,10 +122,7 @@ let to_utf8 lit =
            else
              (`Hex0, i + 1)
          | `Continued, `Uchar c ->
-           if is_white c then
-             (`Continued, i + 1)
-           else
-             (`Unescaped, i + 1)
+           ((if is_white c then `Continued else `Unescaped), i + 1)
          | `Hex0, `Uchar c -> (`Hex1 (hex_to_int 0 c), i + 1)
          | `Hex1 h, `Uchar c -> (`Hex2 (hex_to_int h c), i + 1)
          | `Hex2 h, `Uchar c -> (`Hex3 (hex_to_int h c), i + 1)

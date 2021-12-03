@@ -25,9 +25,9 @@ let unit' _ _ state = (Return (), state)
 let methods =
   let return value _ _ state = (Return value, state) in
 
-  let rec ( let* ) xM xyM env last_pos state =
+  let rec ( >>= ) xM xyM env last_pos state =
     match xM env last_pos state with
-    | Emit (tok, xM), state -> (Emit (tok, ( let* ) xM xyM), state)
+    | Emit (tok, xM), state -> (Emit (tok, xM >>= xyM), state)
     | Return x, state ->
       let yM = xyM x in
       yM env last_pos state
@@ -35,25 +35,18 @@ let methods =
 
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map =
-      fun xy xF ->
-        inj
-          (let* x = prj xF in
-           return (xy x))
+      fun xy xF -> inj (prj xF >>= (xy >>> return))
 
     method return : 'a. ('a, _) Applicative.return = return >>> inj
 
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair =
       fun xF yF ->
         inj
-          (let* x = prj xF in
-           let* y = prj yF in
-           return (x, y))
+          ( prj xF >>= fun x ->
+            prj yF >>= fun y -> return (x, y) )
 
     method bind : 'a 'b. ('a, 'b, _) Monad.bind =
-      fun xyF xF ->
-        inj
-          (let* x = prj xF in
-           prj (xyF x))
+      fun xyF xF -> inj (prj xF >>= (xyF >>> prj))
   end
 
 (* *)

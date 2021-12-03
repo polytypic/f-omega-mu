@@ -104,7 +104,7 @@ let process filename =
         |> replace_env env
       in
       (if !Options.stop = `Js then (
-         js |> Printf.printf "%s\n";
+         Printf.printf "%s\n" js;
          fail `Stop)
       else
         unit)
