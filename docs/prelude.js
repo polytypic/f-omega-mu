@@ -1,11 +1,7 @@
 'use strict'
 
 const rec = (() => {
-  const iterator = function* () {
-    for (let i = 0, n = this.length; i < n; ++i) {
-      yield this[i]
-    }
-  }
+  const iterator = [][Symbol.iterator]
 
   const writable = Object.freeze({writable: true})
   const writableFunction = Object.freeze({
@@ -17,9 +13,8 @@ const rec = (() => {
   })
 
   return fn => {
-    let knot
     const proxy = x => knot(x)
-    knot = fn(proxy)
+    const knot = fn(proxy)
     if (typeof knot === 'object') {
       if (Array.isArray(knot)) {
         Object.defineProperty(proxy, 'length', {value: knot.length})
