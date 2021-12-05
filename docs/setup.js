@@ -1,30 +1,22 @@
 'use strict'
 
-import {cmps, get, nextNonSpace, throttled} from './util.js'
+import {cmps, get, throttled} from './util.js'
 
 import {examples} from './examples.js'
 
 import {getWidth, getTokenEndingAt} from './cm-utils.js'
 
+import {addMarker, clearMarkers, posAsNative} from './fom-cm-util.js'
+
 import {onWorker} from './worker.js'
 
-FomSandbox(window)
+import {alternatives} from './fom-alternatives.js'
+
+import './fom-cm-mode.js'
 
 //
 
 const url = `${location.origin}${location.pathname}examples/*`
-
-//
-
-const addMarker = (markers, cm, pos, annot) =>
-  markers.push(
-    cm.markText(posAsNative(cm, pos.begins), posAsNative(cm, pos.ends), annot)
-  )
-
-const clearMarkers = markers => {
-  markers.forEach(mark => mark.clear())
-  markers.length = 0
-}
 
 //
 
@@ -39,41 +31,6 @@ const cmConfig = {
 }
 
 const jsCM = CodeMirror(jsDiv, {...cmConfig, mode: 'javascript'})
-
-CodeMirror.defineMode('fom', () => ({
-  startState: () => ({previous: '', state: fom.initial}),
-  token: (stream, state) => {
-    const start = stream.start
-
-    const input = stream.string.slice(stream.start)
-    const token = fom.token(input, state.state)
-
-    state.state = token.state
-
-    if (token.name === 'error') {
-      stream.skipToEnd()
-    } else {
-      stream.start += fom.offset16(input, token.begins)
-      stream.pos += fom.offset16(input, token.ends)
-    }
-
-    if (
-      token.name === 'variable' &&
-      (nextNonSpace(stream.string, stream.start - 1, -1) === "'" ||
-        ((nextNonSpace(stream.string, stream.pos) === ':' ||
-          nextNonSpace(stream.string, stream.pos) === '=') &&
-          (state.previous === 'punctuation' ||
-            (stream.start &&
-              !nextNonSpace(stream.string, stream.start - 1, -1)))))
-    ) {
-      token.name = 'property'
-    }
-
-    state.previous = token.name
-
-    return token.name
-  },
-}))
 
 const resultCM = CodeMirror(resultDiv, cmConfig)
 const typCM = CodeMirror(typDiv, {
@@ -292,11 +249,6 @@ const duAt = (cm, cursor, offset) => {
       )
     )
   }
-}
-
-const posAsNative = (cm, {line, ch}) => {
-  const input = cm.getLine(line)
-  return {line, ch: fom.offset16(input, ch)}
 }
 
 const setTyp = (value, {noKeywords} = 0) => {
@@ -579,44 +531,6 @@ fomCM.on(
     })
   )
 )
-
-//
-
-const alternatives = Object.create(null)
-
-for (const {unicode, ascii, bop} of fom.synonyms())
-  alternatives[ascii] = unicode + (bop ? ' ' : '')
-
-for (const [basename, upper, lower, alternate] of [
-  ['Alpha', 'A', 'α'],
-  ['Beta', 'B', 'β'],
-  ['Gamma', 'Γ', 'γ'],
-  ['Delta', 'Δ', 'δ'],
-  ['Epsilon', 'E', 'ϵ', 'ε'],
-  ['Zeta', 'Ζ', 'ζ'],
-  ['Eta', 'Η', 'η'],
-  ['Theta', 'Θ', 'θ', 'ϑ'],
-  ['Iota', 'Ι', 'ι'],
-  ['Kappa', 'Κ', 'κ', 'ϰ'],
-  ['Lambda', 'Λ', 'λ'],
-  ['Mu', 'Μ', 'μ'],
-  ['Nu', 'Ν', 'ν'],
-  ['Xi', 'Ξ', 'ξ'],
-  ['Omicron', 'O', 'ℴ'],
-  ['Pi', 'Π', 'π', 'ϖ'],
-  ['Rho', 'Ρ', 'ρ', 'ϱ'],
-  ['Sigma', 'Σ', 'σ', 'ς'],
-  ['Tau', 'Τ', 'τ'],
-  ['Upsilon', 'ϒ', 'υ'],
-  ['Phi', 'Φ', 'ϕ', 'φ'],
-  ['Chi', 'X', 'χ'],
-  ['Psi', 'Ψ', 'ψ'],
-  ['Omega', 'Ω', 'ω'],
-]) {
-  alternatives[`\\${basename}`] = upper
-  alternatives[`\\${basename.toLowerCase()}`] = lower
-  if (alternate) alternatives[`\\var${basename.toLowerCase()}`] = alternate
-}
 
 //
 
