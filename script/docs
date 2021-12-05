@@ -18,7 +18,7 @@ build-examples() {
   rm -rf docs/examples
   mkdir -p docs/examples
 
-  echo "const examples = [" > $OUTPUT
+  echo "export const examples = [" > $OUTPUT
   for example in examples/*.fom; do
     cp "$example" docs/examples/
     echo "  '$example'," >> $OUTPUT

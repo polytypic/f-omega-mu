@@ -1,58 +1,20 @@
 'use strict'
 
+import {cmps, get, nextNonSpace, throttled} from './util.js'
+
+import {examples} from './examples.js'
+
+import {getWidth, getTokenEndingAt} from './cm-utils.js'
+
+import {onWorker} from './worker.js'
+
 FomSandbox(window)
-
-//
-
-const Cmp = {
-  seq: (l, toR) => (l === 0 ? toR() : l),
-}
 
 //
 
 const url = `${location.origin}${location.pathname}examples/*`
 
 //
-
-const get = (o, p, ...ps) => (o != null && p != null ? get(o[p], ...ps) : o)
-
-const throttled = (ms, fn) => {
-  let timeout = null
-  return (...args) => {
-    clearTimeout(timeout)
-    timeout = setTimeout(fn, ms, ...args)
-  }
-}
-
-const onWorker = (init, before, onWorker, after) => {
-  const code = `(() => {
-  (${init})()
-  const onWorker = ${onWorker}
-  onmessage = ({data}) =>
-    onWorker(data, (data, continues = false) => postMessage({data, continues}))
-})()`
-
-  let working = false
-  let worker
-
-  return () => {
-    if (working) {
-      worker.terminate()
-      worker = undefined
-      working = false
-    }
-    if (worker === undefined) {
-      worker = new Worker('evalWorker.js')
-      worker.postMessage(code)
-      worker.onmessage = ({data: {data, continues}}) => {
-        working = continues
-        after(data)
-      }
-    }
-    working = true
-    worker.postMessage(before())
-  }
-}
 
 const addMarker = (markers, cm, pos, annot) =>
   markers.push(
@@ -62,18 +24,6 @@ const addMarker = (markers, cm, pos, annot) =>
 const clearMarkers = markers => {
   markers.forEach(mark => mark.clear())
   markers.length = 0
-}
-
-const getWidth = editor => {
-  const charWidth = editor.defaultCharWidth()
-  const scrollArea = editor.getScrollInfo()
-  const scrollLeft = editor.doc.scrollLeft
-
-  const leftColumn = Math.ceil(scrollLeft > 0 ? scrollLeft / charWidth : 0)
-  const rightPosition = scrollLeft + (scrollArea.clientWidth - 30)
-  const rightColumn = Math.floor(rightPosition / charWidth)
-
-  return Math.max(0, rightColumn - leftColumn)
 }
 
 //
@@ -89,15 +39,6 @@ const cmConfig = {
 }
 
 const jsCM = CodeMirror(jsDiv, {...cmConfig, mode: 'javascript'})
-
-const nextNonSpace = (str, i, dir = 1) => {
-  while (0 <= i && i <= str.length) {
-    const c = str[i]
-    if (c !== ' ' && c !== '\t' && c !== '\n') return c
-    i += dir
-  }
-  return ''
-}
 
 CodeMirror.defineMode('fom', () => ({
   startState: () => ({previous: '', state: fom.initial}),
@@ -133,17 +74,6 @@ CodeMirror.defineMode('fom', () => ({
     return token.name
   },
 }))
-
-const getTokenEndingAt = (cm, cursor) => {
-  const token = fomCM.getTokenAt(cursor)
-  if (!token || token.end < cursor.ch || cursor.ch <= token.start)
-    return undefined
-  if (token.end !== cursor.ch) {
-    token.string = token.string.slice(0, cursor.ch - token.end)
-    token.end = cursor.ch
-  }
-  return token
-}
 
 const resultCM = CodeMirror(resultDiv, cmConfig)
 const typCM = CodeMirror(typDiv, {
@@ -246,7 +176,7 @@ const maybeComplete = (options = {}) => {
         ])
         .filter(([ds]) => !fom.distancesUnrelated(ds))
         .sort(([ds_l, txt_l], [ds_r, txt_r]) =>
-          Cmp.seq(fom.distancesCompare(ds_l, ds_r), () =>
+          cmps(fom.distancesCompare(ds_l, ds_r), () =>
             txt_l.localeCompare(txt_r)
           )
         )
@@ -445,14 +375,14 @@ const updateDeps = () => {
 
 //
 
-const run = onWorker(
-  () => {
+const run = onWorker({
+  init: () => {
     importScripts('FomSandbox.js')
     FomSandbox(self)
     importScripts('prelude.js')
   },
-  () => ({js: jsCM.getValue(), width: getWidth(fomCM)}),
-  (params, onResult) =>
+  before: js => ({js, width: getWidth(fomCM)}),
+  compute: (params, onResult) =>
     tryIn(
       () => {
         const result = withContext('running Fωμ', () =>
@@ -465,11 +395,11 @@ const run = onWorker(
       onResult,
       error => onResult(`${error}`)
     ),
-  result => {
+  after: result => {
     if (typeof result !== 'string') result = ''
     resultCM.setValue(result)
-  }
-)
+  },
+})
 
 //
 
@@ -477,15 +407,15 @@ const diagnosticMarkers = []
 
 const build = throttled(
   200,
-  onWorker(
-    () => {
+  onWorker({
+    init: () => {
       importScripts('FomSandbox.js')
       FomSandbox(self)
       importScripts('https://unpkg.com/prettier@2.5.0/standalone.js')
       importScripts('https://unpkg.com/prettier@2.5.0/parser-babel.js')
       importScripts('https://unpkg.com/terser@5.10.0/dist/bundle.min.js')
     },
-    () => {
+    before: () => {
       clearMarkers(diagnosticMarkers)
       return {
         url,
@@ -496,7 +426,7 @@ const build = throttled(
         width: getWidth(fomCM),
       }
     },
-    ({url, whole, exp, terser, prettify, width}, onResult) => {
+    compute: ({url, whole, exp, terser, prettify, width}, onResult) => {
       let start = timingStart()
       fom.build(
         whole,
@@ -553,7 +483,7 @@ const build = throttled(
         }
       )
     },
-    data => {
+    after: data => {
       if (typeof data === 'string') {
         jsCM.setValue(data)
         run(data)
@@ -584,8 +514,8 @@ const build = throttled(
 
         if (!result.diagnostics.length) updateDeps()
       }
-    }
-  )
+    },
+  })
 )
 
 build()
@@ -610,15 +540,17 @@ fomCM.on(
   'change',
   throttled(
     100,
-    onWorker(
-      () =>
+    onWorker({
+      init: () =>
         importScripts(
           'https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js'
         ),
-      () => fomCM.getValue(),
-      (exp, onResult) => onResult(LZString.compressToEncodedURIComponent(exp)),
-      data => history.replaceState(null, '', location.pathname + '#' + data)
-    )
+      before: cm => cm.getValue(),
+      compute: (exp, onResult) =>
+        onResult(LZString.compressToEncodedURIComponent(exp)),
+      after: data =>
+        history.replaceState(null, '', location.pathname + '#' + data),
+    })
   )
 )
 
@@ -630,21 +562,21 @@ fomCM.on(
   'change',
   throttled(
     100,
-    onWorker(
-      () => {
+    onWorker({
+      init: () => {
         importScripts('FomSandbox.js')
         FomSandbox(self)
       },
-      () => ({
-        current: getTokenEndingAt(fomCM, fomCM.getCursor()),
-        text: fomCM.getValue(),
+      before: cm => ({
+        current: getTokenEndingAt(cm, cm.getCursor()),
+        text: cm.getValue(),
       }),
-      ({current, text}, onResult) => {
+      compute: ({current, text}, onResult) => {
         const ids = fom.identifiers(text)
         onResult(current ? ids.filter(id => id !== current.string) : ids)
       },
-      ids => (identifiers = ids)
-    )
+      after: ids => (identifiers = ids),
+    })
   )
 )
 
