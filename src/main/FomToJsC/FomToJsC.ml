@@ -6,8 +6,47 @@ open Cats
 
 (* *)
 
-let mods_simplified : (string, (Zero.t, FomToJs.Lam.t) LVar.t) Hashtbl.t =
-  Hashtbl.create 100
+module ModSimplified = struct
+  type t = (string, (Zero.t, FomToJs.Lam.t) LVar.t) Hashtbl.t
+
+  let create () = Hashtbl.create 100
+  let field r = r#mod_simplified
+
+  let get_or_put path compute =
+    let* (hashtbl : t) = env_as field in
+    match Hashtbl.find_opt hashtbl path with
+    | None ->
+      let* var = LVar.create compute in
+      Hashtbl.replace hashtbl path var;
+      LVar.eval var |> generalize_error
+    | Some var -> LVar.eval var |> generalize_error
+
+  class con (mod_simplified : t) =
+    object
+      method mod_simplified = mod_simplified
+    end
+end
+
+module ModInJs = struct
+  type t = (string, (Zero.t, Cats.t) LVar.t) Hashtbl.t
+
+  let create () = Hashtbl.create 100
+  let field r = r#mod_in_js
+
+  let get_or_put path compute =
+    let* (hashtbl : t) = env_as field in
+    match Hashtbl.find_opt hashtbl path with
+    | None ->
+      let* var = LVar.create compute in
+      Hashtbl.replace hashtbl path var;
+      LVar.eval var |> generalize_error
+    | Some var -> LVar.eval var |> generalize_error
+
+  class con (mod_in_js : t) =
+    object
+      method mod_in_js = mod_in_js
+    end
+end
 
 let topological_deps paths =
   let added = Hashtbl.create 100 in
@@ -28,12 +67,8 @@ let erase_and_simplify_all paths =
   |> List.map_fr @@ fun path ->
      let* (id, ast, _, _), _ = FomElab.ExpImports.get path in
      let+ erased =
-       match Hashtbl.find_opt mods_simplified path with
-       | Some var -> LVar.eval var |> generalize_error
-       | None ->
-         let* var = LVar.create (ast |> FomToJs.erase |> FomToJs.simplify) in
-         Hashtbl.replace mods_simplified path var;
-         LVar.eval var |> generalize_error
+       ModSimplified.get_or_put path
+         (delay @@ fun () -> ast |> FomToJs.erase |> FomToJs.simplify)
      in
      (id, path, erased)
 
@@ -46,22 +81,12 @@ let whole_program_to_js ast paths =
         (FomToJs.erase ast)
   >>= FomToJs.simplify >>= FomToJs.to_js >>- use_strict >>- to_string
 
-let mods_in_js : (string, (Zero.t, Cats.t) LVar.t) Hashtbl.t =
-  Hashtbl.create 100
-
 let compile_to_js_all paths =
   paths |> erase_and_simplify_all
   >>= List.map_fr @@ fun (id, path, erased) ->
-      match Hashtbl.find_opt mods_in_js path with
-      | Some var -> LVar.eval var |> generalize_error
-      | None ->
-        let* var =
-          LVar.create
-            ( erased |> FomToJs.to_js ~top:(`Const id) >>- fun js ->
-              str "// " ^ str path ^ str "\n" ^ js )
-        in
-        Hashtbl.replace mods_in_js path var;
-        LVar.eval var |> generalize_error
+      ModInJs.get_or_put path
+        ( erased |> FomToJs.to_js ~top:(`Const id) >>- fun js ->
+          str "// " ^ str path ^ str "\n" ^ js )
 
 let modules_to_js ast paths =
   let* paths = topological_deps paths in

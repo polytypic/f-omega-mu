@@ -2,6 +2,7 @@ open FomBasis
 open FomAnnot
 open FomChecker
 open FomElab
+open FomToJsC
 
 module Env = struct
   type 't t =
@@ -11,6 +12,8 @@ module Env = struct
     ; fetch : 'r Fetch.t
     ; import_chain : (ImportChain.t, 'r) Field.t
     ; kind_env : (Kind.UnkMap.t, 'r) Field.t
+    ; mod_in_js : ModInJs.t
+    ; mod_simplified : ModSimplified.t
     ; parameters : (Parameters.t, 'r) Field.t
     ; typ_env : ('t Typ.VarMap.t, 'r) Field.t
     ; typ_imports : TypImports.t
@@ -19,22 +22,24 @@ module Env = struct
     as
     'r
 
-  let empty ?(fetch = FomElab.Fetch.dummy)
-      ?(typ_includes = FomElab.TypIncludes.create ())
-      ?(typ_imports = FomElab.TypImports.create ())
-      ?(exp_imports = FomElab.ExpImports.create ())
-      ?(annot = FomAnnot.Annot.empty ()) () =
+  let empty ?(annot = Annot.empty ()) ?(exp_imports = ExpImports.create ())
+      ?(fetch = Fetch.dummy) ?(mod_in_js = ModInJs.create ())
+      ?(mod_simplified = ModSimplified.create ())
+      ?(typ_imports = TypImports.create ())
+      ?(typ_includes = TypIncludes.create ()) () =
     object
-      inherit FomAnnot.Annot.con annot
-      inherit FomChecker.Exp.VarMap.con
-      inherit [_] FomChecker.Typ.VarMap.con
-      inherit FomChecker.Typ.Solved.con
-      inherit FomChecker.Kind.UnkMap.con
-      inherit FomElab.Parameters.con
-      inherit [_] FomElab.Fetch.con fetch
-      inherit FomElab.ImportChain.con
-      inherit FomElab.TypIncludes.con typ_includes
-      inherit FomElab.TypImports.con typ_imports
-      inherit FomElab.ExpImports.con exp_imports
+      inherit Annot.con annot
+      inherit Exp.VarMap.con
+      inherit ExpImports.con exp_imports
+      inherit [_] Fetch.con fetch
+      inherit ImportChain.con
+      inherit Kind.UnkMap.con
+      inherit ModInJs.con mod_in_js
+      inherit ModSimplified.con mod_simplified
+      inherit Parameters.con
+      inherit Typ.Solved.con
+      inherit [_] Typ.VarMap.con
+      inherit TypImports.con typ_imports
+      inherit TypIncludes.con typ_includes
     end
 end

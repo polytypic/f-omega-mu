@@ -1,3 +1,3 @@
 (executable
  (name FomCommand)
- (libraries FomElab FomParser FomToJsC FomDiag cohttp-lwt-unix))
+ (libraries FomEnv FomElab FomParser FomToJsC FomDiag cohttp-lwt-unix))
