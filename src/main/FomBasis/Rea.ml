@@ -75,8 +75,7 @@ and start' : 'r. 'r * ('r, 'e, 'a) t -> unit =
     )
 
 let push (Work (r, xF) as w) =
-  if !running then
-    work := w :: !work
+  if !running then work := w :: !work
   else (
     running := true;
     start' (r, xF))

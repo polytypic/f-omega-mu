@@ -94,8 +94,7 @@ and lam_bind_to_js_expr f b =
     and+ inits = to_assignments is is (List.map (fun i' -> `Var i') i's) in
     let b = str "{for (;;) {const " ^ inits ^ str ";" ^ b ^ str "}}" in
     List.fold_right (fun i b -> Var.to_js i ^ str " => " ^ b) i's b
-  else
-    to_js_expr b
+  else to_js_expr b
 
 and to_js_stmts finish ids exp =
   let default () =
@@ -127,10 +126,8 @@ and to_js_stmts finish ids exp =
       else
         let body v =
           let b =
-            if is_free i e then
-              str "const " ^ Var.to_js i ^ str " = "
-            else
-              str ""
+            if is_free i e then str "const " ^ Var.to_js i ^ str " = "
+            else str ""
           in
           let+ e = to_js_stmts finish (VarSet.add i ids) e in
           b ^ v ^ str "; " ^ e
@@ -327,8 +324,7 @@ and to_js_expr exp =
     match exp with
     | `App (`App (`Const c, lhs), rhs) when Const.is_bop c ->
       let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
-      if n <> 2 then
-        default ()
+      if n <> 2 then default ()
       else
         let+ lhs = to_js_expr lhs and+ rhs = to_js_expr rhs in
         parens
@@ -337,8 +333,7 @@ and to_js_expr exp =
     | `App (`Const c, lhs) when Const.is_bop c ->
       let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
       let* lhs_is_total = is_total lhs in
-      if (not lhs_is_total) || n <> 2 then
-        default ()
+      if (not lhs_is_total) || n <> 2 then default ()
       else
         let+ lhs = to_js_expr lhs in
         let rhs = Var.fresh Loc.dummy in
@@ -347,8 +342,7 @@ and to_js_expr exp =
         @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ Var.to_js rhs
     | `App (`Const c, rhs) when Const.is_uop c ->
       let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
-      if n <> 1 then
-        default ()
+      if n <> 1 then default ()
       else
         let+ rhs = to_js_expr rhs in
         parens @@ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ rhs)

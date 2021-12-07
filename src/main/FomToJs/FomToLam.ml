@@ -17,10 +17,8 @@ module Const = struct
       (* TODO: Warn when literal is truncated. *)
       `LitNat
         (Int32.of_string
-           (if nat < bi_2_pow_31 then
-              to_string nat
-           else
-             nat - bi_2_pow_32 |> to_string))
+           (if nat < bi_2_pow_31 then to_string nat
+           else nat - bi_2_pow_32 |> to_string))
     | ( `LitBool _ | `LitString _ | `OpArithAdd | `OpArithDiv | `OpArithMinus
       | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt
       | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _

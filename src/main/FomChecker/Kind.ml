@@ -35,10 +35,7 @@ let rec resolve k =
       | None -> return k
       | Some k ->
         let* k' = resolve k in
-        if k == k' then
-          return k
-        else
-          UnkMap.add v k' >> return k')
+        if k == k' then return k else UnkMap.add v k' >> return k')
   in
   keep_phys_eq' k k'
 

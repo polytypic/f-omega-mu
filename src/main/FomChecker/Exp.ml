@@ -180,8 +180,7 @@ let rec infer = function
     in
     if Typ.Core.is_free tid e_typ then
       fail @@ `Error_typ_var_escapes (at', tid, e_typ)
-    else
-      return (`UnpackIn (at', tid, k, id, v, e), e_typ)
+    else return (`UnpackIn (at', tid, k, id, v, e), e_typ)
   | `Merge (at', l, r) ->
     let select e l = `Select (Loc.dummy, e, atom (Label.set_at Loc.dummy l)) in
     let binding v t e =

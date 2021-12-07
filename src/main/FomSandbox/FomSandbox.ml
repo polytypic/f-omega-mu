@@ -28,10 +28,8 @@ let fetch at filename =
       let uri = Uri.of_string filename in
       let* resp, body = Client.get uri in
       let code = resp |> Response.status |> Code.code_of_status in
-      if 200 <= code && code < 300 then
-        Cohttp_lwt.Body.to_string body
-      else
-        Lwt.fail @@ HttpError (code, `GET, uri))
+      if 200 <= code && code < 300 then Cohttp_lwt.Body.to_string body
+      else Lwt.fail @@ HttpError (code, `GET, uri))
   |> map_error @@ function
      | HttpError (404, _, _) -> `Error_file_doesnt_exist (at, filename)
      | exn -> `Error_io (at, exn)
@@ -87,8 +85,7 @@ let pp_typ t =
        <> (m |> TypSet.to_seq
           |> Seq.map (decon >>> fst)
           |> VarSet.of_seq |> VarSet.cardinal)
-  then
-    pp_typ t
+  then pp_typ t
   else
     let ds = TypSet.elements m in
     let t = replace_closed_mus m t in
@@ -216,8 +213,7 @@ let js_codemirror_mode =
                 format_array ~atomize ~fuel value
               else if Js.instanceof value JsType.object' then
                 format_object ~fuel value
-              else
-                utf8string "()"
+              else utf8string "()"
             | "number" ->
               let float = Js.Unsafe.coerce value |> Js.float_of_number in
               utf8format "%.16g" float
@@ -239,15 +235,13 @@ let js_codemirror_mode =
                   | name -> utf8string name
                 in
                 lambda_lower ^^ name
-              else
-                format_object ~fuel value
+              else format_object ~fuel value
             | _ -> utf8string "unknown"
           in
           JsHashtbl.remove known value;
           if !used then
             group (mu_lower ^^ alpha_lower ^^ subscript n ^^ dot ^^ result)
-          else
-            result
+          else result
         | Some (n, used) ->
           used := true;
           alpha_lower ^^ subscript n
@@ -284,10 +278,8 @@ let js_codemirror_mode =
 
                   val diagnostics = Js.array [||]
                 end
-             >> (if whole then
-                   FomToJsC.whole_program_to_js
-                else
-                  FomToJsC.modules_to_js)
+             >> (if whole then FomToJsC.whole_program_to_js
+                else FomToJsC.modules_to_js)
                   ast deps
              |> try_in
                   (Js.string >>> Js.Unsafe.inject >>> Cb.invoke on_js)

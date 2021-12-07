@@ -39,23 +39,17 @@ let or_lm =
        method identity = lazy false
 
        method combine l r =
-         if Lazy.is_val l then
-           if Lazy.force_val l then l else r
-         else if Lazy.is_val r then
-           if Lazy.force_val r then r else l
-         else
-           lazy (Lazy.force l || Lazy.force r)
+         if Lazy.is_val l then if Lazy.force_val l then l else r
+         else if Lazy.is_val r then if Lazy.force_val r then r else l
+         else lazy (Lazy.force l || Lazy.force r)
      end
 
 let option_lm =
   let identity = lazy None
   and combine l r =
-    if Lazy.is_val l then
-      match Lazy.force_val l with None -> r | _ -> l
-    else if Lazy.is_val r then
-      match Lazy.force_val r with None -> l | _ -> r
-    else
-      lazy (match Lazy.force l with None -> Lazy.force r | some -> some)
+    if Lazy.is_val l then match Lazy.force_val l with None -> r | _ -> l
+    else if Lazy.is_val r then match Lazy.force_val r with None -> l | _ -> r
+    else lazy (match Lazy.force l with None -> Lazy.force r | some -> some)
   in
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )

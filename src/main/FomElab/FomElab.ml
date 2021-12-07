@@ -52,8 +52,7 @@ module Path = struct
 
   let coalesce loc lit =
     let path = JsonString.to_utf8 lit in
-    (if is_http path then
-       path |> split_to_origin_and_path
+    (if is_http path then path |> split_to_origin_and_path
     else
       loc |> Loc.path |> Filename.dirname |> split_to_origin_and_path
       |> Pair.map id @@ fun parent_dir ->
@@ -223,8 +222,7 @@ let to_avoid_capture i =
     let i' = Typ.Var.freshen i in
     let v' = Typ.var i' in
     (i', Typ.VarMap.singleton i @@ `Typ v')
-  else
-    (i, Typ.VarMap.empty)
+  else (i, Typ.VarMap.empty)
 
 let rec to_avoid_captures = function
   | [] -> return ([], Typ.VarMap.empty)

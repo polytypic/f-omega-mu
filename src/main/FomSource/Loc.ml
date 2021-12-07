@@ -20,14 +20,11 @@ let is_empty (l, r) = Pos.equal l r
 
 let pp ((lhs, rhs) : t) =
   let format_range lhs rhs =
-    if lhs = rhs then
-      Printf.sprintf " %d" lhs
-    else
-      Printf.sprintf "s %d-%d" lhs rhs
+    if lhs = rhs then Printf.sprintf " %d" lhs
+    else Printf.sprintf "s %d-%d" lhs rhs
   in
   let file_info =
-    if lhs.pos_fname = "" then
-      empty
+    if lhs.pos_fname = "" then empty
     else
       let filename =
         lhs.pos_fname |> JsonString.of_utf8 |> JsonString.to_utf8_json

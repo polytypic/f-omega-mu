@@ -96,8 +96,7 @@ let testInfersAs name typ exp =
     ^^ break_1 ^^ utf8string "vs"
     ^^ nest 2 (break_1 ^^ Typ.pp actual)
     |> group |> to_string ~max_width:80 |> failuref "%s"
-  else
-    unit
+  else unit
 
 let () =
   testInfersAs "fact" "int"

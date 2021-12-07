@@ -287,10 +287,8 @@ module Offside = struct
          >>= nest_until DoubleAngleQuoteRhs
          >> get
          >>= fun tok ->
-         if tok_of tok = Colon then
-           nest tok >>= emit_before ParenRhs
-         else
-           emit_before ParenRhs tok
+         if tok_of tok = Colon then nest tok >>= emit_before ParenRhs
+         else emit_before ParenRhs tok
        | BracketLhs -> as_typ (get >>= nest_until BracketRhs)
        | Include -> get >>= insert_in false (col_of tok)
        | Type -> as_typ (binding tok)
@@ -311,14 +309,11 @@ module Offside = struct
     | BraceRhs -> emit tok
     | Comma ->
       let* new_line = new_line tok in
-      if new_line && col_of tok < indent - 2 then
-        error "offside"
-      else
-        emit tok >> get >>= inside_braces false indent
+      if new_line && col_of tok < indent - 2 then error "offside"
+      else emit tok >> get >>= inside_braces false indent
     | _ ->
       let* new_line = new_line tok in
-      if new_line && col_of tok < indent then
-        error "offside"
+      if new_line && col_of tok < indent then error "offside"
       else
         emit_if (new_line && col_of tok = indent && insert) (set Comma tok)
         >> nest tok >>= inside_braces true indent
@@ -328,19 +323,15 @@ module Offside = struct
     | EOF -> emit tok
     | And ->
       let* new_line = new_line tok in
-      if new_line && col_of tok < indent then
-        error "offside"
+      if new_line && col_of tok < indent then error "offside"
       else if is_rec then
         emit tok >> expect MuLower >> get >>= insert_in is_rec indent
-      else
-        emit tok >> get >>= insert_in is_rec indent
+      else emit tok >> get >>= insert_in is_rec indent
     | In -> if col_of tok < indent then error "offside" else emit tok
     | _ ->
       let* new_line = new_line tok in
-      if new_line && col_of tok <= indent then
-        emit_before In tok
-      else
-        nest tok >>= insert_in is_rec indent
+      if new_line && col_of tok <= indent then emit_before In tok
+      else nest tok >>= insert_in is_rec indent
 
   and inside_binder tok =
     match tok_of tok with
@@ -352,7 +343,7 @@ module Offside = struct
     | _ -> nest tok >>= inside_binder
 
   and inside_block on_exit indent tok =
-    let* is_typ = is_typ in
+    let* is_typ in
     match tok_of tok with
     | And | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | Else
     | In | ParenRhs ->
@@ -360,18 +351,14 @@ module Offside = struct
     | (Dot | Equal) when is_typ -> on_exit tok
     | _ ->
       let* new_line = new_line tok in
-      if new_line && col_of tok < indent then
-        on_exit tok
-      else
-        nest tok >>= inside_block on_exit indent
+      if new_line && col_of tok < indent then on_exit tok
+      else nest tok >>= inside_block on_exit indent
 
   and binding tok =
     let indent = col_of tok in
     get >>= fun tok ->
-    if tok_of tok = MuLower then
-      emit tok >> get >>= insert_in true indent
-    else
-      insert_in false indent tok
+    if tok_of tok = MuLower then emit tok >> get >>= insert_in true indent
+    else insert_in false indent tok
 
   and nest_until closing tok =
     if tok_of tok = closing then emit tok else nest tok >>= nest_until closing

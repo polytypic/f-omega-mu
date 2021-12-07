@@ -68,8 +68,7 @@ let rec is_total e =
   | `Const _ | `Var _ | `Lam _ -> return true
   | _ ->
     let* seen = get Seen.field in
-    if Seen.mem e seen then
-      return false
+    if Seen.mem e seen then return false
     else
       Seen.adding e
         (match unapp e with

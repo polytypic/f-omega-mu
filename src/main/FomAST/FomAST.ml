@@ -34,8 +34,7 @@ module Kind = struct
   let index = function `Star _ -> 0 | `Arrow _ -> 1 | `Unk _ -> 2
 
   let rec compare lhs rhs =
-    if lhs == rhs then
-      0
+    if lhs == rhs then 0
     else
       match (lhs, rhs) with
       | `Star _, `Star _ -> 0
@@ -126,8 +125,7 @@ module Label = struct
 
   (** If both labels are numeric, comparison is done by numeric value. *)
   let compare lhs rhs =
-    if lhs == rhs then
-      0
+    if lhs == rhs then 0
     else
       let lhs = to_string lhs in
       let rhs = to_string rhs in
@@ -192,8 +190,7 @@ module Typ = struct
     let index = function `Bool -> 0 | `Int -> 1 | `String -> 2
 
     let compare lhs rhs =
-      if lhs == rhs then
-        0
+      if lhs == rhs then 0
       else
         match (lhs, rhs) with
         | `Bool, `Bool | `Int, `Int | `String, `String -> 0
@@ -323,16 +320,14 @@ module Typ = struct
       | `Mu (at, t) -> mu_of_norm' is_free at (subst_of_norm env t)
       | `Lam (at, i, k, t) as inn ->
         let env = VarMap.remove i env in
-        if VarMap.is_empty env then
-          inn
+        if VarMap.is_empty env then inn
         else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env
         then
           let i' = Var.freshen i in
           let v' = `Var (at, i') in
           let t' = subst_of_norm (VarMap.add i v' env) t in
           lam_of_norm' is_free at i' k t'
-        else
-          lam_of_norm' is_free at i k (subst_of_norm env t)
+        else lam_of_norm' is_free at i k (subst_of_norm env t)
       | `App (at, f, x) ->
         app_of_norm' subst_of_norm at (subst_of_norm env f)
           (subst_of_norm env x)
@@ -656,10 +651,8 @@ module Typ = struct
       ^^ pp config (prec_arrow - 1) cod
       |> if prec_arrow < prec_outer then egyptian parens 2 else id
     | `Product (_, labels) ->
-      if Row.is_tuple labels then
-        tupled config labels |> egyptian parens 2
-      else
-        labeled config labels |> egyptian braces 2
+      if Row.is_tuple labels then tupled config labels |> egyptian parens 2
+      else labeled config labels |> egyptian braces 2
     | `Sum (_, [(l, `Product (_, []))]) -> tick ^^ Label.pp l
     | `Sum (_, labels) ->
       ticked config labels

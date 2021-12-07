@@ -19,8 +19,7 @@ let () =
      let actual = Filename.canonic to_canonize in
      if actual <> expected then
        failuref "Expected: %s\nActual:   %s\n" expected actual
-     else
-       unit
+     else unit
 
 let () =
   test "List.map_fr" @@ fun () ->
@@ -46,5 +45,4 @@ let () =
       (expected |> Array.map Int.to_string |> Array.to_list
      |> String.concat ", ")
       (actual |> Array.map Int.to_string |> Array.to_list |> String.concat ", ")
-  else
-    unit
+  else unit

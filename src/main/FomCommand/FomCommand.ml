@@ -36,10 +36,8 @@ let fetch at filename =
         let uri = Uri.of_string filename in
         let* resp, body = Client.get uri in
         let code = resp |> Response.status |> Code.code_of_status in
-        if 200 <= code && code < 300 then
-          Cohttp_lwt.Body.to_string body
-        else
-          Lwt.fail @@ HttpError (code, `GET, uri))
+        if 200 <= code && code < 300 then Cohttp_lwt.Body.to_string body
+        else Lwt.fail @@ HttpError (code, `GET, uri))
     |> map_error @@ function
        | HttpError (404, _, _) -> `Error_file_doesnt_exist (at, filename)
        | exn -> `Error_io (at, exn)
@@ -91,23 +89,19 @@ let process filename =
   let max_width = !Options.max_width in
   (let* ast, typ, paths = FomElab.elaborate cst |> replace_env env in
    (if !Options.stop = `Typ then (
-      typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
-      fail `Stop)
-   else
-     unit)
+    typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
+    fail `Stop)
+   else unit)
    >> let* js =
-        (if !Options.whole then
-           FomToJsC.whole_program_to_js
-        else
-          FomToJsC.modules_to_js)
+        (if !Options.whole then FomToJsC.whole_program_to_js
+        else FomToJsC.modules_to_js)
           ast paths
         |> replace_env env
       in
       (if !Options.stop = `Js then (
-         Printf.printf "%s\n" js;
-         fail `Stop)
-      else
-        unit)
+       Printf.printf "%s\n" js;
+       fail `Stop)
+      else unit)
       >> let* prelude = fetch at "docs/prelude.js" in
          run_process_with_input at ("node", [|"-"|]) [prelude; ";\n"; js])
   |> try_in return @@ function
@@ -125,10 +119,7 @@ let () =
   Arg.parse
     [
       ( "-max-width",
-        Arg.Int
-          (fun w ->
-            if 20 <= w && w <= 200 then
-              Options.max_width := w),
+        Arg.Int (fun w -> if 20 <= w && w <= 200 then Options.max_width := w),
         doc "Set maximum width for various outputs." "80" );
       ( "-stop",
         Arg.Symbol

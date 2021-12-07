@@ -19,5 +19,4 @@ let () =
      in
      if actual <> expected then
        failuref "Expected: %s\nActual:   %s\n" expected actual
-     else
-       unit
+     else unit

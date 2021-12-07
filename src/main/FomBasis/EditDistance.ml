@@ -38,15 +38,12 @@ let compare ls rs =
   let rec lp i =
     if i < n then
       let sub xs xs_n =
-        if i < xs_n then
-          xs.(i)
-        else
-          Int.min (xs.(xs_n - 1) + (2 * (i - xs_n + 1))) xs.(2)
+        if i < xs_n then xs.(i)
+        else Int.min (xs.(xs_n - 1) + (2 * (i - xs_n + 1))) xs.(2)
       in
       let l = sub ls ls_n and r = sub rs rs_n in
       if l < r then -1 else if r < l then 1 else lp (i + 1)
-    else
-      0
+    else 0
   in
   lp 3
 

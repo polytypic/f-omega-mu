@@ -94,8 +94,6 @@ let rec collect_mus_closed bvs t mus =
 let rec replace_closed_mus m =
   keep_phys_eq @@ function
   | `Mu (at'', `Lam (at', i, k, e)) as t ->
-    if TypSet.mem t m then
-      `Var (at', i)
-    else
-      `Mu (at'', `Lam (at', i, k, replace_closed_mus m e))
+    if TypSet.mem t m then `Var (at', i)
+    else `Mu (at'', `Lam (at', i, k, replace_closed_mus m e))
   | t -> map_eq (replace_closed_mus m) t

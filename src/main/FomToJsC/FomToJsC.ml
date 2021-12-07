@@ -27,8 +27,7 @@ let topological_deps paths =
   let added = Hashtbl.create 100 in
   let deps = ref [] in
   let rec loop path =
-    if Hashtbl.mem added path then
-      unit
+    if Hashtbl.mem added path then unit
     else
       let* (_, _, _, paths), _ = FomElab.ExpImports.get path in
       paths |> List.iter_fr loop >>- fun () ->

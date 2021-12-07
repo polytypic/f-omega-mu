@@ -56,32 +56,22 @@ module Annot = struct
     open Label
 
     let def id typ =
-      if is_fresh id || is_numeric id then
-        unit
-      else
-        add_def (at id) @@ `Label (id, typ)
+      if is_fresh id || is_numeric id then unit
+      else add_def (at id) @@ `Label (id, typ)
 
     let use id def =
-      if is_fresh id || is_numeric id then
-        unit
-      else
-        add_use (at id) def
+      if is_fresh id || is_numeric id then unit else add_use (at id) def
   end
 
   module Exp = struct
     open Exp.Var
 
     let def id typ =
-      if is_fresh id || is_numeric id then
-        unit
-      else
-        add_def (at id) @@ `ExpId (id, typ)
+      if is_fresh id || is_numeric id then unit
+      else add_def (at id) @@ `ExpId (id, typ)
 
     let use id def =
-      if is_fresh id || is_numeric id then
-        unit
-      else
-        add_use (at id) def
+      if is_fresh id || is_numeric id then unit else add_use (at id) def
   end
 
   module Typ = struct

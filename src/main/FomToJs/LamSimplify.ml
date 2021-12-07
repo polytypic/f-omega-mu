@@ -159,8 +159,7 @@ let to_lam continue k i e =
       let i' = Var.freshen i in
       let vi' = `Var i' in
       (i', subst i vi' e)
-    else
-      (i, e)
+    else (i, e)
   in
   `Lam (i, continue e k)
 
@@ -192,14 +191,11 @@ let rec inline_continuation e k =
 
 let rec simplify e =
   let* seen = get Seen.field in
-  if Seen.mem e seen then
-    fail `Seen
+  if Seen.mem e seen then fail `Seen
   else
     let* limit = get Limit.field in
-    if limit < size e then
-      fail `Limit
-    else
-      Seen.adding e (simplify_base e >>- keep_phys_eq' e)
+    if limit < size e then fail `Limit
+    else Seen.adding e (simplify_base e >>- keep_phys_eq' e)
 
 and simplify_base = function
   | `Const (`Target (_, l)) when Js.is_identity l ->
@@ -239,13 +235,9 @@ and simplify_base = function
             simplify
               (inline_continuation s (lam @@ fun s -> `App (`Case cs, s)))
           and+ defaulted = default () in
-          if size inlined * 3 < size defaulted * 4 then
-            inlined
-          else
-            defaulted
+          if size inlined * 3 < size defaulted * 4 then inlined else defaulted
         | _ -> default ()
-      else
-        default ()
+      else default ()
     | `Const c, x when Const.is_uop c -> (
       match Const.simplify_uop (c, x) with
       | Some e -> simplify e
@@ -260,8 +252,7 @@ and simplify_base = function
           let j' = Var.freshen j in
           let vj' = `Var j' in
           (j', subst j vj' f)
-        else
-          (j, f)
+        else (j, f)
       in
       simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
     | `Lam (i, e), x -> (
@@ -281,10 +272,8 @@ and simplify_base = function
                if
                  size applied * 3 < size defaulted * 4
                  && Lam.compare applied defaulted <> 0
-               then
-                 return applied
-               else
-                 return defaulted)
+               then return applied
+               else return defaulted)
              (fun (`Limit | `Seen) -> return defaulted)
       else
         match x with
@@ -308,8 +297,7 @@ and simplify_base = function
       if e_or_y_is_total then
         let x'' = Var.freshen x' in
         simplify @@ `App (`Lam (x'', `App (subst x' (`Var x'') e, y)), x)
-      else
-        default ()
+      else default ()
     | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
       let* c_is_total = is_total c in
       if c_is_total then
@@ -317,8 +305,7 @@ and simplify_base = function
         let xv = `Var x' in
         simplify
         @@ `App (`Lam (x', `IfElse (c, subst t' xv t, subst e' xv e)), x)
-      else
-        default ()
+      else default ()
     | `Var _, c when may_inline_continuation c ->
       simplify @@ inline_continuation c f
     | _ -> default ())
@@ -379,8 +366,7 @@ and simplify_base = function
           is_total c >>= function
           | true -> simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
           | false -> default ()
-        else
-          default ()))
+        else default ()))
   | `Product fs -> Row.map_phys_eq_fr simplify fs >>- fun fs -> `Product fs
   | `Select (e, l) -> (
     let* e = simplify e and* l = simplify l in
@@ -394,8 +380,7 @@ and simplify_base = function
       in
       if fs_are_total then
         fs |> List.find (fst >>> Label.equal l) |> snd |> return
-      else
-        default ()
+      else default ()
     | _ -> default ())
   | `Case cs -> simplify cs >>- fun cs -> `Case cs
   | `Inject (l, e) -> (
@@ -407,14 +392,11 @@ let once e = simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
 
 let rec to_fixed_point e =
   let* limit = get Limit.field in
-  if limit < size e then
-    return e
+  if limit < size e then return e
   else
     let* e' = once e in
-    if e == e' then
-      return e'
-    else
-      to_fixed_point e' |> mapping Limit.field (fun v -> v / 16 * 15)
+    if e == e' then return e'
+    else to_fixed_point e' |> mapping Limit.field (fun v -> v / 16 * 15)
 
 let to_fixed_point e = to_fixed_point e |> setting Limit.field (size e * 8)
 let once e = once e |> setting Limit.field (size e * 4)

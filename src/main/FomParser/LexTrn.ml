@@ -6,7 +6,6 @@ type 't env = (Buffer.t -> 't t) * Buffer.t
 type 't state = bool * 't t option
 
 type ('t, 'a) m = 't env -> 't t -> 't state -> ('t, 'a) result * 't state
-
 and ('t, 'a) result = Emit of 't t * ('t, 'a) m | Return of 'a
 
 (* *)

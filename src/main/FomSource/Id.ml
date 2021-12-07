@@ -110,12 +110,9 @@ module Make () : S = struct
 
   let pp ?(hr = true) {name; n; _} =
     let it = Name.to_string name |> utf8string in
-    if n = 0 || name = underscore' then
-      it
-    else if hr then
-      it ^^ subscript n
-    else
-      it ^^ utf8format "$%d" n
+    if n = 0 || name = underscore' then it
+    else if hr then it ^^ subscript n
+    else it ^^ utf8format "$%d" n
 
   (* Freshening *)
 

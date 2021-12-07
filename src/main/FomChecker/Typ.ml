@@ -86,12 +86,9 @@ let make_sub_and_eq at =
         | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
         | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
           let c = Label.compare ll ml in
-          if c = 0 then
-            flip (sub l_env r_env) mt lt >> subset l r flip ls ms
-          else if 0 < c then
-            subset l r flip lls ms
-          else
-            fail @@ `Error_label_missing (at, ll, l, r)
+          if c = 0 then flip (sub l_env r_env) mt lt >> subset l r flip ls ms
+          else if 0 < c then subset l r flip lls ms
+          else fail @@ `Error_label_missing (at, ll, l, r)
       in
       match (l, r) with
       | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
@@ -123,8 +120,7 @@ let make_sub_and_eq at =
           | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
           | _ -> fail @@ `Error_typ_var_unbound (at, lf))
         | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
-    else
-      unit
+    else unit
   and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
   (sub, eq)
 
@@ -184,10 +180,8 @@ module Var = struct
     | t -> (Var.fresh (FomAST.Typ.at t), t)
 
   let rec fresh_from_n n t =
-    if n <= 0 then
-      []
-    else
-      fresh_from t |> fun (i, t) -> i :: fresh_from_n (n - 1) t
+    if n <= 0 then []
+    else fresh_from t |> fun (i, t) -> i :: fresh_from_n (n - 1) t
 end
 
 (* *)
@@ -215,12 +209,9 @@ let intersection op =
   let rec loop os = function
     | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
       let c = Label.compare ll rl in
-      if c < 0 then
-        loop os (lls, rlls)
-      else if 0 < c then
-        loop os (llls, rls)
-      else
-        op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
+      if c < 0 then loop os (lls, rlls)
+      else if 0 < c then loop os (llls, rls)
+      else op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
     | [], _ | _, [] -> return @@ List.rev os
   in
   loop []
@@ -243,10 +234,7 @@ let rec mu_of_norm at = function
         `Lam (at', i, k, t')
       | _ -> unfold_at_jms i t t >>- fun t' -> `Lam (at', i, k, t')
     in
-    if compare f f' = 0 then
-      return @@ `Mu (at, f)
-    else
-      mu_of_norm at f'
+    if compare f f' = 0 then return @@ `Mu (at, f) else mu_of_norm at f'
   | f -> return @@ `Mu (at, f)
 
 and jm_op_of = function
@@ -273,12 +261,9 @@ and unfold_at_jms x f = function
 and drop_legs x = function
   | (`Join (_, l, r) | `Meet (_, l, r)) as t ->
     let* r = drop_legs x r in
-    if compare x l = 0 then
-      return r
-    else if compare x r = 0 then
-      return l
-    else
-      jm_op_of t l r
+    if compare x l = 0 then return r
+    else if compare x r = 0 then return l
+    else jm_op_of t l r
   | t -> return t
 
 and lam_of_norm at i k = function
@@ -325,8 +310,7 @@ and memoing t op =
     kind_of t >>= fun k -> mu_of_norm at' (lam_of_norm at' i k t')
 
 and join_or_meet_of_norm con lower upper sum product at' l r =
-  if compare l r = 0 then
-    return l
+  if compare l r = 0 then return l
   else
     match (l, r) with
     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
@@ -337,8 +321,7 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
       sum upper (lls, rls) >>- fun ls -> `Sum (at', ls)
     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
       let* i, lt, rt =
-        if Var.equal li ri then
-          return (li, lt, rt)
+        if Var.equal li ri then return (li, lt, rt)
         else if not (is_free li rt) then
           subst_of_norm (VarMap.singleton ri (var li)) rt >>- fun rt ->
           (li, lt, rt)
@@ -393,8 +376,7 @@ and subst_of_norm env t =
     | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
-      if VarMap.is_empty env then
-        return inn
+      if VarMap.is_empty env then return inn
       else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
         let i' = Var.freshen i in
         let v' = `Var (at, i') in
@@ -424,8 +406,7 @@ let rec find_map_from_all_apps_of i' p = function
         match p t f xs with
         | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
         | some -> some
-      else
-        xs |> List.find_map (find_map_from_all_apps_of i' p)
+      else xs |> List.find_map (find_map_from_all_apps_of i' p)
     | f, xs -> (
       match find_map_from_all_apps_of i' p f with
       | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
@@ -433,8 +414,7 @@ let rec find_map_from_all_apps_of i' p = function
   | t -> find_map (find_map_from_all_apps_of i' p) t
 
 let find_opt_nested_arg_mu at f arity =
-  if arity <= 0 then
-    return None
+  if arity <= 0 then return None
   else
     let i = Var.fresh at in
     let v = var i in

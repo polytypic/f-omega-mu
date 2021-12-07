@@ -48,10 +48,8 @@ let textf fmt = Printf.ksprintf text fmt
 
 let to_string ?(max_width = 0) doc =
   let buffer = Buffer.create 1000 in
-  if max_width <= 0 then
-    ToBuffer.compact buffer doc
-  else
-    ToBuffer.pretty 1.0 max_width buffer doc;
+  if max_width <= 0 then ToBuffer.compact buffer doc
+  else ToBuffer.pretty 1.0 max_width buffer doc;
   Buffer.sub buffer 0 (Buffer.length buffer)
 
 (* Keywords *)
@@ -105,8 +103,7 @@ let sub_digit = [|"₀"; "₁"; "₂"; "₃"; "₄"; "₅"; "₆"; "₇"; "₈";
 let subscript n =
   if n < 0 then failwith "subscript";
   let rec loop s n =
-    if n = 0 then
-      if String.length s = 0 then sub_digit.(0) else s
+    if n = 0 then if String.length s = 0 then sub_digit.(0) else s
     else
       let d = n mod 10 in
       let n = n / 10 in

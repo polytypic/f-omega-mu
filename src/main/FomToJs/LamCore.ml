@@ -115,14 +115,12 @@ let rec subst i the =
   | `Const _ as inn -> inn
   | `Var i' as inn -> if Var.equal i' i then the else inn
   | `Lam (i', e) as inn ->
-    if Var.equal i' i || not (is_free i e) then
-      inn
+    if Var.equal i' i || not (is_free i e) then inn
     else if is_free i' the then
       let i'' = Var.freshen i' in
       let vi'' = `Var i'' in
       `Lam (i'', subst i the (subst i' vi'' e))
-    else
-      `Lam (i', subst i the e)
+    else `Lam (i', subst i the e)
   | `App (f, x) -> `App (subst i the f, subst i the x)
   | `Mu e -> `Mu (subst i the e)
   | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
@@ -171,8 +169,7 @@ let index = function
   | `Var _ -> 9
 
 let rec compare (l : t) (r : t) =
-  if l == r then
-    0
+  if l == r then 0
   else
     match (l, r) with
     | `App (fl, xl), `App (fr, xr) -> compare xl xr <>? fun () -> compare fl fr
@@ -186,8 +183,7 @@ let rec compare (l : t) (r : t) =
     | `Inject (ll, el), `Inject (lr, er) ->
       Label.compare ll lr <>? fun () -> compare el er
     | `Lam (vl, el), `Lam (vr, er) ->
-      if Var.equal vl vr then
-        compare el er
+      if Var.equal vl vr then compare el er
       else
         let v = `Var (Var.fresh Loc.dummy) in
         compare (subst vl v el) (subst vr v er)

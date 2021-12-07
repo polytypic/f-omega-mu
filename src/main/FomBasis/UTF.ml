@@ -23,10 +23,7 @@ module UTF8 = struct
              | `Malformed _ -> failwithf "Malformed UTF-8 at char index %d" i)
            0
     in
-    if n <> Array.length buffer then
-      Array.sub buffer 0 n
-    else
-      buffer
+    if n <> Array.length buffer then Array.sub buffer 0 n else buffer
 end
 
 module UTF16 = struct
@@ -44,8 +41,5 @@ module UTF16 = struct
              | `Malformed _ -> failwithf "Malformed UTF-16 at char index %d" i)
            0
     in
-    if n <> Array.length buffer then
-      Array.sub buffer 0 n
-    else
-      buffer
+    if n <> Array.length buffer then Array.sub buffer 0 n else buffer
 end
