@@ -157,6 +157,7 @@ module JsHashtbl = Hashtbl.Make (struct
 end)
 
 let js_codemirror_mode =
+  let env = FomEnv.Env.empty ~fetch () in
   object%js
     method format (value : unit Js.t) max_width =
       let known = JsHashtbl.create 100 in
@@ -267,11 +268,11 @@ let js_codemirror_mode =
            (fun (ast, typ, deps) ->
              Profiling.Counter.dump_all ();
              let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
-             let* typ = pp_typ typ and* defUses = def_uses in
+             let* typ = pp_typ typ and* def_uses in
              Cb.invoke on_pass @@ Js.Unsafe.inject
              @@ object%js
                   val typ = utf8string "type:" ^^ typ |> to_js_string ~max_width
-                  val defUses = defUses
+                  val defUses = def_uses
 
                   val dependencies =
                     deps |> Array.of_list |> Array.map Js.string |> Js.array
@@ -306,7 +307,7 @@ let js_codemirror_mode =
                              end)
                       |> Js.array
                 end)
-      |> start (FomToJsC.Env.empty ~fetch ())
+      |> Annot.scoping |> start env
 
     method synonyms =
       Tokenizer.synonyms |> Array.of_list

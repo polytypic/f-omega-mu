@@ -84,17 +84,14 @@ let run_process_with_input at command input =
 let process filename =
   let at = Loc.of_path (Sys.getcwd () ^ "/.") in
   let p = JsonString.of_utf8 filename in
-  let env = FomToJsC.Env.empty ~fetch () in
   let cst = `Import (at, p) in
   let max_width = !Options.max_width in
-  (let* ast, typ, paths = FomElab.elaborate cst |> replace_env env in
+  (let* ast, typ, paths = FomElab.elaborate cst in
    (if !Options.stop = `Typ then (
     typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
     fail `Stop)
    else unit)
-   >> let* js =
-        FomToJsC.to_js ~whole:!Options.whole ast paths |> replace_env env
-      in
+   >> let* js = FomToJsC.to_js ~whole:!Options.whole ast paths in
       (if !Options.stop = `Js then (
        Printf.printf "%s\n" js;
        fail `Stop)
@@ -104,7 +101,7 @@ let process filename =
   |> try_in return @@ function
      | `Stop -> unit
      | #Error.t as error ->
-       let+ diagnostic = Diagnostic.of_error error |> replace_env env in
+       let+ diagnostic = Diagnostic.of_error error in
        diagnostic |> Diagnostic.pp |> FomPP.to_string ~max_width
        |> Printf.printf "%s\n";
        exit 1
@@ -135,7 +132,6 @@ let () =
     (Filename.basename Sys.executable_name
     ^ " [options] <file.fom>\n\nOptions:\n");
   let p, r = Lwt.wait () in
-  !files |> List.rev |> List.iter_fr process
-  >>- (fun () -> Lwt.wakeup r ())
-  |> start ();
+  !files |> List.rev |> List.iter_fr process >>- Lwt.wakeup r
+  |> start (FomEnv.Env.empty ~fetch ());
   Lwt_main.run p

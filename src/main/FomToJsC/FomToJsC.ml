@@ -1,24 +1,10 @@
 open FomBasis
-open FomEnv
 
 (* *)
 
 open Cats
 
 (* *)
-
-let () = Hashtbl.randomize ()
-
-(* *)
-
-let typ_includes = FomElab.TypIncludes.create ()
-let typ_imports = FomElab.TypImports.create ()
-let exp_imports = FomElab.ExpImports.create ()
-
-module Env = struct
-  let empty ?(fetch = FomElab.Fetch.dummy) =
-    Env.empty ~fetch ~typ_includes ~typ_imports ~exp_imports
-end
 
 let mods_simplified : (string, (Zero.t, FomToJs.Lam.t) LVar.t) Hashtbl.t =
   Hashtbl.create 100
