@@ -278,9 +278,7 @@ let js_codemirror_mode =
 
                   val diagnostics = Js.array [||]
                 end
-             >> (if whole then FomToJsC.whole_program_to_js
-                else FomToJsC.modules_to_js)
-                  ast deps
+             >> FomToJsC.to_js ~whole ast deps
              |> try_in
                   (Js.string >>> Js.Unsafe.inject >>> Cb.invoke on_js)
                   (fun _ -> Cb.invoke on_js @@ Js.Unsafe.inject @@ Js.string ""))

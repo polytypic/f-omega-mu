@@ -93,10 +93,7 @@ let process filename =
     fail `Stop)
    else unit)
    >> let* js =
-        (if !Options.whole then FomToJsC.whole_program_to_js
-        else FomToJsC.modules_to_js)
-          ast paths
-        |> replace_env env
+        FomToJsC.to_js ~whole:!Options.whole ast paths |> replace_env env
       in
       (if !Options.stop = `Js then (
        Printf.printf "%s\n" js;

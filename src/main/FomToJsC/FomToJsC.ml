@@ -84,3 +84,5 @@ let modules_to_js ast paths =
   modules
   |> List.fold_left (fun prg js -> js ^ str "\n\n" ^ prg) (str "// main\n" ^ prg)
   |> use_strict |> to_string
+
+let to_js ~whole = if whole then whole_program_to_js else modules_to_js
