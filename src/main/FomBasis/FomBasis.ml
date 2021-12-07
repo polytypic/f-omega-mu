@@ -1,4 +1,5 @@
 module Applicative = Applicative
+module Array = Array
 module Cats = Cats
 module Compare = Compare
 module Constant = Constant
