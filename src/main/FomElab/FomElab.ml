@@ -73,6 +73,8 @@ module Fetch = struct
       method fetch = fetch
     end
 
+  type 'r f = 'r con
+
   let fetch at path =
     invoke (fun r -> field r at path) |> map_error (fun (#e as x) -> x)
 end
@@ -99,6 +101,8 @@ module ImportChain = struct
       method import_chain =
         Field.make import_chain (fun v -> {<import_chain = v>})
     end
+
+  type 'r f = < import_chain : (t, 'r) Field.t >
 end
 
 module PathTable = struct
@@ -136,6 +140,8 @@ module TypIncludes = struct
     object
       method typ_includes = typ_includes
     end
+
+  type 'r f = con
 end
 
 module TypImports = struct
@@ -149,6 +155,8 @@ module TypImports = struct
     object
       method typ_imports = typ_imports
     end
+
+  type 'r f = con
 end
 
 module ExpImports = struct
@@ -163,6 +171,8 @@ module ExpImports = struct
     object
       method exp_imports = exp_imports
     end
+
+  type 'r f = con
 end
 
 module Parameters = struct
@@ -201,6 +211,8 @@ module Parameters = struct
       val parameters : t = empty ()
       method parameters = Field.make parameters (fun v -> {<parameters = v>})
     end
+
+  type 'r f = < parameters : (t, 'r) Field.t >
 end
 
 module Elab = struct

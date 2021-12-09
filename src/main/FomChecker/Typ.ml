@@ -22,6 +22,8 @@ module VarMap = struct
       val typ_env : 't t = empty
       method typ_env = Field.make typ_env (fun v -> {<typ_env = v>})
     end
+
+  type ('t, 'r) f = < typ_env : ('t t, 'r) Field.t >
 end
 
 (* *)
@@ -198,6 +200,8 @@ module Solved = struct
       val typ_solved : t = empty
       method typ_solved = Field.make typ_solved (fun v -> {<typ_solved = v>})
     end
+
+  type 'r f = < typ_solved : (t, 'r) Field.t >
 end
 
 (* *)

@@ -22,6 +22,8 @@ module VarMap = struct
       val exp_env : t = VarMap.empty
       method exp_env = Field.make exp_env (fun v -> {<exp_env = v>})
     end
+
+  type 'r f = < exp_env : (t, 'r) Field.t >
 end
 
 (* *)

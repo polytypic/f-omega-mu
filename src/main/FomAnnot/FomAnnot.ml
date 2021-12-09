@@ -29,6 +29,8 @@ module Annot = struct
       method annotations = Field.make annotations (fun v -> {<annotations = v>})
     end
 
+  type 'r f = < annotations : (t, 'r) Field.t >
+
   let make def uses annot =
     object
       method def = def

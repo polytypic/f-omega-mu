@@ -25,6 +25,8 @@ module ModSimplified = struct
     object
       method mod_simplified = mod_simplified
     end
+
+  type 'r f = con
 end
 
 module ModInJs = struct
@@ -46,6 +48,8 @@ module ModInJs = struct
     object
       method mod_in_js = mod_in_js
     end
+
+  type 'r f = con
 end
 
 let topological_deps paths =

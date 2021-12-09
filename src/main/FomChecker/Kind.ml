@@ -20,6 +20,8 @@ module UnkMap = struct
       val kind_env : t = empty ()
       method kind_env = Field.make kind_env (fun v -> {<kind_env = v>})
     end
+
+  type 'r f = < kind_env : (t, 'r) Field.t >
 end
 
 let rec resolve k =

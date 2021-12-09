@@ -30,6 +30,8 @@ module Fetch : sig
     -> object
          method fetch : 'r t
        end
+
+  type 'r f = 'r con
 end
 
 module Parameters : sig
@@ -39,6 +41,8 @@ module Parameters : sig
     object ('r)
       method parameters : (t, 'r) Field.t
     end
+
+  type 'r f = < parameters : (t, 'r) Field.t >
 end
 
 module TypIncludes : sig
@@ -48,9 +52,11 @@ module TypIncludes : sig
 
   class con :
     t
-    -> object ('r)
+    -> object
          method typ_includes : t
        end
+
+  type 'r f = con
 end
 
 module TypImports : sig
@@ -60,9 +66,11 @@ module TypImports : sig
 
   class con :
     t
-    -> object ('r)
+    -> object
          method typ_imports : t
        end
+
+  type 'r f = con
 end
 
 module ExpImports : sig
@@ -79,9 +87,11 @@ module ExpImports : sig
 
   class con :
     t
-    -> object ('r)
+    -> object
          method exp_imports : t
        end
+
+  type 'r f = con
 end
 
 module ImportChain : sig
@@ -91,19 +101,21 @@ module ImportChain : sig
     object ('r)
       method import_chain : (t, 'r) Field.t
     end
+
+  type 'r f = < import_chain : (t, 'r) Field.t >
 end
 
 val elaborate_typ :
   FomCST.Typ.t ->
-  ( (< annotations : (Annot.t, 'r) Field.t
-     ; fetch : 'r Fetch.t
-     ; import_chain : (ImportChain.t, 'r) Field.t
-     ; kind_env : (Kind.UnkMap.t, 'r) Field.t
-     ; parameters : (Parameters.t, 'r) Field.t
-     ; typ_env : ([`Kind of Kind.t | `Typ of Typ.t] Typ.VarMap.t, 'r) Field.t
-     ; typ_imports : TypImports.t
-     ; typ_includes : TypIncludes.t
-     ; typ_solved : (Typ.Solved.t, 'r) Field.t
+  ( (< 'r Annot.f
+     ; 'r Fetch.f
+     ; 'r ImportChain.f
+     ; 'r Kind.UnkMap.f
+     ; 'r Parameters.f
+     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarMap.f
+     ; 'r TypImports.f
+     ; 'r TypIncludes.f
+     ; 'r Typ.Solved.f
      ; .. >
      as
      'r),
@@ -113,17 +125,17 @@ val elaborate_typ :
 
 val elaborate :
   FomCST.Exp.t ->
-  ( (< annotations : (Annot.t, 'r) Field.t
-     ; exp_env : (Exp.VarMap.t, 'r) Field.t
-     ; exp_imports : ExpImports.t
-     ; fetch : 'r Fetch.t
-     ; import_chain : (ImportChain.t, 'r) Field.t
-     ; kind_env : (Kind.UnkMap.t, 'r) Field.t
-     ; parameters : (Parameters.t, 'r) Field.t
-     ; typ_env : ([`Kind of Kind.t | `Typ of Typ.t] Typ.VarMap.t, 'r) Field.t
-     ; typ_imports : TypImports.t
-     ; typ_includes : TypIncludes.t
-     ; typ_solved : (Typ.Solved.t, 'r) Field.t
+  ( (< 'r Annot.f
+     ; 'r Exp.VarMap.f
+     ; 'r ExpImports.f
+     ; 'r Fetch.f
+     ; 'r ImportChain.f
+     ; 'r Kind.UnkMap.f
+     ; 'r Parameters.f
+     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarMap.f
+     ; 'r TypImports.f
+     ; 'r TypIncludes.f
+     ; 'r Typ.Solved.f
      ; .. >
      as
      'r),

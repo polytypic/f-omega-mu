@@ -10,9 +10,11 @@ module ModSimplified : sig
 
   class con :
     t
-    -> object ('r)
+    -> object
          method mod_simplified : t
        end
+
+  type 'r f = con
 end
 
 module ModInJs : sig
@@ -22,19 +24,18 @@ module ModInJs : sig
 
   class con :
     t
-    -> object ('r)
+    -> object
          method mod_in_js : t
        end
+
+  type 'r f = con
 end
 
 val to_js :
   whole:bool ->
   Exp.Core.t ->
   string List.t ->
-  ( < exp_imports : ExpImports.t
-    ; mod_simplified : ModSimplified.t
-    ; mod_in_js : ModInJs.t
-    ; .. >,
+  ( (< 'r ExpImports.f ; 'r ModSimplified.f ; 'r ModInJs.f ; .. > as 'r),
     [> Error.t],
     string )
   rea
