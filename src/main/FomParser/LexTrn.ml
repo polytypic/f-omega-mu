@@ -50,7 +50,8 @@ let methods =
 
 (* *)
 
-let col_of (_, (p : Pos.t), _) = p.pos_cnum - p.pos_bol
+let left_of (_, (p : Pos.t), _) = p.pos_cnum - p.pos_bol
+let right_of (_, _, (p : Pos.t)) = p.pos_cnum - p.pos_bol
 let tok_of (t, _, _) = t
 let set token (_, s, (e : Pos.t)) = (token, s, {e with pos_bol = e.pos_bol - 1})
 
@@ -93,7 +94,11 @@ let new_line (_, (p : Pos.t), _) _ =
   inj @@ fun _ (_, _, (last_pos : Pos.t)) state ->
   (Return (last_pos.pos_bol <> p.pos_bol), state)
 
-let with_indent rule = get >>= fun tok -> rule (col_of tok) tok
+let with_indent rule m =
+  inj @@ fun env last_pos state ->
+  match prj (get m) env last_pos state with
+  | Return tok, state -> prj (rule (left_of tok) tok m) env tok state
+  | _ -> failwith "with_indent"
 
 (* *)
 

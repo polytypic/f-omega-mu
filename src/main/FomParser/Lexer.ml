@@ -1,9 +1,8 @@
 open FomBasis
 open FomSource
 open Grammar
+open Parser
 open Buffer
-
-exception Exn_lexeme of Loc.t * string
 
 let return_from buffer tok =
   let lhs, rhs = Buffer.loc buffer in
@@ -245,6 +244,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | "." | "=>" -> return Dot
     | "/" -> return Slash
     | ":" -> return Colon
+    | ";" -> return Semicolon
     | "<" -> return Less
     | "=" -> return Equal
     | ">" -> return Greater
@@ -373,127 +373,5 @@ type t = Buffer.t -> unit -> tok
 
 let plain : t = fun buffer () -> token buffer
 
-(* *)
-
-module Offside = struct
-  open LexTrn
-
-  let error message = loc >>= fun loc -> raise @@ Exn_lexeme (loc, message)
-
-  let expect exp =
-    get >>= fun tok ->
-    if tok_of tok <> exp then error "unexpected" else emit tok
-
-  (* *)
-
-  let is_closing = function
-    | And | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | Else
-    | In | ParenRhs | Then ->
-      true
-    | _ -> false
-
-  let rec nest tok =
-    (match tok_of tok with
-    | ForAll | Exists | MuLower ->
-      get >>= fun tok ->
-      if tok_of tok <> ParenLhs then emit_before ParenLhs tok else unget tok
-    | If | LambdaLower | LambdaUpper | DoubleAngleQuoteLhs ->
-      emit (set ParenLhs tok)
-    | _ -> unit)
-    >> (let ns l tok_ns =
-          let* t, _, r = last_tok in
-          match t with
-          | (Id _ | BraceRhs | BracketRhs | ParenRhs) when l = r ->
-            emit (set tok_ns tok)
-          | _ -> emit tok
-        in
-        match tok with
-        | BraceLhs, l, _ -> ns l BraceLhsNS
-        | BracketLhs, l, _ -> ns l BracketLhsNS
-        | ParenLhs, l, _ -> ns l ParenLhsNS
-        | _ -> emit tok)
-    >> (match tok_of tok with
-       | BraceLhs -> with_indent (inside_braces false)
-       | ParenLhs -> get >>= nest_until ParenRhs
-       | DoubleAngleQuoteLhs ->
-         as_typ (get >>= nest_until Comma)
-         >> get
-         >>= nest_until DoubleAngleQuoteRhs
-         >> get
-         >>= fun tok ->
-         if tok_of tok = Colon then nest tok >>= emit_before ParenRhs
-         else emit_before ParenRhs tok
-       | BracketLhs -> as_typ (get >>= nest_until BracketRhs)
-       | Include -> get >>= insert_in false (col_of tok)
-       | Type -> as_typ (binding tok)
-       | Let -> binding tok
-       | Colon -> as_typ (with_indent (inside_block unget))
-       | LambdaLower | LambdaUpper -> get >>= inside_binder
-       | ForAll | Exists | MuLower ->
-         get >>= fun tok ->
-         if tok_of tok <> ParenLhs then inside_binder tok else unget tok
-       | If ->
-         get >>= nest_until Then >> get >>= nest_until Else
-         >> with_indent (inside_block (emit_before ParenRhs))
-       | _ -> unit)
-    >> get
-
-  and inside_braces insert indent tok =
-    match tok_of tok with
-    | BraceRhs -> emit tok
-    | Comma ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok < indent - 2 then error "offside"
-      else emit tok >> get >>= inside_braces false indent
-    | _ ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok < indent then error "offside"
-      else
-        emit_if (new_line && col_of tok = indent && insert) (set Comma tok)
-        >> nest tok >>= inside_braces true indent
-
-  and insert_in is_rec indent tok =
-    match tok_of tok with
-    | EOF -> emit tok
-    | And ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok < indent then error "offside"
-      else if is_rec then
-        emit tok >> expect MuLower >> get >>= insert_in is_rec indent
-      else emit tok >> get >>= insert_in is_rec indent
-    | In -> if col_of tok < indent then error "offside" else emit tok
-    | _ ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok <= indent then emit_before In tok
-      else nest tok >>= insert_in is_rec indent
-
-  and inside_binder tok =
-    match tok_of tok with
-    | Colon ->
-      emit tok
-      >> as_typ (with_indent (inside_block unget))
-      >> get >>= inside_binder
-    | Dot -> emit tok >> with_indent (inside_block (emit_before ParenRhs))
-    | _ -> nest tok >>= inside_binder
-
-  and inside_block on_exit indent tok =
-    let* is_typ in
-    match tok_of tok with
-    | (Dot | Equal) when is_typ -> on_exit tok
-    | t when is_closing t -> on_exit tok
-    | _ ->
-      let* new_line = new_line tok in
-      if new_line && col_of tok < indent then on_exit tok
-      else nest tok >>= inside_block on_exit indent
-
-  and binding tok =
-    let indent = col_of tok in
-    get >>= fun tok ->
-    if tok_of tok = MuLower then emit tok >> get >>= insert_in true indent
-    else insert_in false indent tok
-
-  and nest_until closing tok =
-    if tok_of tok = closing then emit tok else nest tok >>= nest_until closing
-end
-
-let offside : t = LexTrn.init token (LexTrn.get >>= Offside.nest_until EOF)
+let offside : t =
+  LexTrn.init token (LexTrn.get >>= Offside.insert_semis LexTrn.emit 0)

@@ -91,6 +91,7 @@ let token_info_utf_8 =
     | Percent -> operator
     | Pipe -> punctuation
     | Plus -> operator
+    | Semicolon -> punctuation
     | Slash -> operator
     | Star -> operator
     | Target -> keyword

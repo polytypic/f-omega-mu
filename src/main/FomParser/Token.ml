@@ -54,6 +54,7 @@ let[@warning "-32"] to_string = function
   | Percent -> "%"
   | Pipe -> "|"
   | Plus -> "+"
+  | Semicolon -> ";"
   | Slash -> "/"
   | Star -> "*"
   | Target -> "target"

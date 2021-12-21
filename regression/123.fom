@@ -2,6 +2,15 @@ let log = λm: string.
   target[string → impure ()] "console.warn" m
   ▷ keep[()]
 
-let () = log "1"
-let () = log "2"
-log "3"
+log "1"
+let fn = λb: bool.
+  log "2"
+  if b then
+    log "3"
+  else
+    log "4"
+  log "5"
+fn true
+log "6"
+log "7"
+fn

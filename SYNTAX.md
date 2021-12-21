@@ -65,7 +65,8 @@ exp
   | typ_def 'in' exp                                      // Type bindings (*3)
   | 'let' (    pat '=' exp, 'and')+ 'in' exp              // Parallel bindings (*6)
   | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp              // Recursive bindings (*6)
-  | 'if' exp 'then' exp 'else' exp                        // Conditional (*7)
+  | exp ';' exp                                           // Sequence (*7)
+  | 'if' exp 'then' exp 'else' exp                        // Conditional
   | 'λ' pat ':' typ '.' exp                               // Function
   | 'μ' (pat ':' typ '.' exp)                             // Recursive expression (*8)
   | 'Λ' tid (':' kind)? '.' exp                           // Generalization
@@ -97,9 +98,11 @@ incs                                                      // Syntax of .fomd inc
 
 **Notes:**
 
-- To reduce noise, end of line commas (`,`) inside braces (`{ ... }`) and `in`
-  keywords, and parentheses around binding constructs ( `Λ`, `λ`, `μ`, `∃`, and
-  `∀` ) are automatically inserted based on layout.
+- To reduce noise, end of line commas (`,`) inside braces (`{ ... }`),
+  semicolons (`;`), `in` keywords, and parentheses around binding constructs (
+  `Λ`, `λ`, `μ`, `∃`, and `∀` ), conditionals ( `if … then … else …` ), pack
+  expressions ( `«…, …»: …` ), and type annotations ( `: …` ) are automatically
+  inserted based on layout.
 
 - An identifier, right brace `}`, right bracket `]`, or right paren `)` followed
   without space by a left brace `{`, left bracket `[` or a left paren `(` is
@@ -159,7 +162,7 @@ incs                                                      // Syntax of .fomd inc
    Existential unpacking has the usual side condition of not allowing the type
    variable to escape.
 
-7. This Fωμ implementation is strict.
+7. `exp₁ ; exp₂` is equivalent to `let () = exp₁ in exp₂`.
 
 8. Recursive expressions are currently not fully statically checked.
 

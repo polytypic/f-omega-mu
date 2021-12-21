@@ -9,7 +9,8 @@ type ('t, 'a) fr = ('t, f) app'1 Monad.t -> ('t, 'a, f) app'2
 
 (* *)
 
-val col_of : 't t -> int
+val left_of : 't t -> int
+val right_of : 't t -> int
 val tok_of : 't t -> 't
 val set : 't -> 't t -> 't t
 

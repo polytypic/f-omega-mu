@@ -112,6 +112,7 @@ module Exp = struct
     | `AppL of Loc.t * 'e * 'e
     | `AppR of Loc.t * 'e * 'e
     | `Let of Loc.t * 'e Def.f * 'e
+    | `Seq of Loc.t * 'e * 'e
     | `Import of Loc.t * JsonString.t
     | `LamPat of Loc.t * Pat.t * 'e
     | `Tstr of Loc.t * Var.t * 'e tstr_elem list
@@ -123,6 +124,7 @@ module Exp = struct
     | `AppL (at, _, _)
     | `AppR (at, _, _)
     | `Let (at, _, _)
+    | `Seq (at, _, _)
     | `Import (at, _)
     | `LamPat (at, _, _)
     | `Tstr (at, _, _)

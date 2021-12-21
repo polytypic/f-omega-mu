@@ -409,6 +409,12 @@ let rec elaborate = function
     elaborate e <*> elaborate_typ t >>- fun (e, t) -> `Inst (at, e, t)
   | `LetIn (at, i, v, e) ->
     elaborate v <*> elaborate e >>- fun (v, e) -> `LetIn (at, i, v, e)
+  | `Seq (at, e0, e1) ->
+    let+ e0 =
+      let at = FomCST.Exp.at e0 in
+      elaborate @@ `Annot (at, e0, `Product (at, []))
+    and+ e1 = elaborate e1 in
+    `LetIn (at, Exp.Var.of_string at "_Seq" |> Exp.Var.freshen, e0, e1)
   | `Let (at, def, e) -> (
     match def with
     | #FomCST.Typ.Def.f as def ->

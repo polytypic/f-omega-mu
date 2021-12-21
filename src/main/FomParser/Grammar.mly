@@ -66,6 +66,7 @@
 %token Percent "%"
 %token Pipe "|"
 %token Plus "+"
+%token Semicolon ";"
 %token Slash "/"
 %token Star "*"
 %token Tick "'"
@@ -347,15 +348,19 @@ exp_def:
   | "let" bs=list_1(              exp_eq,  "and")   {`PatPar bs}
   | "let" bs=list_1(preceded("μ", exp_eq), "and")   {`PatRec bs}
 
-exp:
+exp_eff:
   | e=exp_in                                        {e}
+  | e=exp_in ":" t=typ                              {`Annot ($loc, e, t)}
+  | "«" x=typ "," e=exp "»" ":" f=typ               {`Pack ($loc, x, e, f)}
+
+exp:
+  | e=exp_eff                                       {e}
+  | l=exp_eff ";" r=exp                             {`Seq ($loc, l, r)}
   | e=exp_lam("μ")                                  {`Mu ($loc, e)}
   | e=exp_lam("λ")                                  {e}
   | "Λ" b=typ_bind "." e=exp                        {`Gen ($loc, fst b, snd b, e)}
   | "if" c=exp "then" t=exp "else" e=exp            {`IfElse ($loc, c, t, e)}
   | d=exp_def "in" e=exp                            {`Let ($loc, d, e)}
-  | "«" x=typ "," e=exp "»" ":" f=typ               {`Pack ($loc, x, e, f)}
-  | e=exp_in ":" t=typ                              {`Annot ($loc, e, t)}
 
 //
 
