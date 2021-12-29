@@ -14,4 +14,5 @@ include "types" in {
   drop_n: ∀α.int → list α → list α
   nth: ∀α.int → list α → opt α
   iota: int → list int
+  is_empty: ∀α.list α → bool
 }

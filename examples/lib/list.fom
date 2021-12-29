@@ -72,5 +72,11 @@ let iota =
     if 0 < n then let n = n - 1 in iota 'Some(n, xs) n else xs
   iota 'None
 
+let is_empty = Λα.
+  case {
+    None = λ().true
+    Some = λ(_: α, _: list α).false
+  }
+
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
- head, take_n, drop_n, nth, iota}
+ head, take_n, drop_n, nth, iota, is_empty}
