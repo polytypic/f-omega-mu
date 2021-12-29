@@ -1,0 +1,32 @@
+include "queue"
+include "types"
+
+let List = import "list"
+
+type queue = λν.{front: list ν, back: list ν}
+
+let empty = Λ_.{front = 'None, back = 'None}
+
+let is_empty = Λν.λq: queue ν.
+  List.is_empty[ν] q.front
+
+let enqueue = Λν.λv: ν.λq: queue ν.
+  if List.is_empty[ν] q.front then
+    {front = 'Some (v, 'None), back = 'None}
+  else
+    {front = q.front, back = 'Some (v, q.back)}
+
+let dequeue = Λν.λq: queue ν.
+  q.front ▷ case {
+    None = λ().'None
+    Some = λ(v: ν, front: list ν).
+      'Some (
+        v,
+        if List.is_empty[ν] front then
+          {front = List.rev[ν] q.back, back = 'None}
+        else
+          {front, back = q.back}
+      )
+  }
+
+«queue, {empty, enqueue, dequeue, is_empty}»: ∃(Queue)

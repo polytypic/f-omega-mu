@@ -1,0 +1,8 @@
+local include "types"
+
+type Queue = λqueue.{
+  empty: ∀(queue)
+  enqueue: ∀ν.ν → queue ν → queue ν
+  dequeue: ∀ν.queue ν → opt (ν, queue ν)
+  is_empty: ∀ν.queue ν → bool
+}
