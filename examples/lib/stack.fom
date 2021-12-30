@@ -1,0 +1,13 @@
+include "dispenser"
+include "types"
+
+let List = import "list"
+
+type stack = list
+
+let empty = Λ_.'None
+let is_empty = List.is_empty
+let insert = Λν.λv: ν.λq: stack ν.'Some (v, q)
+let remove = Λν.λq: stack ν.q
+
+«stack, {empty, insert, remove, is_empty}»: ∃(Dispenser)

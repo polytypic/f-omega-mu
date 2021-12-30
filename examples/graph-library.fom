@@ -8,13 +8,14 @@
 
 include "lib/algebras"
 include "lib/map"
-include "lib/queue"
+include "lib/dispenser"
 include "lib/types"
 
 let List = import "lib/list"
 let Map = import "lib/map"
 let Opt = import "lib/opt"
 let Queue = import "lib/queue"
+let Stack = import "lib/stack"
 
 #
 

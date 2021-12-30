@@ -1,0 +1,8 @@
+local include "types"
+
+type Dispenser = λdispenser.{
+  empty: ∀(dispenser)
+  insert: ∀ν.ν → dispenser ν → dispenser ν
+  remove: ∀ν.dispenser ν → opt (ν, dispenser ν)
+  is_empty: ∀ν.dispenser ν → bool
+}
