@@ -1,8 +1,12 @@
 local include "types"
 
-type Dispenser = λdispenser.{
+type DispenserCore = λdispenser.{
   empty: ∀(dispenser)
   insert: ∀ν.ν → dispenser ν → dispenser ν
   remove: ∀ν.dispenser ν → opt (ν, dispenser ν)
   is_empty: ∀ν.dispenser ν → bool
+}
+
+type Dispenser = DispenserCore ∧ λdispenser.{
+  fold: ∀ρ.∀ν.(ρ → ν → ρ) → ρ → dispenser ν → ρ
 }

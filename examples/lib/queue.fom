@@ -1,6 +1,8 @@
 include "dispenser"
 include "types"
 
+let {of_core} = import "dispenser"
+
 let List = import "list"
 
 type queue = λν.{front: list ν, back: list ν}
@@ -29,4 +31,4 @@ let remove = Λν.λq: queue ν.
       )
   }
 
-«queue, {empty, insert, remove, is_empty}»: ∃(Dispenser)
+«queue, of_core [queue] {empty, insert, remove, is_empty}»: ∃(Dispenser)
