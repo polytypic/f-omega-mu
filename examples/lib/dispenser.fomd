@@ -8,5 +8,5 @@ type DispenserCore = λdispenser.{
 }
 
 type Dispenser = DispenserCore ∧ λdispenser.{
-  fold: ∀ρ.∀ν.(ρ → ν → ρ) → ρ → dispenser ν → ρ
+  fold: ∀ρ.∀ν.(ν → ρ → ρ) → ρ → dispenser ν → ρ
 }

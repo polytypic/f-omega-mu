@@ -9,30 +9,34 @@ let μhas: ∀α.(α → bool) → list α → bool = Λα.λp: α → bool.case
   Some = λ(x: α, xs: list α).p x ∨ has[α] p xs
 }
 
-let μfold: ∀ρ.∀α.(ρ → α → ρ) → ρ → list α → ρ =
-  Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.case {
+let μfold: ∀ρ.∀α.(α → ρ → ρ) → ρ → list α → ρ =
+  Λρ.Λα.λxrr: α → ρ → ρ.λr: ρ.case {
     None = λ().r
-    Some = λ(x: α, xs: list α).fold[ρ][α] rxr (rxr r x) xs
+    Some = λ(x: α, xs: list α).fold[ρ][α] xrr (xrr x r) xs
   }
 
-let rev_to = Λα.fold[list α][α] λxs: list α.λx: α.'Some (x, xs)
+let empty = Λ_.'None
+
+let prepend = Λα.λx: α.λxs: list α.'Some (x, xs)
+
+let rev_to = Λα.fold[list α][α] prepend[α]
 
 let rev = Λα.rev_to[α] 'None
 
 let map = Λα.Λβ.λxy: α → β.λxs: list α.
   xs
-  ▷ fold[list β][α] (λys: list β.λx: α.'Some (xy x, ys)) 'None
+  ▷ fold[list β][α] (λx: α.λys: list β.'Some (xy x, ys)) 'None
   ▷ rev[β]
 
 let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
   xs
-  ▷ fold[list β][α] (λys: list β.λx: α.rev_to[β] ys ◇ xys x) 'None
+  ▷ fold[list β][α] (λx: α.λys: list β.rev_to[β] ys ◇ xys x) 'None
   ▷ rev[β]
 
 let filter = Λα.λp: α → bool.λxs: list α.
   xs
   ▷ fold[list α][α]
-      λxs: list α.λx: α.if p x then 'Some (x, xs) else xs
+      λx: α.λxs: list α.if p x then 'Some (x, xs) else xs
       'None
   ▷ rev[α]
 
@@ -79,4 +83,4 @@ let is_empty = Λα.
   }
 
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
- head, take_n, drop_n, nth, iota, is_empty}
+ head, take_n, drop_n, nth, iota, is_empty, empty, prepend}

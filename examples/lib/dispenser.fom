@@ -2,11 +2,11 @@ include "dispenser"
 include "types"
 
 let of_core = Λdispenser.λDispenser: DispenserCore dispenser.
-  let fold = Λρ.Λα.λf: ρ → α → ρ.λs: ρ.λd: dispenser α.
+  let fold = Λρ.Λα.λvss: α → ρ → ρ.λs: ρ.λd: dispenser α.
     let μloop: dispenser α → ρ → ρ = λd: dispenser α.λs: ρ.
       Dispenser.remove[α] d ▷ case {
         None = λ().s
-        Some = λ(v: α, d: dispenser α).loop d (f s v)
+        Some = λ(v: α, d: dispenser α).loop d (vss v s)
       }
     loop d s
   Dispenser „ {fold}
