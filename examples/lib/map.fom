@@ -2,6 +2,8 @@ include "algebras"
 include "types"
 include "map"
 
+let List = import "list"
+
 Λκ.λkey: Compare κ.
   type kv = λν.{key: κ, val: ν}
 
@@ -11,27 +13,7 @@ include "map"
 
   type map = λν.Compare κ ∧ {root: tree ν}
 
-  let count = Λν.λmap: map ν.
-    let μcount: tree ν → int = case {
-        Lf = λ().0
-        Br = λbr: br ν.count br.lt + count br.gt + 1
-      }
-    count map.root
-
   let empty = Λ_.key „ {root = 'Lf}
-
-  let entries = Λν.λ{root: tree ν}.
-    let μprepend: tree ν → list (κ, ν) → list (κ, ν) =
-      λnode: tree ν.λes: list (κ, ν).
-        node ▷ case {
-          Lf = λ().es
-          Br = λbr: br ν.
-            es
-            ▷ prepend br.gt
-            ▷ λes: list (κ, ν).'Some ((br.key, br.val), es)
-            ▷ prepend br.lt
-        }
-    prepend root 'None
 
   let get = Λν.λ{compare: κ → κ → ord, root: tree ν}.λkey: κ.
     let μget: tree ν → opt ν = case {
@@ -57,4 +39,21 @@ include "map"
       }
     {compare, root = put root}
 
-  «map, {count, empty, entries, get, put}»: ∃(Map κ)
+  let fold_back = Λρ.Λν.λvrr: (κ, ν) → ρ → ρ.λs: ρ.λ{root: tree ν}.
+    let μgo: tree ν → ρ → ρ =
+      λnode: tree ν.λs: ρ.
+        node ▷ case {
+          Lf = λ().s
+          Br = λbr: br ν.
+            s
+            ▷ go br.gt
+            ▷ vrr (br.key, br.val)
+            ▷ go br.lt
+        }
+    go root s
+
+  let count = Λν.fold_back[int][ν] (λ_: (κ, ν).λn: int.n + 1) 0
+
+  let entries = Λν.fold_back[list (κ, ν)][ν] List.prepend[(κ, ν)] 'None
+
+  «map, {empty, get, put, fold_back, count, entries}»: ∃(Map κ)
