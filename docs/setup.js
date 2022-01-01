@@ -125,36 +125,28 @@ const maybeComplete = (options = {}) => {
         ...identifiers.filter(minLengthPr),
         ...fom.keywords.filter(minLengthPr),
         ...fom.pervasives.filter(minLengthPr),
-        ...Object.entries(alternatives)
-          .filter(([displayText]) => minLengthPr(displayText))
-          .map(([displayText, text]) =>
-            replaceSymbols || displayText.startsWith('\\')
-              ? {displayText, text}
-              : displayText
-          ),
+        ...Object.keys(alternatives).filter(minLengthPr),
         ...currentDeps.flatMap(entry => entry.identifiers.filter(minLengthPr)),
       ])
 
-      const txtOf = x => (typeof x === 'string' ? x : x.displayText)
-
       const list = Array.from(uniqueIds)
-        .map(x => [
-          fom.distances(
-            pat,
-            txtOf(x),
-            pat.toUpperCase(),
-            txtOf(x).toUpperCase()
-          ),
-          x,
+        .map(txt => [
+          fom.distances(pat, txt, pat.toUpperCase(), txt.toUpperCase()),
+          txt,
         ])
         .filter(([ds]) => !fom.distancesUnrelated(ds))
-        .sort(([ds_l, x_l], [ds_r, x_r]) =>
+        .sort(([ds_l, txt_l], [ds_r, txt_r]) =>
           cmps(fom.distancesCompare(ds_l, ds_r), () =>
-            txtOf(x_l).localeCompare(txtOf(x_r))
+            txt_l.localeCompare(txt_r)
           )
         )
         .slice(0, 10)
-        .map(([_, x]) => x)
+        .map(([_, displayText]) => {
+          const text = alternatives[displayText]
+          return text && (replaceSymbols || displayText.startsWith('\\'))
+            ? {displayText, text}
+            : displayText
+        })
       return {list, from: {line, ch: start}, to: {line, ch: end}}
     },
   })
