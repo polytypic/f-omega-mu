@@ -125,11 +125,13 @@ const maybeComplete = (options = {}) => {
         ...identifiers.filter(minLengthPr),
         ...fom.keywords.filter(minLengthPr),
         ...fom.pervasives.filter(minLengthPr),
-        ...Object.entries(alternatives).map(([displayText, text]) =>
-          replaceSymbols || displayText.startsWith('\\')
-            ? {displayText, text}
-            : displayText
-        ),
+        ...Object.entries(alternatives)
+          .filter(([displayText]) => minLengthPr(displayText))
+          .map(([displayText, text]) =>
+            replaceSymbols || displayText.startsWith('\\')
+              ? {displayText, text}
+              : displayText
+          ),
         ...currentDeps.flatMap(entry => entry.identifiers.filter(minLengthPr)),
       ])
 
