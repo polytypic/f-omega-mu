@@ -1,0 +1,4 @@
+{
+  equals: string → string → bool
+  to_literal: string → string
+}
