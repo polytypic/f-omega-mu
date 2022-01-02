@@ -21,63 +21,69 @@ module Const = struct
     | _ -> None
 
   (* TODO: More comprehensive constant folding rules *)
-  let simplify_bop = function
+  let simplify_bop =
+    let some x = return @@ Some x
+    and if_total e x =
+      let+ e_total = Lam.is_total e in
+      if e_total then Some x else None
+    in
+    function
     (* + *)
     | `OpArithAdd, `Const (`LitNat x), `Const (`LitNat y) ->
-      Some (`Const (`LitNat (Int32.add x y)))
+      some @@ `Const (`LitNat (Int32.add x y))
     | ( `OpArithAdd,
         `App (`App (`Const `OpArithAdd, x), `Const (`LitNat y)),
         `Const (`LitNat z) ) ->
-      Some
+      some
         (`App (`App (`Const `OpArithAdd, x), `Const (`LitNat (Int32.add y z))))
     | `OpArithAdd, (`Const _ as c), x ->
-      Some (`App (`App (`Const `OpArithAdd, x), c))
+      some @@ `App (`App (`Const `OpArithAdd, x), c)
     | `OpArithAdd, `App (`App (`Const `OpArithAdd, x), (`Const _ as c)), y ->
-      Some
+      some
         (`App
           (`App (`Const `OpArithAdd, `App (`App (`Const `OpArithAdd, x), y)), c))
-    | `OpArithAdd, x, `Const (`LitNat 0l) -> Some x
+    | `OpArithAdd, x, `Const (`LitNat 0l) -> some x
     | `OpArithAdd, x, `App (`Const `OpArithMinus, y) ->
-      Some (`App (`App (`Const `OpArithSub, x), y))
+      some @@ `App (`App (`Const `OpArithSub, x), y)
     | `OpArithAdd, `Var i, `Var j when Var.equal i j ->
-      Some (`App (`App (`Const `OpArithMul, `Const (`LitNat 2l)), `Var i))
+      some @@ `App (`App (`Const `OpArithMul, `Const (`LitNat 2l)), `Var i)
     | `OpArithAdd, x, `Const (`LitNat y)
       when y < Int32.of_int 0 && y <> Int32.min_int ->
-      Some (`App (`App (`Const `OpArithSub, x), `Const (`LitNat (Int32.neg y))))
+      some @@ `App (`App (`Const `OpArithSub, x), `Const (`LitNat (Int32.neg y)))
     (* / *)
-    | `OpArithDiv, _, `Const (`LitNat 0l) | `OpArithDiv, `Const (`LitNat 0l), _
+    | `OpArithDiv, e, `Const (`LitNat 0l) | `OpArithDiv, `Const (`LitNat 0l), e
       ->
-      Some (`Const (`LitNat 0l))
+      if_total e @@ `Const (`LitNat 0l)
     | `OpArithDiv, `Const (`LitNat x), `Const (`LitNat y) ->
-      Some (`Const (`LitNat (Int32.div x y)))
-    | `OpArithDiv, x, `Const (`LitNat 1l) -> Some x
+      some @@ `Const (`LitNat (Int32.div x y))
+    | `OpArithDiv, x, `Const (`LitNat 1l) -> some x
     | `OpArithDiv, x, `Const (`LitNat -1l) ->
-      Some (`App (`Const `OpArithMinus, x))
+      some @@ `App (`Const `OpArithMinus, x)
     (* * *)
     | `OpArithMul, `Const (`LitNat x), `Const (`LitNat y) ->
-      Some (`Const (`LitNat (Int32.mul x y)))
+      some @@ `Const (`LitNat (Int32.mul x y))
     | `OpArithMul, x, `Const (`LitNat 1l) | `OpArithMul, `Const (`LitNat 1l), x
       ->
-      Some x
+      some x
     | `OpArithMul, x, `Const (`LitNat -1l)
     | `OpArithMul, `Const (`LitNat -1l), x ->
-      Some (`App (`Const `OpArithMinus, x))
-    | `OpArithMul, _, `Const (`LitNat 0l) | `OpArithMul, `Const (`LitNat 0l), _
+      some @@ `App (`Const `OpArithMinus, x)
+    | `OpArithMul, e, `Const (`LitNat 0l) | `OpArithMul, `Const (`LitNat 0l), e
       ->
-      Some (`Const (`LitNat 0l))
+      if_total e @@ `Const (`LitNat 0l)
     (* - *)
     | `OpArithSub, `Var i, `Var j when Var.equal i j ->
-      Some (`Const (`LitNat 0l))
+      some @@ `Const (`LitNat 0l)
     | `OpArithSub, `Const (`LitNat x), `Const (`LitNat y) ->
-      Some (`Const (`LitNat (Int32.sub x y)))
-    | `OpArithSub, x, `Const (`LitNat 0l) -> Some x
+      some @@ `Const (`LitNat (Int32.sub x y))
+    | `OpArithSub, x, `Const (`LitNat 0l) -> some x
     | `OpArithSub, `Const (`LitNat 0l), x ->
-      Some (`App (`Const `OpArithMinus, x))
+      some @@ `App (`Const `OpArithMinus, x)
     | `OpArithSub, x, `App (`Const `OpArithMinus, y) ->
-      Some (`App (`App (`Const `OpArithAdd, x), y))
+      some @@ `App (`App (`Const `OpArithAdd, x), y)
     (* *)
     | `OpStringCat, `Const (`LitString l), `Const (`LitString r) ->
-      Some
+      some
         (`Const
           (`LitString
             (Stdlib.( ^ ) (JsonString.to_utf8 l) (JsonString.to_utf8 r)
@@ -85,34 +91,35 @@ module Const = struct
     | `OpStringCat, x, `Const (`LitString empty)
     | `OpStringCat, `Const (`LitString empty), x
       when JsonString.is_empty empty ->
-      Some x
+      some x
     (* *)
-    | `OpEq _, `Const x, `Const y -> Some (`Const (`LitBool (compare x y = 0)))
+    | `OpEq _, `Const x, `Const y -> some @@ `Const (`LitBool (compare x y = 0))
     | `OpEqNot _, `Const x, `Const y ->
-      Some (`Const (`LitBool (compare x y <> 0)))
+      some @@ `Const (`LitBool (compare x y <> 0))
     (* *)
     | `OpCmpLt, `Const (`LitNat x), `Const (`LitNat y)
     | `OpCmpGt, `Const (`LitNat y), `Const (`LitNat x) ->
-      Some (`Const (`LitBool (Int32.compare x y < 0)))
+      some @@ `Const (`LitBool (Int32.compare x y < 0))
     | `OpCmpLtEq, `Const (`LitNat x), `Const (`LitNat y)
     | `OpCmpGtEq, `Const (`LitNat y), `Const (`LitNat x) ->
-      Some (`Const (`LitBool (Int32.compare x y <= 0)))
+      some @@ `Const (`LitBool (Int32.compare x y <= 0))
     (* *)
     | `OpLogicalAnd, x, `Const (`LitBool true)
     | `OpLogicalAnd, `Const (`LitBool true), x
     | `OpLogicalOr, x, `Const (`LitBool false)
     | `OpLogicalOr, `Const (`LitBool false), x ->
-      Some x
-    | `OpLogicalOr, `Const (`LitBool true), _
-    | `OpLogicalOr, `Var _, `Const (`LitBool true) ->
-      Some (`Const (`LitBool true))
-    | `OpLogicalAnd, `Const (`LitBool false), _
-    | `OpLogicalAnd, `Var _, `Const (`LitBool false) ->
-      Some (`Const (`LitBool false))
+      some x
+    | `OpLogicalOr, `Const (`LitBool true), _ -> some @@ `Const (`LitBool true)
+    | `OpLogicalOr, lhs, `Const (`LitBool true) ->
+      if_total lhs @@ `Const (`LitBool true)
+    | `OpLogicalAnd, `Const (`LitBool false), _ ->
+      some @@ `Const (`LitBool false)
+    | `OpLogicalAnd, lhs, `Const (`LitBool false) ->
+      if_total lhs @@ `Const (`LitBool false)
     | (`OpLogicalOr | `OpLogicalAnd), `Var x, `Var y when Var.equal x y ->
-      Some (`Var x)
+      some @@ `Var x
     (* *)
-    | _ -> None
+    | _ -> return None
 end
 
 let rec always_applied_to_inject i' e =
@@ -243,7 +250,7 @@ and simplify_base = function
       | Some e -> simplify e
       | None -> default ())
     | `App (`Const c, x), y when Const.is_bop c -> (
-      match Const.simplify_bop (c, x, y) with
+      Const.simplify_bop (c, x, y) >>= function
       | Some e -> simplify e
       | None -> default ())
     | `Lam (i, e), `App (`Lam (j, f), y) ->
