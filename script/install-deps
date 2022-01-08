@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-if [ "$TRAVIS" = true ] || [ "$CI" = true ]; then
+if [ "$CI" = true ]; then
   OPTS=(--no-checksums -y)
 else
   OPTS=()
