@@ -726,6 +726,8 @@ module Exp = struct
       | `OpStringCat -> bop string
       | `Target (t, _) -> t
 
+    let arity c = type_of Loc.dummy c |> Typ.arity_and_result |> fst
+
     (* Substitution *)
 
     let map_typ_fr tuM = function

@@ -94,7 +94,7 @@ module LamMap = Map.Make (LamCore)
 module Const = struct
   include Const
 
-  let is_total = function
+  let is_pure = function
     | `Keep _ -> false
     | `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
     | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
@@ -105,40 +105,45 @@ end
 
 let dummy_var = `Var (Var.fresh Loc.dummy)
 
-let rec is_total e =
-  match e with
-  | `Const _ | `Var _ | `Lam _ -> return true
-  | _ ->
-    let* seen = get Seen.field in
-    if Seen.mem e seen then return false
-    else
-      Seen.adding e
-        (match unapp e with
-        | (`Const _ | `Var _ | `Lam _), [] -> return true
-        | `IfElse (c, t, e), xs ->
-          is_total c &&& is_total (apps t xs) &&& is_total (apps e xs)
-        | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
-        | `Mu (`Lam (i, e)), xs -> is_total (apps e xs) |> Env.adding i e
-        | `Select (e, l), [] -> is_total e &&& is_total l
-        | `Inject (_, e), _ -> is_total e
-        | `Var f, xs -> (
-          let* f_opt = Env.find_opt f in
-          match f_opt with
-          | None -> return false
-          | Some f -> is_total (apps f xs))
-        | `Lam (i, e), x :: xs ->
-          is_total x
-          &&& (is_total e |> Env.adding i x)
-          &&& (is_total (apps e xs) |> Env.adding i x)
-        | `Const c, xs ->
-          return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
-        | `Case (`Product fs), x :: xs ->
-          is_total x
-          &&& (fs
-              |> List.for_all_fr (fun (_, f) ->
-                     is_total (apps f (dummy_var :: xs))))
-        | `Case e, [] -> is_total e
-        | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
+let rec is_pure e =
+  let* seen = get Seen.field in
+  if Seen.mem e seen then return true
+  else
+    (match unapp e with
+    | `App _, _ -> failwith "is_pure"
+    (* *)
+    | `Case (`Product fs), x :: xs ->
+      is_pure x
+      &&& List.for_all_fr (fun (_, f) -> is_pure (apps f (dummy_var :: xs))) fs
+    | `Case e, [] -> is_pure e
+    | `Case _, _ -> return false
+    (* *)
+    | `Const c, xs ->
+      return (Const.is_pure c || List.length xs < Const.arity c)
+      &&& List.for_all_fr is_pure xs
+    (* *)
+    | `IfElse (c, t, e), xs ->
+      is_pure c &&& is_pure (apps t xs) &&& is_pure (apps e xs)
+    (* *)
+    | `Inject (_, e), _ -> is_pure e
+    (* *)
+    | `Lam _, [] -> return true
+    | `Lam (_, e), x :: xs -> is_pure x &&& is_pure (apps e xs)
+    (* *)
+    | `Mu (`Lam (_, e)), xs -> is_pure (apps e xs)
+    | `Mu _, _ -> return false
+    (* *)
+    | `Product fs, [] -> List.for_all_fr (snd >>> is_pure) fs
+    | `Product _, _ :: _ -> return false
+    (* *)
+    | `Select (e, l), [] -> is_pure e &&& is_pure l
+    | `Select _, _ :: _ -> return false
+    (* *)
+    | `Var _, [] -> return true
+    | `Var f, (_ :: _ as xs) -> (
+      let* f_opt = Env.find_opt f in
+      match f_opt with None -> return false | Some f -> is_pure (apps f xs)))
+    |> Seen.adding e
 
 (* *)
 

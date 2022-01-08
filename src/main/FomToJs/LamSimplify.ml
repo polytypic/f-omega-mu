@@ -23,9 +23,9 @@ module Const = struct
   (* TODO: More comprehensive constant folding rules *)
   let simplify_bop =
     let some x = return @@ Some x
-    and if_total e x =
-      let+ e_total = Lam.is_total e in
-      if e_total then Some x else None
+    and if_pure e x =
+      let+ e_pure = Lam.is_pure e in
+      if e_pure then Some x else None
     in
     function
     (* + *)
@@ -53,7 +53,7 @@ module Const = struct
     (* / *)
     | `OpArithDiv, e, `Const (`LitNat 0l) | `OpArithDiv, `Const (`LitNat 0l), e
       ->
-      if_total e @@ `Const (`LitNat 0l)
+      if_pure e @@ `Const (`LitNat 0l)
     | `OpArithDiv, `Const (`LitNat x), `Const (`LitNat y) ->
       some @@ `Const (`LitNat (Int32.div x y))
     | `OpArithDiv, x, `Const (`LitNat 1l) -> some x
@@ -70,7 +70,7 @@ module Const = struct
       some @@ `App (`Const `OpArithMinus, x)
     | `OpArithMul, e, `Const (`LitNat 0l) | `OpArithMul, `Const (`LitNat 0l), e
       ->
-      if_total e @@ `Const (`LitNat 0l)
+      if_pure e @@ `Const (`LitNat 0l)
     (* - *)
     | `OpArithSub, `Var i, `Var j when Var.equal i j ->
       some @@ `Const (`LitNat 0l)
@@ -111,11 +111,11 @@ module Const = struct
       some x
     | `OpLogicalOr, `Const (`LitBool true), _ -> some @@ `Const (`LitBool true)
     | `OpLogicalOr, lhs, `Const (`LitBool true) ->
-      if_total lhs @@ `Const (`LitBool true)
+      if_pure lhs @@ `Const (`LitBool true)
     | `OpLogicalAnd, `Const (`LitBool false), _ ->
       some @@ `Const (`LitBool false)
     | `OpLogicalAnd, lhs, `Const (`LitBool false) ->
-      if_total lhs @@ `Const (`LitBool false)
+      if_pure lhs @@ `Const (`LitBool false)
     | (`OpLogicalOr | `OpLogicalAnd), `Var x, `Var y when Var.equal x y ->
       some @@ `Var x
     (* *)
@@ -145,7 +145,7 @@ let rec always_applied_to_inject i' e =
 let rec occurs_in_total_position ~once i' e =
   match unapp e with
   | `Var i, [] -> return @@ Var.equal i' i
-  | `Const c, xs when Const.is_total c ->
+  | `Const c, xs when Const.is_pure c ->
     occurs_in_total_position_of_list ~once i' xs
   | f, xs when is_lam_or_case f && ((not once) || not (is_free i' f)) ->
     occurs_in_total_position_of_list ~once i' xs
@@ -157,7 +157,7 @@ and occurs_in_total_position_of_list ~once i' = function
     occurs_in_total_position ~once i' x
     &&& thunk (fun () -> (not once) || List.for_all (is_free i' >>> not) xs)
     ||| (thunk (fun () -> (not once) || not (is_free i' x))
-        &&& is_total x
+        &&& is_pure x
         &&& occurs_in_total_position_of_list ~once i' xs)
 
 let to_lam continue k i e =
@@ -217,8 +217,8 @@ and simplify_base = function
     let default () = return @@ `Lam (i, e) in
     match e with
     | `App (f, `Var i') when Var.equal i i' && not (is_free i f) ->
-      let* f_is_total = is_total f in
-      if f_is_total then return f else default ()
+      let* f_is_pure = is_pure f in
+      if f_is_pure then return f else default ()
     | _ -> default ())
   | `App (f, x) -> (
     let* x = simplify x in
@@ -232,8 +232,8 @@ and simplify_base = function
     let default () = return @@ `App (f, x) in
     match (f, x) with
     | `Case cs, s ->
-      let* cs_is_total = is_total cs in
-      if cs_is_total then
+      let* cs_is_pure = is_pure cs in
+      if cs_is_pure then
         match (s, cs) with
         | `Inject (l, e), `Product fs ->
           simplify @@ `App (List.find (fst >>> Label.equal l) fs |> snd, e)
@@ -268,7 +268,7 @@ and simplify_base = function
         simplify (subst i x e) |> mapping Limit.field (fun v -> v / 16 * 15)
       in
       let* may_subst =
-        is_total x
+        is_pure x
         &&& thunk (fun () -> tag x <> `Mu || not (is_free i e))
         ||| occurs_in_total_position ~once:true i e
       in
@@ -300,14 +300,14 @@ and simplify_base = function
       simplify
       @@ `App (`Lam (x'', `App (`Lam (y', subst x' (`Var x'') e), y)), x)
     | `App (`Lam (x', e), x), y ->
-      let* e_or_y_is_total = is_total e ||| is_total y in
-      if e_or_y_is_total then
+      let* e_or_y_is_pure = is_pure e ||| is_pure y in
+      if e_or_y_is_pure then
         let x'' = Var.freshen x' in
         simplify @@ `App (`Lam (x'', `App (subst x' (`Var x'') e, y)), x)
       else default ()
     | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
-      let* c_is_total = is_total c in
-      if c_is_total then
+      let* c_is_pure = is_pure c in
+      if c_is_pure then
         let x' = Var.fresh Loc.dummy in
         let xv = `Var x' in
         simplify
@@ -362,15 +362,15 @@ and simplify_base = function
       | t, e ->
         let default () = return @@ `IfElse (c, t, e) in
         if Lam.compare t e = 0 then
-          is_total c >>- function
+          is_pure c >>- function
           | true -> t
           | _ -> `App (`Lam (Var.fresh Loc.dummy, t), c)
         else if Lam.compare c t = 0 then
-          is_total c >>= function
+          is_pure c >>= function
           | true -> simplify @@ `App (`App (`Const `OpLogicalOr, c), e)
           | false -> default ()
         else if Lam.compare c e = 0 then
-          is_total c >>= function
+          is_pure c >>= function
           | true -> simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
           | false -> default ()
         else default ()))
@@ -380,12 +380,12 @@ and simplify_base = function
     let default () = return @@ `Select (e, l) in
     match (e, l) with
     | `Product fs, `Inject (l, _) ->
-      let* fs_are_total =
+      let* fs_are_pure =
         fs
         |> List.filter (fst >>> Label.equal l >>> not)
-        |> List.for_all_fr (snd >>> is_total)
+        |> List.for_all_fr (snd >>> is_pure)
       in
-      if fs_are_total then
+      if fs_are_pure then
         fs |> List.find (fst >>> Label.equal l) |> snd |> return
       else default ()
     | _ -> default ())

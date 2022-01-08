@@ -295,6 +295,7 @@ module Exp : sig
     (* Typing *)
 
     val type_of : Loc.t -> ('nat, ([> ('t, 'k) Typ.Core.f] as 't)) t -> 't
+    val arity : ('nat, ([> ('t, 'k) Typ.Core.f] as 't)) t -> int
 
     (* Substitution *)
 

@@ -360,8 +360,8 @@ and to_js_expr_renumbered exp =
         @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ rhs
     | `App (`Const c, lhs) when Const.is_bop c ->
       let n, result = Const.type_of Loc.dummy c |> Typ.arity_and_result in
-      let* lhs_is_total = is_total lhs in
-      if (not lhs_is_total) || n <> 2 then default ()
+      let* lhs_is_pure = is_pure lhs in
+      if (not lhs_is_pure) || n <> 2 then default ()
       else
         Renumbering.fresh @@ fun rhs ->
         let+ lhs = to_js_expr lhs in

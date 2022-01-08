@@ -29,10 +29,10 @@ let constants_to_top inn =
       let evs, e = analyze ~skip:false e and xvs, x = analyze ~skip:true x in
       `App (`Lam (i, e), x)
       |> consider ~skip:true @@ VarSet.union (VarSet.remove i evs) xvs
-    | `App (`App (`Const c, x), y) when Const.is_bop c && Const.is_total c ->
+    | `App (`App (`Const c, x), y) when Const.is_bop c && Const.is_pure c ->
       let xvs, x = analyze ~skip:false x and yvs, y = analyze ~skip:false y in
       `App (`App (`Const c, x), y) |> consider @@ VarSet.union xvs yvs
-    | `App (`Const c, x) when Const.is_uop c && Const.is_total c ->
+    | `App (`Const c, x) when Const.is_uop c && Const.is_pure c ->
       let vs, x = analyze ~skip:false x in
       `App (`Const c, x) |> consider vs
     | `App (f, x) ->

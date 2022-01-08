@@ -155,7 +155,8 @@ incs                                                      // Syntax of .fomd inc
    unpacking has the usual side condition of not allowing the type variable to
    escape.
 
-7. This Fωμ implementation is strict.
+7. This Fωμ implementation is strict with the exception that preservation of
+   non-termination of terms without side-effects is not guaranteed.
 
 8. Recursive expressions are currently not fully statically checked.
 
