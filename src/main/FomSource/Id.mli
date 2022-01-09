@@ -1,3 +1,4 @@
+open FomBasis
 open FomPP
 
 module Counter : sig
@@ -6,6 +7,13 @@ end
 
 module Name : sig
   type t
+
+  val compare : t cmp
+
+  (* *)
+
+  val underscore : t
+  val fresh : t
 end
 
 module type S = sig
@@ -45,6 +53,10 @@ module type S = sig
   (* Freshening *)
 
   val freshen : t -> t
+
+  module Unsafe : sig
+    val set_counter : int -> t -> t
+  end
 end
 
 module Make () : S

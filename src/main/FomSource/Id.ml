@@ -6,6 +6,15 @@ module Name : sig
 
   val of_string : string -> t
   val to_string : t -> string
+
+  (* *)
+
+  val compare : t cmp
+
+  (* *)
+
+  val underscore : t
+  val fresh : t
 end = struct
   type t = int
 
@@ -22,6 +31,15 @@ end = struct
     | Some n -> n
 
   let to_string = Hashtbl.find int_to_id
+
+  (* *)
+
+  let compare = Int.compare
+
+  (* *)
+
+  let underscore = of_string "_"
+  let fresh = of_string ""
 end
 
 module Counter : sig
@@ -76,13 +94,14 @@ module type S = sig
   (* Freshening *)
 
   val freshen : t -> t
+
+  module Unsafe : sig
+    val set_counter : int -> t -> t
+  end
 end
 
 module Make () : S = struct
   type t = {name : Name.t; n : Counter.t; at : Loc.t}
-
-  let underscore' = Name.of_string "_"
-  let fresh' = Name.of_string ""
 
   (* *)
 
@@ -110,7 +129,7 @@ module Make () : S = struct
 
   let pp ?(hr = true) {name; n; _} =
     let it = Name.to_string name |> utf8string in
-    if n = 0 || name = underscore' then it
+    if n = 0 || name = Name.underscore then it
     else if hr then it ^^ subscript n
     else it ^^ utf8format "$%d" n
 
@@ -122,7 +141,7 @@ module Make () : S = struct
 
   let of_name at name =
     let n =
-      if name = underscore' || name = fresh' then Counter.next () else 0
+      if name = Name.underscore || name = Name.fresh then Counter.next () else 0
     in
     {name; n; at}
 
@@ -131,11 +150,15 @@ module Make () : S = struct
 
   (* Generated *)
 
-  let is_fresh {name; _} = name = fresh'
-  let fresh at = {name = fresh'; n = Counter.next (); at}
+  let is_fresh {name; _} = name = Name.fresh
+  let fresh at = {name = Name.fresh; n = Counter.next (); at}
 
   (* Underscore *)
 
-  let is_underscore {name; _} = underscore' = name
-  let underscore at = {name = underscore'; n = Counter.next (); at}
+  let is_underscore {name; _} = Name.underscore = name
+  let underscore at = {name = Name.underscore; n = Counter.next (); at}
+
+  module Unsafe = struct
+    let set_counter n t = {t with n}
+  end
 end

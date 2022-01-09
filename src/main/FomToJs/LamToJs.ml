@@ -69,12 +69,17 @@ let parens exp = str "(" ^ exp ^ str ")"
 
 let to_return = function
   | `Return | `Tail _ -> str "return "
-  | `Top -> str " "
-  | `Const _ -> failwith "bug"
+  | `Top | `Body -> str " "
 
-let to_case = function
+let do_finish finish js =
+  match finish with `Body -> str "{" ^ js ^ str "}" | _ -> js
+
+let as_case = function
   | `Tail (f, is, i's, `Exit) -> `Tail (f, is, i's, `Case)
+  | `Body -> `Return
   | other -> other
+
+let as_return = function `Body -> `Return | other -> other
 
 let rec to_assignments is i's vs =
   List.fold_left3_fr
@@ -87,27 +92,35 @@ let rec to_assignments is i's vs =
     (str "") is i's vs
 
 and lam_bind_to_js_expr f b =
-  let is, b' = unlam b |> and_uncase in
-  if called_at_tail (List.length is) f b' then
-    let i's = List.map Var.freshen is in
+  let is', b' = unlam b |> and_uncase in
+  if called_at_tail (List.length is') f b' then
+    Renumbering.freshen_all is' @@ fun is ->
+    Renumbering.freshen_all is @@ fun i's ->
+    let b' =
+      subst_par
+        (List.fold_left2
+           (fun env i' i -> Env.add i' (`Var i) env)
+           VarMap.empty is' is)
+        b'
+    in
     let+ b = to_js_stmts (`Tail (f, is, i's, `Exit)) VarSet.empty b'
     and+ inits = to_assignments is is (List.map (fun i' -> `Var i') i's) in
     let b = str "{for (;;) {const " ^ inits ^ str ";" ^ b ^ str "}}" in
     List.fold_right (fun i b -> Var.to_js i ^ str " => " ^ b) i's b
   else to_js_expr b
 
-and to_js_stmts finish ids exp =
+and to_js_stmts finish ids = Renumbering.app (to_js_stmts_renumbered finish ids)
+
+and to_js_stmts_renumbered finish ids exp =
   let default () =
     match exp with
     | `Product [] -> (
       match finish with
       | `Top | `Return | `Tail _ -> return @@ str ""
-      | `Const i -> return @@ str "const " ^ Var.to_js i ^ str " = void 0;")
-    | exp -> (
-      let+ e = to_js_expr exp in
-      match finish with
-      | `Const i -> str "const " ^ Var.to_js i ^ str " = " ^ e ^ str ";"
-      | _ -> to_return finish ^ e ^ str ";")
+      | `Body -> return @@ str "{}")
+    | exp ->
+      let+ e = to_js_expr_renumbered exp in
+      to_return finish ^ e
   in
   match (unapp exp, finish) with
   | (`Var i, xs), `Tail (i', is, i's, ft)
@@ -129,8 +142,8 @@ and to_js_stmts finish ids exp =
             if is_free i e then str "const " ^ Var.to_js i ^ str " = "
             else str ""
           in
-          let+ e = to_js_stmts finish (VarSet.add i ids) e in
-          b ^ v ^ str "; " ^ e
+          let+ e = to_js_stmts (as_return finish) (VarSet.add i ids) e in
+          do_finish finish (b ^ v ^ str "; " ^ e)
         in
         match v with
         | `Mu (`Lam (f, (`Product fs as b)))
@@ -146,7 +159,8 @@ and to_js_stmts finish ids exp =
           let fs' = `Product (List.map2 (fun (l, _) i -> (l, `Var i)) fs is) in
           let* e =
             LamSimplify.once (subst i fs' e)
-            >>= to_js_stmts finish (VarSet.union ids (VarSet.of_list is))
+            >>= to_js_stmts (as_return finish)
+                  (VarSet.union ids (VarSet.of_list is))
           in
           let+ bs =
             List.fold_left2_fr
@@ -156,7 +170,7 @@ and to_js_stmts finish ids exp =
                 b ^ str "const " ^ Var.to_js i ^ str " = " ^ v ^ str ";")
               (str "") is fs
           in
-          bs ^ e
+          do_finish finish (bs ^ e)
         | `Mu (`Lam (f, (`Lam _ as b))) when (not (is_free i v)) && is_free i e
           ->
           lam_bind_to_js_expr i (subst f (`Var i) b) >>= body
@@ -166,14 +180,15 @@ and to_js_stmts finish ids exp =
                && is_free i e ->
           to_js_expr (subst f (`Var i) b) >>= body
         | _ -> to_js_expr v >>= body)
-    | `IfElse (c, t, e) when not (is_const finish) ->
+    | `IfElse (c, t, e) ->
       let+ c = to_js_expr c
-      and+ t = to_js_stmts finish VarSet.empty t
-      and+ e = to_js_stmts finish VarSet.empty e in
-      str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
-    | `App (`Case (`Product fs), x) when not (is_const finish) -> (
-      let i0 = Var.fresh Loc.dummy in
-      let i1 = Var.fresh Loc.dummy in
+      and+ t = to_js_stmts (as_return finish) VarSet.empty t
+      and+ e = to_js_stmts (as_return finish) VarSet.empty e in
+      do_finish finish
+        (str "if (" ^ c ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}")
+    | `App (`Case (`Product fs), x) -> (
+      Renumbering.fresh @@ fun i0 ->
+      Renumbering.fresh @@ fun i1 ->
       let v1 = `Var i1 in
       let fs =
         fs
@@ -203,21 +218,25 @@ and to_js_stmts finish ids exp =
             ( t,
               `Select (x, `Inject (Label.of_string Loc.dummy "1", `Product []))
             ))
-        >>= to_js_stmts finish VarSet.empty
+        >>= to_js_stmts (as_return finish) VarSet.empty
+        >>- do_finish finish
       | [(t, [l]); (e, [])] ->
         let+ t =
-          LamSimplify.once (`App (t, v1)) >>= to_js_stmts finish VarSet.empty
+          LamSimplify.once (`App (t, v1))
+          >>= to_js_stmts (as_return finish) VarSet.empty
         and+ e =
-          LamSimplify.once (`App (e, v1)) >>= to_js_stmts finish VarSet.empty
+          LamSimplify.once (`App (e, v1))
+          >>= to_js_stmts (as_return finish) VarSet.empty
         in
-        decon ^ str "if (" ^ Var.to_js i0 ^ str " === " ^ Label.to_js_atom l
-        ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}"
+        do_finish finish
+          (decon ^ str "if (" ^ Var.to_js i0 ^ str " === " ^ Label.to_js_atom l
+         ^ str ") {" ^ t ^ str "} else {" ^ e ^ str "}")
       | cs ->
         let+ fs =
           cs
           |> List.map_fr @@ fun (e, ls) ->
              let* e = LamSimplify.once @@ `App (e, v1) in
-             let+ e = to_js_stmts (to_case finish) VarSet.empty e in
+             let+ e = to_js_stmts (as_case finish) VarSet.empty e in
              let cs =
                match ls with
                | [] -> str "default: {"
@@ -230,22 +249,28 @@ and to_js_stmts finish ids exp =
              in
              cs ^ e ^ str "}"
         in
-        decon ^ str "switch (" ^ Var.to_js i0 ^ str ") "
-        ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
-        ^ str "}")
-    | `App (`Case cs, x) when not (is_const finish) ->
-      let i = Var.fresh Loc.dummy in
+        do_finish finish
+          (decon ^ str "switch (" ^ Var.to_js i0 ^ str ") "
+          ^ List.fold_left (fun es e -> es ^ e ^ str "; ") (str "{") fs
+          ^ str "}"))
+    | `App (`Case cs, x) ->
+      Renumbering.fresh @@ fun i ->
       let+ x = to_js_expr x and+ cs = to_js_expr cs in
-      str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; " ^ to_return finish
-      ^ cs ^ str "[" ^ Var.to_js i ^ str "[0]](" ^ Var.to_js i ^ str "[1])"
-    | `Mu (`Lam (f, e))
-      when (not (is_const finish)) && not (is_immediately_evaluated f e) ->
+      do_finish finish
+        (str "const " ^ Var.to_js i ^ str " = " ^ x ^ str "; "
+        ^ to_return (as_return finish)
+        ^ cs ^ str "[" ^ Var.to_js i ^ str "[0]](" ^ Var.to_js i ^ str "[1])")
+    | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
       let+ e = to_js_expr e in
-      str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";" ^ to_return finish
-      ^ Var.to_js f
+      do_finish finish
+        (str "const " ^ Var.to_js f ^ str " = " ^ e ^ str ";"
+        ^ to_return (as_return finish)
+        ^ Var.to_js f)
     | _ -> default ())
 
-and to_js_expr exp =
+and to_js_expr exp = Renumbering.app to_js_expr_renumbered exp
+
+and to_js_expr_renumbered exp =
   match exp with
   | `Const c -> (
     match Const.type_of Loc.dummy c |> Typ.arity_and_result with
@@ -260,14 +285,14 @@ and to_js_expr exp =
   | `Var i -> return @@ Var.to_js i
   | `Lam (i, `Mu (`Var i')) when Var.equal i i' -> return @@ str "rec"
   | `Lam (i, e) ->
-    let+ e = to_js_stmts `Return (VarSet.singleton i) e in
-    parens @@ Var.to_js i ^ str " => {" ^ e ^ str "}"
+    let+ e = to_js_stmts `Body (VarSet.singleton i) e in
+    parens @@ Var.to_js i ^ str " => " ^ e
   | `Mu (`Lam (f, `Lam (x, e))) ->
     let+ e = to_js_stmts `Return (VarSet.singleton x) e in
     parens @@ str "function " ^ Var.to_js f ^ str "(" ^ Var.to_js x ^ str ") {"
     ^ e ^ str "}"
   | `Mu (`Lam (f, (`Case _ as e))) ->
-    let x = Var.fresh Loc.dummy in
+    Renumbering.fresh @@ fun x ->
     let+ e = to_js_stmts `Return (VarSet.singleton x) @@ `App (e, `Var x) in
     parens @@ str "function " ^ Var.to_js f ^ str "(" ^ Var.to_js x ^ str ") {"
     ^ e ^ str "}"
@@ -308,14 +333,13 @@ and to_js_expr exp =
     let+ e = to_js_expr e in
     str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"
   | `App (`Lam (i, e), v) ->
-    let+ v = to_js_expr v and+ e = to_js_stmts `Return (VarSet.singleton i) e in
-    str "(" ^ Var.to_js i ^ str " => {" ^ e ^ str "})(" ^ v ^ str ")"
+    let+ v = to_js_expr v and+ e = to_js_stmts `Body (VarSet.singleton i) e in
+    str "(" ^ Var.to_js i ^ str " => " ^ e ^ str ")(" ^ v ^ str ")"
   | `App (`Case _, _) as e ->
-    let+ e = to_js_stmts `Return VarSet.empty e in
-    str "(() => {" ^ e ^ str "})()"
+    let+ e = to_js_stmts `Body VarSet.empty e in
+    str "(() => " ^ e ^ str ")()"
   | `Case cs ->
-    let i = Var.fresh Loc.dummy in
-    to_js_expr @@ `Lam (i, `App (`Case cs, `Var i))
+    Renumbering.fresh @@ fun i -> to_js_expr @@ `Lam (i, `App (`Case cs, `Var i))
   | `App (f, x) -> (
     let default () =
       let+ f = to_js_expr f and+ x = to_js_expr x in
@@ -335,8 +359,8 @@ and to_js_expr exp =
       let* lhs_is_total = is_total lhs in
       if (not lhs_is_total) || n <> 2 then default ()
       else
+        Renumbering.fresh @@ fun rhs ->
         let+ lhs = to_js_expr lhs in
-        let rhs = Var.fresh Loc.dummy in
         parens @@ Var.to_js rhs ^ str " => "
         ^ coerce_to_int_if (Typ.is_int result)
         @@ lhs ^ str " " ^ Const.to_js c ^ str " " ^ Var.to_js rhs

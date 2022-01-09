@@ -52,3 +52,6 @@ if [ "$CI" = true ]; then
 fi
 
 PROFILE=release build_and_test
+
+folded "Compiling examples" \
+  script/compile-examples

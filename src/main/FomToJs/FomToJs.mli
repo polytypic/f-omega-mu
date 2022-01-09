@@ -2,6 +2,10 @@ open FomBasis
 open FomAST
 
 module Lam : sig
+  module Var : sig
+    val to_js : Exp.Var.t -> Cats.t
+  end
+
   type t =
     [ `App of t * t
     | `Case of t
@@ -23,11 +27,11 @@ val simplify : Lam.t -> ('r, 'e, Lam.t) rea
 (** Simplify erased expression. *)
 
 val to_js :
-  ?top:
-    [ `Const of Exp.Var.t
+  top:
+    [ `Body
     | `Return
-    | `Top
-    | `Tail of Exp.Var.t * Exp.Var.t list * Exp.Var.t list * [`Exit | `Case] ] ->
+    | `Tail of Exp.Var.t * Exp.Var.t list * Exp.Var.t list * [`Exit | `Case]
+    | `Top ] ->
   Lam.t ->
   ('r, 'e, Cats.t) rea
 (** Transpile erased expression to JavaScript. *)

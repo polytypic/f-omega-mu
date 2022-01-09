@@ -225,7 +225,7 @@ and simplify_base = function
     let* f =
       match f with
       | `Lam (i, e) ->
-        let+ e = simplify e |> VarMap.adding i x in
+        let+ e = simplify e |> Env.adding i x in
         keep_phys_eq' f @@ `Lam (i, e)
       | _ -> simplify f
     in
@@ -340,7 +340,7 @@ and simplify_base = function
       `App (`Lam (i, fn), `Mu (`Lam (i, `Product (fs |> Row.map (lams is)))))
       |> simplify
     | _ ->
-      let+ e = simplify e |> VarMap.adding f e in
+      let+ e = simplify e |> Env.adding f e in
       if is_free f e then `Mu (keep_phys_eq' lam @@ `Lam (f, e)) else e)
   | `Mu e -> (
     let+ e = simplify e in

@@ -2,12 +2,44 @@
 
 set -eo pipefail
 
-for f in examples/*.fom; do
-  echo "$f"
-  _build/default/src/main/FomCommand/FomCommand.exe \
-    -stop js \
-    "$f" > examples/.tmp.js
-  prettier -w examples/.tmp.js > /dev/null
-  diff -y --suppress-common-lines "$f.js" examples/.tmp.js || true
-  mv examples/.tmp.js "$f.js"
+foms=(examples/*.fom)
+
+for fom in "${foms[@]}"; do
+  read -r code
+  echo "$code" > "$fom.js"
+done < <(_build/default/src/main/FomCommand/FomCommand.exe -stop js "${foms[@]}")
+
+prettier -w examples/*.fom.js > /dev/null
+
+for fom in "${foms[@]}"; do
+  fom_js="$fom.js"
+  js="${fom%.fom}.js"
+
+  if [ -f "$js" ]; then
+    if ! diff -y --suppress-common-lines "$js" "$fom_js"; then
+      if [ "$CI" = true ]; then
+        echo "ERROR: '$js' has changed."
+        exit 1
+      fi
+
+      read -r -p "Accept changes to '$js'? [Y/N/exit] " answer
+      case $answer in
+        [Yy])
+          mv "$fom_js" "$js";;
+        [Nn])
+          rm "$fom_js";;
+        *)
+          echo "New result left in '$fom_js'."
+          exit 1;;
+      esac
+    else
+      rm "$fom_js"
+    fi
+  elif [ "$CI" = true ]; then
+    echo "ERROR: '$js' is missing."
+    exit 1
+  else
+    echo "Generated '$js'"
+    mv "$fom_js" "$js"
+  fi
 done

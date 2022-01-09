@@ -76,28 +76,37 @@ let erase_and_simplify_all paths =
      in
      (id, path, erased)
 
-let use_strict js = str "'use strict';\n\n" ^ js
-
 let whole_program_to_js ast paths =
-  paths |> topological_deps >>= erase_and_simplify_all
-  >>- List.fold_left
-        (fun prg (id, _, erased) -> `App (`Lam (id, prg), erased))
-        (FomToJs.erase ast)
-  >>= FomToJs.simplify >>= FomToJs.to_js >>- use_strict >>- to_string
+  let+ js =
+    paths |> topological_deps >>= erase_and_simplify_all
+    >>- List.fold_left
+          (fun prg (id, _, erased) -> `App (`Lam (id, prg), erased))
+          (FomToJs.erase ast)
+    >>= FomToJs.simplify
+    >>= FomToJs.to_js ~top:`Top
+  in
+  str "'use strict'; " ^ js |> to_string
 
 let compile_to_js_all paths =
   paths |> erase_and_simplify_all
   >>= List.map_fr @@ fun (id, path, erased) ->
       ModInJs.get_or_put path
-        ( erased |> FomToJs.to_js ~top:(`Const id) >>- fun js ->
-          str "// " ^ str path ^ str "\n" ^ js )
+        ( erased |> FomToJs.to_js ~top:`Body >>- fun js ->
+          str "// " ^ str path ^ str "\n" ^ str "const "
+          ^ FomToJs.Lam.Var.to_js id ^ str " = (() => " ^ js ^ str ")()" )
 
 let modules_to_js ast paths =
   let* paths = topological_deps paths in
   let* modules = compile_to_js_all paths in
-  let+ prg = ast |> FomToJs.erase |> FomToJs.simplify >>= FomToJs.to_js in
-  modules
-  |> List.fold_left (fun prg js -> js ^ str "\n\n" ^ prg) (str "// main\n" ^ prg)
-  |> use_strict |> to_string
+  let+ prg =
+    ast |> FomToJs.erase |> FomToJs.simplify >>= FomToJs.to_js ~top:`Top
+  in
+  let js =
+    modules
+    |> List.fold_left
+         (fun prg js -> js ^ str "\n\n" ^ prg)
+         (str "// main\n" ^ prg)
+  in
+  str "'use strict';\n\n" ^ js |> to_string
 
 let to_js ~whole = if whole then whole_program_to_js else modules_to_js

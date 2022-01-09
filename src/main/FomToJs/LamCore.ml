@@ -7,6 +7,7 @@ open FomAST
 
 module Var = Exp.Var
 module VarSet = Set.Make (Var)
+module VarMap = Map.Make (Var)
 
 module Const = struct
   include Exp.Const
@@ -110,24 +111,31 @@ let eq l r =
 let keep_phys_eq' e e' = if e == e' || eq e e' then e else e'
 let keep_phys_eq fn e = keep_phys_eq' e (fn e)
 
-let rec subst i the =
+let rec subst_par env =
   keep_phys_eq @@ function
   | `Const _ as inn -> inn
-  | `Var i' as inn -> if Var.equal i' i then the else inn
-  | `Lam (i', e) as inn ->
-    if Var.equal i' i || not (is_free i e) then inn
-    else if is_free i' the then
-      let i'' = Var.freshen i' in
-      let vi'' = `Var i'' in
-      `Lam (i'', subst i the (subst i' vi'' e))
-    else `Lam (i', subst i the e)
-  | `App (f, x) -> `App (subst i the f, subst i the x)
-  | `Mu e -> `Mu (subst i the e)
-  | `IfElse (c, t, e) -> `IfElse (subst i the c, subst i the t, subst i the e)
-  | `Product fs -> `Product (Row.map_phys_eq (subst i the) fs)
-  | `Select (e, l) -> `Select (subst i the e, subst i the l)
-  | `Inject (l, e) -> `Inject (l, subst i the e)
-  | `Case cs -> `Case (subst i the cs)
+  | `Var i as inn -> (
+    match VarMap.find_opt i env with None -> inn | Some e -> e)
+  | `Lam (i, e) as inn ->
+    let env = VarMap.remove i env in
+    if VarMap.is_empty env then inn
+    else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' e) env then
+      let i' = Var.freshen i in
+      let v' = `Var i' in
+      `Lam (i', subst_par (VarMap.add i v' env) e)
+    else `Lam (i, subst_par env e)
+  | `App (f, x) -> `App (subst_par env f, subst_par env x)
+  | `Mu e -> `Mu (subst_par env e)
+  | `IfElse (c, t, e) ->
+    `IfElse (subst_par env c, subst_par env t, subst_par env e)
+  | `Product fs -> `Product (Row.map_phys_eq (subst_par env) fs)
+  | `Select (e, l) -> `Select (subst_par env e, subst_par env l)
+  | `Inject (l, e) -> `Inject (l, subst_par env e)
+  | `Case cs -> `Case (subst_par env cs)
+
+let subst i = function
+  | `Var j when Var.equal i j -> id
+  | the -> subst_par (VarMap.singleton i the)
 
 (* *)
 
