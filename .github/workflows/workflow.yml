@@ -25,4 +25,7 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
 
+      - name: Install dependencies
+        run: ./script/install-deps
+
       - run: ./script/ci
