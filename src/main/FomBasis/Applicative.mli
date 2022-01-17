@@ -28,4 +28,8 @@ module Syntax : sig
 
   val lift2 :
     ('a -> 'b -> 'c) -> ('f, 'F, 'a) fr -> ('f, 'F, 'b) fr -> ('f, 'F, 'c) fr
+
+  (* *)
+
+  val thunk : (unit -> 'a) -> ('f, 'F, 'a) fr
 end

@@ -28,4 +28,8 @@ module Syntax = struct
   (* *)
 
   let lift2 xyz x y = x <*> y >>- fun (x, y) -> xyz x y
+
+  (* *)
+
+  let thunk u2x = unit >>- u2x
 end

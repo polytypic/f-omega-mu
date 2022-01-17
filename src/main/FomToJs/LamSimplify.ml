@@ -155,8 +155,8 @@ and occurs_in_total_position_of_list ~once i' = function
   | [] -> return false
   | x :: xs ->
     occurs_in_total_position ~once i' x
-    &&& return ((not once) || List.for_all (is_free i' >>> not) xs)
-    ||| (return ((not once) || not (is_free i' x))
+    &&& thunk (fun () -> (not once) || List.for_all (is_free i' >>> not) xs)
+    ||| (thunk (fun () -> (not once) || not (is_free i' x))
         &&& is_total x
         &&& occurs_in_total_position_of_list ~once i' xs)
 
@@ -269,7 +269,7 @@ and simplify_base = function
       in
       let* may_subst =
         is_total x
-        &&& return ((not (is_mu x)) || not (is_free i e))
+        &&& thunk (fun () -> (not (is_mu x)) || not (is_free i e))
         ||| occurs_in_total_position ~once:true i e
       in
       if may_subst then
