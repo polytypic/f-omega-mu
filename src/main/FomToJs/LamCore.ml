@@ -56,6 +56,40 @@ type t =
 
 (* *)
 
+let map_fr' row fn = function
+  | `App (f, x) -> fn f <*> fn x >>- fun f_x -> `App f_x
+  | `Case e -> fn e >>- fun e -> `Case e
+  | `Const _ as inn -> return inn
+  | `IfElse (c, t, e) ->
+    fn c <*> fn t <*> fn e >>- fun ((c, t), e) -> `IfElse (c, t, e)
+  | `Inject (l, e) -> fn e >>- fun e -> `Inject (l, e)
+  | `Lam (i, e) -> fn e >>- fun e -> `Lam (i, e)
+  | `Mu e -> fn e >>- fun e -> `Mu e
+  | `Product fs -> row fn fs >>- fun fs -> `Product fs
+  | `Select (e, l) -> fn e <*> fn l >>- fun e_l -> `Select e_l
+  | `Var _ as inn -> return inn
+
+let map_fr fn = map_fr' Row.map_fr fn
+let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
+let map fn = map_fr (Identity.inj'1 fn) >>> Identity.run
+let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
+let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
+
+let exists fn =
+  map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
+
+let find_map fn =
+  map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
+
+let map_reduce plus zero =
+  map_constant @@ Constant.of_monoid
+  @@ object
+       method identity = zero
+       method combine = plus
+     end
+
+(* *)
+
 let lam fn =
   let i = Var.fresh Loc.dummy in
   `Lam (i, fn @@ `Var i)
@@ -84,15 +118,10 @@ let lams is = List.fold_right (fun i e -> `Lam (i, e)) is
 
 (* *)
 
-let rec is_free i' = function
-  | `Const _ -> false
-  | `Var i -> Var.equal i' i
-  | `Lam (i, e) -> (not (Var.equal i' i)) && is_free i' e
-  | `App (f, x) -> is_free i' f || is_free i' x
-  | `IfElse (c, t, e) -> is_free i' c || is_free i' t || is_free i' e
-  | `Product fs -> fs |> List.exists (snd >>> is_free i')
-  | `Mu e | `Inject (_, e) | `Case e -> is_free i' e
-  | `Select (e, l) -> is_free i' e || is_free i' l
+let rec is_free i = function
+  | `Var i' -> Var.equal i i'
+  | `Lam (i', e) -> (not (Var.equal i i')) && is_free i e
+  | e -> exists (is_free i) e
 
 let eq l r =
   match (l, r) with
@@ -113,7 +142,6 @@ let keep_phys_eq fn e = keep_phys_eq' e (fn e)
 
 let rec subst_par env =
   keep_phys_eq @@ function
-  | `Const _ as inn -> inn
   | `Var i as inn -> (
     match VarMap.find_opt i env with None -> inn | Some e -> e)
   | `Lam (i, e) as inn ->
@@ -124,14 +152,7 @@ let rec subst_par env =
       let v' = `Var i' in
       `Lam (i', subst_par (VarMap.add i v' env) e)
     else `Lam (i, subst_par env e)
-  | `App (f, x) -> `App (subst_par env f, subst_par env x)
-  | `Mu e -> `Mu (subst_par env e)
-  | `IfElse (c, t, e) ->
-    `IfElse (subst_par env c, subst_par env t, subst_par env e)
-  | `Product fs -> `Product (Row.map_phys_eq (subst_par env) fs)
-  | `Select (e, l) -> `Select (subst_par env e, subst_par env l)
-  | `Inject (l, e) -> `Inject (l, subst_par env e)
-  | `Case cs -> `Case (subst_par env cs)
+  | e -> map_eq (subst_par env) e
 
 let subst i = function
   | `Var j when Var.equal i j -> id
@@ -139,28 +160,7 @@ let subst i = function
 
 (* *)
 
-let rec bottomUp fn = function
-  | (`Const _ | `Var _) as e -> fn e
-  | `App (f, x) -> fn (`App (bottomUp fn f, bottomUp fn x))
-  | `IfElse (c, t, e) ->
-    fn (`IfElse (bottomUp fn c, bottomUp fn t, bottomUp fn e))
-  | `Product fs -> fn (`Product (fs |> Row.map (bottomUp fn)))
-  | `Mu e -> fn (`Mu (bottomUp fn e))
-  | `Lam (i, e) -> fn (`Lam (i, bottomUp fn e))
-  | `Inject (l, e) -> fn (`Inject (l, bottomUp fn e))
-  | `Select (e, l) -> fn (`Select (bottomUp fn e, bottomUp fn l))
-  | `Case cs -> fn (`Case (bottomUp fn cs))
-
-let size t =
-  t
-  |> bottomUp @@ function
-     | `Const _ | `Var _ -> 1
-     | `App (f, x) -> f + x + 1
-     | `IfElse (c, t, e) -> c + t + e + 1
-     | `Product fs -> fs |> List.fold_left (fun s (_, e) -> s + e) 1
-     | `Mu e | `Lam (_, e) | `Inject (_, e) -> e + 1
-     | `Select (e, l) -> e + l + 1
-     | `Case cs -> cs + 1
+let rec size t = map_reduce ( + ) 0 size t + 1
 
 (* *)
 
