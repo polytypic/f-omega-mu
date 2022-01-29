@@ -258,6 +258,12 @@ module Offside = struct
 
   (* *)
 
+  let is_closing = function
+    | And | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | Else
+    | In | ParenRhs | Then ->
+      true
+    | _ -> false
+
   let rec nest tok =
     (match tok_of tok with
     | ForAll | Exists | MuLower ->
@@ -345,10 +351,8 @@ module Offside = struct
   and inside_block on_exit indent tok =
     let* is_typ in
     match tok_of tok with
-    | And | BraceRhs | BracketRhs | Comma | DoubleAngleQuoteRhs | EOF | Else
-    | In | ParenRhs ->
-      on_exit tok
     | (Dot | Equal) when is_typ -> on_exit tok
+    | t when is_closing t -> on_exit tok
     | _ ->
       let* new_line = new_line tok in
       if new_line && col_of tok < indent then on_exit tok
