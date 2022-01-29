@@ -2,8 +2,19 @@
 
 set -eo pipefail
 
-watchexec -d 250 -i docs -- "(\
+COMMAND="(\
   echo $'<<< <<< <<<' && \
   ./script/ci && \
   echo $'\n>>> >>> >>>' \
 )"
+
+if command -v entr > /dev/null; then
+  git ls-files \
+    | grep -v '^docs/' \
+    | entr sh -c "$COMMAND"
+elif command -v watchexec > /dev/null; then
+  watchexec --debounce 250 --ignore docs -- "$COMMAND"
+else
+  >&2 echo "WARNING: Could not find suitable file watcher."
+  exit 1
+fi
