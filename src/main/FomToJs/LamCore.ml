@@ -164,17 +164,17 @@ let rec size t = map_reduce ( + ) 0 size t + 1
 
 (* *)
 
-let index = function
-  | `App _ -> 0
-  | `Case _ -> 1
-  | `Const _ -> 2
-  | `IfElse _ -> 3
-  | `Inject _ -> 4
-  | `Lam _ -> 5
-  | `Mu _ -> 6
-  | `Product _ -> 7
-  | `Select _ -> 8
-  | `Var _ -> 9
+let tag = function
+  | `App _ -> `App
+  | `Case _ -> `Case
+  | `Const _ -> `Const
+  | `IfElse _ -> `IfElse
+  | `Inject _ -> `Inject
+  | `Lam _ -> `Lam
+  | `Mu _ -> `Mu
+  | `Product _ -> `Product
+  | `Select _ -> `Select
+  | `Var _ -> `Var
 
 let rec compare (l : t) (r : t) =
   if l == r then 0
@@ -201,7 +201,7 @@ let rec compare (l : t) (r : t) =
           Label.compare ll lr <>? fun () -> compare el er)
         lls rls
     | `Var l, `Var r -> Var.compare l r
-    | _ -> index l - index r
+    | _ -> Stdlib.compare (tag l) (tag r)
 
 (* *)
 
@@ -233,11 +233,7 @@ let[@warning "-32"] to_string = pp >>> FomPP.to_string
 
 (* *)
 
-let is_mu = function `Mu _ -> true | _ -> false
-
 let rec is_lam_or_case = function
   | `Lam _ -> true
   | `Case (`Product fs) -> List.for_all (snd >>> is_lam_or_case) fs
   | _ -> false
-
-let is_const = function `Const _ -> true | _ -> false

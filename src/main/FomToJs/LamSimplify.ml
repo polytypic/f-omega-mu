@@ -269,7 +269,7 @@ and simplify_base = function
       in
       let* may_subst =
         is_total x
-        &&& thunk (fun () -> (not (is_mu x)) || not (is_free i e))
+        &&& thunk (fun () -> tag x <> `Mu || not (is_free i e))
         ||| occurs_in_total_position ~once:true i e
       in
       if may_subst then

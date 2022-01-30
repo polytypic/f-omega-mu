@@ -31,7 +31,7 @@ module Kind = struct
 
   (* Comparison *)
 
-  let index = function `Star _ -> 0 | `Arrow _ -> 1 | `Unk _ -> 2
+  let tag = function `Star _ -> `Star | `Arrow _ -> `Arrow | `Unk _ -> `Unk
 
   let rec compare lhs rhs =
     if lhs == rhs then 0
@@ -41,7 +41,7 @@ module Kind = struct
       | `Arrow (_, lhs_dom, lhs_cod), `Arrow (_, rhs_dom, rhs_cod) ->
         compare lhs_dom rhs_dom <>? fun () -> compare lhs_cod rhs_cod
       | `Unk (_, l), `Unk (_, r) -> Unk.compare l r
-      | _ -> index lhs - index rhs
+      | _ -> Stdlib.compare (tag lhs) (tag rhs)
 
   (* *)
 
@@ -187,14 +187,14 @@ module Typ = struct
       | `Bool, `Bool | `Int, `Int | `String, `String -> true
       | _ -> false
 
-    let index = function `Bool -> 0 | `Int -> 1 | `String -> 2
+    let tag = function `Bool -> `Bool | `Int -> `Int | `String -> `String
 
     let compare lhs rhs =
       if lhs == rhs then 0
       else
         match (lhs, rhs) with
         | `Bool, `Bool | `Int, `Int | `String, `String -> 0
-        | _ -> index lhs - index rhs
+        | _ -> Stdlib.compare (tag lhs) (tag rhs)
 
     (* Kinding *)
 
@@ -513,19 +513,19 @@ module Typ = struct
 
   (* Comparison *)
 
-  let index = function
-    | `Mu _ -> 0
-    | `Const _ -> 1
-    | `Var _ -> 2
-    | `Lam _ -> 3
-    | `App _ -> 4
-    | `ForAll _ -> 5
-    | `Exists _ -> 6
-    | `Arrow _ -> 7
-    | `Product _ -> 8
-    | `Sum _ -> 9
-    | `Join _ -> 10
-    | `Meet _ -> 11
+  let tag = function
+    | `Mu _ -> `Mu
+    | `Const _ -> `Const
+    | `Var _ -> `Var
+    | `Lam _ -> `Lam
+    | `App _ -> `App
+    | `ForAll _ -> `ForAll
+    | `Exists _ -> `Exists
+    | `Arrow _ -> `Arrow
+    | `Product _ -> `Product
+    | `Sum _ -> `Sum
+    | `Join _ -> `Join
+    | `Meet _ -> `Meet
 
   let compare' compare l_env r_env l r =
     match (l, r) with
@@ -555,7 +555,7 @@ module Typ = struct
         l_ls r_ls
     | `Join (_, a, b), `Join (_, c, d) | `Meet (_, a, b), `Meet (_, c, d) ->
       compare l_env r_env a c <>? fun () -> compare l_env r_env b d
-    | _ -> index l - index r
+    | _ -> Stdlib.compare (tag l) (tag r)
 
   let rec compare_in_env l_env r_env l r =
     compare' compare_in_env l_env r_env l r
@@ -746,29 +746,29 @@ module Exp = struct
 
     (* Comparison *)
 
-    let index = function
-      | `LitBool _ -> 0
-      | `LitNat _ -> 1
-      | `LitString _ -> 2
-      | `OpArithAdd -> 3
-      | `OpArithDiv -> 4
-      | `OpArithMinus -> 5
-      | `OpArithMul -> 6
-      | `OpArithPlus -> 7
-      | `OpArithRem -> 8
-      | `OpArithSub -> 9
-      | `OpCmpGt -> 10
-      | `OpCmpGtEq -> 11
-      | `OpCmpLt -> 12
-      | `OpCmpLtEq -> 13
-      | `OpEq _ -> 14
-      | `OpEqNot _ -> 15
-      | `OpLogicalAnd -> 16
-      | `OpLogicalNot -> 17
-      | `OpLogicalOr -> 18
-      | `OpStringCat -> 19
-      | `Keep _ -> 20
-      | `Target _ -> 21
+    let tag = function
+      | `LitBool _ -> `LitBool
+      | `LitNat _ -> `LitNat
+      | `LitString _ -> `LitString
+      | `OpArithAdd -> `OpAritAdd
+      | `OpArithDiv -> `OpArithDiv
+      | `OpArithMinus -> `OpArithMinus
+      | `OpArithMul -> `OpArithMul
+      | `OpArithPlus -> `OpArithPlus
+      | `OpArithRem -> `OpArithRem
+      | `OpArithSub -> `OpArithSub
+      | `OpCmpGt -> `OpCmpGt
+      | `OpCmpGtEq -> `OpCmpGtEq
+      | `OpCmpLt -> `OpCmpLt
+      | `OpCmpLtEq -> `OpCmpLtEq
+      | `OpEq _ -> `OpEq
+      | `OpEqNot _ -> `OpEqNot
+      | `OpLogicalAnd -> `OpLogicalAnd
+      | `OpLogicalNot -> `OpLogicalNot
+      | `OpLogicalOr -> `OpLogicalOr
+      | `OpStringCat -> `OpStringCat
+      | `Keep _ -> `Keep
+      | `Target _ -> `Target
 
     let compare' nat typ l r =
       match (l, r) with
@@ -779,7 +779,7 @@ module Exp = struct
       | `Keep tl, `Keep tr -> typ tl tr
       | `Target (tl, ll), `Target (tr, lr) ->
         typ tl tr <>? fun () -> JsonString.compare ll lr
-      | _ -> index l - index r
+      | _ -> Stdlib.compare (tag l) (tag r)
 
     (* Formatting *)
 
