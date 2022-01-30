@@ -8,14 +8,13 @@
 #   https://okmij.org/ftp/tagless-final/index.html
 #
 # This example differs from the paper mainly in that the interpreter is built
-# compositionally.
+# compositionally.  Also, the whole evaluation semantics is thunked so there is
+# no need to treat conditionals as a special case.
 
-let id = Λα.λx: α.x
+# Types for the two semantics (evaluation ℰ and size 𝒮)
 
-# Types for the two semantics
-
-type eval = λα.α
-type length = λ_.int
+type ℰ = λα.() → α
+type 𝒮 = λ_.int
 
 # Integer expressions
 
@@ -27,32 +26,38 @@ type IntExp = λσ.{
 }
 
 let IntExp =
-  let eval: IntExp eval = {Int = id[int], Add = +, Mul = *, Leq = ≤}
-  let length: IntExp length = {
-    Int = λ_: int.1
-    Add = λx: int.λy: int.x + y + 1
-    Mul = λx: int.λy: int.x + y + 1
-    Leq = λx: int.λy: int.x + y + 1
+  let bop = Λα.Λβ.λop: α → α → β.λl: ℰ α.λr: ℰ α.λ().op l() r()
+  let eval: IntExp ℰ = {
+    Int = λi: int.λ().i,
+    Add = bop[int][int] (+),
+    Mul = bop[int][int] (*),
+    Leq = bop[int][bool] (≤)
   }
-  {eval, length}
+  let size: IntExp 𝒮 = {
+    Int = λ_: int.1
+    Add = λx: 𝒮 int.λy: 𝒮 int.x + y + 1
+    Mul = λx: 𝒮 int.λy: 𝒮 int.x + y + 1
+    Leq = λx: 𝒮 int.λy: 𝒮 int.x + y + 1
+  }
+  {eval, size}
 
 # Boolean expressions
 
 type BoolExp = λσ.{
   Bool: bool → σ bool
-  If: ∀α.σ bool → (() → σ α) → (() → σ α) → σ α
+  If: ∀α.σ bool → σ α → σ α → σ α
 }
 
 let BoolExp =
-  let eval: BoolExp eval = {
-    Bool = id[bool]
-    If = Λα.λc: bool.λt: () → α.λe: () → α.if c then t () else e ()
+  let eval: BoolExp ℰ = {
+    Bool = λb: bool.λ().b
+    If = Λα.λc: ℰ bool.λt: ℰ α.λe: ℰ α.λ().if c() then t() else e()
   }
-  let length: BoolExp length = {
+  let size: BoolExp 𝒮 = {
     Bool = λ_: bool.1
-    If = Λ_.λc: int.λt: () → int.λe: () → int.c + t () + e () + 1
+    If = Λα.λc: 𝒮 bool.λt: 𝒮 α.λe: 𝒮 α.c + t + e + 1
   }
-  {eval, length}
+  {eval, size}
 
 # Lambda expressions
 
@@ -62,21 +67,24 @@ type LamExp = λσ.{
 }
 
 let LamExp =
-  let eval: LamExp eval = {Lam = Λα.Λβ.id[α → β], App = Λa.Λb.id[a → b]}
-  let length: LamExp length = {
-    Lam = Λ_.Λ_.λf: int → int.f 0 + 1
-    App = Λ_.Λ_.λf: int.λx: int.f + x + 1
+  let eval: LamExp ℰ = {
+    Lam = Λα.Λβ.λf: ℰ α → ℰ β.λ().λx: α.f (λ().x) (),
+    App = Λα.Λβ.λf: ℰ (α → β).λx: ℰ α.λ().f() x()
   }
-  {eval, length}
+  let size: LamExp 𝒮 = {
+    Lam = Λα.Λβ.λf: 𝒮 α → 𝒮 β.f 0 + 1
+    App = Λα.Λβ.λf: 𝒮 (α → β).λx: 𝒮 α.f + x + 1
+  }
+  {eval, size}
 
 # Fixpoint expression
 
 type FixExp = λσ.{Fix: ∀α.(σ α → σ α) → σ α}
 
 let FixExp =
-  let eval: FixExp eval = {Fix = Λα.λf: α → α.μx: α.f x}
-  let length: FixExp length = {Fix = Λ_.λf: int → int.f 0 + 1}
-  {eval, length}
+  let eval: FixExp ℰ = {Fix = Λα.λf: ℰ α → ℰ α.λ().μx: α.f (λ().x) ()}
+  let size: FixExp 𝒮 = {Fix = Λα.λf: 𝒮 α → 𝒮 α.f 0 + 1}
+  {eval, size}
 
 # Composition of interpreter
 
@@ -89,11 +97,14 @@ let Exp = IntExp „ BoolExp „ LamExp „ FixExp
 let pow_exp = Λσ.λS: Exp σ.
   S.Lam[int][int → int] λx: σ int.S.Fix[int → int] λpow: σ (int → int).
     S.Lam[int][int] λn: σ int.
-      S.If[int] ◇ S.Leq n S.Int(0)
-        ◇ λ().S.Int 1
-        ◇ λ().S.Mul x ◁ S.App[int][int] pow ◁ S.Add n S.Int(-1)
+      S.If[int] S.Leq(n)(S.Int(0))
+        S.Int(1)
+        S.Mul(x)(S.App[int][int] pow ◁ S.Add n S.Int(-1))
 
-let pow = pow_exp[eval] Exp.eval
-let pow_length = pow_exp[length] Exp.length
+let pow = pow_exp[ℰ] Exp.eval ()
+let pow_size = pow_exp[𝒮] Exp.size
 
-pow 2 pow_length
+# The Fωμ toy compiler can constant fold the size calculation and completely
+# eliminate the thunking of the evaluation semantics.
+
+pow 2 pow_size
