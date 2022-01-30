@@ -7,10 +7,10 @@ const takeN = n => xs => {
     return $1
   } else {
     const [$4, $5] = xs
-    if ($4 === 'None') {
-      return $1
-    } else {
+    if ($4 === 'Some') {
       return ['Some', {1: $5[1], 2: takeN((n - 1) | 0)($5[2])}]
+    } else {
+      return $1
     }
   }
 }

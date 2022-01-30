@@ -199,6 +199,7 @@ and to_js_stmts_renumbered finish ids exp =
                   | None -> Some [l]
                   | Some ls -> Some (l :: ls))
              LamMap.empty
+        |> LamMap.map (List.sort (Compare.the Label.to_string String.compare))
       in
       let* decon =
         let+ x = to_js_expr x in
@@ -207,7 +208,10 @@ and to_js_stmts_renumbered finish ids exp =
       in
       match
         fs |> LamMap.bindings
-        |> List.sort (Compare.the (snd >>> List.length >>> ( ~- )) Int.compare)
+        |> List.sort
+             (Compare.the (snd >>> List.length >>> ( ~- )) Int.compare
+             <?> Compare.the snd
+                   (List.compare (Compare.the Label.to_string String.compare)))
         |> function
         | (e, _) :: cs -> List.rev_append cs [(e, [])]
         | [] -> []

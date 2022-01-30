@@ -20,10 +20,10 @@ const lookup = t =>
     },
     Pair: t$1 => $9 => {
       const [$10, $11] = lookup(t$1)($9[1])
-      if ($10 === 'None') {
-        return $8
-      } else {
+      if ($10 === 'Some') {
         return lookup($11)($9[2])
+      } else {
+        return $8
       }
     },
   })

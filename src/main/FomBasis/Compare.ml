@@ -1,5 +1,6 @@
 module Syntax = struct
   let ( <>? ) lhs rhs = if lhs = 0 then rhs () else lhs
+  let ( <?> ) c1 c2 l r = c1 l r <>? fun () -> c2 l r
 end
 
 open Syntax

@@ -3,6 +3,9 @@ open Misc.Syntax
 module Syntax : sig
   val ( <>? ) : int -> (unit -> int) -> int
   (** Composition of comparisons: [compare a b <>? fun () -> compare x y]. *)
+
+  val ( <?> ) : 'a cmp bop
+  (** Composition of comparisons: [compare_a <?> compare_b]. *)
 end
 
 val the : ('a -> 'b) -> 'b cmp -> 'a cmp

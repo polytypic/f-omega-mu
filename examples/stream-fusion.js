@@ -7,10 +7,10 @@ const fold = xrr$1 => r$1 => $4 => {
       r = r$1,
       $3 = $4
     const [$5, $6] = $3
-    if ($5 === 'None') {
-      return r
-    } else {
+    if ($5 === 'Some') {
       ;(r$1 = xrr($6[1])(r)), ($4 = $6[2])
+    } else {
+      return r
     }
   }
 }

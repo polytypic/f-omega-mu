@@ -23,10 +23,6 @@ const to_string = $20 => {
     case 'String': {
       return x => $13($22($1)(x))
     }
-    case 'Iso': {
-      const to_string_b = to_string($22[3])
-      return t => to_string_b($22[2][1]($22[1]($1)(t)))
-    }
     case 'Pair': {
       const to_string_a = to_string($22[2])
       const to_string_b = to_string($22[3])
@@ -35,6 +31,10 @@ const to_string = $20 => {
         const s = to_string_b($23[2])
         return $17 + to_string_a($23[1]) + $18 + s + $15
       }
+    }
+    case 'Iso': {
+      const to_string_b = to_string($22[3])
+      return t => to_string_b($22[2][1]($22[1]($1)(t)))
     }
     case 'Alt': {
       const to_string_a = to_string($22[2])

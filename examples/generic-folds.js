@@ -18,44 +18,44 @@ const $16 = {fn: $12, arg: $15}
 const $17 = ['App', $16]
 const has = p => $19 => {
   const [$20, $21] = $19
-  if ($20 === 'None') {
-    return false
-  } else {
+  if ($20 === 'Some') {
     return p($21[1]) || has(p)($21[2])
+  } else {
+    return false
   }
 }
 ;(function fold($18) {
   const [$19, $20] = $18
   switch ($19) {
-    case 'Lit': {
-      return $1
-    }
     case 'Var': {
       return ['Some', {1: $20.id, 2: $1}]
+    }
+    case 'Lit': {
+      return $1
     }
     case 'App': {
       const fn = fold($20.fn)
       const arg = fold($20.arg)
       const ys = (function fold($21) {
         const [$22, $23] = $21
-        if ($22 === 'None') {
-          return $1
-        } else {
+        if ($22 === 'Some') {
           const $2$ = fold($23[2])
           if (has($2($23[1]))(fn)) {
             return $2$
           } else {
             return ['Some', {1: $23[1], 2: $2$}]
           }
+        } else {
+          return $1
         }
       })(arg)
       return (function fold($21) {
         const [$22, $23] = $21
-        if ($22 === 'None') {
-          return ys
-        } else {
+        if ($22 === 'Some') {
           const $2$ = fold($23[2])
           return ['Some', {1: $23[1], 2: $2$}]
+        } else {
+          return ys
         }
       })(fn)
     }
@@ -63,15 +63,15 @@ const has = p => $19 => {
       const exp = fold($20.exp)
       return (function fold($21) {
         const [$22, $23] = $21
-        if ($22 === 'None') {
-          return $1
-        } else {
+        if ($22 === 'Some') {
           const $2$ = fold($23[2])
           if ($20.var === $23[1]) {
             return $2$
           } else {
             return ['Some', {1: $23[1], 2: $2$}]
           }
+        } else {
+          return $1
         }
       })(exp)
     }

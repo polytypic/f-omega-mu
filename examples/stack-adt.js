@@ -8,10 +8,10 @@ const $6 = {1: 5, 2: $5}
 const $7 = ['Some', $6]
 const to_list = $9 => {
   const [$10, $11] = $9
-  if ($10 === 'None') {
-    return $1
-  } else {
+  if ($10 === 'Some') {
     return ['Some', {1: $11[1], 2: to_list($11[2])}]
+  } else {
+    return $1
   }
 }
 to_list($7)

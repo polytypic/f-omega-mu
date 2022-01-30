@@ -13,15 +13,15 @@ const $get$ = k$1 => $8 => {
     const k = k$1,
       $7 = $8
     const [$9, $10] = $7
-    if ($9 === 'None') {
-      return $1
-    } else {
+    if ($9 === 'Some') {
       const [$11, $12] = k.of($10[1])
       if ($11 === 'Some') {
         return ['Some', $12]
       } else {
         $8 = $10[2]
       }
+    } else {
+      return $1
     }
   }
 }
