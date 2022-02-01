@@ -525,7 +525,10 @@ let rec elaborate = function
          >>= Parser.parse_utf_8 Grammar.mods Lexer.offside ~path:mod_path
          >>= elaborate >>- Exp.initial_exp
        in
-       let i = Exp.Var.fresh at' in
+       let i =
+         "_import_" ^ Lexer.coerce_to_id mod_path
+         |> Exp.Var.of_string at' |> Exp.Var.freshen
+       in
        let e =
          match t_opt with None -> e | Some t -> annot at' i (t :> Typ.t) e
        in

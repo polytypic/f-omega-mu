@@ -17,6 +17,9 @@ module Lexer : sig
 
   val offside : t
   (** Lexical syntax with offside rules. *)
+
+  val coerce_to_id : string -> string
+  (** Translate arbitrary UTF-8 string to valid id character by character. *)
 end
 
 module Tokenizer : sig

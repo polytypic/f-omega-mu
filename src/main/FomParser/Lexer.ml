@@ -81,6 +81,26 @@ let line_directive = [%sedlex.regexp? "#line ", nat_10, ' ', string, line_end]
 
 (* *)
 
+let coerce_to_id str =
+  let ({lexbuf; _} as buffer) = Buffer.from_utf_8 str in
+  match
+    match%sedlex lexbuf with
+    | id_hd -> [Buffer.lexeme_utf_8 buffer]
+    | Compl id_hd -> ["_"]
+    | _ -> []
+  with
+  | [] -> ""
+  | cs ->
+    let rec loop cs =
+      match%sedlex lexbuf with
+      | id_tl -> loop (Buffer.lexeme_utf_8 buffer :: cs)
+      | Compl id_tl -> loop ("_" :: cs)
+      | _ -> cs |> List.rev |> String.concat ""
+    in
+    loop cs
+
+(* *)
+
 let rec token_or_comment ({lexbuf; _} as buffer) =
   let return = return_from buffer in
   let opening tok =
