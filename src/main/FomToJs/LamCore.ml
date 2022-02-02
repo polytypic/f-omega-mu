@@ -1,5 +1,6 @@
 open FomBasis
 open FomPP
+open FomParser
 open FomSource
 open FomAST
 
@@ -90,8 +91,17 @@ let map_reduce plus zero =
 
 (* *)
 
+let to_case_param = function
+  | `Product ls ->
+    ls
+    |> List.map (fst >>> Label.to_string >>> String.cat "'")
+    |> String.concat " | " |> Lexer.coerce_to_id
+  | _ -> "_case"
+
+(* *)
+
 let lam fn =
-  let i = Var.fresh Loc.dummy in
+  let i = Var.of_string Loc.dummy "_lam" |> Var.freshen in
   `Lam (i, fn @@ `Var i)
 
 let unapp t =
@@ -109,8 +119,8 @@ let unlam t =
 
 let and_uncase (is, e) =
   match e with
-  | `Case _ as e ->
-    let i = Var.fresh Loc.dummy in
+  | `Case cs as e ->
+    let i = cs |> to_case_param |> Var.of_string Loc.dummy |> Var.freshen in
     (is @ [i], `App (e, `Var i))
   | _ -> (is, e)
 
@@ -205,31 +215,79 @@ let rec compare (l : t) (r : t) =
 
 (* *)
 
-let[@warning "-32"] rec pp : t -> document = function
-  | `App (f, x) -> [pp f; space; pp x] |> concat |> egyptian parens 2
-  | `Case t -> [utf8string "case"; space; pp t] |> concat
-  | `Const c -> Const.pp' (Int32.to_string >>> utf8string) Typ.pp c
-  | `IfElse (c, t, e) ->
-    [
-      [utf8string "if"; space; pp c; space] |> concat;
-      [utf8string "then"; space; pp t; space] |> concat;
-      [utf8string "else"; space; pp e; space] |> concat;
-    ]
-    |> concat |> egyptian parens 2
-  | `Inject (l, t) ->
-    [tick; Label.pp l; break_1; pp t] |> concat |> egyptian parens 2
-  | `Lam (v, t) ->
-    [lambda_lower; Var.pp v; dot; pp t] |> concat |> egyptian parens 2
-  | `Mu t -> [mu_lower; pp t |> egyptian parens 2] |> concat
-  | `Product ls ->
-    ls
-    |> List.map (fun (l, t) -> [Label.pp l; equals; pp t] |> concat)
-    |> separate comma_break_1 |> egyptian braces 2
-  | `Select (t, `Inject (l, `Product [])) -> [pp t; dot; Label.pp l] |> concat
-  | `Select (t, l) -> [pp t; dot; pp l |> egyptian parens 2] |> concat
-  | `Var v -> Var.pp v
+let const_pp c = Const.pp' (Int32.to_string >>> utf8string) Typ.pp c
 
-let[@warning "-32"] to_string = pp >>> FomPP.to_string
+let seems_atomic cs =
+  let n = Array.length cs in
+  let rec loop p i =
+    n <= i
+    ||
+    match Uchar.to_int cs.(i) with
+    | 0x16a47 | 0x1bc19 | 0x1bc1d -> loop (p + 1) (i + 1)
+    | 0x16a49 | 0x1bc1a | 0x1bc1e -> 0 < p && loop (p - 1) (i + 1)
+    | 0x5f | 0x03bc | 0x03bb -> 0 < p && loop p (i + 1)
+    | _ -> loop p (i + 1)
+  in
+  loop 0 0
+
+let seems_parenthesized cs =
+  0 < Array.length cs
+  &&
+  match Uchar.to_int cs.(0) with
+  | 0x16a47 | 0x1bc19 | 0x1bc1d -> seems_atomic cs
+  | _ -> false
+
+let rec pp atom : t -> document = function
+  | `App (`App (`Const c, x), y) when Const.is_bop c ->
+    pp true x ^^ space ^^ const_pp c ^^ space ^^ pp true y
+    |> if atom then egyptian parens 2 else id
+  | `App (`Const c, x) when Const.is_uop c ->
+    const_pp c ^^ pp true x |> if atom then egyptian parens 2 else id
+  | `App (f, x) ->
+    pp true f ^^ space ^^ pp true x |> if atom then egyptian parens 2 else id
+  | `Case t -> case' ^^ space ^^ pp true t
+  | `Const c -> const_pp c
+  | `IfElse (c, t, e) ->
+    if' ^^ space ^^ pp false c ^^ space ^^ then' ^^ space ^^ pp false t ^^ space
+    ^^ else' ^^ space ^^ pp false e
+    |> if atom then egyptian parens 2 else id
+  | `Inject (l, `Var v) ->
+    let d = Var.pp v in
+    tick ^^ Label.pp l
+    ^^
+    if d |> FomPP.to_string |> UTF.UTF8.to_uchar_array |> seems_parenthesized
+    then d
+    else egyptian parens 2 d
+  | `Inject (l, `Product []) -> tick ^^ Label.pp l
+  | `Inject (l, (`Product _ as e)) -> tick ^^ Label.pp l ^^ pp true e
+  | `Inject (l, t) -> tick ^^ Label.pp l ^^ egyptian parens 2 (pp false t)
+  | `Lam (v, t) ->
+    lambda_lower ^^ Var.pp v ^^ dot ^^ pp false t
+    |> if atom then egyptian parens 2 else id
+  | `Mu (`Lam (v, t)) ->
+    mu_lower ^^ Var.pp v ^^ dot ^^ pp false t
+    |> if atom then egyptian parens 2 else id
+  | `Mu t -> mu_lower ^^ pp true t
+  | `Product ls ->
+    if Row.is_tuple ls then
+      ls
+      |> List.map (snd >>> pp false)
+      |> separate comma_break_1 |> egyptian parens 2
+    else
+      ls
+      |> List.map (fun (l, t) -> Label.pp l ^^ equals ^^ pp false t)
+      |> separate comma_break_1 |> egyptian braces 2
+  | `Select (t, `Inject (l, `Product [])) -> pp true t ^^ dot ^^ Label.pp l
+  | `Select (t, l) -> pp true t ^^ dot ^^ pp true l
+  | `Var v ->
+    let d = Var.pp v in
+    if
+      atom
+      && d |> FomPP.to_string |> UTF.UTF8.to_uchar_array |> seems_atomic |> not
+    then egyptian parens 2 d
+    else d
+
+let to_string = pp false >>> FomPP.to_string
 
 (* *)
 

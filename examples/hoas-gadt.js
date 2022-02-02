@@ -1,24 +1,28 @@
 'use strict'
-const $1 = $1 => $2 => $1 === $2
-const $2 = cs => cs.Val(0)
-const $3 = cs => cs.Val(1)
-const $4 = $1 => $2 => ($1 * $2) | 0
-const $5 = $1 => $2 => ($1 - $2) | 0
-const $6 = f => cs =>
+const ꘌ𖩇int𖩉 = l => r => l === r
+const λcsꓸcsꓸVal_0 = cs => cs.Val(0)
+const λcsꓸcsꓸVal_1 = cs => cs.Val(1)
+const ᕯ = l => r => (l * r) | 0
+const ᜭ = l => r => (l - r) | 0
+const λfꓸλcsꓸcsꓸLam_𛰙λxꓸλcsꓸ𛰙𛰙csꓸIf_ = f => cs =>
   cs.Lam(
     x => cs$1 =>
-      cs$1.If(cs$2 => cs$2.Bin($1)(x)($2))($3)(cs$2 =>
-        cs$2.Bin($4)(x)(cs$3 => cs$3.App(f)(cs$4 => cs$4.Bin($5)(x)($3)))
+      cs$1.If(cs$2 => cs$2.Bin(ꘌ𖩇int𖩉)(x)(λcsꓸcsꓸVal_0))(λcsꓸcsꓸVal_1)(cs$2 =>
+        cs$2.Bin(ᕯ)(x)(cs$3 =>
+          cs$3.App(f)(cs$4 => cs$4.Bin(ᜭ)(x)(λcsꓸcsꓸVal_1))
+        )
       )
   )
-const $7 = cs => cs.Lam($6)
-const $8 = cs => cs.Fix($7)
-const $9 = cs => cs.Val(5)
-const $10 = cs => cs.App($8)($9)
-const $11 = x => x
+const λcsꓸcsꓸLam_𛰙λfꓸλcsꓸcsꓸLam_ = cs => cs.Lam(λfꓸλcsꓸcsꓸLam_𛰙λxꓸλcsꓸ𛰙𛰙csꓸIf_)
+const λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_𛰙λfꓸλcsꓸcsꓸLam_ = cs =>
+  cs.Fix(λcsꓸcsꓸLam_𛰙λfꓸλcsꓸcsꓸLam_)
+const λcsꓸcsꓸVal_5 = cs => cs.Val(5)
+const λcsꓸ𛰙csꓸApp_𛰙λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_ = cs =>
+  cs.App(λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_𛰙λfꓸλcsꓸcsꓸLam_)(λcsꓸcsꓸVal_5)
+const λxꓸx = x => x
 const $eval$ = e =>
   e({
-    Val: $11,
+    Val: λxꓸx,
     Bin: xyz => x => y => xyz($eval$(x))($eval$(y)),
     If: c => t => e$1 => {
       if ($eval$(c)) {
@@ -35,4 +39,4 @@ const $eval$ = e =>
       return g
     },
   })
-$eval$($10)
+$eval$(λcsꓸ𛰙csꓸApp_𛰙λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_)

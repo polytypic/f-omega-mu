@@ -186,7 +186,7 @@ let rec infer = function
   | `Merge (at', l, r) ->
     let select e l = `Select (Loc.dummy, e, atom (Label.set_at Loc.dummy l)) in
     let binding v t e =
-      let i = Var.fresh at' in
+      let i = Var.of_string at' "_Merge" |> Var.freshen in
       let+ e = e @@ `Var (at', i) in
       `App (at', `Lam (at', i, t, e), v)
     in

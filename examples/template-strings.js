@@ -1,10 +1,16 @@
 'use strict'
-const $1 = 'INSERT INTO language VALUES (?, ?)'
-const $2 = 'template strings'
-const $3 = 'experimental'
-const $4 = ['None']
-const $5 = {1: $3, 2: $4}
-const $6 = ['Some', $5]
-const $7 = {1: $2, 2: $6}
-const $8 = ['Some', $7]
-;({sql: $1, args: $8})
+const ᐥINSERT_INTO_language_VALUES_ = 'INSERT INTO language VALUES (?, ?)'
+const ᐥtemplate_stringsᐥ = 'template strings'
+const ᐥexperimentalᐥ = 'experimental'
+const ᐟNone = ['None']
+const 𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚 = {1: ᐥexperimentalᐥ, 2: ᐟNone}
+const ᐟSome𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚 = ['Some', 𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚]
+const 𛰙ᐥtemplate_stringsᐥꓹ_ᐟSome𛰙ᐥexperimentalᐥꓹ_ = {
+  1: ᐥtemplate_stringsᐥ,
+  2: ᐟSome𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚,
+}
+const ᐟSome𛰙ᐥtemplate_stringsᐥꓹ_ = [
+  'Some',
+  𛰙ᐥtemplate_stringsᐥꓹ_ᐟSome𛰙ᐥexperimentalᐥꓹ_,
+]
+;({sql: ᐥINSERT_INTO_language_VALUES_, args: ᐟSome𛰙ᐥtemplate_stringsᐥꓹ_})

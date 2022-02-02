@@ -79,6 +79,7 @@ let pipe_space = pipe ^^ space
 let break_1_pipe_space = break_1 ^^ pipe_space
 let colon_break_1 = colon ^^ break_1
 let colon_break_1_0 = colon_break_1 ^^ break_0
+let comma_break_0 = comma ^^ break_0
 let comma_break_1 = comma ^^ break_1
 let comma_break_1_or_break_0 = ifflat comma_break_1 break_0
 let comma_break_1_or_break_0_0 = ifflat comma_break_1 break_0_0

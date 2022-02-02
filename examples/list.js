@@ -1,17 +1,17 @@
 'use strict'
-const $1 = ['None']
-const $2 = 'Fωμ'
-const $3 = rec(xs => ['Some', {1: $2, 2: xs}])
+const ᐟNone = ['None']
+const ᐥFωμᐥ = 'Fωμ'
+const μxsꓸᐟSome𛰙ᐥFωμᐥꓹ_xs𛰚 = rec(xs => ['Some', {1: ᐥFωμᐥ, 2: xs}])
 const takeN = n => xs => {
   if (n <= 0) {
-    return $1
+    return ᐟNone
   } else {
-    const [$4, $5] = xs
-    if ($4 === 'Some') {
-      return ['Some', {1: $5[1], 2: takeN((n - 1) | 0)($5[2])}]
+    const [tag_xs, val_xs] = xs
+    if (tag_xs === 'Some') {
+      return ['Some', {1: val_xs[1], 2: takeN((n - 1) | 0)(val_xs[2])}]
     } else {
-      return $1
+      return ᐟNone
     }
   }
 }
-takeN(5)($3)
+takeN(5)(μxsꓸᐟSome𛰙ᐥFωμᐥꓹ_xs𛰚)

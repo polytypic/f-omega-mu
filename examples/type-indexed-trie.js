@@ -1,30 +1,32 @@
 'use strict'
-const $1 = ['Some', 101]
-const $2 = cs => cs.Unit($1)
-const $3 = ['Some', 42]
-const $4 = cs => cs.Unit($3)
-const $5 = cs => cs.Alt($2)($4)
-const $6 = ['In2']
-const $7 = v => $8 => v
-const $8 = ['None']
+const ᐟSome𛰙101𛰚 = ['Some', 101]
+const λcsꓸcsꓸUnit_ᐟSome𛰙101𛰚 = cs => cs.Unit(ᐟSome𛰙101𛰚)
+const ᐟSome𛰙42𛰚 = ['Some', 42]
+const λcsꓸcsꓸUnit_ᐟSome𛰙42𛰚 = cs => cs.Unit(ᐟSome𛰙42𛰚)
+const λcsꓸ𛰙csꓸAlt_𛰙λcsꓸcsꓸUnit_ = cs =>
+  cs.Alt(λcsꓸcsꓸUnit_ᐟSome𛰙101𛰚)(λcsꓸcsꓸUnit_ᐟSome𛰙42𛰚)
+const ᐟIn2 = ['In2']
+const λvꓸλ_𛰙𛰚ꓸv = v => _𛰙𛰚 => v
+const ᐟNone = ['None']
 const lookup = t =>
   t({
-    Unit: $7,
-    Alt: t1 => t2 => $10 => {
-      const [$11, $12] = $10
-      if ($11 === 'In2') {
-        return lookup(t2)($12)
+    Unit: λvꓸλ_𛰙𛰚ꓸv,
+    Alt: t1 => t2 => ᐟIn1_ǀ_ᐟIn2 => {
+      const [tag_ᐟIn1_ǀ_ᐟIn2, val_ᐟIn1_ǀ_ᐟIn2] = ᐟIn1_ǀ_ᐟIn2
+      if (tag_ᐟIn1_ǀ_ᐟIn2 === 'In2') {
+        return lookup(t2)(val_ᐟIn1_ǀ_ᐟIn2)
       } else {
-        return lookup(t1)($12)
+        return lookup(t1)(val_ᐟIn1_ǀ_ᐟIn2)
       }
     },
-    Pair: t$1 => $9 => {
-      const [$10, $11] = lookup(t$1)($9[1])
-      if ($10 === 'Some') {
-        return lookup($11)($9[2])
+    Pair: t$1 => _𛰙k1ꓹ_k2𛰚 => {
+      const [tag_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1, val_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1] =
+        lookup(t$1)(_𛰙k1ꓹ_k2𛰚[1])
+      if (tag_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1 === 'Some') {
+        return lookup(val_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1)(_𛰙k1ꓹ_k2𛰚[2])
       } else {
-        return $8
+        return ᐟNone
       }
     },
   })
-lookup($5)($6)
+lookup(λcsꓸ𛰙csꓸAlt_𛰙λcsꓸcsꓸUnit_)(ᐟIn2)

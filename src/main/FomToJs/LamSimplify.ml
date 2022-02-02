@@ -206,7 +206,7 @@ let rec simplify e =
 
 and simplify_base = function
   | `Const (`Target (_, l)) when Js.is_identity l ->
-    let i = Var.fresh Loc.dummy in
+    let i = Var.of_string Loc.dummy "x" |> Var.freshen in
     return @@ `Lam (i, `Var i)
   | (`Const _ | `Var _) as e -> return e
   | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
@@ -308,7 +308,7 @@ and simplify_base = function
     | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
       let* c_is_total = is_total c in
       if c_is_total then
-        let x' = Var.fresh Loc.dummy in
+        let x' = Var.of_string Loc.dummy "_IfElse" |> Var.freshen in
         let xv = `Var x' in
         simplify
         @@ `App (`Lam (x', `IfElse (c, subst t' xv t, subst e' xv e)), x)
@@ -320,8 +320,8 @@ and simplify_base = function
     match unlam e with
     | is, `Case (`Product fs)
       when List.for_all (snd >>> always_applied_to_inject f) fs ->
-      let i = Var.fresh Loc.dummy in
-      let v = Var.fresh Loc.dummy in
+      let i = Var.of_string Loc.dummy "_Case_i" |> Var.freshen in
+      let v = Var.of_string Loc.dummy "_Case_v" |> Var.freshen in
       let unit = `Product [] in
       let fn =
         fs
@@ -364,7 +364,7 @@ and simplify_base = function
         if Lam.compare t e = 0 then
           is_total c >>- function
           | true -> t
-          | _ -> `App (`Lam (Var.fresh Loc.dummy, t), c)
+          | _ -> `App (`Lam (Var.of_string Loc.dummy "_If" |> Var.freshen, t), c)
         else if Lam.compare c t = 0 then
           is_total c >>= function
           | true -> simplify @@ `App (`App (`Const `OpLogicalOr, c), e)

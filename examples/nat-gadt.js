@@ -1,5 +1,5 @@
 'use strict'
-const $1 = cs => cs.Zero
+const λcsꓸcsꓸZero = cs => cs.Zero
 const loop = n$1 => i$1 => {
   for (;;) {
     const n = n$1,
@@ -11,6 +11,6 @@ const loop = n$1 => i$1 => {
     }
   }
 }
-const $2 = loop($1)(10)
+const _n = loop(λcsꓸcsꓸZero)(10)
 const loop$1 = n => i => n({Zero: i, Succ: n$1 => loop$1(n$1)((i + 1) | 0)})
-loop$1($2)(0)
+loop$1(_n)(0)

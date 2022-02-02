@@ -1,4 +1,5 @@
 open FomBasis
+open FomPP
 open FomAST
 open FomSource
 
@@ -44,7 +45,7 @@ module Exp = struct
   module Pat = struct
     type t =
       [ `Id of Loc.t * Var.t * Typ.t
-      | `Product of Loc.t * (Label.t * [`Pat of t | `Ann of Typ.t]) list
+      | `Product of Loc.t * [`Pat of t | `Ann of Typ.t] Row.t
       | `Pack of Loc.t * t * Typ.Var.t * Typ.t ]
 
     let check p =
@@ -72,10 +73,25 @@ module Exp = struct
       in
       check_ts >> check_is
 
-    let rec label_for = function
-      | `Id (_, i, _) -> Var.to_label i
-      | `Product (at, _) -> Label.fresh at
-      | `Pack (_, p, _, _) -> label_for p
+    let rec pp : t -> document = function
+      | `Id (_, i, _) -> Var.pp i
+      | `Product (_, ls) ->
+        if Row.is_tuple ls then
+          ls
+          |> List.map (snd >>> function `Pat p -> pp p | `Ann _ -> underscore)
+          |> separate comma_break_1 |> egyptian parens 2
+        else
+          ls
+          |> List.map (fun (l, p) ->
+                 Label.pp l
+                 ^^
+                 match p with
+                 | `Pat p -> space_equals_space ^^ pp p
+                 | `Ann _ -> empty)
+          |> separate comma_break_1 |> egyptian braces 2
+      | `Pack (_, p, _, _) -> pp p
+
+    let to_string = pp >>> FomPP.to_string
 
     let at = function
       | `Id (at, _, _) | `Product (at, _) | `Pack (at, _, _, _) -> at

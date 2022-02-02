@@ -1,4 +1,5 @@
 open FomSource
+open FomParser
 open FomAST
 open Lam
 
@@ -7,7 +8,10 @@ let constants_to_top inn =
   let add c =
     match LamMap.find_opt c !cs with
     | None ->
-      let i = Var.fresh Loc.dummy in
+      let i =
+        to_string c |> Lexer.coerce_to_id |> Var.of_string Loc.dummy
+        |> Var.freshen
+      in
       cs := LamMap.add c (i, LamMap.cardinal !cs, ref 1) !cs;
       `Var i
     | Some (i, _, n) ->

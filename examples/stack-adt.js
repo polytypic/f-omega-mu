@@ -1,17 +1,17 @@
 'use strict'
-const $1 = ['None']
-const $2 = {1: 3, 2: $1}
-const $3 = ['Some', $2]
-const $4 = {1: 1, 2: $3}
-const $5 = ['Some', $4]
-const $6 = {1: 5, 2: $5}
-const $7 = ['Some', $6]
-const to_list = $9 => {
-  const [$10, $11] = $9
-  if ($10 === 'Some') {
-    return ['Some', {1: $11[1], 2: to_list($11[2])}]
+const ᐟNone = ['None']
+const 𛰙3ꓹ_ᐟNone𛰚 = {1: 3, 2: ᐟNone}
+const ᐟSome𛰙3ꓹ_ᐟNone𛰚 = ['Some', 𛰙3ꓹ_ᐟNone𛰚]
+const 𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚 = {1: 1, 2: ᐟSome𛰙3ꓹ_ᐟNone𛰚}
+const ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚 = ['Some', 𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚]
+const 𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚𛰚 = {1: 5, 2: ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚}
+const ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ = ['Some', 𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚𛰚]
+const to_list = ᐟNone_ǀ_ᐟSome => {
+  const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
+  if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
+    return ['Some', {1: val_ᐟNone_ǀ_ᐟSome[1], 2: to_list(val_ᐟNone_ǀ_ᐟSome[2])}]
   } else {
-    return $1
+    return ᐟNone
   }
 }
-to_list($7)
+to_list(ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_)

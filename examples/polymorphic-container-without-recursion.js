@@ -1,3 +1,3 @@
 'use strict'
-const $1 = x => '' + x
-$1(101)
+const target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_ = x => '' + x
+target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_(101)

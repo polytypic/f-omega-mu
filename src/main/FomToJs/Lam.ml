@@ -71,6 +71,7 @@ module Renumbering = struct
 
   let fresh inn = fresh_of_name Loc.dummy Id.Name.fresh inn
   let freshen i = fresh_of_name (Var.at i) (Var.name i)
+  let fresh_of_string s = freshen (Var.of_string Loc.dummy s)
 
   let freshen_all is inn =
     let rec loop i's = function

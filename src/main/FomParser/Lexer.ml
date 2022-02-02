@@ -36,9 +36,76 @@ let nat_10 = [%sedlex.regexp? "0" | '1' .. '9', Star (Opt '_', Plus '0' .. '9')]
 
 (* *)
 
+let id_ex_encodings =
+  [|
+    (Uchar.of_char '!', [|0x001c3|] (* ǃ *));
+    (Uchar.of_char '"', [|0x01425|] (* ᐥ *));
+    (Uchar.of_char '(', [|0x1bc19|] (* 𛰙 *));
+    (Uchar.of_char ')', [|0x1bc1a|] (* 𛰚 *));
+    (Uchar.of_char '*', [|0x0156f|] (* ᕯ *));
+    (Uchar.of_char '+', [|0x10601|] (* 𐘁 *));
+    (Uchar.of_char ',', [|0x0a4f9|] (* ꓹ *));
+    (Uchar.of_char '-', [|0x0172d|] (* ᜭ *));
+    (Uchar.of_char '.', [|0x0a4f8|] (* ꓸ *));
+    (Uchar.of_char '/', [|0x0a937|] (* ꤷ *));
+    (Uchar.of_char ':', [|0x0a4fd|] (* ꓽ *));
+    (Uchar.of_char ';', [|0x0a4fc|] (* ꓼ *));
+    (Uchar.of_char '<', [|0x01438|] (* ᐸ *));
+    (Uchar.of_char '=', [|0x0a60c|] (* ꘌ *));
+    (Uchar.of_char '>', [|0x01433|] (* ᐳ *));
+    (Uchar.of_char '[', [|0x16a47|] (* 𖩇 *));
+    (Uchar.of_char '\'', [|0x0141f|] (* ᐟ *));
+    (Uchar.of_char '\\', [|0x10458|] (* 𐑘 *));
+    (Uchar.of_char ']', [|0x16a49|] (* 𖩉 *));
+    (Uchar.of_char '`', [|0x01420|] (* ᐠ *));
+    (Uchar.of_char '{', [|0x1bc1d|] (* 𛰝 *));
+    (Uchar.of_char '|', [|0x001c0|] (* ǀ *));
+    (Uchar.of_char '}', [|0x1bc1e|] (* 𛰞 *));
+    (Uchar.of_int 0x2192, [|0x10664|] (* 𐙤 *));
+    (Uchar.of_int 0x2200, [|0x0a4ef|] (* ꓯ *));
+    (Uchar.of_int 0x2203, [|0x0a4f1|] (* ꓱ *));
+    (Uchar.of_int 0x2227, [|0x01431|] (* ᐱ *));
+    (Uchar.of_int 0x2228, [|0x0142f|] (* ᐯ *));
+    (Uchar.of_int 0x2264, [|0x01438; 0x0a60c|] (* ᐸꘌ *));
+    (Uchar.of_int 0x2265, [|0x01433; 0x0a60c|] (* ᐳꘌ *));
+  |]
+  |> Array.sorted (Compare.the fst Uchar.compare)
+  |> Array.map
+       (Pair.map id (Array.map Uchar.of_int >>> UTF.UTF8.of_uchar_array))
+
+let id_ex =
+  [%sedlex.regexp?
+    ( 0x001c0 (* ǀ *)
+    | 0x001c3 (* ǃ *)
+    | 0x0141f (* ᐟ *)
+    | 0x01420 (* ᐠ *)
+    | 0x01425 (* ᐥ *)
+    | 0x0142f (* ᐯ *)
+    | 0x01431 (* ᐱ *)
+    | 0x01433 (* ᐳ *)
+    | 0x01438 (* ᐸ *)
+    | 0x0156f (* ᕯ *)
+    | 0x0172d (* ᜭ *)
+    | 0x0a4ef (* ꓯ *)
+    | 0x0a4f1 (* ꓱ *)
+    | 0x0a4f8 (* ꓸ *)
+    | 0x0a4f9 (* ꓹ *)
+    | 0x0a4fc (* ꓼ *)
+    | 0x0a4fd (* ꓽ *)
+    | 0x0a60c (* ꘌ *)
+    | 0x0a937 (* ꤷ *)
+    | 0x10601 (* 𐘁 *)
+    | 0x10664 (* 𐙤 *)
+    | 0x16a47 (* 𖩇 *)
+    | 0x16a49 (* 𖩉 *)
+    | 0x1bc19 (* 𛰙 *)
+    | 0x1bc1a (* 𛰚 *)
+    | 0x1bc1d (* 𛰝 *)
+    | 0x1bc1e (* 𛰞 *) )]
+
 let non_id_hd = [%sedlex.regexp? lambda_lower | lambda_upper | mu_lower]
-let id_hd = [%sedlex.regexp? Sub (tr8876_ident_char, non_id_hd)]
-let id_tl = [%sedlex.regexp? tr8876_ident_char | '_' | '0' .. '9']
+let id_hd = [%sedlex.regexp? Sub (tr8876_ident_char, non_id_hd) | id_ex]
+let id_tl = [%sedlex.regexp? tr8876_ident_char | id_ex | '_' | '0' .. '9']
 let id = [%sedlex.regexp? id_hd, Star id_tl | '_', Plus id_tl]
 
 (* *)
@@ -97,21 +164,48 @@ let is_id_or_nat str =
 
 let coerce_to_id str =
   let ({lexbuf; _} as buffer) = Buffer.from_utf_8 str in
-  match
+  let cs = Stack.create () in
+  let drop_underscore () = if Stack.top cs = "_" then Stack.pop cs |> ignore in
+  let finish () =
+    cs |> Stack.to_seq |> List.of_seq |> List.rev |> String.concat ""
+  in
+  let rec rest () =
     match%sedlex lexbuf with
-    | id_hd -> [Buffer.lexeme_utf_8 buffer]
-    | Compl id_hd -> ["_"]
-    | _ -> []
-  with
-  | [] -> ""
-  | cs ->
-    let rec loop cs =
-      match%sedlex lexbuf with
-      | id_tl -> loop (Buffer.lexeme_utf_8 buffer :: cs)
-      | Compl id_tl -> loop ("_" :: cs)
-      | _ -> cs |> List.rev |> String.concat ""
-    in
-    loop cs
+    | sub_digit -> rest ()
+    | "_" | Compl id_tl ->
+      non_id @@ fun () ->
+      drop_underscore ();
+      Stack.push "_" cs;
+      if 24 < Stack.length cs then finish () else rest ()
+    | id_tl -> and_rest (Buffer.lexeme_utf_8 buffer)
+    | _ ->
+      drop_underscore ();
+      finish ()
+  and and_rest c =
+    Stack.push c cs;
+    rest ()
+  and non_id or_else =
+    let c = (Buffer.lexeme_utf_8 buffer |> UTF.UTF8.to_uchar_array).(0) in
+    match
+      id_ex_encodings |> Array.binary_search_opt (fst >>> Uchar.compare c)
+    with
+    | None -> or_else ()
+    | Some (_, s) ->
+      Stack.push s cs;
+      rest ()
+  in
+  let rec first () =
+    match%sedlex lexbuf with
+    | sub_digit -> first ()
+    | Compl id_tl -> non_id first
+    | id_hd | non_id_hd -> and_rest (Buffer.lexeme_utf_8 buffer)
+    | "_" -> and_rest "_"
+    | id_tl ->
+      Stack.push "_" cs;
+      and_rest (Buffer.lexeme_utf_8 buffer)
+    | _ -> ""
+  in
+  first ()
 
 (* *)
 

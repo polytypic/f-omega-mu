@@ -8,6 +8,18 @@ open FomError
 
 (* *)
 
+module Pat = struct
+  include FomCST.Exp.Pat
+
+  let id_for p =
+    "_" ^ to_string p
+    |> Lexer.coerce_to_id
+    |> Exp.Var.of_string (at p)
+    |> Exp.Var.freshen
+
+  let label_for p = to_string p |> Label.of_string (at p)
+end
+
 module Annot = struct
   include Annot
 
@@ -276,8 +288,7 @@ let rec pat_to_exp p' e' = function
   | `Pack (at, `Id (_, i, _), t, _) ->
     `UnpackIn (at, t, Kind.fresh (Typ.Var.at t), i, p', e')
   | `Pack (at, p, t, _) ->
-    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p)
-    and k = Kind.fresh (Typ.Var.at t) in
+    let i = Pat.id_for p and k = Kind.fresh (Typ.Var.at t) in
     `UnpackIn (at, t, k, i, p', pat_to_exp (`Var (at, i)) e' p)
 
 let rec elaborate_def = function
@@ -390,7 +401,7 @@ let maybe_annot e tO =
   | Some t ->
     let+ t = elaborate_typ t in
     let at = Typ.at t in
-    let i = Exp.Var.fresh at in
+    let i = Exp.Var.of_string at "_annot" |> Exp.Var.freshen in
     annot at i t e
 
 let rec elaborate = function
@@ -428,11 +439,11 @@ let rec elaborate = function
         Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
         >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
       | p ->
-        let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
+        let i = Pat.id_for p in
         let+ e = elaborate_pat (`Var (at, i)) e p in
         `LetIn (at, i, v, e))
     | `PatPar pvs ->
-      let ls = pvs |> List.map (fun (p, _, _) -> FomCST.Exp.Pat.label_for p) in
+      let ls = pvs |> List.map (fun (p, _, _) -> Pat.label_for p) in
       let p =
         `Product (at, List.map2 (fun l (p, _, _) -> (l, `Pat p)) ls pvs)
       in
@@ -450,7 +461,7 @@ let rec elaborate = function
       elaborate
       @@ `Let (at, `PatPar [(p, None, `Mu (at, `LamPat (at, p, v)))], e)
     | `PatRec pvs ->
-      let ls = pvs |> List.map (fst >>> FomCST.Exp.Pat.label_for) in
+      let ls = pvs |> List.map (fst >>> Pat.label_for) in
       let p = `Product (at, List.map2 (fun l (p, _) -> (l, `Pat p)) ls pvs) in
       let v = `Product (at, List.map2 (fun l (_, v) -> (l, v)) ls pvs) in
       elaborate
@@ -475,15 +486,15 @@ let rec elaborate = function
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LamPat (at, p, e) ->
     let* t = type_of_pat_lam p |> elaborate_typ in
-    let i = Exp.Var.fresh (FomCST.Exp.Pat.at p) in
+    let i = Pat.id_for p in
     let+ e = elaborate_pat (`Var (at, i)) e p in
     `Lam (at, i, t, e)
   | `Annot (at, e, t) ->
     elaborate e <*> elaborate_typ t >>- fun (e, t) ->
-    annot at (Exp.Var.fresh at) t e
+    annot at (Exp.Var.of_string at "_Annot" |> Exp.Var.freshen) t e
   | `AppL (at, x, f) ->
     let+ x = elaborate x and+ f = elaborate f in
-    let i = Exp.Var.fresh at in
+    let i = Exp.Var.of_string at "_AppL" |> Exp.Var.freshen in
     `LetIn (at, i, x, `App (at, f, `Var (at, i)))
   | `AppR (at, f, x) ->
     elaborate x <*> elaborate f >>- fun (x, f) -> `App (at, f, x)
@@ -526,7 +537,7 @@ let rec elaborate = function
          >>= elaborate >>- Exp.initial_exp
        in
        let i =
-         "_import_" ^ Lexer.coerce_to_id mod_path
+         "_" ^ Lexer.coerce_to_id mod_path
          |> Exp.Var.of_string at' |> Exp.Var.freshen
        in
        let e =
