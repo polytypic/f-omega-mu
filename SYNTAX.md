@@ -4,6 +4,9 @@ Below is an _approximation_ of the detailed
 [grammar](src/main/FomParser/Grammar.mly) of the language:
 
 ```g4
+label
+  : id | nat | string
+
 kind
   : '(' kind ')'
   | '*'                                                   // Type
@@ -45,7 +48,7 @@ exp
   : '(' exp ')'
   | exp ':' typ                                           // Type ascription
   | eid                                                   // Variable (*1)
-  | (int | string)                                        // Literals
+  | (nat | string)                                        // Literals
   | '(' (exp, ',')* ')'                                   // Tuple introduction
   | '{' (label ('=' exp)?, ',')* '}'                      // Product introduction
   | exp '.' (label | '(' exp ')')                         // Product elimination

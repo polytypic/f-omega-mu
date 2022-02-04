@@ -18,6 +18,15 @@ module Lexer : sig
   val offside : t
   (** Lexical syntax with offside rules. *)
 
+  val is_id : string -> bool
+  (** Determine whether the string would be a valid id. *)
+
+  val is_id_or_nat : string -> bool
+  (** Determine whether the string would be a valid id or natural number. *)
+
+  val is_nat : string -> bool
+  (** Determine whether the string would be a valid natural number. *)
+
   val coerce_to_id : string -> string
   (** Translate arbitrary UTF-8 string to valid id character by character. *)
 end

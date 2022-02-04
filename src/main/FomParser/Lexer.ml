@@ -81,6 +81,20 @@ let line_directive = [%sedlex.regexp? "#line ", nat_10, ' ', string, line_end]
 
 (* *)
 
+let is_id str =
+  let {lexbuf; _} = Buffer.from_utf_8 str in
+  match%sedlex lexbuf with id, eof -> true | _ -> false
+
+let is_nat str =
+  let {lexbuf; _} = Buffer.from_utf_8 str in
+  match%sedlex lexbuf with nat_10, eof -> true | _ -> false
+
+let is_id_or_nat str =
+  let {lexbuf; _} = Buffer.from_utf_8 str in
+  match%sedlex lexbuf with (id | nat_10), eof -> true | _ -> false
+
+(* *)
+
 let coerce_to_id str =
   let ({lexbuf; _} as buffer) = Buffer.from_utf_8 str in
   match

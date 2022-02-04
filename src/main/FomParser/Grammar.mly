@@ -90,7 +90,7 @@
 %start <Typ.t> sigs
 %start <Typ.t Typ.Defs.f> incs
 
-%{ open FomCST %}
+%{ open FomBasis open FomCST %}
 
 %%
 
@@ -121,6 +121,7 @@ kind:
 lab:
   | i=Id                                            {Label.of_string $loc i}
   | n=LitNat                                        {Label.of_number $loc n}
+  | s=lit_string                                    {Label.of_string $loc (JsonString.to_utf8 s)}
 
 //
 

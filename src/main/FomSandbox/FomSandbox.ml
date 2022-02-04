@@ -166,7 +166,10 @@ let js_codemirror_mode =
         | "number" ->
           let float = Js.Unsafe.coerce value |> Js.float_of_number in
           utf8format "%.16g" float
-        | _ -> utf8string @@ Js.to_string value
+        | _ ->
+          let s = Js.to_string value in
+          if Lexer.is_id_or_nat s then utf8string s
+          else s |> JsonString.of_utf8 |> JsonString.to_utf8_json |> utf8string
       in
       let check_fuel fuel k =
         if 0 < fuel then k (fuel - 1) else utf8string "..."
@@ -186,8 +189,7 @@ let js_codemirror_mode =
         else
           keys
           |> List.map (fun key ->
-                 utf8string (Js.to_string key)
-                 ^^ space_equals_space
+                 format_label key ^^ space_equals_space
                  ^^ format ~atomize:false ~fuel (Js.Unsafe.get obj key)
                  |> group)
           |> separate comma_break_1 |> egyptian braces 2

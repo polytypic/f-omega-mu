@@ -1,5 +1,6 @@
 open FomBasis
 open FomSource
+open FomParser
 open FomAST
 open Cats
 
@@ -10,21 +11,24 @@ open Lam
 module Label = struct
   include Label
 
-  let is_numeric id =
-    let it = to_string id in
-    '0' <= it.[0] && it.[0] <= '9'
-
-  let to_str = to_string >>> str
-
-  (* *)
-
-  let to_js_label = to_str
+  let to_js_label l =
+    let s = to_string l in
+    if Lexer.is_id s || Js.is_safe_nat s then str s
+    else s |> JsonString.of_utf8 |> JsonString.to_utf8_json |> str
 
   let to_js_select l =
-    if is_numeric l then str "[" ^ to_str l ^ str "]" else str "." ^ to_str l
+    let s = to_string l in
+    if Lexer.is_id s then str "." ^ str s
+    else
+      str "["
+      ^ (if Js.is_safe_nat s then str s
+        else s |> JsonString.of_utf8 |> JsonString.to_utf8_json |> str)
+      ^ str "]"
 
   let to_js_atom l =
-    if is_numeric l then to_str l else str "\"" ^ to_str l ^ str "\""
+    let s = to_string l in
+    if Js.is_safe_nat s then str s
+    else s |> JsonString.of_utf8 |> JsonString.to_utf8_json |> str
 end
 
 module Var = struct

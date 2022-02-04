@@ -1,4 +1,5 @@
 open FomBasis
+open FomParser
 
 let is_identity = ( = ) (JsonString.of_utf8 "x => x") (* TODO *)
 
@@ -77,3 +78,10 @@ let illegal_id =
 let is_illegal_id name =
   StringSet.mem name illegal_id
   || match name.[0] with '0' .. '9' -> true | _ -> false
+
+let max_safe_nat = "9007199254740991"
+
+let is_safe_nat s =
+  Lexer.is_nat s
+  && (String.length s < String.length max_safe_nat
+     || (String.length s = String.length max_safe_nat && s <= max_safe_nat))
