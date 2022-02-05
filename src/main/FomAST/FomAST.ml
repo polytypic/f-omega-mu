@@ -577,7 +577,11 @@ module Typ = struct
 
   let some_spaces = Some spaces
 
-  type config = {hr : bool; pp_annot : Kind.t -> document}
+  type ('t, 'k) config = {
+    hr : bool;
+    pp_annot : 'k -> document;
+    pp : ('t, 'k) config -> int -> 't -> document;
+  }
 
   let rec hanging = function
     | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
@@ -587,20 +591,20 @@ module Typ = struct
       match unapp t with `Var _, [x] -> hanging x | _ -> None)
     | _ -> None
 
-  let rec binding config prec_outer head i k t =
+  let binding config prec_outer head i k t =
     (group (head ^^ Var.pp i ^^ config.pp_annot k ^^ dot |> nest 2)
     ^^
     match hanging t with
-    | Some _ -> pp config prec_min t
-    | None -> gnest 2 (break_0 ^^ group (pp config prec_min t)))
+    | Some _ -> config.pp config prec_min t
+    | None -> gnest 2 (break_0 ^^ group (config.pp config prec_min t)))
     |> if prec_min < prec_outer then egyptian parens 2 else id
 
-  and quantifier config prec_outer symbol typ =
+  let quantifier config prec_outer symbol typ =
     match typ with
     | `Lam (_, id, kind, body) -> binding config prec_outer symbol id kind body
-    | _ -> symbol ^^ egyptian parens 2 (pp config prec_min typ)
+    | _ -> symbol ^^ egyptian parens 2 (config.pp config prec_min typ)
 
-  and labeled config labels =
+  let labeled config labels =
     labels
     |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
     |> List.map (function
@@ -609,32 +613,34 @@ module Typ = struct
            Label.pp label ^^ colon
            ^^
            match hanging typ with
-           | Some (lhs, _) -> lhs ^^ pp config prec_min typ
-           | None -> gnest 2 (break_1 ^^ pp config prec_min typ)))
+           | Some (lhs, _) -> lhs ^^ config.pp config prec_min typ
+           | None -> gnest 2 (break_1 ^^ config.pp config prec_min typ)))
     |> separate comma_break_1_or_break_0
 
-  and ticked config labels =
+  let ticked config labels =
     match
       labels
       |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
       |> List.map @@ function
          | l, `Product (_, []) -> tick ^^ Label.pp l
          | l, t ->
-           gnest 2 (tick ^^ Label.pp l ^^ break_1 ^^ pp config prec_max t)
+           gnest 2 (tick ^^ Label.pp l ^^ break_1 ^^ config.pp config prec_max t)
     with
     | [l] -> l
     | [] -> pipe
     | ls ->
       ls |> separate break_1_pipe_space |> precede (ifflat empty pipe_space)
 
-  and tupled config labels =
-    labels |> List.map (snd >>> pp config prec_min) |> separate comma_break_1
+  let tupled config labels =
+    labels
+    |> List.map (snd >>> config.pp config prec_min)
+    |> separate comma_break_1
 
-  and infix config prec_outer prec op l r =
-    pp config prec l ^^ space ^^ op ^^ space ^^ pp config prec r
+  let infix config prec_outer prec op l r =
+    config.pp config prec l ^^ space ^^ op ^^ space ^^ config.pp config prec r
     |> if prec < prec_outer then egyptian parens 2 else id
 
-  and pp config prec_outer typ =
+  let pp config prec_outer typ =
     match typ with
     | `Const (_, const) -> Const.pp const
     | `Var (_, id) -> Var.pp ~hr:config.hr id
@@ -644,11 +650,11 @@ module Typ = struct
     | `ForAll (_, typ) -> quantifier config prec_outer FomPP.for_all typ
     | `Exists (_, typ) -> quantifier config prec_outer FomPP.exists typ
     | `Arrow (_, dom, cod) ->
-      pp config (prec_arrow + 1) dom
+      config.pp config (prec_arrow + 1) dom
       ^^ (match hanging cod with
          | Some (lhs, _) -> space_arrow_right ^^ lhs
          | None -> space_arrow_right_break_1)
-      ^^ pp config (prec_arrow - 1) cod
+      ^^ config.pp config (prec_arrow - 1) cod
       |> if prec_arrow < prec_outer then egyptian parens 2 else id
     | `Product (_, labels) ->
       if Row.is_tuple labels then tupled config labels |> egyptian parens 2
@@ -660,8 +666,8 @@ module Typ = struct
     | `App (_, _, _) -> (
       match unapp typ with
       | f, xs ->
-        pp config prec_app f
-        :: (xs |> List.map (pp config (prec_app + 1) >>> group))
+        config.pp config prec_app f
+        :: (xs |> List.map (config.pp config (prec_app + 1) >>> group))
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
     | `Join (_, l, r) -> infix config prec_outer prec_join logical_or l r
@@ -669,7 +675,7 @@ module Typ = struct
 
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =
-    pp {hr; pp_annot} prec_min typ |> group
+    pp {hr; pp_annot; pp} prec_min typ |> group
 
   let to_string t = t |> pp |> to_string
 end
