@@ -9,6 +9,6 @@ export const clearMarkers = markers => {
 }
 
 export const posAsNative = (cm, {line, ch}) => {
-  const input = cm.getLine(line)
+  const input = cm.getLine(line) || ''
   return {line, ch: fom.offset16(input, ch)}
 }
