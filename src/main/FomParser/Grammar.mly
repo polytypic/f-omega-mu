@@ -226,21 +226,17 @@ typ:
 
 //
 
-ann_let:
-  |                                                 {Typ.zero $loc}
+pat_lab:
+  | l=lab "=" p=pat                                 {(l, p)}
+  | i=exp_bid                                       {(Exp.Var.to_label i, Exp.var i)}
+  | i=exp_bid ":" t=typ                             {(Exp.Var.to_label i, `Annot ($loc, Exp.var i, t))}
 
-ann_lam:
-  | ":" t=typ                                       {t}
-
-pat_lab(ann):
-  | l=lab "=" p=pat(ann)                            {(l, `Pat p)}
-  | l=lab a=ann                                     {(l, `Ann a)}
-
-pat(ann):
-  | i=exp_bid a=ann                                 {`Id ($loc, i, a)}
-  | "(" ps=list_n(pat(ann), ",") ")"                {Exp.Pat.tuple $loc ps}
-  | "{" fs=list_n(pat_lab(ann), ",") "}"            {`Product ($loc, fs)}
-  | "«" t=typ_bid "," p=pat(ann_let) "»" e=ann      {`Pack ($loc, p, t, e)}
+pat:
+  | p=pat ":" t=typ                                 {`Annot ($loc, p, t)}
+  | i=exp_bid                                       {Exp.var i}
+  | "(" ps=list_n(pat, ",") ")"                     {Exp.Pat.tuple $loc ps}
+  | "{" fs=list_n(pat_lab, ",") "}"                 {`Product ($loc, fs)}
+  | "«" t=typ_bid "," p=pat "»"                     {`Pack ($loc, p, t)}
 
 //
 
@@ -336,7 +332,7 @@ exp_inf:
   | "%"                                             {`Const ($loc, `OpArithRem)}
 
 exp_bind(head):
-  | head p=pat(ann_lam) "." e=exp                   {`LamPat ($loc, p, e)}
+  | head p=pat "." e=exp                            {`LamPat ($loc, p, e)}
 
 exp_in:
   | e=exp_uop "_"                                   {e}
@@ -344,11 +340,10 @@ exp_in:
   | e=exp_inf                                       {e}
 
 exp_def_mu:
-  | "μ" p=pat(ann_lam) "=" v=exp                    {(p, v)}
+  | "μ" p=pat "=" v=exp                             {(p, v)}
 
 exp_def_par:
-  | p=pat(ann_let) "=" v=exp                        {(p, None, v)}
-  | p=pat(ann_let) ":" t=typ "=" v=exp              {(p, Some t, v )}
+  | p=pat "=" v=exp                                 {(p, v)}
 
 exp_def:
   | d=typ_def                                       {d :> _ Exp.Def.f}

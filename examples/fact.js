@@ -1,9 +1,9 @@
 'use strict'
-const fact = n => {
+const _fact = n => {
   if (n <= 1) {
     return 1
   } else {
-    return (n * fact((n - 1) | 0)) | 0
+    return (n * _fact((n - 1) | 0)) | 0
   }
 }
-fact(5)
+_fact(5)

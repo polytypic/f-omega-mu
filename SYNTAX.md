@@ -40,13 +40,14 @@ typ_defs
 
 pat
   : eid                                                   // Variable pattern
+  | pat ':' typ                                           // Type annotation
   | '(' (pat, ',')* ')'                                   // Tuple pattern
   | '{' (label '=' pat, ',')* '}'                         // Product pattern
   | '«' tid ',' pat '»'                                   // Existential pack pattern
 
 exp
   : '(' exp ')'
-  | exp ':' typ                                           // Type ascription
+  | exp ':' typ                                           // Type annotation
   | eid                                                   // Variable (*1)
   | (nat | string)                                        // Literals
   | '(' (exp, ',')* ')'                                   // Tuple introduction
@@ -62,8 +63,8 @@ exp
   | uop exp                                               // Apply unary operator
   | exp bop exp                                           // Apply binary operator
   | typ_def 'in' exp                                      // Type bindings (*3)
-  | 'let' (    pat (':' typ)? '=' exp, 'and')+ 'in' exp   // Parallel bindings (*6)
-  | 'let' ('μ' pat  ':' typ   '=' exp, 'and')+ 'in' exp   // Recursive bindings (*6)
+  | 'let' (    pat '=' exp, 'and')+ 'in' exp              // Parallel bindings (*6)
+  | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp              // Recursive bindings (*6)
   | 'if' exp 'then' exp 'else' exp                        // Conditional (*7)
   | 'λ' pat ':' typ '.' exp                               // Function
   | 'μ' (pat ':' typ '.' exp)                             // Recursive expression (*8)
@@ -153,10 +154,10 @@ incs                                                      // Syntax of .fomd inc
 5. `fₙ ◁ … ◁ f₁ ◁ x`, `x ▷ f₁ ▷ … ▷ fₙ`, and `f ◇ x₁ ◇ … ◇ xₙ` are special
    syntax for function application.
 
-6. Type annotations must be specified in function parameters and recursive
-   expressions and are optional in parallel `let` bindings. Existential
-   unpacking has the usual side condition of not allowing the type variable to
-   escape.
+6. Sufficient type annotations must be specified in function parameters and
+   recursive expressions and are optional in parallel `let` bindings.
+   Existential unpacking has the usual side condition of not allowing the type
+   variable to escape.
 
 7. This Fωμ implementation is strict.
 

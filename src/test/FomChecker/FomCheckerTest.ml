@@ -399,4 +399,6 @@ let () =
   testErrors "duplicate pattern binding" "let {y, x = y} = {x = 2, y = 1} in y";
   testErrors "duplicate unpack type binding"
     "let («t, x», «t, y») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()";
+  testErrors "let _: int = false" "let _: int = false in true";
+  testErrors "let () = 101" "let () = 101 in true";
   ()

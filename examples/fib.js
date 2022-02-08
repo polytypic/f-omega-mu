@@ -1,5 +1,5 @@
 'use strict'
-const loop = i$1 => j$1 => n$1 => {
+const _loop = i$1 => j$1 => n$1 => {
   for (;;) {
     const i = i$1,
       j = j$1,
@@ -11,4 +11,4 @@ const loop = i$1 => j$1 => n$1 => {
     }
   }
 }
-loop(0)(1)(10)
+_loop(0)(1)(10)

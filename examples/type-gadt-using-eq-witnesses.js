@@ -25,7 +25,7 @@ const ᐥ𛰚ᐥ = ')'
 const ᐥᐟIn2𛰙ᐥ = "'In2("
 const ᐥ𛰙ᐥ = '('
 const ᐥꓹ_ᐥ = ', '
-const to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
+const _to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
   const [tag_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_, val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_] =
     ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_
   switch (tag_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_) {
@@ -36,8 +36,8 @@ const to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
         )
     }
     case 'Pair': {
-      const to_string_a = to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[2])
-      const to_string_b = to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[3])
+      const to_string_a = _to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[2])
+      const to_string_b = _to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[3])
       return t => {
         const _𛰙aꓹ_b𛰚 = val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[1](λxꓸx)(t)
         const s = to_string_b(_𛰙aꓹ_b𛰚[2])
@@ -45,7 +45,7 @@ const to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
       }
     }
     case 'Iso': {
-      const to_string_b = to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[3])
+      const to_string_b = _to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[3])
       return t =>
         to_string_b(
           val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[2][1](
@@ -54,8 +54,8 @@ const to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
         )
     }
     case 'Alt': {
-      const to_string_a = to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[2])
-      const to_string_b = to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[3])
+      const to_string_a = _to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[2])
+      const to_string_b = _to_string(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_[3])
       return t => {
         const [
           tag_𛰙𛰙val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_,
@@ -74,4 +74,4 @@ const to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
     }
   }
 }
-to_string(ᐟPair𛰙λxꓸxꓹ_ᐟBool𛰙λxꓸx𛰚ꓹ_)(𛰙falseꓹ_ᐟIn1𛰙ᐥfooᐥ𛰚𛰚)
+_to_string(ᐟPair𛰙λxꓸxꓹ_ᐟBool𛰙λxꓸx𛰚ꓹ_)(𛰙falseꓹ_ᐟIn1𛰙ᐥfooᐥ𛰚𛰚)

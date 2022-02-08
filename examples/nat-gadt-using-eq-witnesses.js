@@ -1,7 +1,7 @@
 'use strict'
 const λxꓸx = x => x
 const ᐟZero𛰙λxꓸx𛰚 = ['Zero', λxꓸx]
-const loop = n$1 => i$1 => {
+const _loop = n$1 => i$1 => {
   for (;;) {
     const n = n$1,
       i = i$1
@@ -12,8 +12,8 @@ const loop = n$1 => i$1 => {
     }
   }
 }
-const _n = loop(ᐟZero𛰙λxꓸx𛰚)(10)
-const loop$1 = n$1 => i$1 => {
+const _n = _loop(ᐟZero𛰙λxꓸx𛰚)(10)
+const _loop$1 = n$1 => i$1 => {
   for (;;) {
     const n = n$1,
       i = i$1
@@ -25,4 +25,4 @@ const loop$1 = n$1 => i$1 => {
     }
   }
 }
-loop$1(_n)(0)
+_loop$1(_n)(0)

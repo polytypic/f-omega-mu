@@ -150,7 +150,9 @@ module Make () : S = struct
 
   (* Generated *)
 
-  let is_fresh {name; _} = name = Name.fresh
+  let is_fresh {name; n; _} =
+    name = Name.fresh || (n <> 0 && (Name.to_string name).[0] = '_')
+
   let fresh at = {name = Name.fresh; n = Counter.next (); at}
 
   (* Underscore *)

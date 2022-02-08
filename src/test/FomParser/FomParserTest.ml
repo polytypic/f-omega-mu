@@ -18,12 +18,15 @@ let () =
         `Star _,
         `LamPat
           ( _,
-            `Id
+            `Annot
               ( _,
-                ({
-                   Exp.Var.at = {pos_lnum = 2; pos_bol = 6; pos_cnum = 9; _}, _;
-                   _;
-                 } as x1),
+                `Var
+                  ( _,
+                    ({
+                       Exp.Var.at =
+                         {pos_lnum = 2; pos_bol = 6; pos_cnum = 9; _}, _;
+                       _;
+                     } as x1) ),
                 `Var (_, alpha2) ),
             `Var (_, x2) ) ) ->
     verify (Typ.Var.to_string alpha1 = "α" && Typ.Var.equal alpha1 alpha2)

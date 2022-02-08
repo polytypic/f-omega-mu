@@ -44,21 +44,19 @@ module Exp = struct
 
   module Pat = struct
     type t =
-      [ `Id of Loc.t * Var.t * Typ.t
-      | `Product of Loc.t * [`Pat of t | `Ann of Typ.t] Row.t
-      | `Pack of Loc.t * t * Typ.Var.t * Typ.t ]
+      [ `Var of Loc.t * Var.t
+      | `Annot of Loc.t * t * Typ.t
+      | `Product of Loc.t * t Row.t
+      | `Pack of Loc.t * t * Typ.Var.t ]
 
     let check p =
       let rec collect (ts, is) = function
-        | `Id (_, i, _) -> (ts, i :: is)
+        | `Var (_, i) -> (ts, i :: is)
+        | `Annot (_, p, _) -> collect (ts, is) p
         | `Product (_, ps) ->
           ps
-          |> List.fold_left
-               (fun (ts, is) -> function
-                 | l, `Ann _ -> (ts, Var.of_label l :: is)
-                 | _, `Pat p -> collect (ts, is) p)
-               (ts, is)
-        | `Pack (_, p, t, _) -> collect (t :: ts, is) p
+          |> List.fold_left (fun (ts, is) (_, p) -> collect (ts, is) p) (ts, is)
+        | `Pack (_, p, t) -> collect (t :: ts, is) p
       in
       let ts, is = collect ([], []) p in
       let check_ts =
@@ -74,31 +72,30 @@ module Exp = struct
       check_ts >> check_is
 
     let rec pp : t -> document = function
-      | `Id (_, i, _) -> Var.pp i
+      | `Var (_, i) -> Var.pp i
+      | `Annot (_, p, _) -> pp p
       | `Product (_, ls) ->
         if Row.is_tuple ls then
           ls
-          |> List.map (snd >>> function `Pat p -> pp p | `Ann _ -> underscore)
+          |> List.map (snd >>> pp)
           |> separate comma_break_1 |> egyptian parens 2
         else
           ls
-          |> List.map (fun (l, p) ->
+          |> List.map (function
+               | l, `Var (_, i) when Label.equal l (Var.to_label i) ->
                  Label.pp l
-                 ^^
-                 match p with
-                 | `Pat p -> space_equals_space ^^ pp p
-                 | `Ann _ -> empty)
+               | l, p -> Label.pp l ^^ space_equals_space ^^ pp p)
           |> separate comma_break_1 |> egyptian braces 2
-      | `Pack (_, p, _, _) -> pp p
+      | `Pack (_, p, _) -> pp p
 
     let to_string = pp >>> FomPP.to_string
 
     let at = function
-      | `Id (at, _, _) | `Product (at, _) | `Pack (at, _, _, _) -> at
+      | `Var (at, _) | `Annot (at, _, _) | `Product (at, _) | `Pack (at, _, _)
+        ->
+        at
 
-    let tuple at = function
-      | [p] -> p
-      | ps -> `Product (at, ps |> Tuple.labels at |> Row.map @@ fun p -> `Pat p)
+    let tuple at = function [p] -> p | ps -> `Product (at, Tuple.labels at ps)
   end
 
   type 'e tstr_elem = [`Exp of Label.t * 'e | `Str of JsonString.t]
@@ -106,7 +103,7 @@ module Exp = struct
   module Def = struct
     type 'e f =
       [ Typ.t Typ.Def.f
-      | `PatPar of (Pat.t * Typ.t option * 'e) list
+      | `PatPar of (Pat.t * 'e) list
       | `PatRec of (Pat.t * 'e) list ]
   end
 

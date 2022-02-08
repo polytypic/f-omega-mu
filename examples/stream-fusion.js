@@ -1,7 +1,7 @@
 'use strict'
 const ᐟNone = ['None']
 const λxꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚 = x => xs => ['Some', {1: x, 2: xs}]
-const fold = xrr$1 => r$1 => ᐟNone_ǀ_ᐟSome$1 => {
+const _fold = xrr$1 => r$1 => ᐟNone_ǀ_ᐟSome$1 => {
   for (;;) {
     const xrr = xrr$1,
       r = r$1,
@@ -15,7 +15,7 @@ const fold = xrr$1 => r$1 => ᐟNone_ǀ_ᐟSome$1 => {
     }
   }
 }
-const iota = xs$1 => n$1 => {
+const _iota = xs$1 => n$1 => {
   for (;;) {
     const xs = xs$1,
       n = n$1
@@ -26,7 +26,7 @@ const iota = xs$1 => n$1 => {
     }
   }
 }
-const xs = iota(ᐟNone)(5)
+const xs = _iota(ᐟNone)(5)
 const S1 = ys$1 => ᐟNone_ǀ_ᐟSome$1 => {
   for (;;) {
     const ys = ys$1,
@@ -63,7 +63,7 @@ const S2 = ys$1 => ᐟNone_ǀ_ᐟSome$1 => {
         ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2]
       }
     } else {
-      return fold(λxꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚)(ᐟNone)(ys)
+      return _fold(λxꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚)(ᐟNone)(ys)
     }
   }
 }

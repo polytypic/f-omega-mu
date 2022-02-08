@@ -8,25 +8,25 @@ const λcsꓸ𛰙csꓸAlt_𛰙λcsꓸcsꓸUnit_ = cs =>
 const ᐟIn2 = ['In2']
 const λvꓸλ_𛰙𛰚ꓸv = v => _𛰙𛰚 => v
 const ᐟNone = ['None']
-const lookup = t =>
+const _lookup = t =>
   t({
     Unit: λvꓸλ_𛰙𛰚ꓸv,
     Alt: t1 => t2 => ᐟIn1_ǀ_ᐟIn2 => {
       const [tag_ᐟIn1_ǀ_ᐟIn2, val_ᐟIn1_ǀ_ᐟIn2] = ᐟIn1_ǀ_ᐟIn2
       if (tag_ᐟIn1_ǀ_ᐟIn2 === 'In2') {
-        return lookup(t2)(val_ᐟIn1_ǀ_ᐟIn2)
+        return _lookup(t2)(val_ᐟIn1_ǀ_ᐟIn2)
       } else {
-        return lookup(t1)(val_ᐟIn1_ǀ_ᐟIn2)
+        return _lookup(t1)(val_ᐟIn1_ǀ_ᐟIn2)
       }
     },
     Pair: t$1 => _𛰙k1ꓹ_k2𛰚 => {
-      const [tag_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1, val_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1] =
-        lookup(t$1)(_𛰙k1ꓹ_k2𛰚[1])
-      if (tag_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1 === 'Some') {
-        return lookup(val_𛰙lookup_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1)(_𛰙k1ꓹ_k2𛰚[2])
+      const [tag_𛰙𛰙_lookup𛰚_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1, val_𛰙𛰙_lookup𛰚_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1] =
+        _lookup(t$1)(_𛰙k1ꓹ_k2𛰚[1])
+      if (tag_𛰙𛰙_lookup𛰚_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1 === 'Some') {
+        return _lookup(val_𛰙𛰙_lookup𛰚_t𛰚_𛰙_𛰙k1ꓹ_k2𛰚𛰚ꓸ1)(_𛰙k1ꓹ_k2𛰚[2])
       } else {
         return ᐟNone
       }
     },
   })
-lookup(λcsꓸ𛰙csꓸAlt_𛰙λcsꓸcsꓸUnit_)(ᐟIn2)
+_lookup(λcsꓸ𛰙csꓸAlt_𛰙λcsꓸcsꓸUnit_)(ᐟIn2)

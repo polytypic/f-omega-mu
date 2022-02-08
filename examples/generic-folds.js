@@ -34,10 +34,10 @@ const ᐟApp𛰝fnꘌᐟAbs𛰝varꘌᐥxᐥꓹ_expꘌᐟApp𛰝fnꘌᐟVar𛰝i
   'App',
   𛰝fnꘌᐟAbs𛰝varꘌᐥxᐥꓹ_expꘌᐟApp𛰝fnꘌᐟVar𛰝idꘌᐥFᐥ𛰞ꓹ_,
 ]
-const has = p => ᐟNone_ǀ_ᐟSome => {
+const _has = p => ᐟNone_ǀ_ᐟSome => {
   const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
   if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
-    return p(val_ᐟNone_ǀ_ᐟSome[1]) || has(p)(val_ᐟNone_ǀ_ᐟSome[2])
+    return p(val_ᐟNone_ǀ_ᐟSome[1]) || _has(p)(val_ᐟNone_ǀ_ᐟSome[2])
   } else {
     return false
   }
@@ -59,7 +59,7 @@ const has = p => ᐟNone_ǀ_ᐟSome => {
         const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
         if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
           const $2$ = fold(val_ᐟNone_ǀ_ᐟSome[2])
-          if (has(ꘌ𖩇string𖩉(val_ᐟNone_ǀ_ᐟSome[1]))(fn)) {
+          if (_has(ꘌ𖩇string𖩉(val_ᐟNone_ǀ_ᐟSome[1]))(fn)) {
             return $2$
           } else {
             return ['Some', {1: val_ᐟNone_ǀ_ᐟSome[1], 2: $2$}]

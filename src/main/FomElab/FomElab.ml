@@ -266,28 +266,26 @@ let annot at i k t = `App (at, `Lam (at, i, k, `Var (at, i)), t)
 (* *)
 
 let rec type_of_pat_lam = function
-  | `Id (_, _, t) -> t
-  | `Product (at, fs) ->
-    Typ.product at
-      (fs |> Row.map @@ function `Pat p -> type_of_pat_lam p | `Ann t -> t)
-  | `Pack (_, _, _, t) -> t
+  | `Annot (_, _, t) -> return t
+  | `Product (at, fs) -> Row.map_fr type_of_pat_lam fs >>- Typ.product at
+  | `Var (at, _) | `Pack (at, _, _) -> fail @@ `Error_pat_lacks_annot at
 
 let rec pat_to_exp p' e' = function
-  | `Id (at, i, _) -> `LetIn (at, i, p', e')
+  | `Var (at, i) -> `LetIn (at, i, p', e')
+  | `Annot (at, p, t) -> pat_to_exp (`Annot (at, p', t)) e' p
+  | `Product (at, []) ->
+    `App (at, `Lam (at, Exp.Var.fresh at, `Product (at, []), e'), p')
   | `Product (at, fs) ->
     fs |> List.rev
     |> List.fold_left
-         (fun e' -> function
-           | l, `Pat p ->
-             let i = Exp.Var.freshen (Exp.Var.of_label l) in
-             let e' = pat_to_exp (`Var (at, i)) e' p in
-             `LetIn (at, i, `Select (at, p', Exp.atom l), e')
-           | l, `Ann _ ->
-             `LetIn (at, Exp.Var.of_label l, `Select (at, p', Exp.atom l), e'))
+         (fun e' (l, p) ->
+           let i = Exp.Var.freshen (Exp.Var.of_label l) in
+           let e' = pat_to_exp (`Var (at, i)) e' p in
+           `LetIn (at, i, `Select (at, p', Exp.atom l), e'))
          e'
-  | `Pack (at, `Id (_, i, _), t, _) ->
+  | `Pack (at, `Var (_, i), t) ->
     `UnpackIn (at, t, Kind.fresh (Typ.Var.at t), i, p', e')
-  | `Pack (at, p, t, _) ->
+  | `Pack (at, p, t) ->
     let i = Pat.id_for p and k = Kind.fresh (Typ.Var.at t) in
     `UnpackIn (at, t, k, i, p', pat_to_exp (`Var (at, i)) e' p)
 
@@ -395,20 +393,11 @@ and elaborate_defs accum = function
     elaborate_defs accum ds
     |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
-let maybe_annot e tO =
-  match tO with
-  | None -> return e
-  | Some t ->
-    let+ t = elaborate_typ t in
-    let at = Typ.at t in
-    let i = Exp.Var.of_string at "_annot" |> Exp.Var.freshen in
-    annot at i t e
-
 let rec elaborate = function
   | `Const (at, c) ->
     Exp.Const.map_typ_fr elaborate_typ c >>- fun c -> `Const (at, c)
   | `Var _ as ast -> return ast
-  | `Lam (at, i, t, e) | `LamPat (at, `Id (_, i, t), e) ->
+  | `Lam (at, i, t, e) | `LamPat (at, `Annot (_, `Var (_, i), t), e) ->
     elaborate_typ t <*> elaborate e >>- fun (t, e) -> `Lam (at, i, t, e)
   | `App (at, f, x) ->
     elaborate f <*> elaborate x >>- fun (f, x) -> `App (at, f, x)
@@ -428,12 +417,11 @@ let rec elaborate = function
       elaborate e
       |> Typ.VarMap.merging
            (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
-    | `PatPar [(p, tO, v)] -> (
+    | `PatPar [(p, v)] -> (
       let* v = elaborate v in
-      let* v = maybe_annot v tO in
       match p with
-      | `Id (_, i, _) -> elaborate e >>- fun e -> `LetIn (at, i, v, e)
-      | `Pack (_, `Id (_, ei, _), ti, _) ->
+      | `Var (_, i) -> elaborate e >>- fun e -> `LetIn (at, i, v, e)
+      | `Pack (_, `Var (_, ei), ti) ->
         avoid ti @@ fun ti ->
         let k = Kind.fresh (Typ.Var.at ti) in
         Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
@@ -443,29 +431,17 @@ let rec elaborate = function
         let+ e = elaborate_pat (`Var (at, i)) e p in
         `LetIn (at, i, v, e))
     | `PatPar pvs ->
-      let ls = pvs |> List.map (fun (p, _, _) -> Pat.label_for p) in
-      let p =
-        `Product (at, List.map2 (fun l (p, _, _) -> (l, `Pat p)) ls pvs)
-      in
-      let v =
-        `Product
-          ( at,
-            List.map2
-              (fun l -> function
-                | _, None, v -> (l, v)
-                | _, Some t, v -> (l, `Annot (at, v, t)))
-              ls pvs )
-      in
-      elaborate @@ `Let (at, `PatPar [(p, None, v)], e)
+      let ls = pvs |> List.map (fst >>> Pat.label_for) in
+      let p = `Product (at, List.map2 (fun l (p, _) -> (l, p)) ls pvs) in
+      let v = `Product (at, List.map2 (fun l (_, v) -> (l, v)) ls pvs) in
+      elaborate @@ `Let (at, `PatPar [(p, v)], e)
     | `PatRec [(p, v)] ->
-      elaborate
-      @@ `Let (at, `PatPar [(p, None, `Mu (at, `LamPat (at, p, v)))], e)
+      elaborate @@ `Let (at, `PatPar [(p, `Mu (at, `LamPat (at, p, v)))], e)
     | `PatRec pvs ->
       let ls = pvs |> List.map (fst >>> Pat.label_for) in
-      let p = `Product (at, List.map2 (fun l (p, _) -> (l, `Pat p)) ls pvs) in
+      let p = `Product (at, List.map2 (fun l (p, _) -> (l, p)) ls pvs) in
       let v = `Product (at, List.map2 (fun l (_, v) -> (l, v)) ls pvs) in
-      elaborate
-      @@ `Let (at, `PatPar [(p, None, `Mu (at, `LamPat (at, p, v)))], e))
+      elaborate @@ `Let (at, `PatPar [(p, `Mu (at, `LamPat (at, p, v)))], e))
   | `Mu (at, e) -> elaborate e >>- fun e -> `Mu (at, e)
   | `IfElse (at, c, t, e) ->
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
@@ -485,7 +461,7 @@ let rec elaborate = function
     Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LamPat (at, p, e) ->
-    let* t = type_of_pat_lam p |> elaborate_typ in
+    let* t = type_of_pat_lam p >>= elaborate_typ in
     let i = Pat.id_for p in
     let+ e = elaborate_pat (`Var (at, i)) e p in
     `Lam (at, i, t, e)

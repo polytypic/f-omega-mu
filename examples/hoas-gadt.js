@@ -20,23 +20,23 @@ const λcsꓸcsꓸVal_5 = cs => cs.Val(5)
 const λcsꓸ𛰙csꓸApp_𛰙λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_ = cs =>
   cs.App(λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_𛰙λfꓸλcsꓸcsꓸLam_)(λcsꓸcsꓸVal_5)
 const λxꓸx = x => x
-const $eval$ = e =>
+const _eval = e =>
   e({
     Val: λxꓸx,
-    Bin: xyz => x => y => xyz($eval$(x))($eval$(y)),
+    Bin: xyz => x => y => xyz(_eval(x))(_eval(y)),
     If: c => t => e$1 => {
-      if ($eval$(c)) {
-        return $eval$(t)
+      if (_eval(c)) {
+        return _eval(t)
       } else {
-        return $eval$(e$1)
+        return _eval(e$1)
       }
     },
-    App: xy => x => $eval$(xy)($eval$(x)),
-    Lam: f => x => $eval$(f(cs => cs.Val(x))),
+    App: xy => x => _eval(xy)(_eval(x)),
+    Lam: f => x => _eval(f(cs => cs.Val(x))),
     Fix: f => {
-      const f$1 = $eval$(f)
+      const f$1 = _eval(f)
       const g = x => f$1(g)(x)
       return g
     },
   })
-$eval$(λcsꓸ𛰙csꓸApp_𛰙λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_)
+_eval(λcsꓸ𛰙csꓸApp_𛰙λcsꓸcsꓸFix_𛰙λcsꓸcsꓸLam_)

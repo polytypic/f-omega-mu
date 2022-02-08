@@ -144,6 +144,10 @@ let of_error = function
         ^^ text "are not disjoint and cannot be merged " ),
       [(Typ.at l, text "Conflicting type"); (Typ.at r, text "Conflicting type")]
     )
+  | `Error_pat_lacks_annot at ->
+    return
+      ( (at, text "Type of pattern cannot be determined by shape only "),
+        [(at, text "Pattern lacks type annotation")] )
 
 let pp = function
   | (loc, overview), [] -> overview ^^ Loc.pp loc ^^ dot

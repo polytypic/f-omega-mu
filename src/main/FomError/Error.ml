@@ -53,6 +53,8 @@ type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.Core.t
 type non_disjoint_merge =
   [`Error_non_disjoint_merge of Loc.t * Typ.Core.t * Typ.Core.t]
 
+type pat_lacks_annot = [`Error_pat_lacks_annot of Loc.t]
+
 type type_errors =
   [ var_unbound
   | typ_mismatch
@@ -60,6 +62,7 @@ type type_errors =
   | product_lacks
   | label_missing
   | typ_var_escapes
-  | non_disjoint_merge ]
+  | non_disjoint_merge
+  | pat_lacks_annot ]
 
 type t = [io_error | syntax_errors | source_errors | kind_errors | type_errors]

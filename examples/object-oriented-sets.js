@@ -23,10 +23,10 @@ const Union = _𛰙s1ꓹ_s2𛰚 => {
   }
   return $this$
 }
-const Empty = {
+const _Empty = {
   isEmpty: true,
   contains: λ_ꓸfalse,
-  insert: i => Insert({1: Empty, 2: i}),
+  insert: i => Insert({1: _Empty, 2: i}),
   union: λsꓸs,
 }
-Empty.insert(4).union(Empty.insert(2))
+_Empty.insert(4).union(_Empty.insert(2))

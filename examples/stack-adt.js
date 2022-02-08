@@ -6,12 +6,15 @@ const 𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚 = {1: 1, 2: ᐟSome𛰙3ꓹ_ᐟNo
 const ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚 = ['Some', 𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚]
 const 𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚𛰚 = {1: 5, 2: ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚}
 const ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ = ['Some', 𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚𛰚]
-const to_list = ᐟNone_ǀ_ᐟSome => {
+const _to_list = ᐟNone_ǀ_ᐟSome => {
   const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
   if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
-    return ['Some', {1: val_ᐟNone_ǀ_ᐟSome[1], 2: to_list(val_ᐟNone_ǀ_ᐟSome[2])}]
+    return [
+      'Some',
+      {1: val_ᐟNone_ǀ_ᐟSome[1], 2: _to_list(val_ᐟNone_ǀ_ᐟSome[2])},
+    ]
   } else {
     return ᐟNone
   }
 }
-to_list(ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_)
+_to_list(ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_)
