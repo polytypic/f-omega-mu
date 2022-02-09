@@ -328,7 +328,7 @@ exp_inf:
   | "/"                                             {`Const ($loc, `OpArithDiv)}
   | "%"                                             {`Const ($loc, `OpArithRem)}
 
-exp_bind(head):
+exp_lam(head):
   | head p=pat "." e=exp                            {`LamPat ($loc, p, e)}
 
 exp_in:
@@ -346,8 +346,8 @@ exp_def:
 
 exp:
   | e=exp_in                                        {e}
-  | e=exp_bind("μ")                                 {`Mu ($loc, e)}
-  | e=exp_bind("λ")                                 {e}
+  | e=exp_lam("μ")                                  {`Mu ($loc, e)}
+  | e=exp_lam("λ")                                  {e}
   | "Λ" b=typ_bind "." e=exp                        {`Gen ($loc, fst b, snd b, e)}
   | "if" c=exp "then" t=exp "else" e=exp            {`IfElse ($loc, c, t, e)}
   | d=exp_def "in" e=exp                            {`Let ($loc, d, e)}
