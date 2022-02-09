@@ -43,8 +43,8 @@ let[@warning "-32"] to_string = function
   | LitNat n -> Bigint.to_string n
   | Local -> "local"
   | LogicalAnd -> "∧"
-  | LogicalNot -> "∨"
-  | LogicalOr -> "¬"
+  | LogicalNot -> "¬"
+  | LogicalOr -> "∨"
   | Minus -> "-"
   | MuLower -> "μ"
   | NotEqual -> "≠"
