@@ -135,15 +135,12 @@ path:
 
 //
 
-typ_def_mu:
-  | "μ" b=typ_bind "=" t=typ                        {(fst b, snd b, t)}
-
-typ_def_par:
+typ_eq:
   | b=typ_bind "=" t=typ                            {(fst b, snd b, t)}
 
 typ_def:
-  | "type" bs=list_1(typ_def_par, "and")            {`TypPar bs}
-  | "type" bs=list_1(typ_def_mu, "and")             {`TypRec bs}
+  | "type" bs=list_1(              typ_eq,  "and")  {`TypPar bs}
+  | "type" bs=list_1(preceded("μ", typ_eq), "and")  {`TypRec bs}
   | "include" p=path                                {`Include p}
 
 //
@@ -339,16 +336,13 @@ exp_in:
   | e=exp_bop                                       {e}
   | e=exp_inf                                       {e}
 
-exp_def_mu:
-  | "μ" p=pat "=" v=exp                             {(p, v)}
-
-exp_def_par:
+exp_eq:
   | p=pat "=" v=exp                                 {(p, v)}
 
 exp_def:
   | d=typ_def                                       {d :> _ Exp.Def.f}
-  | "let" bs=list_1(exp_def_par, "and")             {`PatPar bs}
-  | "let" bs=list_1(exp_def_mu, "and")              {`PatRec bs}
+  | "let" bs=list_1(              exp_eq,  "and")   {`PatPar bs}
+  | "let" bs=list_1(preceded("μ", exp_eq), "and")   {`PatRec bs}
 
 exp:
   | e=exp_in                                        {e}
