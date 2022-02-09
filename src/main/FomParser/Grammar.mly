@@ -118,10 +118,13 @@ kind:
 
 //
 
+lab_and_exp:
+  | i=exp_rid                                       {(Exp.Var.to_label i, Exp.var i)}
+  | n=LitNat                                        {(Label.of_number $loc n, `Const ($loc, `LitNat n))}
+  | s=lit_string                                    {(Label.of_string $loc (JsonString.to_utf8 s), `Const ($loc, `LitString s))}
+
 lab:
-  | i=Id                                            {Label.of_string $loc i}
-  | n=LitNat                                        {Label.of_number $loc n}
-  | s=lit_string                                    {Label.of_string $loc (JsonString.to_utf8 s)}
+  | le=lab_and_exp                                  {fst le}
 
 //
 
@@ -252,7 +255,7 @@ tstr:
 
 exp_lab:
   | l=lab "=" e=exp                                 {(l, e)}
-  | i=exp_rid                                       {(Exp.Var.to_label i, Exp.var i)}
+  | le=lab_and_exp                                  {le}
 
 exp_rid:
   | i=Id                                            {Exp.Var.of_string $loc i}
