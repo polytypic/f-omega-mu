@@ -125,6 +125,7 @@ module Exp = struct
     | `Let (at, _, _)
     | `Import (at, _)
     | `LamPat (at, _, _)
+    | `Tstr (at, _, _)
     | `Annot (at, _, _) ->
       at
     | #Exp.f as ast -> Exp.at ast
