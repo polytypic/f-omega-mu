@@ -71,7 +71,7 @@ module Exp = struct
       in
       check_ts >> check_is
 
-    let rec pp : t -> document = function
+    let rec pp = function
       | `Var (_, i) -> Var.pp i
       | `Annot (_, p, _) -> pp p
       | `Product (_, ls) ->
@@ -88,7 +88,7 @@ module Exp = struct
           |> separate comma_break_1 |> egyptian braces 2
       | `Pack (_, p, _) -> pp p
 
-    let to_string = pp >>> FomPP.to_string
+    let to_string p = p |> pp |> FomPP.to_string
 
     let at = function
       | `Var (at, _) | `Annot (at, _, _) | `Product (at, _) | `Pack (at, _, _)
