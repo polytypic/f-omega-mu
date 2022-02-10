@@ -17,7 +17,7 @@ module Pat = struct
     |> Exp.Var.of_string (at p)
     |> Exp.Var.freshen
 
-  let label_for p = to_string p |> Label.of_string (at p)
+  let label_for p = to_string p |> Label.of_string Loc.dummy
 end
 
 module Annot = struct
@@ -278,7 +278,7 @@ let rec pat_to_exp p' e' = function
     fs |> List.rev
     |> List.fold_left
          (fun e' (l, p) ->
-           let i = Exp.Var.freshen (Exp.Var.of_label l) in
+           let i = Exp.Var.fresh at in
            let e' = pat_to_exp (`Var (at, i)) e' p in
            `LetIn (at, i, `Select (at, p', Exp.atom l), e'))
          e'

@@ -221,14 +221,7 @@ const prepareDefUses = () => {
     if (
       0 <= du.def.begins.line &&
       !du.annot.startsWith('_') &&
-      du.uses.every(
-        use =>
-          use.file === du.def.file &&
-          use.begins.line === du.def.begins.line &&
-          use.begins.ch === du.def.begins.ch &&
-          use.ends.line === du.def.ends.line &&
-          use.ends.ch === du.def.ends.ch
-      )
+      du.uses.length === 0
     ) {
       const cm = cmOf(du.def.file)
       if (cm) addMarker(unusedMarkers, cm, du.def, unusedAnnot)
