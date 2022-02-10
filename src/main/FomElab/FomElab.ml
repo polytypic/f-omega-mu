@@ -273,8 +273,7 @@ let rec type_of_pat_lam = function
 let rec pat_to_exp p' e' = function
   | `Var (at, i) -> `LetIn (at, i, p', e')
   | `Annot (at, p, t) -> pat_to_exp (`Annot (at, p', t)) e' p
-  | `Product (at, []) ->
-    `App (at, `Lam (at, Exp.Var.fresh at, `Product (at, []), e'), p')
+  | `Product (at, []) as t -> `App (at, `Lam (at, Exp.Var.fresh at, t, e'), p')
   | `Product (at, fs) ->
     fs |> List.rev
     |> List.fold_left
