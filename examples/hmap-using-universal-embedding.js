@@ -6,8 +6,7 @@ const target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_ = r => x => {
 }
 const target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1 = r => r[0]
 const target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_ = x => [x]
-const target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_$1 = target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_(0)
-const counter = target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_$1
+const counter = target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_(0)
 const _get = k$1 => ᐟNone_ǀ_ᐟSome$1 => {
   for (;;) {
     const k = k$1,

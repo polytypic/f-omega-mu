@@ -1,0 +1,7 @@
+let log = λm: string.
+  target[string → impure ()] "console.warn" m
+  ▷ keep[()]
+
+let () = log "1"
+let () = log "2"
+log "3"

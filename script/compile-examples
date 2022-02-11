@@ -2,14 +2,14 @@
 
 set -eo pipefail
 
-foms=(examples/*.fom)
+foms=(examples/*.fom regression/*.fom)
 
 for fom in "${foms[@]}"; do
   read -r code
   echo "$code" > "$fom.js"
 done < <(_build/default/src/main/FomCommand/FomCommand.exe -stop js "${foms[@]}")
 
-prettier -w examples/*.fom.js > /dev/null
+prettier -w examples/*.fom.js regression/*.fom.js > /dev/null
 
 for fom in "${foms[@]}"; do
   fom_js="$fom.js"

@@ -41,7 +41,7 @@ let constants_to_top inn =
       `App (`Const c, x) |> consider vs
     | `App (f, x) ->
       let fvs, f = analyze ~skip:false f and xvs, x = analyze ~skip:false x in
-      `App (f, x) |> consider @@ VarSet.union fvs xvs
+      `App (f, x) |> consider ~skip:true @@ VarSet.union fvs xvs
     | `IfElse (c, t, e) ->
       let cvs, c = analyze ~skip:false c
       and tvs, t = analyze ~skip:false t

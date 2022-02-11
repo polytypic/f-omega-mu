@@ -1,2 +1,3 @@
 _build
 examples/*.fom.js
+regression/*.fom.js
