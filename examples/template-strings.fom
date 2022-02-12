@@ -48,7 +48,7 @@ let message = λsubstitution: string.
 # The semantics of the fold can be provided as a named record.  The default
 # semantics is implemented equivalently to the record
 
-let raw = {
+let def = {
   begin = ""
   finish = λaccum: string.accum
   string = λvalue: string.λaccum: string.accum ^ value
@@ -59,21 +59,21 @@ let raw = {
 # could be more explicitly and equivalently written as
 
 let message = λsubstitution: string.
-  raw"Hello, \string(substitution)!"
+  def"Hello, \string(substitution)!"
 
 # which is elaborated to
 
 let message = λsubstitution: string.
-  raw.begin
-  ▷ raw.text "Hello, "
-  ▷ raw.string (substitution)
-  ▷ raw.string "!"
-  ▷ raw.finish
+  def.begin
+  ▷ def.text "Hello, "
+  ▷ def.string (substitution)
+  ▷ def.text "!"
+  ▷ def.finish
 
 # and all features can, of course, be used in a single template
 
 let expression = λcondition: string.λaction: string.
-  raw"if (\(condition)) {
+  def"if (\(condition)) {
      \  \(action)()
      \}"
 
@@ -85,7 +85,7 @@ let expression = λcondition: string.λaction: string.
 
 let Int = import "lib/int" and Bool = import "lib/bool"
 
-let fmt = raw „ {
+let fmt = def „ {
   D = λvalue: int.λaccum: string.accum ^ Int.to_string value
   B = λvalue: bool.λaccum: string.accum ^ Bool.to_string value
 }
@@ -121,7 +121,7 @@ let «_, sql» =
     finish = λ{sql: sql, args: args, rev: rev}.
       {sql, args = rev 'None args}
     string = λ(arg: arg).λ{sql: sql, args: args, rev: rev}.
-      {sql = "\(sql)?", args = 'Some (arg, args), rev = rev1 rev}
+      {sql = sql ^ "?", args = 'Some (arg, args), rev = rev1 rev}
     text = λtext: string.λ{sql: string, args: args, rev: rev}.
       {sql = sql ^ text, args, rev = rev1 rev}
   }»: ∃state.{
