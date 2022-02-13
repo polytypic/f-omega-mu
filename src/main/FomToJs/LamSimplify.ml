@@ -342,6 +342,10 @@ and simplify_base = function
     let* c = simplify c in
     match c with
     | `Const (`Bool c) -> simplify (if c then t else e)
+    | `App (`Lam (i, b), v) ->
+      let i' = Var.freshen i in
+      let+ c = simplify @@ `IfElse (subst i (`Var i') b, t, e) in
+      `App (`Lam (i', c), v)
     | _ -> (
       simplify t <*> simplify e >>= function
       | `Const (`Bool true), e ->
