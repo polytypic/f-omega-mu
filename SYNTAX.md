@@ -17,7 +17,7 @@ typ
   | typ '→' typ                                           // Function type
   | typ '∨' typ                                           // Join of types (*2)
   | typ '∧' typ                                           // Meet of types (*2)
-  | '(' (typ, ',')* ')'                                   // Tuple type
+  | '(' (typ, ',')* ')'                                   // Tuple type (*3)
   | '{' (label (':' typ)?, ',')* '}'                      // Product type
   | '|'? ("'" label typ?, '|')*                           // Sum type
   | typ typ                                               // Apply type level function
@@ -25,7 +25,7 @@ typ
   | '∃' (tid (':' kind)? '.' typ | '(' typ ')')           // Existential type
   | '∀' (tid (':' kind)? '.' typ | '(' typ ')')           // Universal type
   | 'μ' (tid (':' kind)? '.' typ | '(' typ ')')           // Recursive type
-  | typ_def 'in' typ                                      // Type bindings (*3)
+  | typ_def 'in' typ                                      // Type bindings (*4)
   | 'import' string                                       // Import type
 
 typ_def
@@ -41,7 +41,7 @@ typ_defs
 pat
   : eid                                                   // Variable pattern
   | pat ':' typ                                           // Type annotation
-  | '(' (pat, ',')* ')'                                   // Tuple pattern
+  | '(' (pat, ',')* ')'                                   // Tuple pattern (*3)
   | '{' (label '=' pat, ',')* '}'                         // Product pattern
   | '«' tid ',' pat '»'                                   // Existential pack pattern
 
@@ -50,25 +50,25 @@ exp
   | exp ':' typ                                           // Type annotation
   | eid                                                   // Variable (*1)
   | (nat | string)                                        // Literals
-  | '(' (exp, ',')* ')'                                   // Tuple introduction
+  | '(' (exp, ',')* ')'                                   // Tuple introduction (*3)
   | '{' (label ('=' exp)?, ',')* '}'                      // Product introduction
   | exp '.' (label | '(' exp ')')                         // Product elimination
   | "'" label exp?                                        // Sum introduction
-  | 'case' exp                                            // Sum elimination (*4)
+  | 'case' exp                                            // Sum elimination (*5)
   | '«' typ ',' exp '»' ':' typ                           // Existential packing
   | exp exp                                               // Apply function
-  | exp '◁' exp                                           // (R) Apply forward (*5)
-  | exp '▷' exp                                           // (L) Apply backward (*5)
-  | exp '◇' exp                                           // (L) Apply (*5)
+  | exp '◁' exp                                           // (R) Apply forward (*6)
+  | exp '▷' exp                                           // (L) Apply backward (*6)
+  | exp '◇' exp                                           // (L) Apply (*6)
   | uop exp                                               // Apply unary operator
   | exp bop exp                                           // Apply binary operator
-  | typ_def 'in' exp                                      // Type bindings (*3)
-  | 'let' (    pat '=' exp, 'and')+ 'in' exp              // Parallel bindings (*6)
-  | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp              // Recursive bindings (*6)
-  | exp ';' exp                                           // Sequence (*7)
+  | typ_def 'in' exp                                      // Type bindings (*4)
+  | 'let' (    pat '=' exp, 'and')+ 'in' exp              // Parallel bindings (*7)
+  | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp              // Recursive bindings (*7)
+  | exp ';' exp                                           // Sequence (*8)
   | 'if' exp 'then' exp 'else' exp                        // Conditional
   | 'λ' pat ':' typ '.' exp                               // Function
-  | 'μ' (pat ':' typ '.' exp)                             // Recursive expression (*8)
+  | 'μ' (pat ':' typ '.' exp)                             // Recursive expression (*9)
   | 'Λ' tid (':' kind)? '.' exp                           // Generalization
   | exp '[' typ ']'                                       // Instantiation
   | 'target' '[' typ ']' string                           // Inline JavaScript code
@@ -76,13 +76,13 @@ exp
 
 uop
   : '¬'                                                   // Logical negation
-  | '+' | '-'                                             // Sign (*9)
+  | '+' | '-'                                             // Sign (*10)
 
 bop
-  : '∨' | '∧'                                             // (L) Logical connectives (*10)
+  : '∨' | '∧'                                             // (L) Logical connectives (*11)
   | ('=' | '≠') '[' typ ']'                               // (-) Polymorphic equality
   | '>' | '≥' | '<' | '≤'                                 // (-) Comparison
-  | '„'                                                   // (L) Merge (*11)
+  | '„'                                                   // (L) Merge (*12)
   | '+' | '-' | '^'                                       // (L) Additive
   | '*' | '/' | '%'                                       // (L) Multiplicative
 
@@ -148,29 +148,33 @@ incs                                                      // Syntax of .fomd inc
 2. Structural joins `∨` and meets `∧` are eliminated during type checking and
    are not allowed over arbitrary or unknown types.
 
-3. Bindings of types simply substitute the type into the body expression. System
+3. For type checking side-effecting operations, the unit value and pattern `()`
+   of unit type `()` is neither a tuple nor a product. There are no zero nor
+   single element tuples.
+
+4. Bindings of types simply substitute the type into the body expression. System
    Fωμ does not have singleton kinds, for example.
 
-4. The expression given to `case` must be a record of functions corresponding to
+5. The expression given to `case` must be a record of functions corresponding to
    the sum to be eliminated. The result of `case` is a sum eliminating function.
 
-5. `fₙ ◁ … ◁ f₁ ◁ x`, `x ▷ f₁ ▷ … ▷ fₙ`, and `f ◇ x₁ ◇ … ◇ xₙ` are special
+6. `fₙ ◁ … ◁ f₁ ◁ x`, `x ▷ f₁ ▷ … ▷ fₙ`, and `f ◇ x₁ ◇ … ◇ xₙ` are special
    syntax for function application.
 
-6. Sufficient type annotations must be specified in function parameters and
+7. Sufficient type annotations must be specified in function parameters and
    recursive expressions and are optional in parallel `let` bindings.
    Existential unpacking has the usual side condition of not allowing the type
    variable to escape.
 
-7. `exp₁ ; exp₂` is equivalent to `let () = exp₁ in exp₂`.
+8. `exp₁ ; exp₂` is equivalent to `let () = exp₁ in exp₂`.
 
-8. Recursive expressions are currently not fully statically checked.
+9. Recursive expressions are currently not fully statically checked.
 
-9. When applied to literals, sign operators are interpreted at compile-time.
+10. When applied to literals, sign operators are interpreted at compile-time.
 
-10. Binary logical connectives, `∧` and `∨`, evaluate their arguments lazily.
+11. Binary logical connectives, `∧` and `∨`, evaluate their arguments lazily.
 
-11. Disjoint merge `„` is allowed between nested disjoint products.
+12. Disjoint merge `„` is allowed between nested disjoint products.
 
 ### Alternative tokens
 

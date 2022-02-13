@@ -85,7 +85,7 @@ end
 
 module Typ : sig
   module Const : sig
-    type t = [`Bool | `Int | `String]
+    type t = [`Bool | `Int | `String | `Unit]
 
     (* Comparison *)
 
@@ -174,10 +174,13 @@ module Typ : sig
   val product : Loc.t -> 't Row.t -> [> `Product of Loc.t * 't Row.t]
   val sum : Loc.t -> 't Row.t -> [> `Sum of Loc.t * 't Row.t]
   val zero : Loc.t -> [> `Sum of Loc.t * 't Row.t]
-  val tuple : Loc.t -> ([> `Product of Loc.t * 't Row.t] as 't) list -> 't
 
-  val atom :
-    Label.t -> [> `Sum of Loc.t * [> `Product of Loc.t * 't Row.t] Row.t]
+  val tuple :
+    Loc.t ->
+    ([> `Const of Loc.t * [> `Unit] | `Product of Loc.t * 't Row.t] as 't) list ->
+    't
+
+  val atom : Label.t -> [> `Sum of Loc.t * [> `Const of Loc.t * [> `Unit]] Row.t]
 
   (* Comparison *)
 
@@ -258,11 +261,15 @@ module Typ : sig
   val pp :
     ?hr:bool ->
     ?pp_annot:(Kind.t -> document) ->
-    ([< ('t, Kind.t) f > `App `Exists `ForAll `Lam `Mu `Product `Var] as 't) ->
+    ([< ('t, Kind.t) f > `App `Const `Exists `ForAll `Lam `Mu `Product `Var]
+     as
+     't) ->
     document
 
   val to_string :
-    ([< ('t, Kind.t) f > `App `Exists `ForAll `Lam `Mu `Product `Var] as 't) ->
+    ([< ('t, Kind.t) f > `App `Const `Exists `ForAll `Lam `Mu `Product `Var]
+     as
+     't) ->
     string
 end
 
@@ -272,6 +279,7 @@ module Exp : sig
       [ `LitBool of bool
       | `LitNat of 'nat
       | `LitString of JsonString.t
+      | `LitUnit
       | `OpArithAdd
       | `OpArithDiv
       | `OpArithMinus
@@ -367,11 +375,18 @@ module Exp : sig
   (* *)
 
   val var : Var.t -> [> `Var of Loc.t * Var.t]
-  val tuple : Loc.t -> ([> `Product of Loc.t * 'e Row.t] as 'e) list -> 'e
+
+  val tuple :
+    Loc.t ->
+    ([> `Const of Loc.t * [> `LitUnit] | `Product of Loc.t * 'e Row.t] as 'e)
+    list ->
+    'e
+
   val product : Loc.t -> 'e Row.t -> [> `Product of Loc.t * 'e Row.t]
 
   val atom :
-    Label.t -> [> `Inject of Loc.t * Label.t * [> `Product of Loc.t * 't Row.t]]
+    Label.t ->
+    [> `Inject of Loc.t * Label.t * [> `Const of Loc.t * [> `LitUnit]]]
 
   val lit_bool : Loc.t -> bool -> ('e, 't, 'k) f
 end

@@ -151,7 +151,7 @@ let () =
       empty = Λv.'nil : list v
       push = Λv.λx:v.λxs:list v.'cons {hd = x, tl = xs} : list v
       pop = Λv.case {
-        nil = λ_:{}.
+        nil = λ_:().
           'none : option {value: v, stack: list v}
         cons = λr:{hd: v, tl: list v}.
           'some {value = r.hd, stack = r.tl} : option {value: v, stack: list v}
@@ -160,7 +160,7 @@ let () =
     let a_stack = S.push[int] 4 (S.push[int] 1 (S.push[int] 3 (S.empty[int])))
     let to_list = Λv.μto_list:stack v → list v.λs:stack v.
       S.pop[v] s ▷ case {
-        none = λ_:{}.
+        none = λ_:().
           'nil : list v
         some = λr:{value: v, stack: stack v}.
           'cons {hd = r.value, tl = to_list r.stack} : list v
@@ -257,7 +257,7 @@ let () =
         return: ∀x.x → t x
         apply: ∀x.∀y.t (x → y) → t x → t y
       }
-    ) → ∃t.()
+    ) → ∃t.{}
     |}
     {|
     type functor = λt.{

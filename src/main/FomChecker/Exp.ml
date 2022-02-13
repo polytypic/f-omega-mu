@@ -49,9 +49,8 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
   let check_unit at typ =
-    let* ls = check_product at typ in
-    match ls with
-    | [] -> unit
+    match Core.unfold_of_norm typ with
+    | `Const (_, `Unit) -> unit
     | _ -> fail @@ `Error_typ_unexpected (at, "()", typ)
 
   let check_atom at typ =

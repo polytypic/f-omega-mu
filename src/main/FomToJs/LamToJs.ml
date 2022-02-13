@@ -46,6 +46,7 @@ module Const = struct
     | `LitBool bool -> Bool.to_string bool |> str
     | `LitNat nat -> Int32.to_string nat |> str
     | `LitString lit -> str @@ JsonString.to_utf8_json lit
+    | `LitUnit -> str "void 0"
     | `OpArithAdd -> str "+"
     | `OpArithDiv -> str "/"
     | `OpArithMinus -> str "-"
@@ -118,7 +119,7 @@ and to_js_stmts finish ids = Renumbering.app (to_js_stmts_renumbered finish ids)
 and to_js_stmts_renumbered finish ids exp =
   let default () =
     match exp with
-    | `Product [] -> (
+    | `Const `LitUnit -> (
       match finish with
       | `Top | `Return | `Tail _ -> return @@ str ""
       | `Body -> return @@ str "{}")
@@ -225,8 +226,8 @@ and to_js_stmts_renumbered finish ids exp =
         LamSimplify.once
           (`App
             ( t,
-              `Select (x, `Inject (Label.of_string Loc.dummy "1", `Product []))
-            ))
+              `Select
+                (x, `Inject (Label.of_string Loc.dummy "1", `Const `LitUnit)) ))
         >>= to_js_stmts (as_return finish) VarSet.empty
         >>- do_finish finish
       | [(t, [l]); (e, [])] ->
@@ -321,7 +322,6 @@ and to_js_expr_renumbered exp =
   | `IfElse (c, t, e) ->
     let+ c = to_js_expr c and+ t = to_js_expr t and+ e = to_js_expr e in
     parens @@ c ^ str " ? " ^ t ^ str " : " ^ e
-  | `Product [] -> return @@ str "void 0"
   | `Product fs ->
     let+ fs =
       fs
@@ -343,7 +343,8 @@ and to_js_expr_renumbered exp =
   | `Select (e, l) ->
     let+ e = to_js_expr e and+ l = to_js_expr l in
     e ^ str "[" ^ l ^ str "[0]]"
-  | `Inject (l, `Product []) -> return @@ str "[" ^ Label.to_js_atom l ^ str "]"
+  | `Inject (l, `Const `LitUnit) ->
+    return @@ str "[" ^ Label.to_js_atom l ^ str "]"
   | `Inject (l, e) ->
     let+ e = to_js_expr e in
     str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"

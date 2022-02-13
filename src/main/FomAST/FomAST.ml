@@ -143,8 +143,10 @@ module Row = struct
   type 't t = (Label.t * 't) list
 
   let is_tuple labels =
-    labels
-    |> List.for_alli @@ fun i (l, _) -> Label.to_string l = Int.to_string (i + 1)
+    (match labels with _ :: _ :: _ -> true | _ -> false)
+    && labels
+       |> List.for_alli @@ fun i (l, _) ->
+          Label.to_string l = Int.to_string (i + 1)
 
   let rec union_fr lhs rhs both ls rs =
     match (ls, rs) with
@@ -178,33 +180,41 @@ end
 
 module Typ = struct
   module Const = struct
-    type t = [`Bool | `Int | `String]
+    type t = [`Bool | `Int | `String | `Unit]
 
     (* Comparison *)
 
     let equal lhs rhs =
       match (lhs, rhs) with
-      | `Bool, `Bool | `Int, `Int | `String, `String -> true
+      | `Bool, `Bool | `Int, `Int | `String, `String | `Unit, `Unit -> true
       | _ -> false
 
-    let tag = function `Bool -> `Bool | `Int -> `Int | `String -> `String
+    let tag = function
+      | `Bool -> `Bool
+      | `Int -> `Int
+      | `String -> `String
+      | `Unit -> `Unit
 
     let compare lhs rhs =
       if lhs == rhs then 0
       else
         match (lhs, rhs) with
-        | `Bool, `Bool | `Int, `Int | `String, `String -> 0
+        | `Bool, `Bool | `Int, `Int | `String, `String | `Unit, `Unit -> 0
         | _ -> Stdlib.compare (tag lhs) (tag rhs)
 
     (* Kinding *)
 
     let kind_of at t =
       let star = `Star at in
-      match t with `Bool | `Int | `String -> star
+      match t with `Bool | `Int | `String | `Unit -> star
 
     (* Formatting *)
 
-    let pp = function `Bool -> bool' | `Int -> int' | `String -> string'
+    let pp = function
+      | `Bool -> bool'
+      | `Int -> int'
+      | `String -> string'
+      | `Unit -> unit'
   end
 
   module Var = struct
@@ -376,11 +386,15 @@ module Typ = struct
   let sort labels = List.sort (Compare.the fst Label.compare) labels
   let product at fs = `Product (at, sort fs)
   let sum at cs = `Sum (at, sort cs)
-  let tuple at = function [t] -> t | ts -> `Product (at, Tuple.labels at ts)
+
+  let tuple at = function
+    | [] -> `Const (at, `Unit)
+    | [t] -> t
+    | ts -> `Product (at, Tuple.labels at ts)
 
   let atom l =
     let at = Label.at l in
-    `Sum (at, [(l, `Product (at, []))])
+    `Sum (at, [(l, `Const (at, `Unit))])
 
   let zero at = `Sum (at, [])
 
@@ -622,7 +636,7 @@ module Typ = struct
       labels
       |> List.stable_sort (Compare.the (fst >>> Label.at >>> fst) Pos.compare)
       |> List.map @@ function
-         | l, `Product (_, []) -> tick ^^ Label.pp l
+         | l, `Const (_, `Unit) -> tick ^^ Label.pp l
          | l, t ->
            gnest 2 (tick ^^ Label.pp l ^^ break_1 ^^ config.pp config prec_max t)
     with
@@ -659,7 +673,7 @@ module Typ = struct
     | `Product (_, labels) ->
       if Row.is_tuple labels then tupled config labels |> egyptian parens 2
       else labeled config labels |> egyptian braces 2
-    | `Sum (_, [(l, `Product (_, []))]) -> tick ^^ Label.pp l
+    | `Sum (_, [(l, `Const (_, `Unit))]) -> tick ^^ Label.pp l
     | `Sum (_, labels) ->
       ticked config labels
       |> if prec_arrow < prec_outer then egyptian parens 2 else id
@@ -691,6 +705,7 @@ module Exp = struct
       [ `LitBool of bool
       | `LitNat of 'nat
       | `LitString of JsonString.t
+      | `LitUnit
       | `OpArithAdd
       | `OpArithDiv
       | `OpArithMinus
@@ -721,6 +736,7 @@ module Exp = struct
       | `LitBool _ -> `Const (at, `Bool)
       | `LitNat _ -> `Const (at, `Int)
       | `LitString _ -> `Const (at, `String)
+      | `LitUnit -> `Const (at, `Unit)
       | `OpArithAdd | `OpArithSub | `OpArithMul | `OpArithDiv | `OpArithRem ->
         bop int
       | `OpArithPlus | `OpArithMinus -> uop int
@@ -735,10 +751,10 @@ module Exp = struct
     (* Substitution *)
 
     let map_typ_fr tuM = function
-      | ( `LitBool _ | `LitNat _ | `LitString _ | `OpArithAdd | `OpArithDiv
-        | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
-        | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
-        | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
+      | ( `LitBool _ | `LitNat _ | `LitString _ | `LitUnit | `OpArithAdd
+        | `OpArithDiv | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem
+        | `OpArithSub | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq
+        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
         return c
       | `OpEq t -> tuM t >>- fun t -> `OpEq t
       | `OpEqNot t -> tuM t >>- fun t -> `OpEqNot t
@@ -756,6 +772,7 @@ module Exp = struct
       | `LitBool _ -> `LitBool
       | `LitNat _ -> `LitNat
       | `LitString _ -> `LitString
+      | `LitUnit -> `LitUnit
       | `OpArithAdd -> `OpAritAdd
       | `OpArithDiv -> `OpArithDiv
       | `OpArithMinus -> `OpArithMinus
@@ -793,6 +810,7 @@ module Exp = struct
       | `LitBool bool -> if bool then true' else false'
       | `LitNat i -> nat i
       | `LitString s -> utf8string @@ JsonString.to_utf8_json s
+      | `LitUnit -> unit'
       | `OpArithAdd -> plus
       | `OpArithDiv -> slash
       | `OpArithMinus -> minus
@@ -881,12 +899,17 @@ module Exp = struct
   (* *)
 
   let var i = `Var (Var.at i, i)
-  let tuple at = function [e] -> e | es -> `Product (at, Tuple.labels at es)
+
+  let tuple at = function
+    | [] -> `Const (at, `LitUnit)
+    | [e] -> e
+    | es -> `Product (at, Tuple.labels at es)
+
   let product at fs = `Product (at, fs)
 
   let atom l =
     let at = Label.at l in
-    `Inject (at, l, `Product (at, []))
+    `Inject (at, l, `Const (at, `LitUnit))
 
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)

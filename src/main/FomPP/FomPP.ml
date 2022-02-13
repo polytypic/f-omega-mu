@@ -68,6 +68,7 @@ let target' = utf8string "target"
 let then' = utf8string "then"
 let true' = utf8string "true"
 let type' = utf8string "type"
+let unit' = utf8string "()"
 
 (* Optimizations *)
 

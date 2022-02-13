@@ -161,7 +161,7 @@ typ_lab:
   | i=typ_rid                                       {(Typ.Var.to_label i, Typ.var i)}
 
 typ_tick_lab:
-  | "'" l=lab                                       {(l, Typ.product $loc [])}
+  | "'" l=lab                                       {(l, `Const ($loc, `Unit))}
   | "'" l=lab t=typ_atom_tick                       {(l, t)}
   | "'" l=lab t=typ_high_prec                       {(l, t)}
 

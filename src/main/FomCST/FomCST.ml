@@ -45,6 +45,7 @@ module Exp = struct
   module Pat = struct
     type t =
       [ `Var of Loc.t * Var.t
+      | `Const of Loc.t * [`LitUnit]
       | `Annot of Loc.t * t * Typ.t
       | `Product of Loc.t * t Row.t
       | `Pack of Loc.t * t * Typ.Var.t ]
@@ -52,6 +53,7 @@ module Exp = struct
     let check p =
       let rec collect (ts, is) = function
         | `Var (_, i) -> (ts, i :: is)
+        | `Const (_, `LitUnit) -> (ts, is)
         | `Annot (_, p, _) -> collect (ts, is) p
         | `Product (_, ps) ->
           ps
@@ -73,6 +75,7 @@ module Exp = struct
 
     let rec pp = function
       | `Var (_, i) -> Var.pp i
+      | `Const (_, `LitUnit) -> unit'
       | `Annot (_, p, _) -> pp p
       | `Product (_, ls) ->
         if Row.is_tuple ls then
@@ -91,11 +94,17 @@ module Exp = struct
     let to_string p = p |> pp |> FomPP.to_string
 
     let at = function
-      | `Var (at, _) | `Annot (at, _, _) | `Product (at, _) | `Pack (at, _, _)
-        ->
+      | `Var (at, _)
+      | `Const (at, _)
+      | `Annot (at, _, _)
+      | `Product (at, _)
+      | `Pack (at, _, _) ->
         at
 
-    let tuple at = function [p] -> p | ps -> `Product (at, Tuple.labels at ps)
+    let tuple at = function
+      | [] -> `Const (at, `LitUnit)
+      | [p] -> p
+      | ps -> `Product (at, Tuple.labels at ps)
   end
 
   type 'e tstr_elem = [`Exp of Label.t * 'e | `Str of JsonString.t]

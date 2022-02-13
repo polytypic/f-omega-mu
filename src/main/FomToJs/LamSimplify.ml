@@ -322,7 +322,7 @@ and simplify_base = function
       when List.for_all (snd >>> always_applied_to_inject f) fs ->
       let i = Var.of_string Loc.dummy "_Case_i" |> Var.freshen in
       let v = Var.of_string Loc.dummy "_Case_v" |> Var.freshen in
-      let unit = `Product [] in
+      let unit = `Const `LitUnit in
       let fn =
         fs
         |> List.map (fun (l, _) ->

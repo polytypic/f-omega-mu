@@ -267,11 +267,14 @@ let annot at i k t = `App (at, `Lam (at, i, k, `Var (at, i)), t)
 
 let rec type_of_pat_lam = function
   | `Annot (_, _, t) -> return t
+  | `Const (at, `LitUnit) -> return @@ `Const (at, `Unit)
   | `Product (at, fs) -> Row.map_fr type_of_pat_lam fs >>- Typ.product at
   | `Var (at, _) | `Pack (at, _, _) -> fail @@ `Error_pat_lacks_annot at
 
 let rec pat_to_exp p' e' = function
   | `Var (at, i) -> `LetIn (at, i, p', e')
+  | `Const (at, `LitUnit) ->
+    `App (at, `Lam (at, Exp.Var.fresh at, `Const (at, `Unit), e'), p')
   | `Annot (at, p, t) -> pat_to_exp (`Annot (at, p', t)) e' p
   | `Product (at, []) as t -> `App (at, `Lam (at, Exp.Var.fresh at, t, e'), p')
   | `Product (at, fs) ->
@@ -412,7 +415,7 @@ let rec elaborate = function
   | `Seq (at, e0, e1) ->
     let+ e0 =
       let at = FomCST.Exp.at e0 in
-      elaborate @@ `Annot (at, e0, `Product (at, []))
+      elaborate @@ `Annot (at, e0, `Const (at, `Unit))
     and+ e1 = elaborate e1 in
     `LetIn (at, Exp.Var.of_string at "_Seq" |> Exp.Var.freshen, e0, e1)
   | `Let (at, def, e) -> (
