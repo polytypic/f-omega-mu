@@ -11,17 +11,17 @@ module Const = struct
       shift_left (of_int 1) 32 - of_int 1 )
 
   let erase = function
-    | `LitNat nat ->
+    | `Nat nat ->
       let open Bigint in
       let nat = bit_and nat bi_2_pow_32_minus_1 in
       (* TODO: Warn when literal is truncated. *)
-      `LitNat
+      `Nat
         (Int32.of_string
            (if nat < bi_2_pow_31 then to_string nat
            else nat - bi_2_pow_32 |> to_string))
-    | ( `LitBool _ | `LitString _ | `LitUnit | `OpArithAdd | `OpArithDiv
-      | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
-      | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
+    | ( `Bool _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv | `OpArithMinus
+      | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt
+      | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
       | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat | `Keep _
       | `Target _ ) as other ->
       other

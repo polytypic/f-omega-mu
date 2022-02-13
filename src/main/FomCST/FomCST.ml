@@ -45,7 +45,7 @@ module Exp = struct
   module Pat = struct
     type t =
       [ `Var of Loc.t * Var.t
-      | `Const of Loc.t * [`LitUnit]
+      | `Const of Loc.t * [`Unit]
       | `Annot of Loc.t * t * Typ.t
       | `Product of Loc.t * t Row.t
       | `Pack of Loc.t * t * Typ.Var.t ]
@@ -53,7 +53,7 @@ module Exp = struct
     let check p =
       let rec collect (ts, is) = function
         | `Var (_, i) -> (ts, i :: is)
-        | `Const (_, `LitUnit) -> (ts, is)
+        | `Const (_, `Unit) -> (ts, is)
         | `Annot (_, p, _) -> collect (ts, is) p
         | `Product (_, ps) ->
           ps
@@ -75,7 +75,7 @@ module Exp = struct
 
     let rec pp = function
       | `Var (_, i) -> Var.pp i
-      | `Const (_, `LitUnit) -> unit'
+      | `Const (_, `Unit) -> unit'
       | `Annot (_, p, _) -> pp p
       | `Product (_, ls) ->
         if Row.is_tuple ls then
@@ -102,7 +102,7 @@ module Exp = struct
         at
 
     let tuple at = function
-      | [] -> `Const (at, `LitUnit)
+      | [] -> `Const (at, `Unit)
       | [p] -> p
       | ps -> `Product (at, Tuple.labels at ps)
   end

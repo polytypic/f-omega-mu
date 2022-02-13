@@ -121,8 +121,8 @@ kind:
 
 lab_and_exp:
   | i=exp_rid                                       {(Exp.Var.to_label i, Exp.var i)}
-  | n=LitNat                                        {(Label.of_number $loc n, `Const ($loc, `LitNat n))}
-  | s=lit_string                                    {(Label.of_string $loc (JsonString.to_utf8 s), `Const ($loc, `LitString s))}
+  | n=LitNat                                        {(Label.of_number $loc n, `Const ($loc, `Nat n))}
+  | s=lit_string                                    {(Label.of_string $loc (JsonString.to_utf8 s), `Const ($loc, `String s))}
 
 lab:
   | le=lab_and_exp                                  {fst le}
@@ -271,7 +271,7 @@ exp_high_prec:
 
 exp_atom:
   | i=exp_rid                                       {Exp.var i}
-  | l=LitNat                                        {`Const ($loc, `LitNat l)}
+  | l=LitNat                                        {`Const ($loc, `Nat l)}
   | e=tstr                                          {e}
   | "(" es=list_n(exp, ",") ")"                     {Exp.tuple $loc es}
   | "{" fs=list_n(exp_lab, ",") "}"                 {Exp.product $loc fs}

@@ -22,7 +22,7 @@ let constants_to_top inn =
     let consider ?(skip = skip) vs r =
       match r with
       | _ when skip -> (vs, r)
-      | `Const (`Keep _ | `LitBool _ | `LitNat _ | `LitUnit) | `Var _ -> (vs, r)
+      | `Const (`Keep _ | `Bool _ | `Nat _ | `Unit) | `Var _ -> (vs, r)
       | _ -> (vs, if VarSet.is_empty vs then add r else r)
     in
     function
@@ -64,9 +64,9 @@ let constants_to_top inn =
     | `Inject (l, e) ->
       let vs, e = analyze ~skip:false e in
       `Inject (l, e) |> consider vs
-    | `Select (e, `Inject (l, `Const `LitUnit)) ->
+    | `Select (e, `Inject (l, `Const `Unit)) ->
       let vs, e = analyze ~skip:false e in
-      `Select (e, `Inject (l, `Const `LitUnit)) |> consider vs
+      `Select (e, `Inject (l, `Const `Unit)) |> consider vs
     | `Select (e, l) ->
       let evs, e = analyze ~skip:false e and lvs, l = analyze ~skip:false l in
       `Select (e, l) |> consider @@ VarSet.union evs lvs

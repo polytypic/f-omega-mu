@@ -13,11 +13,11 @@ module Const = struct
     (* + *)
     | `OpArithPlus, x -> Some x
     (* - *)
-    | `OpArithMinus, `Const (`LitNat v) -> Some (`Const (`LitNat (Int32.neg v)))
+    | `OpArithMinus, `Const (`Nat v) -> Some (`Const (`Nat (Int32.neg v)))
     | `OpArithMinus, `App (`Const `OpArithMinus, x) -> Some x
     (* ! *)
     | `OpLogicalNot, `App (`Const `OpLogicalNot, x) -> Some x
-    | `OpLogicalNot, `Const (`LitBool v) -> Some (`Const (`LitBool (not v)))
+    | `OpLogicalNot, `Const (`Bool v) -> Some (`Const (`Bool (not v)))
     | _ -> None
 
   (* TODO: More comprehensive constant folding rules *)
@@ -29,93 +29,84 @@ module Const = struct
     in
     function
     (* + *)
-    | `OpArithAdd, `Const (`LitNat x), `Const (`LitNat y) ->
-      some @@ `Const (`LitNat (Int32.add x y))
+    | `OpArithAdd, `Const (`Nat x), `Const (`Nat y) ->
+      some @@ `Const (`Nat (Int32.add x y))
     | ( `OpArithAdd,
-        `App (`App (`Const `OpArithAdd, x), `Const (`LitNat y)),
-        `Const (`LitNat z) ) ->
-      some
-        (`App (`App (`Const `OpArithAdd, x), `Const (`LitNat (Int32.add y z))))
+        `App (`App (`Const `OpArithAdd, x), `Const (`Nat y)),
+        `Const (`Nat z) ) ->
+      some (`App (`App (`Const `OpArithAdd, x), `Const (`Nat (Int32.add y z))))
     | `OpArithAdd, (`Const _ as c), x ->
       some @@ `App (`App (`Const `OpArithAdd, x), c)
     | `OpArithAdd, `App (`App (`Const `OpArithAdd, x), (`Const _ as c)), y ->
       some
         (`App
           (`App (`Const `OpArithAdd, `App (`App (`Const `OpArithAdd, x), y)), c))
-    | `OpArithAdd, x, `Const (`LitNat 0l) -> some x
+    | `OpArithAdd, x, `Const (`Nat 0l) -> some x
     | `OpArithAdd, x, `App (`Const `OpArithMinus, y) ->
       some @@ `App (`App (`Const `OpArithSub, x), y)
     | `OpArithAdd, `Var i, `Var j when Var.equal i j ->
-      some @@ `App (`App (`Const `OpArithMul, `Const (`LitNat 2l)), `Var i)
-    | `OpArithAdd, x, `Const (`LitNat y)
+      some @@ `App (`App (`Const `OpArithMul, `Const (`Nat 2l)), `Var i)
+    | `OpArithAdd, x, `Const (`Nat y)
       when y < Int32.of_int 0 && y <> Int32.min_int ->
-      some @@ `App (`App (`Const `OpArithSub, x), `Const (`LitNat (Int32.neg y)))
+      some @@ `App (`App (`Const `OpArithSub, x), `Const (`Nat (Int32.neg y)))
     (* / *)
-    | `OpArithDiv, e, `Const (`LitNat 0l) | `OpArithDiv, `Const (`LitNat 0l), e
-      ->
-      if_total e @@ `Const (`LitNat 0l)
-    | `OpArithDiv, `Const (`LitNat x), `Const (`LitNat y) ->
-      some @@ `Const (`LitNat (Int32.div x y))
-    | `OpArithDiv, x, `Const (`LitNat 1l) -> some x
-    | `OpArithDiv, x, `Const (`LitNat -1l) ->
-      some @@ `App (`Const `OpArithMinus, x)
+    | `OpArithDiv, e, `Const (`Nat 0l) | `OpArithDiv, `Const (`Nat 0l), e ->
+      if_total e @@ `Const (`Nat 0l)
+    | `OpArithDiv, `Const (`Nat x), `Const (`Nat y) ->
+      some @@ `Const (`Nat (Int32.div x y))
+    | `OpArithDiv, x, `Const (`Nat 1l) -> some x
+    | `OpArithDiv, x, `Const (`Nat -1l) -> some @@ `App (`Const `OpArithMinus, x)
     (* * *)
-    | `OpArithMul, `Const (`LitNat x), `Const (`LitNat y) ->
-      some @@ `Const (`LitNat (Int32.mul x y))
-    | `OpArithMul, x, `Const (`LitNat 1l) | `OpArithMul, `Const (`LitNat 1l), x
-      ->
+    | `OpArithMul, `Const (`Nat x), `Const (`Nat y) ->
+      some @@ `Const (`Nat (Int32.mul x y))
+    | `OpArithMul, x, `Const (`Nat 1l) | `OpArithMul, `Const (`Nat 1l), x ->
       some x
-    | `OpArithMul, x, `Const (`LitNat -1l)
-    | `OpArithMul, `Const (`LitNat -1l), x ->
+    | `OpArithMul, x, `Const (`Nat -1l) | `OpArithMul, `Const (`Nat -1l), x ->
       some @@ `App (`Const `OpArithMinus, x)
-    | `OpArithMul, e, `Const (`LitNat 0l) | `OpArithMul, `Const (`LitNat 0l), e
-      ->
-      if_total e @@ `Const (`LitNat 0l)
+    | `OpArithMul, e, `Const (`Nat 0l) | `OpArithMul, `Const (`Nat 0l), e ->
+      if_total e @@ `Const (`Nat 0l)
     (* - *)
-    | `OpArithSub, `Var i, `Var j when Var.equal i j ->
-      some @@ `Const (`LitNat 0l)
-    | `OpArithSub, `Const (`LitNat x), `Const (`LitNat y) ->
-      some @@ `Const (`LitNat (Int32.sub x y))
-    | `OpArithSub, x, `Const (`LitNat 0l) -> some x
-    | `OpArithSub, `Const (`LitNat 0l), x ->
-      some @@ `App (`Const `OpArithMinus, x)
+    | `OpArithSub, `Var i, `Var j when Var.equal i j -> some @@ `Const (`Nat 0l)
+    | `OpArithSub, `Const (`Nat x), `Const (`Nat y) ->
+      some @@ `Const (`Nat (Int32.sub x y))
+    | `OpArithSub, x, `Const (`Nat 0l) -> some x
+    | `OpArithSub, `Const (`Nat 0l), x -> some @@ `App (`Const `OpArithMinus, x)
     | `OpArithSub, x, `App (`Const `OpArithMinus, y) ->
       some @@ `App (`App (`Const `OpArithAdd, x), y)
     (* *)
-    | `OpStringCat, `Const (`LitString l), `Const (`LitString r) ->
+    | `OpStringCat, `Const (`String l), `Const (`String r) ->
       some
         (`Const
-          (`LitString
+          (`String
             (Stdlib.( ^ ) (JsonString.to_utf8 l) (JsonString.to_utf8 r)
             |> JsonString.of_utf8)))
-    | `OpStringCat, x, `Const (`LitString empty)
-    | `OpStringCat, `Const (`LitString empty), x
+    | `OpStringCat, x, `Const (`String empty)
+    | `OpStringCat, `Const (`String empty), x
       when JsonString.is_empty empty ->
       some x
     (* *)
-    | `OpEq _, `Const x, `Const y -> some @@ `Const (`LitBool (compare x y = 0))
+    | `OpEq _, `Const x, `Const y -> some @@ `Const (`Bool (compare x y = 0))
     | `OpEqNot _, `Const x, `Const y ->
-      some @@ `Const (`LitBool (compare x y <> 0))
+      some @@ `Const (`Bool (compare x y <> 0))
     (* *)
-    | `OpCmpLt, `Const (`LitNat x), `Const (`LitNat y)
-    | `OpCmpGt, `Const (`LitNat y), `Const (`LitNat x) ->
-      some @@ `Const (`LitBool (Int32.compare x y < 0))
-    | `OpCmpLtEq, `Const (`LitNat x), `Const (`LitNat y)
-    | `OpCmpGtEq, `Const (`LitNat y), `Const (`LitNat x) ->
-      some @@ `Const (`LitBool (Int32.compare x y <= 0))
+    | `OpCmpLt, `Const (`Nat x), `Const (`Nat y)
+    | `OpCmpGt, `Const (`Nat y), `Const (`Nat x) ->
+      some @@ `Const (`Bool (Int32.compare x y < 0))
+    | `OpCmpLtEq, `Const (`Nat x), `Const (`Nat y)
+    | `OpCmpGtEq, `Const (`Nat y), `Const (`Nat x) ->
+      some @@ `Const (`Bool (Int32.compare x y <= 0))
     (* *)
-    | `OpLogicalAnd, x, `Const (`LitBool true)
-    | `OpLogicalAnd, `Const (`LitBool true), x
-    | `OpLogicalOr, x, `Const (`LitBool false)
-    | `OpLogicalOr, `Const (`LitBool false), x ->
+    | `OpLogicalAnd, x, `Const (`Bool true)
+    | `OpLogicalAnd, `Const (`Bool true), x
+    | `OpLogicalOr, x, `Const (`Bool false)
+    | `OpLogicalOr, `Const (`Bool false), x ->
       some x
-    | `OpLogicalOr, `Const (`LitBool true), _ -> some @@ `Const (`LitBool true)
-    | `OpLogicalOr, lhs, `Const (`LitBool true) ->
-      if_total lhs @@ `Const (`LitBool true)
-    | `OpLogicalAnd, `Const (`LitBool false), _ ->
-      some @@ `Const (`LitBool false)
-    | `OpLogicalAnd, lhs, `Const (`LitBool false) ->
-      if_total lhs @@ `Const (`LitBool false)
+    | `OpLogicalOr, `Const (`Bool true), _ -> some @@ `Const (`Bool true)
+    | `OpLogicalOr, lhs, `Const (`Bool true) ->
+      if_total lhs @@ `Const (`Bool true)
+    | `OpLogicalAnd, `Const (`Bool false), _ -> some @@ `Const (`Bool false)
+    | `OpLogicalAnd, lhs, `Const (`Bool false) ->
+      if_total lhs @@ `Const (`Bool false)
     | (`OpLogicalOr | `OpLogicalAnd), `Var x, `Var y when Var.equal x y ->
       some @@ `Var x
     (* *)
@@ -322,7 +313,7 @@ and simplify_base = function
       when List.for_all (snd >>> always_applied_to_inject f) fs ->
       let i = Var.of_string Loc.dummy "_Case_i" |> Var.freshen in
       let v = Var.of_string Loc.dummy "_Case_v" |> Var.freshen in
-      let unit = `Const `LitUnit in
+      let unit = `Const `Unit in
       let fn =
         fs
         |> List.map (fun (l, _) ->
@@ -350,14 +341,14 @@ and simplify_base = function
   | `IfElse (c, t, e) -> (
     let* c = simplify c in
     match c with
-    | `Const (`LitBool c) -> simplify (if c then t else e)
+    | `Const (`Bool c) -> simplify (if c then t else e)
     | _ -> (
       simplify t <*> simplify e >>= function
-      | `Const (`LitBool true), e ->
+      | `Const (`Bool true), e ->
         simplify @@ `App (`App (`Const `OpLogicalOr, c), e)
-      | t, `Const (`LitBool false) ->
+      | t, `Const (`Bool false) ->
         simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
-      | `Const (`LitBool false), `Const (`LitBool true) ->
+      | `Const (`Bool false), `Const (`Bool true) ->
         return @@ `App (`Const `OpLogicalNot, c)
       | t, e ->
         let default () = return @@ `IfElse (c, t, e) in

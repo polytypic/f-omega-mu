@@ -97,11 +97,10 @@ module Const = struct
 
   let is_total = function
     | `Keep _ -> false
-    | `LitBool _ | `LitNat _ | `LitString _ | `LitUnit | `OpArithAdd
-    | `OpArithDiv | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem
-    | `OpArithSub | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _
-    | `OpEqNot _ | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat
-    | `Target _ ->
+    | `Bool _ | `Nat _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv
+    | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+    | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
+    | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat | `Target _ ->
       true
 end
 

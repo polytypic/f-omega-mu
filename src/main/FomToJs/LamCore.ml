@@ -19,15 +19,15 @@ module Const = struct
 
   let is_uop = function
     | `OpArithPlus | `OpArithMinus | `OpLogicalNot | `Keep _ -> true
-    | `LitBool _ | `LitNat _ | `LitString _ | `LitUnit | `OpArithAdd
-    | `OpArithDiv | `OpArithMul | `OpArithRem | `OpArithSub | `OpCmpGt
-    | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _ | `OpLogicalAnd
-    | `OpLogicalOr | `OpStringCat | `Target _ ->
+    | `Bool _ | `Nat _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv
+    | `OpArithMul | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq | `OpCmpLt
+    | `OpCmpLtEq | `OpEq _ | `OpEqNot _ | `OpLogicalAnd | `OpLogicalOr
+    | `OpStringCat | `Target _ ->
       false
 
   let is_bop = function
-    | `LitBool _ | `LitNat _ | `LitString _ | `LitUnit | `Target _
-    | `OpArithMinus | `OpArithPlus | `OpLogicalNot | `Keep _ ->
+    | `Bool _ | `Nat _ | `String _ | `Unit | `Target _ | `OpArithMinus
+    | `OpArithPlus | `OpLogicalNot | `Keep _ ->
       false
     | `OpArithAdd | `OpArithDiv | `OpArithMul | `OpArithRem | `OpArithSub
     | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
@@ -36,10 +36,10 @@ module Const = struct
 
   let is_commutative = function
     | `OpArithAdd | `OpArithMul | `OpEq _ | `OpEqNot _ -> true
-    | `LitBool _ | `LitNat _ | `LitString _ | `LitUnit | `OpArithDiv
-    | `OpArithMinus | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt
-    | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd | `OpLogicalNot
-    | `OpLogicalOr | `OpStringCat | `Keep _ | `Target _ ->
+    | `Bool _ | `Nat _ | `String _ | `Unit | `OpArithDiv | `OpArithMinus
+    | `OpArithPlus | `OpArithRem | `OpArithSub | `OpCmpGt | `OpCmpGtEq
+    | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr
+    | `OpStringCat | `Keep _ | `Target _ ->
       false
 end
 
@@ -258,7 +258,7 @@ let rec pp atom : t -> document = function
     if d |> FomPP.to_string |> UTF.UTF8.to_uchar_array |> seems_parenthesized
     then d
     else egyptian parens 2 d
-  | `Inject (l, `Const `LitUnit) -> tick ^^ Label.pp l
+  | `Inject (l, `Const `Unit) -> tick ^^ Label.pp l
   | `Inject (l, (`Product _ as e)) -> tick ^^ Label.pp l ^^ pp true e
   | `Inject (l, t) -> tick ^^ Label.pp l ^^ egyptian parens 2 (pp false t)
   | `Lam (v, t) ->
@@ -277,7 +277,7 @@ let rec pp atom : t -> document = function
       ls
       |> List.map (fun (l, t) -> Label.pp l ^^ equals ^^ pp false t)
       |> separate comma_break_1 |> egyptian braces 2
-  | `Select (t, `Inject (l, `Const `LitUnit)) -> pp true t ^^ dot ^^ Label.pp l
+  | `Select (t, `Inject (l, `Const `Unit)) -> pp true t ^^ dot ^^ Label.pp l
   | `Select (t, l) -> pp true t ^^ dot ^^ pp true l
   | `Var v ->
     let d = Var.pp v in

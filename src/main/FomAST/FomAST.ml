@@ -702,10 +702,10 @@ module Exp = struct
 
   module Const = struct
     type ('nat, 't) t =
-      [ `LitBool of bool
-      | `LitNat of 'nat
-      | `LitString of JsonString.t
-      | `LitUnit
+      [ `Bool of bool
+      | `Nat of 'nat
+      | `String of JsonString.t
+      | `Unit
       | `OpArithAdd
       | `OpArithDiv
       | `OpArithMinus
@@ -733,10 +733,10 @@ module Exp = struct
       let uop t = `Arrow (at, t, t) in
       let bop t = `Arrow (at, t, uop t) in
       function
-      | `LitBool _ -> `Const (at, `Bool)
-      | `LitNat _ -> `Const (at, `Int)
-      | `LitString _ -> `Const (at, `String)
-      | `LitUnit -> `Const (at, `Unit)
+      | `Bool _ -> `Const (at, `Bool)
+      | `Nat _ -> `Const (at, `Int)
+      | `String _ -> `Const (at, `String)
+      | `Unit -> `Const (at, `Unit)
       | `OpArithAdd | `OpArithSub | `OpArithMul | `OpArithDiv | `OpArithRem ->
         bop int
       | `OpArithPlus | `OpArithMinus -> uop int
@@ -751,10 +751,10 @@ module Exp = struct
     (* Substitution *)
 
     let map_typ_fr tuM = function
-      | ( `LitBool _ | `LitNat _ | `LitString _ | `LitUnit | `OpArithAdd
-        | `OpArithDiv | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem
-        | `OpArithSub | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq
-        | `OpLogicalAnd | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
+      | ( `Bool _ | `Nat _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv
+        | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+        | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
+        | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
         return c
       | `OpEq t -> tuM t >>- fun t -> `OpEq t
       | `OpEqNot t -> tuM t >>- fun t -> `OpEqNot t
@@ -763,16 +763,16 @@ module Exp = struct
 
     (* *)
 
-    let lit_false = `LitBool false
-    let lit_true = `LitBool true
+    let lit_false = `Bool false
+    let lit_true = `Bool true
 
     (* Comparison *)
 
     let tag = function
-      | `LitBool _ -> `LitBool
-      | `LitNat _ -> `LitNat
-      | `LitString _ -> `LitString
-      | `LitUnit -> `LitUnit
+      | `Bool _ -> `Bool
+      | `Nat _ -> `Nat
+      | `String _ -> `String
+      | `Unit -> `Unit
       | `OpArithAdd -> `OpAritAdd
       | `OpArithDiv -> `OpArithDiv
       | `OpArithMinus -> `OpArithMinus
@@ -795,9 +795,9 @@ module Exp = struct
 
     let compare' nat typ l r =
       match (l, r) with
-      | `LitBool l, `LitBool r -> Bool.compare l r
-      | `LitNat l, `LitNat r -> nat l r
-      | `LitString l, `LitString r -> JsonString.compare l r
+      | `Bool l, `Bool r -> Bool.compare l r
+      | `Nat l, `Nat r -> nat l r
+      | `String l, `String r -> JsonString.compare l r
       | `OpEq l, `OpEq r | `OpEqNot l, `OpEqNot r -> typ l r
       | `Keep tl, `Keep tr -> typ tl tr
       | `Target (tl, ll), `Target (tr, lr) ->
@@ -807,10 +807,10 @@ module Exp = struct
     (* Formatting *)
 
     let pp' nat typ = function
-      | `LitBool bool -> if bool then true' else false'
-      | `LitNat i -> nat i
-      | `LitString s -> utf8string @@ JsonString.to_utf8_json s
-      | `LitUnit -> unit'
+      | `Bool bool -> if bool then true' else false'
+      | `Nat i -> nat i
+      | `String s -> utf8string @@ JsonString.to_utf8_json s
+      | `Unit -> unit'
       | `OpArithAdd -> plus
       | `OpArithDiv -> slash
       | `OpArithMinus -> minus
@@ -901,7 +901,7 @@ module Exp = struct
   let var i = `Var (Var.at i, i)
 
   let tuple at = function
-    | [] -> `Const (at, `LitUnit)
+    | [] -> `Const (at, `Unit)
     | [e] -> e
     | es -> `Product (at, Tuple.labels at es)
 
@@ -909,7 +909,7 @@ module Exp = struct
 
   let atom l =
     let at = Label.at l in
-    `Inject (at, l, `Const (at, `LitUnit))
+    `Inject (at, l, `Const (at, `Unit))
 
   let lit_bool at value =
     `Const (at, if value then Const.lit_true else Const.lit_false)
@@ -924,8 +924,8 @@ module Exp = struct
       (Var.of_string at name, fn at)
     in
     [
-      mk "true" (fun at -> `Const (at, `LitBool true));
-      mk "false" (fun at -> `Const (at, `LitBool false));
+      mk "true" (fun at -> `Const (at, `Bool true));
+      mk "false" (fun at -> `Const (at, `Bool false));
       mk "keep" (fun at ->
           let t = Typ.Var.of_string (Loc.of_path "α") "α" in
           `Gen (at, t, `Star at, `Const (at, `Keep (Typ.var t))));
@@ -937,7 +937,7 @@ module Exp = struct
         and string = `Const (at, `String) in
         let lam i t e = `Lam (at, i, t, e)
         and app f x = `App (at, f, x)
-        and empty = `Const (at, `LitString (JsonString.of_utf8 "")) in
+        and empty = `Const (at, `String (JsonString.of_utf8 "")) in
         let rev_cat =
           lam s string
             (lam p string

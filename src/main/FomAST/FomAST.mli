@@ -276,10 +276,10 @@ end
 module Exp : sig
   module Const : sig
     type ('nat, 't) t =
-      [ `LitBool of bool
-      | `LitNat of 'nat
-      | `LitString of JsonString.t
-      | `LitUnit
+      [ `Bool of bool
+      | `Nat of 'nat
+      | `String of JsonString.t
+      | `Unit
       | `OpArithAdd
       | `OpArithDiv
       | `OpArithMinus
@@ -378,15 +378,13 @@ module Exp : sig
 
   val tuple :
     Loc.t ->
-    ([> `Const of Loc.t * [> `LitUnit] | `Product of Loc.t * 'e Row.t] as 'e)
-    list ->
+    ([> `Const of Loc.t * [> `Unit] | `Product of Loc.t * 'e Row.t] as 'e) list ->
     'e
 
   val product : Loc.t -> 'e Row.t -> [> `Product of Loc.t * 'e Row.t]
 
   val atom :
-    Label.t ->
-    [> `Inject of Loc.t * Label.t * [> `Const of Loc.t * [> `LitUnit]]]
+    Label.t -> [> `Inject of Loc.t * Label.t * [> `Const of Loc.t * [> `Unit]]]
 
   val lit_bool : Loc.t -> bool -> ('e, 't, 'k) f
 end
