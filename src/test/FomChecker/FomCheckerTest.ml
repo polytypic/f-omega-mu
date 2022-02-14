@@ -1,16 +1,24 @@
 open FomBasis
 open FomTest
-open FomChecker
 open FomParser
 open FomElab
 open FomEnv
+open FomDiag
+
+let fail_diag e =
+  let* d =
+    Diagnostic.of_error e
+    |> with_env (ignore >>> FomEnv.Env.empty)
+    >>- Diagnostic.pp
+  in
+  FomPP.to_string ~max_width:80 d |> failuref "%s"
 
 let parse_typ source and_then =
   source
   |> Parser.parse_utf_8 Grammar.sigs Lexer.offside
   >>= elaborate_typ
   |> with_env (ignore >>> FomEnv.Env.empty)
-  |> try_in and_then @@ fun _ -> verify false
+  |> try_in and_then fail_diag
 
 (* *)
 
@@ -22,14 +30,14 @@ let () =
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
   |> with_env (ignore >>> FomEnv.Env.empty)
-  |> try_in (Option.is_none >>> verify) @@ fun _ -> verify false
+  |> try_in (Option.is_none >>> verify) fail_diag
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [A]" "μxs.xs"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
   |> with_env (ignore >>> FomEnv.Env.empty)
-  |> try_in (Option.is_some >>> verify) @@ fun _ -> verify false
+  |> try_in (Option.is_some >>> verify) fail_diag
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [B]"
@@ -37,14 +45,14 @@ let () =
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
   |> with_env (ignore >>> FomEnv.Env.empty)
-  |> try_in (Option.is_some >>> verify) @@ fun _ -> verify false
+  |> try_in (Option.is_some >>> verify) fail_diag
 
 (* *)
 
 let norm typ =
   Typ.infer typ >>- fst
   |> with_env (ignore >>> Env.empty)
-  |> try_in return @@ fun _ -> fail (Failure "norm")
+  |> try_in return fail_diag
 
 let test_typs_parse_as name s1 s2 check =
   test (Printf.sprintf "%s (%s) (%s)" name s1 s2) @@ fun () ->
@@ -80,7 +88,7 @@ let parse_exp source and_then =
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   >>= elaborate
   |> with_env (ignore >>> Env.empty)
-  |> try_in and_then @@ fun _ -> verify false
+  |> try_in and_then fail_diag
 
 let testInfersAs name typ exp =
   test name @@ fun () ->
