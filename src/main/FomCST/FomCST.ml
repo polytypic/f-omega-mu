@@ -48,7 +48,7 @@ module Exp = struct
       | `Const of Loc.t * [`Unit]
       | `Annot of Loc.t * t * Typ.t
       | `Product of Loc.t * t Row.t
-      | `Pack of Loc.t * t * Typ.Var.t ]
+      | `Pack of Loc.t * t * Typ.Var.t * Kind.t ]
 
     let check p =
       let rec collect (ts, is) = function
@@ -58,7 +58,7 @@ module Exp = struct
         | `Product (_, ps) ->
           ps
           |> List.fold_left (fun (ts, is) (_, p) -> collect (ts, is) p) (ts, is)
-        | `Pack (_, p, t) -> collect (t :: ts, is) p
+        | `Pack (_, p, t, _) -> collect (t :: ts, is) p
       in
       let ts, is = collect ([], []) p in
       let check_ts =
@@ -89,7 +89,7 @@ module Exp = struct
                  Label.pp l
                | l, p -> Label.pp l ^^ space_equals_space ^^ pp p)
           |> separate comma_break_1 |> egyptian braces 2
-      | `Pack (_, p, _) -> pp p
+      | `Pack (_, p, _, _) -> pp p
 
     let to_string p = p |> pp |> FomPP.to_string
 
@@ -98,7 +98,7 @@ module Exp = struct
       | `Const (at, _)
       | `Annot (at, _, _)
       | `Product (at, _)
-      | `Pack (at, _, _) ->
+      | `Pack (at, _, _, _) ->
         at
 
     let tuple at = function

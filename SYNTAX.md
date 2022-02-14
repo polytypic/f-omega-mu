@@ -48,7 +48,7 @@ pat
   | pat ':' typ                                           // Type annotation
   | '(' (pat, ',')* ')'                                   // Tuple pattern (*3)
   | '{' (label '=' pat, ',')* '}'                         // Product pattern
-  | '«' tid ',' pat '»'                                   // Existential pack pattern
+  | '«' typ_bind ',' pat '»'                              // Existential pack pattern
 
 exp
   : '(' exp ')'

@@ -269,7 +269,7 @@ let rec type_of_pat_lam = function
   | `Annot (_, _, t) -> return t
   | `Const (_, `Unit) as t -> return t
   | `Product (at, fs) -> Row.map_fr type_of_pat_lam fs >>- Typ.product at
-  | `Var (at, _) | `Pack (at, _, _) -> fail @@ `Error_pat_lacks_annot at
+  | `Var (at, _) | `Pack (at, _, _, _) -> fail @@ `Error_pat_lacks_annot at
 
 let rec pat_to_exp p' e' = function
   | `Var (at, i) -> `LetIn (at, i, p', e')
@@ -285,10 +285,9 @@ let rec pat_to_exp p' e' = function
            let e' = pat_to_exp (`Var (at, i)) e' p in
            `LetIn (at, i, `Select (at, p', Exp.atom l), e'))
          e'
-  | `Pack (at, `Var (_, i), t) ->
-    `UnpackIn (at, t, Kind.fresh (Typ.Var.at t), i, p', e')
-  | `Pack (at, p, t) ->
-    let i = Pat.id_for p and k = Kind.fresh (Typ.Var.at t) in
+  | `Pack (at, `Var (_, i), t, k) -> `UnpackIn (at, t, k, i, p', e')
+  | `Pack (at, p, t, k) ->
+    let i = Pat.id_for p in
     `UnpackIn (at, t, k, i, p', pat_to_exp (`Var (at, i)) e' p)
 
 let rec elaborate_def = function
@@ -429,9 +428,8 @@ let rec elaborate = function
       let* v = elaborate v in
       match p with
       | `Var (_, i) -> elaborate e >>- fun e -> `LetIn (at, i, v, e)
-      | `Pack (_, `Var (_, ei), ti) ->
+      | `Pack (_, `Var (_, ei), ti, k) ->
         avoid ti @@ fun ti ->
-        let k = Kind.fresh (Typ.Var.at ti) in
         Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
         >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
       | p ->

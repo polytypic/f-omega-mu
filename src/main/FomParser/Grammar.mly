@@ -237,7 +237,7 @@ pat:
   | i=exp_bid                                       {Exp.var i}
   | "(" ps=list_n(pat, ",") ")"                     {Exp.Pat.tuple $loc ps}
   | "{" fs=list_n(pat_lab, ",") "}"                 {`Product ($loc, fs)}
-  | "«" t=typ_bid "," p=pat "»"                     {`Pack ($loc, p, t)}
+  | "«" b=typ_bind "," p=pat "»"                    {`Pack ($loc, p, fst b, snd b)}
 
 //
 
