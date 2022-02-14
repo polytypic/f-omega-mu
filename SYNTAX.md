@@ -67,8 +67,8 @@ exp
   | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp              // Recursive bindings (*7)
   | exp ';' exp                                           // Sequence (*8)
   | 'if' exp 'then' exp 'else' exp                        // Conditional
-  | 'λ' pat ':' typ '.' exp                               // Function
-  | 'μ' (pat ':' typ '.' exp)                             // Recursive expression (*9)
+  | 'λ' pat '.' exp                                       // Function (*7)
+  | 'μ' pat '.' exp                                       // Recursive expression (*7, *9)
   | 'Λ' tid (':' kind)? '.' exp                           // Generalization
   | exp '[' typ ']'                                       // Instantiation
   | 'target' '[' typ ']' string                           // Inline JavaScript code
