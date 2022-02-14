@@ -95,6 +95,14 @@ module LamMap = Map.Make (LamCore)
 module Const = struct
   include Const
 
+  let is_strict = function
+    | `OpLogicalAnd | `OpLogicalOr -> false
+    | `Keep _ | `Bool _ | `Nat _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv
+    | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
+    | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpEq _ | `OpEqNot _
+    | `OpLogicalNot | `OpStringCat | `Target _ ->
+      true
+
   let is_total = function
     | `Keep _ -> false
     | `Bool _ | `Nat _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv
@@ -140,6 +148,11 @@ let rec is_total e =
                      is_total (apps f (dummy_var :: xs))))
         | `Case e, [] -> is_total e
         | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
+
+(* *)
+
+let is_strict e =
+  match e with `App (`Const c, _) -> Const.is_strict c | _ -> true
 
 (* *)
 

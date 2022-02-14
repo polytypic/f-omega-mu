@@ -220,22 +220,21 @@ and simplify_base = function
         keep_phys_eq' f @@ `Lam (i, e)
       | _ -> simplify f
     in
+    let* f_is_total = is_total f in
     let default () = return @@ `App (f, x) in
     match (f, x) with
-    | `Case cs, s ->
-      let* cs_is_total = is_total cs in
-      if cs_is_total then
-        match (s, cs) with
-        | `Inject (l, e), `Product fs ->
-          simplify @@ `App (List.find (fst >>> Label.equal l) fs |> snd, e)
-        | _, `Product _ when may_inline_continuation s ->
-          let+ inlined =
-            simplify
-              (inline_continuation s (lam @@ fun s -> `App (`Case cs, s)))
-          and+ defaulted = default () in
-          if size inlined * 3 < size defaulted * 4 then inlined else defaulted
-        | _ -> default ()
-      else default ()
+    | f, `App (`Lam (i, x), v) when f_is_total && is_strict f ->
+      let i' = Var.freshen i in
+      let x = subst i (`Var i') x in
+      let+ f_x = simplify @@ `App (f, x) |> Env.adding i' v in
+      `App (`Lam (i', f_x), v)
+    | `Case (`Product _), s when f_is_total && may_inline_continuation s ->
+      let+ inlined =
+        simplify (inline_continuation s (lam @@ fun s -> `App (f, s)))
+      and+ defaulted = default () in
+      if size inlined * 3 < size defaulted * 4 then inlined else defaulted
+    | `Case (`Product fs), `Inject (l, e) when f_is_total ->
+      simplify @@ `App (List.find (fst >>> Label.equal l) fs |> snd, e)
     | `Const c, x when Const.is_uop c -> (
       match Const.simplify_uop (c, x) with
       | Some e -> simplify e
@@ -244,15 +243,6 @@ and simplify_base = function
       Const.simplify_bop (c, x, y) >>= function
       | Some e -> simplify e
       | None -> default ())
-    | `Lam (i, e), `App (`Lam (j, f), y) ->
-      let j', f' =
-        if is_free j e || Var.equal i j then
-          let j' = Var.freshen j in
-          let vj' = `Var j' in
-          (j', subst j vj' f)
-        else (j, f)
-      in
-      simplify @@ `App (`Lam (j', `App (`Lam (i, e), f')), y)
     | `Lam (i, e), x -> (
       let* defaulted = default () in
       let apply () =
