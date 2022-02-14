@@ -368,6 +368,9 @@ and elaborate_typ = function
     let* typ_aliases = elaborate_def def in
     elaborate_typ e
     |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+  | `Annot (at', t, k) ->
+    elaborate_typ t >>- fun t ->
+    annot at' (Typ.Var.of_string at' "_Annot" |> Typ.Var.freshen) k t
   | `Import (at', p) ->
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
     Fetch.fetch at' sig_path

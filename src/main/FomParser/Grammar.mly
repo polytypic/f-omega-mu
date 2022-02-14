@@ -212,13 +212,17 @@ typ_inf:
 
 typ_arr:
   | t=typ_inf                                       {t}
-  | d=typ_inf "→" c=typ                             {`Arrow ($loc, d, c)}
+  | d=typ_inf "→" c=typ_arr                         {`Arrow ($loc, d, c)}
 
 typ_lam(head):
   | head b=typ_bind "." t=typ                       {`Lam ($loc, fst b, snd b, t)}
 
-typ:
+typ_ann:
   | t=typ_arr                                       {t}
+  | t=typ_arr ":" k=kind                            {`Annot ($loc, t, k)}
+
+typ:
+  | t=typ_ann                                       {t}
   | t=typ_lam("μ")                                  {`Mu ($loc, t)}
   | t=typ_lam("∃")                                  {`Exists ($loc, t)}
   | t=typ_lam("∀")                                  {`ForAll ($loc, t)}
@@ -232,12 +236,15 @@ pat_lab:
   | i=exp_bid                                       {(Exp.Var.to_label i, Exp.var i)}
   | i=exp_bid ":" t=typ                             {(Exp.Var.to_label i, `Annot ($loc, Exp.var i, t))}
 
-pat:
-  | p=pat ":" t=typ                                 {`Annot ($loc, p, t)}
+pat_in:
   | i=exp_bid                                       {Exp.var i}
   | "(" ps=list_n(pat, ",") ")"                     {Exp.Pat.tuple $loc ps}
   | "{" fs=list_n(pat_lab, ",") "}"                 {`Product ($loc, fs)}
   | "«" b=typ_bind "," p=pat "»"                    {`Pack ($loc, p, fst b, snd b)}
+
+pat:
+  | p=pat_in                                        {p}
+  | p=pat_in ":" t=typ                              {`Annot ($loc, p, t)}
 
 //
 

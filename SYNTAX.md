@@ -18,6 +18,7 @@ typ_bind
 
 typ
   : tid                                                   // Type variable (*1)
+  | typ ':' kind                                          // Kind annotation
   | typ '→' typ                                           // Function type
   | typ '∨' typ                                           // Join of types (*2)
   | typ '∧' typ                                           // Meet of types (*2)

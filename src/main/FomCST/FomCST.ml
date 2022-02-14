@@ -23,6 +23,7 @@ module Typ = struct
   type 't f =
     [ ('t, Kind.t) Typ.f
     | `Let of Loc.t * 't Def.f * 't
+    | `Annot of Loc.t * 't * Kind.t
     | `Import of Loc.t * JsonString.t ]
 
   type t = t f
