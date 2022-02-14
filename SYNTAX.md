@@ -52,8 +52,7 @@ pat
   | '«' typ_bind ',' pat '»'                              // Existential pack pattern
 
 exp
-  : '(' exp ')'
-  | exp ':' typ                                           // Type annotation
+  : exp ':' typ                                           // Type annotation
   | eid                                                   // Variable (*1)
   | (nat | string)                                        // Literals
   | '(' (exp, ',')* ')'                                   // Tuple introduction (*3)
