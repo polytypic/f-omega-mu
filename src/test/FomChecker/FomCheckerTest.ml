@@ -315,8 +315,9 @@ let () =
     {|
     type μfoo = λt.λu.'Foo (foo t u) | 'T (t, u)
     type μbar = λt.λu.'Bar (bar t u) | 'U (t, u)
-    type both = 'Foo (foo bool int) | 'T (bool, int)
-              | 'Bar (bar bool int) | 'U (bool, int)
+    type both =
+      | 'Foo (foo bool int) | 'T (bool, int)
+      | 'Bar (bar bool int) | 'U (bool, int)
     {first: both, higher: both}
     |}
     {|

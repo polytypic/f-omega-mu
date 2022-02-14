@@ -67,9 +67,13 @@ let rec nest tok =
     >> get
     >>= (fun tok -> (if tok_of tok = Colon then nest else return) tok)
     >>= emit_before ParenRhs
-  | Include -> emit tok >> with_indent (insert_in `Par)
-  | Type -> emit tok >> as_typ (binding tok)
-  | Let -> emit tok >> binding tok
+  | Include -> (
+    emit tok
+    >> with_indent @@ insert_semis ~dedent:true
+       @@ fun tok ->
+       match tok_of tok with In | EOF -> emit tok | _ -> emit_before In tok)
+  | Type -> emit tok >> as_typ (get >>= binding)
+  | Let -> emit tok >> get >>= binding
   | Colon ->
     emit tok
     >> emit (set ParenLhs tok)
@@ -95,34 +99,33 @@ and insert_commas indent tok =
     classify indent tok @@ function
     | `Dedent -> error "offside"
     | _ -> emit tok >> get >>= insert_commas indent)
+  | Equal ->
+    emit tok >> with_indent @@ insert_semis ~dedent:true (insert_commas indent)
   | _ -> (
     classify indent tok @@ function
     | `Dedent -> error "offside"
     | `Indent -> emit (set Comma tok) >> nest tok >>= insert_commas indent
     | _ -> nest tok >>= insert_commas indent)
 
-and insert_in form indent tok =
+and pattern form tok =
   match tok_of tok with
-  | EOF -> emit tok
-  | And -> (
-    classify indent tok @@ function
-    | `Dedent -> error "offside"
-    | _ ->
-      emit tok
-      >> (match form with `Rec -> expect MuLower >> get | `Par -> get)
-      >>= insert_in form indent)
-  | In -> (
-    classify indent tok @@ function `Dedent -> error "offside" | _ -> emit tok)
-  | _ -> (
-    classify indent tok @@ function
-    | `Dedent | `Indent -> emit_before In tok
-    | _ -> nest tok >>= insert_in form indent)
+  | Equal -> (
+    emit tok
+    >> with_indent @@ insert_semis ~dedent:true
+       @@ fun tok ->
+       match tok_of tok with
+       | In | EOF -> emit tok
+       | And ->
+         emit tok
+         >> (match form with `Rec -> expect MuLower >> get | `Par -> get)
+         >>= pattern form
+       | _ -> emit_before In tok)
+  | _ -> nest tok >>= pattern form
 
 and binding tok =
-  let indent = left_of tok in
-  get >>= fun tok ->
-  if tok_of tok = MuLower then emit tok >> get >>= insert_in `Rec indent
-  else insert_in `Par indent tok
+  match tok_of tok with
+  | MuLower -> emit tok >> get >>= pattern `Rec
+  | _ -> pattern `Par tok
 
 and insert_semis ?(commas = false) ?(dedent = false) on_exit indent tok =
   let* is_typ in

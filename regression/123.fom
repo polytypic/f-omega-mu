@@ -1,14 +1,19 @@
 let {warn} = import "../examples/lib/console"
 
 warn "1"
-let fn = λb: bool.
-  warn "2"
-  if b then
+let fn = λ{b: bool}.
+  let b =
     warn "3"
-  else
+    b
+  if b then
     warn "4"
-  warn "5"
-fn true
-warn "6"
+  else
+    warn "5"
+  warn "6"
+fn {
+  b = warn "2"
+      true
+}
 warn "7"
+warn "8"
 fn

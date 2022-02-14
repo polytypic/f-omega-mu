@@ -30,7 +30,8 @@ let μeval: ∀α.Expr α → α = match[λα.α] {
     let f = eval[(α → β) → α → β] f in μg: α → β.λx: α.f g x
 }
 
-let Fact = Fix[int][int]
+let Fact =
+  Fix[int][int]
   ◁ Lam[int → int][int → int] λf: Expr (int → int).Lam[int][int] λx: Expr int.
       If[int] (Bin[int][int][bool] (=[int]) x ◁ Val[int] 0)
         (Val[int] 1)
