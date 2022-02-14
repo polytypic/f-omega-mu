@@ -1,6 +1,6 @@
 'use strict'
-const λ_ꓸfalse = _ => false
 const λsꓸs = s => s
+const λ_ꓸfalse = _ => false
 const Insert = _𛰙sꓹ_n𛰚 => {
   if (_𛰙sꓹ_n𛰚[1].contains(_𛰙sꓹ_n𛰚[2])) {
     return _𛰙sꓹ_n𛰚[1]

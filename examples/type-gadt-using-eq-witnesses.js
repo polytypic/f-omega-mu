@@ -1,14 +1,14 @@
 'use strict'
 const λxꓸx = x => x
-const ᐟBool𛰙λxꓸx𛰚 = ['Bool', λxꓸx]
-const ᐟString𛰙λxꓸx𛰚 = ['String', λxꓸx]
 const ᐟInt𛰙λxꓸx𛰚 = ['Int', λxꓸx]
+const ᐟString𛰙λxꓸx𛰚 = ['String', λxꓸx]
 const 𛰙λxꓸxꓹ_ᐟString𛰙λxꓸx𛰚ꓹ_ᐟInt𛰙λxꓸx𛰚𛰚 = {
   1: λxꓸx,
   2: ᐟString𛰙λxꓸx𛰚,
   3: ᐟInt𛰙λxꓸx𛰚,
 }
 const ᐟAlt𛰙λxꓸxꓹ_ᐟString𛰙λxꓸx𛰚ꓹ_ = ['Alt', 𛰙λxꓸxꓹ_ᐟString𛰙λxꓸx𛰚ꓹ_ᐟInt𛰙λxꓸx𛰚𛰚]
+const ᐟBool𛰙λxꓸx𛰚 = ['Bool', λxꓸx]
 const 𛰙λxꓸxꓹ_ᐟBool𛰙λxꓸx𛰚ꓹ_ᐟAlt𛰙λxꓸxꓹ_ = {
   1: λxꓸx,
   2: ᐟBool𛰙λxꓸx𛰚,
@@ -18,13 +18,13 @@ const ᐟPair𛰙λxꓸxꓹ_ᐟBool𛰙λxꓸx𛰚ꓹ_ = ['Pair', 𛰙λxꓸxꓹ
 const ᐥfooᐥ = 'foo'
 const ᐟIn1𛰙ᐥfooᐥ𛰚 = ['In1', ᐥfooᐥ]
 const 𛰙falseꓹ_ᐟIn1𛰙ᐥfooᐥ𛰚𛰚 = {1: false, 2: ᐟIn1𛰙ᐥfooᐥ𛰚}
-const target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_ = x => '' + x
-const target𖩇string_𐙤_string𖩉_ᐥJSONꓸstringifyᐥ = JSON.stringify
-const ᐥᐟIn1𛰙ᐥ = "'In1("
-const ᐥ𛰚ᐥ = ')'
-const ᐥᐟIn2𛰙ᐥ = "'In2("
 const ᐥ𛰙ᐥ = '('
 const ᐥꓹ_ᐥ = ', '
+const ᐥ𛰚ᐥ = ')'
+const ᐥᐟIn2𛰙ᐥ = "'In2("
+const ᐥᐟIn1𛰙ᐥ = "'In1("
+const target𖩇string_𐙤_string𖩉_ᐥJSONꓸstringifyᐥ = JSON.stringify
+const target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_ = x => '' + x
 const _to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
   const [tag_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_, val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_] =
     ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_

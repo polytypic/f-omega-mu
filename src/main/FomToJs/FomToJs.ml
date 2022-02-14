@@ -19,6 +19,6 @@ let in_env () =
 let erase = FomToLam.erase
 
 let simplify exp =
-  exp |> LamSimplify.to_fixed_point |> in_env () >>- LamHoist.constants_to_top
+  exp |> LamSimplify.to_fixed_point >>= LamHoist.constants_to_top |> in_env ()
 
 let to_js ~top exp = LamToJs.to_js_stmts top Lam.VarSet.empty exp |> in_env ()
