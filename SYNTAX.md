@@ -44,6 +44,7 @@ typ_defs
 
 pat
   : eid                                                   // Variable pattern
+  | '_'                                                   // Wildcard pattern
   | pat ':' typ                                           // Type annotation
   | '(' (pat, ',')* ')'                                   // Tuple pattern (*3)
   | '{' (label '=' pat, ',')* '}'                         // Product pattern
