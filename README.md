@@ -35,9 +35,15 @@ and also allow a compiler to make good use of untyped compilation targets
 [\*](https://polytypic.github.io/f-omega-mu/#*examples/object-oriented-sets.fom))
 such as JavaScript.
 
+Although this is ultimately really intended to serve as an intermediate language
+or elaboration target, the implementation provides both a fairly minimalistic
+[AST](src/main/FomAST/FomAST.mli) and a somewhat more programmer friendly
+[syntax](SYNTAX.md) with some convenience features that are elaborated into the
+AST.
+
 The implementation also supports dividing a program into multiple files via an
 `import` mechanism for types and values and an `include` mechanism for type
-definitions. Value `import`s can be separately compiled. HTTPS URLs and relative
+definitions. Value `import`s can be separately compiled. HTTP URLs and relative
 paths are allowed as references.
 
 Please note that this is a hobby project and still very much Work-in-Progress
