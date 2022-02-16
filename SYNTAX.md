@@ -48,7 +48,7 @@ pat
   | '_'                                                   // Wildcard pattern
   | pat ':' typ                                           // Type annotation
   | '(' (pat, ',')* ')'                                   // Tuple pattern (*3)
-  | '{' (label '=' pat, ',')* '}'                         // Product pattern
+  | '{' (label (':' typ)? ('=' pat)?, ',')* '}'           // Product pattern
   | '«' typ_bind ',' pat '»'                              // Existential pack pattern
 
 exp
@@ -56,7 +56,7 @@ exp
   | eid                                                   // Variable (*1)
   | (nat | string)                                        // Literals
   | '(' (exp, ',')* ')'                                   // Tuple introduction (*3)
-  | '{' (label ('=' exp)?, ',')* '}'                      // Product introduction
+  | '{' (label (':' typ)? ('=' exp)?, ',')* '}'           // Product introduction
   | exp '.' (label | '(' exp ')')                         // Product elimination
   | "'" label exp?                                        // Sum introduction
   | 'case' exp                                            // Sum elimination (*5)

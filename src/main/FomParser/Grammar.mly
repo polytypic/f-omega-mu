@@ -108,6 +108,11 @@ list_n(elem, sep):
 
 //
 
+preopt(prefix, elem):
+  | e=option(preceded(prefix, elem))                {e}
+
+//
+
 kind_atom:
   | "_"                                             {Kind.fresh $loc}
   | "*"                                             {`Star $loc}
@@ -119,13 +124,13 @@ kind:
 
 //
 
-lab_and_exp:
-  | i=exp_rid                                       {(Exp.Var.to_label i, Exp.var i)}
-  | n=LitNat                                        {(Label.of_number $loc n, `Const ($loc, `Nat n))}
-  | s=lit_string                                    {(Label.of_string $loc (JsonString.to_utf8 s), `Const ($loc, `String s))}
+lab_lit:
+  | n=LitNat                                        {Label.of_number $loc n}
+  | s=lit_string                                    {Label.of_string $loc (JsonString.to_utf8 s)}
 
 lab:
-  | le=lab_and_exp                                  {fst le}
+  | l=lab_lit                                       {l}
+  | i=exp_rid                                       {(Exp.Var.to_label i)}
 
 //
 
@@ -217,12 +222,8 @@ typ_arr:
 typ_lam(head):
   | head b=typ_bind "." t=typ                       {`Lam ($loc, fst b, snd b, t)}
 
-typ_ann:
-  | t=typ_arr                                       {t}
-  | t=typ_arr ":" k=kind                            {`Annot ($loc, t, k)}
-
 typ:
-  | t=typ_ann                                       {t}
+  | t=typ_arr k=preopt(":", kind)                   {Annot.opt Kind.at k t}
   | t=typ_lam("μ")                                  {`Mu ($loc, t)}
   | t=typ_lam("∃")                                  {`Exists ($loc, t)}
   | t=typ_lam("∀")                                  {`ForAll ($loc, t)}
@@ -232,9 +233,8 @@ typ:
 //
 
 pat_lab:
-  | l=lab "=" p=pat                                 {(l, p)}
-  | i=exp_bid                                       {(Exp.Var.to_label i, Exp.var i)}
-  | i=exp_bid ":" t=typ                             {(Exp.Var.to_label i, `Annot ($loc, Exp.var i, t))}
+  | l=lab_lit t=preopt(":", typ) p=preopt("=", pat) {(l, Annot.opt Typ.at t (Option.value p ~default:(Exp.var (Exp.Var.underscore $loc))))}
+  | i=exp_rid t=preopt(":", typ) p=preopt("=", pat) {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value p ~default:(Exp.var i)))}
 
 pat_in:
   | i=exp_bid                                       {Exp.var i}
@@ -243,8 +243,7 @@ pat_in:
   | "«" b=typ_bind "," p=pat "»"                    {`Pack ($loc, p, fst b, snd b)}
 
 pat:
-  | p=pat_in                                        {p}
-  | p=pat_in ":" t=typ                              {`Annot ($loc, p, t)}
+  | p=pat_in t=preopt(":", typ)                     {Annot.opt Typ.at t p}
 
 //
 
@@ -262,8 +261,8 @@ tstr:
 //
 
 exp_lab:
-  | l=lab "=" e=exp                                 {(l, e)}
-  | le=lab_and_exp                                  {le}
+  | l=lab_lit t=preopt(":", typ) "=" e=exp          {(l, Annot.opt Typ.at t e)}
+  | i=exp_rid t=preopt(":", typ) e=preopt("=", exp) {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value e ~default:(Exp.var i)))}
 
 exp_rid:
   | i=Id                                            {Exp.Var.of_string $loc i}
@@ -356,8 +355,7 @@ exp_def:
   | "let" bs=list_1(preceded("μ", exp_eq), "and")   {`PatRec bs}
 
 exp_eff:
-  | e=exp_in                                        {e}
-  | e=exp_in ":" t=typ                              {`Annot ($loc, e, t)}
+  | e=exp_in t=preopt(":", typ)                     {Annot.opt Typ.at t e}
   | "«" x=typ "," e=exp "»" ":" f=typ               {`Pack ($loc, x, e, f)}
 
 exp:
