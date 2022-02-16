@@ -63,14 +63,16 @@ module Exp = struct
       in
       let ts, is = collect ([], []) p in
       let check_ts =
-        ts |> List.find_dup_opt Typ.Var.compare |> function
-        | None -> unit
-        | Some (i2, i1) -> fail @@ `Error_duplicated_typ_bind (Typ.Var.at i2, i1)
+        ts
+        |> List.find_dup_opt Typ.Var.compare
+        |> Option.iter_fr @@ fun (i2, i1) ->
+           fail @@ `Error_duplicated_typ_bind (Typ.Var.at i2, i1)
       in
       let check_is =
-        is |> List.find_dup_opt Var.compare |> function
-        | None -> unit
-        | Some (i2, i1) -> fail @@ `Error_duplicated_bind (Var.at i2, i1)
+        is
+        |> List.find_dup_opt Var.compare
+        |> Option.iter_fr @@ fun (i2, i1) ->
+           fail @@ `Error_duplicated_bind (Var.at i2, i1)
       in
       check_ts >> check_is
 
