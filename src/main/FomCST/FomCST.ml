@@ -29,7 +29,7 @@ module Typ = struct
   type t = t f
 
   let at = function
-    | `Let (at, _, _) | `Import (at, _) -> at
+    | `Let (at, _, _) | `Annot (at, _, _) | `Import (at, _) -> at
     | #Typ.f as ast -> Typ.at ast
 
   module Defs = struct
