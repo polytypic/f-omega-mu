@@ -4,8 +4,8 @@ Below is an _approximation_ of the detailed
 [grammar](src/main/FomParser/Grammar.mly) of the language:
 
 ```g4
-label
-  : id | nat | string
+lab
+  : eid | nat | string                                    // Label
 
 kind
   : '(' kind ')'
@@ -23,8 +23,8 @@ typ
   | typ '∨' typ                                           // Join of types (*2)
   | typ '∧' typ                                           // Meet of types (*2)
   | '(' (typ, ',')* ')'                                   // Tuple type (*3)
-  | '{' (label (':' typ)?, ',')* '}'                      // Product type
-  | '|'? ("'" label typ?, '|')*                           // Sum type
+  | '{' (lab (':' typ)?, ',')* '}'                        // Product type
+  | '|'? ("'" lab typ?, '|')*                             // Sum type
   | typ typ                                               // Apply type level function
   | 'λ' typ_bind '.' typ                                  // Type level function
   | '∃' (typ_bind '.' typ | '(' typ ')')                  // Existential type
@@ -48,17 +48,17 @@ pat
   | '_'                                                   // Wildcard pattern
   | pat ':' typ                                           // Type annotation
   | '(' (pat, ',')* ')'                                   // Tuple pattern (*3)
-  | '{' (label (':' typ)? ('=' pat)?, ',')* '}'           // Product pattern
+  | '{' (lab (':' typ)? ('=' pat)?, ',')* '}'             // Product pattern
   | '«' typ_bind ',' pat '»'                              // Existential pack pattern
 
 exp
-  : exp ':' typ                                           // Type annotation
-  | eid                                                   // Variable (*1)
+  : eid                                                   // Variable (*1)
+  | exp ':' typ                                           // Type annotation
   | (nat | string)                                        // Literals
   | '(' (exp, ',')* ')'                                   // Tuple introduction (*3)
-  | '{' (label (':' typ)? ('=' exp)?, ',')* '}'           // Product introduction
-  | exp '.' (label | '(' exp ')')                         // Product elimination
-  | "'" label exp?                                        // Sum introduction
+  | '{' (lab (':' typ)? ('=' exp)?, ',')* '}'             // Product introduction
+  | exp '.' (lab | '(' exp ')')                           // Product elimination
+  | "'" lab exp?                                          // Sum introduction
   | 'case' exp                                            // Sum elimination (*5)
   | '«' typ ',' exp '»' ':' typ                           // Existential packing
   | exp exp                                               // Apply function
@@ -145,6 +145,9 @@ incs                                                      // Syntax of .fomd inc
 - Underscore `_` is allowed in place of a variable in bindings. Also,
   identifiers starting with an underscore, e.g. `_not_used`, are not flagged as
   unused in the online editor.
+
+- String literals, natural numbers, and identifiers are allowed to serve as
+  labels.
 
 1. Type variables are distinct from value variables. The lexical syntax of
    identifiers is similar to JavaScript except that `$` is not allowed in
