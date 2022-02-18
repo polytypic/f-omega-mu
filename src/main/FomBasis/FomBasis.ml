@@ -1,3 +1,4 @@
+module Alternative = Alternative
 module Applicative = Applicative
 module Array = Array
 module Cats = Cats
@@ -27,6 +28,7 @@ module Zero = Zero
 
 (* *)
 
+include Alternative.Syntax
 include Applicative.Syntax
 include Compare.Syntax
 include Exn.Syntax
