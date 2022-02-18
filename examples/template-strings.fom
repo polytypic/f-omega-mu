@@ -110,19 +110,20 @@ let «_, sql» =
   type sql = string
   type arg = string
   type args = list arg
-  type rev = list arg → list arg → list arg
-  let rev0 = λys: list arg.λ_: list arg.ys
-  let rev1 = λrev: rev.λys: list arg.case {
+  type rev = args → args → args
+  type state = {sql, args, rev}
+  let rev0 = λys: args.λ_: args.ys
+  let rev1 = λrev: rev.λys: args.case {
       None = λ().ys
       Some = λ(arg: arg, args: args).rev 'Some(arg, ys) args
     }
   «{sql, args, rev}, {
     begin = {sql = "", args = 'None, rev = rev0}
-    finish = λ{sql: sql, args: args, rev: rev}.
+    finish = λ{sql, args, rev}: state.
       {sql, args = rev 'None args}
-    string = λ(arg: arg).λ{sql: sql, args: args, rev: rev}.
+    string = λarg: arg.λ{sql, args, rev}: state.
       {sql = sql ^ "?", args = 'Some (arg, args), rev = rev1 rev}
-    text = λtext: string.λ{sql: string, args: args, rev: rev}.
+    text = λtext: string.λ{sql, args, rev}: state.
       {sql = sql ^ text, args, rev = rev1 rev}
   }»: ∃state.{
     begin: state
