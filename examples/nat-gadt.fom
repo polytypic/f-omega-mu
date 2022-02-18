@@ -7,7 +7,7 @@ and μCases = λr.{
   Succ: ∀n.Nat n → r 'S(n)
 }
 
-let Zero =             Λr.λcs: Cases r.cs.Zero
+let Zero =              Λr.λcs: Cases r.cs.Zero
 let Succ = Λn.λn: Nat n.Λr.λcs: Cases r.cs.Succ[n] n
 
 let from = λn: int.
