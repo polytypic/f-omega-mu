@@ -1,5 +1,7 @@
 # Natural number GADT using Scott encoding
 
+include "lib/types"
+
 type μNat = λn.∀r.Cases r → r n
 
 and μCases = λr.{
@@ -7,25 +9,27 @@ and μCases = λr.{
   Succ: ∀n.Nat n → r 'S(n)
 }
 
-let Zero =              Λr.λcs: Cases r.cs.Zero
-let Succ = Λn.λn: Nat n.Λr.λcs: Cases r.cs.Succ[n] n
+let {Zero, Succ}: Cases Nat = {
+  Zero = Λ_.λcs.cs.Zero
+  Succ = Λn.λn.Λ_.λcs.cs.Succ[n] n
+}
 
-let from = λn: int.
+let from: int → opt ∃(Nat) = λn.
   if n < 0 then
     'None
   else
-    let μloop: ∀n.Nat n → int → ∃(Nat) = Λn.λn: Nat n.λi: int.
+    let μloop: ∀n.Nat n → int → ∃(Nat) = Λn.λn.λi.
       if i ≤ 0 then
-        «n, n»: ∃(Nat)
+        «n, n»
       else
         loop['S n] (Succ[n] n) (i-1)
     'Some (loop['Z] Zero n)
 
-let to = λ«n, n»: ∃(Nat).
-  let μloop: ∀n.Nat n → int → int = Λn.λn: Nat n.λi: int.
+let to: ∃(Nat) → int = λ«n, n».
+  let μloop: ∀n.Nat n → int → int = Λ_.λn.λi.
     n[λ_.int] {
       Zero = i
-      Succ = Λn.λn: Nat n.loop[n] n (i + 1)
+      Succ = Λn.λn.loop[n] n (i + 1)
     }
   loop[n] n 0
 

@@ -18,43 +18,43 @@ and μAlt = λτ.λα.λβ.(eq (alt α β) τ, Type α, Type β)
 and μPair = λτ.λα.λβ.(eq (α, β) τ, Type α, Type β)
 and μIso = λτ.λα.λβ.(eq α τ, iso α β, Type β)
 
-let bool = 'Bool Eq.refl[bool]
-and int = 'Int Eq.refl[int]
-and string = 'String Eq.refl[string]
-and alt = Λa.Λb.λa: Type a.λb: Type b.
-  'Alt «a, «b, (Eq.refl[alt a b], a, b)»: ∃(Alt (alt a b) a)»: ∃α.∃β.Alt (alt a b) α β
-and pair = Λa.Λb.λa: Type a.λb: Type b.
-  'Pair «a, «b, (Eq.refl[(a, b)], a, b)»: ∃(Pair (a, b) a)»: ∃α.∃β.Pair (a, b) α β
-and iso = Λa.Λb.λaIb: iso a b.λb: Type b.
-  'Iso «a, «b, (Eq.refl[a], aIb, b)»: ∃(Iso a a)»: ∃α.∃β.Iso a α β
+let bool: Type bool = 'Bool Eq.refl[bool]
+let int: Type int = 'Int Eq.refl[int]
+let string: Type string = 'String Eq.refl[string]
+let alt: ∀α.∀β.Type α → Type β → Type (alt α β) = Λα.Λβ.λta.λtb.
+  'Alt «α, «β, (Eq.refl[alt α β], ta, tb)»»
+let pair: ∀α.∀β.Type α → Type β → Type (α, β) = Λα.Λβ.λta.λtb.
+  'Pair «α, «β, (Eq.refl[(α, β)], ta, tb)»»
+let iso: ∀α.∀β.iso α β → Type β → Type α = Λα.Λβ.λaIb.λtb.
+  'Iso «α, «β, (Eq.refl[α], aIb, tb)»»
 
 let String = import "lib/string"
 and Int = import "lib/int"
 and Bool = import "lib/bool"
 
 let μto_string: ∀τ.Type τ → τ → string = Λτ.case {
-  Bool = λeq: Bool τ.λx: τ.
+  Bool = λeq.λx.
     Bool.to_string ◁ Eq.from[bool][τ] eq x
-  Int = λeq: Int τ.λx: τ.
+  Int = λeq.λx.
     Int.to_string ◁ Eq.from[int][τ] eq x
-  String = λeq: String τ.λx: τ.
+  String = λeq.λx.
     String.to_literal ◁ Eq.from[string][τ] eq x
-  Alt = λ«a, «b, (eq, ta, tb)»»: ∃α.∃β.Alt τ α β.
+  Alt = λ«a, «b, (eq, ta, tb)»».
     let to_string_a = to_string[a] ta
     let to_string_b = to_string[b] tb
-    λt: τ.Eq.from[alt a b][τ] eq t ▷ case {
-      In1 = λa: a."'In1(\(to_string_a a))"
-      In2 = λb: b."'In2(\(to_string_b b))"
+    λt.Eq.from[alt a b][τ] eq t ▷ case {
+      In1 = λa."'In1(\(to_string_a a))"
+      In2 = λb."'In2(\(to_string_b b))"
     }
-  Pair = λ«a, «b, (eq, ta, tb)»»: ∃α.∃β.Pair τ α β.
+  Pair = λ«a, «b, (eq, ta, tb)»».
     let to_string_a = to_string[a] ta
     let to_string_b = to_string[b] tb
-    λt: τ.
+    λt.
       let (a, b) = Eq.from[(a, b)][τ] eq t
       "(\(to_string_a a), \(to_string_b b))"
-  Iso = λ«a, «b, (eq, (a2b, _), tb)»»: ∃α.∃β.Iso τ α β.
+  Iso = λ«a, «b, (eq, (a2b, _), tb)»».
     let to_string_b = to_string[b] tb
-    λt: τ.to_string_b ◁ a2b ◁ Eq.from[a][τ] eq t
+    λt.to_string_b ◁ a2b ◁ Eq.from[a][τ] eq t
 }
 
 to_string[(bool, alt string int)]

@@ -1,4 +1,3 @@
-include "dispenser"
 include "types"
 
 let {of_core} = import "dispenser"
@@ -12,4 +11,4 @@ let is_empty = List.is_empty
 let insert = Λν.λv: ν.λq: stack ν.'Some (v, q)
 let remove = Λν.λq: stack ν.q
 
-«stack, of_core [stack] {empty, insert, remove, is_empty}»: ∃(Dispenser)
+«stack, of_core [stack] {empty, insert, remove, is_empty}»

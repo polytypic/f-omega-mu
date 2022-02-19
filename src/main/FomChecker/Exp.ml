@@ -80,6 +80,15 @@ module Typ = struct
 end
 
 let rec infer = function
+  | `App (at', `Lam (at'', i, t, e), v) ->
+    let* t = Typ.check_and_norm t in
+    let+ v = check t v
+    and+ e, e_typ = Annot.Exp.def i t >> VarMap.adding i t (infer e) in
+    (`App (at', `Lam (at'', i, t, e), v), e_typ)
+  | `App (at', `LamImp (_, d, r), x) ->
+    let* x, x_typ = infer x in
+    let+ r, r_typ = Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r) in
+    (`App (at', `Lam (at', d, x_typ, r), x), r_typ)
   | `Const (at', c) ->
     let+ c = Const.map_typ_fr Typ.check_and_norm c in
     (`Const (at', c), Const.type_of at' c)
@@ -95,8 +104,8 @@ let rec infer = function
   | `App (at', f, x) ->
     let* f, f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
-    let* x, x_typ = infer x in
-    Typ.check_sub_of_norm (at x) x_typ d_typ >> return (`App (at', f, x), c_typ)
+    let+ x = check d_typ x in
+    (`App (at', f, x), c_typ)
   | `Gen (at', d, d_kind, r) ->
     let* r, r_typ = infer r |> Typ.VarMap.adding d @@ `Kind d_kind in
     let+ d_kind = Kind.resolve d_kind >>- Kind.ground in
@@ -108,19 +117,18 @@ let rec infer = function
     let* x_typ, x_kind = Typ.infer x_typ in
     Kind.unify at' d_kind x_kind
     >> return (`Inst (at', f, x_typ), Typ.Core.app_of_norm at' f_con x_typ)
-  | `LetIn (at', d, x, r) ->
-    let* x, x_typ = infer x in
-    let+ r, r_typ = Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r) in
-    (`App (at', `Lam (at', d, x_typ, r), x), r_typ)
+  | `Mu (at', `Lam (at'', i, t, e)) ->
+    let* t = Typ.check_and_norm t in
+    let+ e = Annot.Exp.def i t >> VarMap.adding i t (check t e) in
+    (`Mu (at', `Lam (at'', i, t, e)), t)
   | `Mu (at', f) ->
     let* f, f_typ = infer f in
     let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
     Typ.check_sub_of_norm at' c_typ d_typ >> return (`Mu (at', f), c_typ)
   | `IfElse (at', c, t, e) ->
-    let* c, c_typ = infer c in
-    Typ.check_sub_of_norm (at c) c_typ @@ `Const (at c, `Bool)
-    >> let* t, t_typ = infer t and* e, e_typ = infer e in
-       return @@ `IfElse (at', c, t, e) <*> Typ.join_of_norm (at e) t_typ e_typ
+    let* c = check (`Const (at c, `Bool)) c in
+    let* t, t_typ = infer t and* e, e_typ = infer e in
+    return @@ `IfElse (at', c, t, e) <*> Typ.join_of_norm (at e) t_typ e_typ
   | `Product (at', fs) ->
     Row.check fs >> Row.map_fr infer fs >>- fun fs ->
     ( `Product (at', List.map (fun (l, (e, _)) -> (l, e)) fs),
@@ -193,8 +201,8 @@ let rec infer = function
       match (lt, rt) with
       | `Product (_, ls), `Product (_, rs) ->
         Row.union_fr
-          (fun l _ -> return @@ select le l)
-          (fun l _ -> return @@ select re l)
+          (select le >>> return >>> const)
+          (select re >>> return >>> const)
           (fun l lt rt ->
             binding (select le l) lt @@ fun le ->
             binding (select re l) rt @@ fun re -> merge le re lt rt)
@@ -206,6 +214,72 @@ let rec infer = function
     ( binding l l_typ @@ fun l ->
       binding r r_typ @@ fun r -> merge l r l_typ r_typ )
     >>= fun e -> infer (e : Core.t :> t)
+  | `LamImp (_, i, _) -> fail @@ `Error_pat_lacks_annot (Var.at i)
+  | `PackImp (at', _, _) -> fail @@ `Error_exp_lacks_annot at'
+
+and check a = function
+  | `PackImp (at', u, e) ->
+    let* a_con, d_kind = Typ.check_exists at' a and* u, u_kind = Typ.infer u in
+    Kind.unify at' d_kind u_kind >> check (Typ.Core.app_of_norm at' a_con u) e
+    >>- fun e -> `Pack (at', u, e, a)
+  | `Lam (at', i, u, e) ->
+    let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
+    Typ.check_sub_of_norm at' d u
+    >> Annot.Exp.def i d
+    >> VarMap.adding i d (check c e)
+    >>- fun e -> `Lam (at', i, d, e)
+  | `LamImp (at', i, e) ->
+    let* d, c = Typ.check_arrow at' a in
+    let+ e = Annot.Exp.def i d >> VarMap.adding i d (check c e) in
+    `Lam (at', i, d, e)
+  | `App (at', `Lam (at'', d, u, r), x) ->
+    let* u = Typ.check_and_norm u in
+    let* x = check u x in
+    let+ r = Annot.Exp.def d u >> VarMap.adding d u (check a r) in
+    `App (at', `Lam (at'', d, u, r), x)
+  | `App (at', ((`LamImp _ | `Case _) as f), x) ->
+    let* x, x_typ = infer x in
+    check (`Arrow (at', x_typ, a)) f >>- fun f -> `App (at', f, x)
+  | `Gen (at', d, d_kind, r) ->
+    let* a_con, d_kind' = Typ.check_for_all at' a in
+    let r_typ = Typ.Core.app_of_norm at' a_con (Typ.var d) in
+    Kind.unify at' d_kind d_kind'
+    >> Typ.VarMap.adding d (`Kind d_kind) (check r_typ r)
+    >>- fun r -> `Gen (at', d, d_kind', r)
+  | `IfElse (at', c, t, e) ->
+    let* c = check (`Const (at c, `Bool)) c in
+    check a t <*> check a e >>- fun (t, e) -> `IfElse (at', c, t, e)
+  | `Mu (at', f) -> check (`Arrow (at', a, a)) f >>- fun f -> `Mu (at', f)
+  | `Product (at', fs) ->
+    let* las = Typ.check_product at' a >>- (List.to_seq >>> LabelMap.of_seq) in
+    Row.check fs
+    >> List.map_fr
+         (fun (l, e) ->
+           match LabelMap.find_opt l las with
+           | None -> infer e >>- fun (e, _) -> (l, e)
+           | Some a -> check a e >>- fun e -> (l, e))
+         fs
+    >>- fun fs -> `Product (at', fs)
+  | `UnpackIn (at', tid, k, id, v, e) ->
+    let* v, v_typ = infer v in
+    let* v_con, d_kind = Typ.check_exists at' v_typ in
+    let id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
+    Kind.unify at' k d_kind >> Annot.Exp.def id id_typ >> check a e
+    |> VarMap.adding id id_typ
+    |> Typ.VarMap.adding tid @@ `Kind d_kind
+    >>- fun e -> `UnpackIn (at', tid, k, id, v, e)
+  | `Case (at', cs) ->
+    let* d, c = Typ.check_arrow at' a in
+    let* ls = Typ.check_sum at' d in
+    let cs_typ = `Product (at', Row.map (fun d -> `Arrow (at', d, c)) ls) in
+    check cs_typ cs >>- fun cs -> `Case (at', cs)
+  | `Inject (at', l, e) -> (
+    Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
+    | None -> fail @@ `Error_sum_lacks (at', a, l)
+    | Some (_, a) -> check a e >>- fun e -> `Inject (at', l, e))
+  | e ->
+    let* e, e_typ = infer e in
+    Typ.check_sub_of_norm (at e) e_typ a >> return e
 
 let infer e =
   let* result = catch @@ infer e in

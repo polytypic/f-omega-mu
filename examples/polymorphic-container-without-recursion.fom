@@ -12,32 +12,34 @@ let Int = import "lib/int"
 
 # This is like in TAPL, section 32.4., except that `τ` takes a parameter.
 
-type Object = λM.λα.λτ.(τ α, M τ)
+type Object = λM.λα.∃τ.(τ α, M τ)
 
 type ContainerM = λcontainer.{
   get: ∀α.container α → α
   map: ∀α.∀β.(α → β) → container α → container β
 }
 
-let ContainerC = {
-  get = Λα.λx: α.x
-  map = Λα.Λβ.λab: α → β.ab
+let ContainerC: ContainerM λx.x = {
+  get = Λ_.λx.x
+  map = Λ_.Λ_.λab.ab
 }
 
-let container = Λα.λx: α.«λx.x, (x, ContainerC)»: ∃(Object ContainerM α)
+let container: ∀α.α → Object ContainerM α = Λ_.λx.«λx.x, (x, ContainerC)»
 
 # Unlike in TAPL we use an explicit coercion (naïve witness) to encode bounded
 # quantification.
 
-let get = ΛM.λB: ∀τ.M τ → ContainerM τ.Λα.λc: ∃(Object M α).
-  let «τ, (x, M)» = c
-  let C = B[τ] M
-  C.get[α] x
+type ContainerB = λM.∀τ.M τ → ContainerM τ
 
-let map = ΛM.λB: ∀τ.M τ → ContainerM τ.Λα.Λβ.λab: α → β.λc: ∃(Object M α).
-  let «τ, (x, M)» = c
-  let C = B[τ] M
-  «τ, (C.map[α][β] ab x, M)»: ∃(Object M β)
+let get: ∀M.ContainerB M → ∀α.Object M α → α =
+  Λ_.λB.Λα.λ«τ, (x, M)».
+    let C = B[τ] M
+    C.get[α] x
+
+let map: ∀M.ContainerB M → ∀α.∀β.(α → β) → Object M α → Object M β =
+  Λ_.λB.Λα.Λβ.λab.λ«τ, (x, M)».
+    let C = B[τ] M
+    «τ, (C.map[α][β] ab x, M)»
 
 let ContainerB = Λτ.λM: ContainerM τ.M
 

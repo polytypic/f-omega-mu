@@ -60,13 +60,9 @@ let rec nest tok =
     >> as_typ (with_indent (insert_semis emit))
     >> with_indent (insert_semis ~dedent:true (emit_before ParenRhs))
   | DoubleAngleQuoteLhs ->
-    emit (set ParenLhs tok)
-    >> emit tok
+    emit tok
     >> as_typ (with_indent (insert_semis emit))
     >> with_indent (insert_semis emit)
-    >> get
-    >>= (fun tok -> (if tok_of tok = Colon then nest else return) tok)
-    >>= emit_before ParenRhs
   | Include -> (
     emit tok
     >> with_indent @@ insert_semis ~dedent:true

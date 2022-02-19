@@ -2,17 +2,23 @@
 
 # This example shows that a polymorphic list type can be expressed both as the
 # fixed point of a first-order `list_1` type and as the fixed point of a
-# higher-order `list` type.  Furthermore, the types are considered equivalent.
+# higher-kinded `list_h` type.  Furthermore, the types are considered
+# equivalent.
 
+# Option type constructor
 type opt = λα.'None | 'Some α
 
-type list   = μlist.λα.opt (α, list α)
+# List as the fixed point of a higher-kinded `list_h` type
+type list_h = μlist_h.λα.opt (α, list_h α)
+
+# List as the fixed point of a first-order `list_1` type
 type list_1 = λα.μlist_1.opt (α, list_1)
 
-let of_list   = Λα.λx: list   α.x
-let of_list_1 = Λα.λx: list_1 α.x
+# Coercion from one type of constructor to another
+type coercion = λfrom.λto.∀α.from α → to α
 
-let check = Λα.λlist: list α.λlist_1: list_1 α.
-  (of_list[α] list_1, of_list_1[α] list)
-
-check
+# Coercions between the representations are identity functions
+{
+  of_list_h: coercion list_h list_1 = Λ_.λx.x
+  of_list_1: coercion list_1 list_h = Λ_.λx.x
+}

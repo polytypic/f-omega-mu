@@ -17,7 +17,7 @@ let traverse = ΛF.λM: Monad F.Λα.Λβ.λxyM: α → F β.case {
   None = λ().
     M.of[opt β] 'None
   Some = λx: α.
-    xyM x ▷ M.chain[β][opt β] λy: β.
+    xyM x ▷ M.chain[β][opt β] λy.
     M.of[opt β] ◁ 'Some y
 }
 

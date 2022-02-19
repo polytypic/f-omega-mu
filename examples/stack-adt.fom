@@ -8,11 +8,11 @@ type Stack = λstack.{
   pop: ∀α.stack α → opt (α, stack α)
 }
 
-let «stack, Stack» = «list, {
+let «stack, Stack»: ∃(Stack) = «list, {
   empty = Λ_.'None
-  push = Λα.λx: α.λxs: list α.'Some (x, xs)
-  pop = Λα.λxs: list α.xs
-}»: ∃(Stack)
+  push = Λ_.λx.λxs.'Some (x, xs)
+  pop = Λ_.λxs.xs
+}»
 
 let a_stack =
   Stack.empty[int]
@@ -20,10 +20,10 @@ let a_stack =
   ▷ Stack.push[int] 1
   ▷ Stack.push[int] 5
 
-let μto_list: ∀α.stack α → list α = Λα.λs: stack α.
+let μto_list: ∀α.stack α → list α = Λα.λs.
   Stack.pop[α] s ▷ case {
     None = λ().'None
-    Some = λ(x: α, xs: stack α).'Some (x, to_list[α] xs)
+    Some = λ(x, xs).'Some (x, to_list[α] xs)
   }
 
 to_list[int] a_stack

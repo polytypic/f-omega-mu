@@ -10,22 +10,24 @@ and μCases = λρ.{
   Pair: ∀ν.∀κ1.∀κ2.  Trie κ1 (Trie κ2 ν) → ρ (κ1, κ2)    ν
 }
 
-let Unit = Λν.        λv: opt ν.                    Λr.λcs: Cases r.cs.Unit[ν] v
-and Alt  = Λν.Λκ1.Λκ2.λt1: Trie κ1 ν.λt2: Trie κ2 ν.Λr.λcs: Cases r.cs.Alt[ν][κ1][κ2] t1 t2
-and Pair = Λν.Λκ1.Λκ2.λt: Trie κ1 (Trie κ2 ν).      Λr.λcs: Cases r.cs.Pair[ν][κ1][κ2] t
+let {Unit, Alt, Pair}: Cases Trie = {
+  Unit = Λν.λv.Λ_.λcs.cs.Unit[ν] v
+  Alt  = Λν.Λκ1.Λκ2.λt1.λt2.Λ_.λcs.cs.Alt[ν][κ1][κ2] t1 t2
+  Pair = Λν.Λκ1.Λκ2.λt.Λ_.λcs.cs.Pair[ν][κ1][κ2] t
+}
 
 let match = Λρ.λcs: Cases ρ.Λκ.Λν.λt: Trie κ ν.t[ρ] cs
 
 let μlookup: ∀κ.∀ν.Trie κ ν → κ → opt ν = match[λκ.λν.κ → opt ν] {
-  Unit = Λν.λv: opt ν.λ().v
-  Alt = Λν.Λκ1.Λκ2.λt1: Trie κ1 ν.λt2: Trie κ2 ν.case {
-      In1 = λk1: κ1.lookup[κ1][ν] t1 k1
-      In2 = λk2: κ2.lookup[κ2][ν] t2 k2
+  Unit = Λ_.λv.λ().v
+  Alt = Λν.Λκ1.Λκ2.λt1.λt2.case {
+      In1 = λk1.lookup[κ1][ν] t1 k1
+      In2 = λk2.lookup[κ2][ν] t2 k2
     }
-  Pair = Λν.Λκ1.Λκ2.λt: Trie κ1 (Trie κ2 ν).λ(k1: κ1, k2: κ2).
+  Pair = Λν.Λκ1.Λκ2.λt.λ(k1, k2).
     lookup[κ1][Trie κ2 ν] t k1 ▷ case {
       None = λ().'None
-      Some = λt: Trie κ2 ν.lookup[κ2][ν] t k2
+      Some = λt.lookup[κ2][ν] t k2
     }
 }
 

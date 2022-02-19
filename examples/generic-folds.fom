@@ -3,9 +3,9 @@
 type Functor = λφ.{map: ∀α.∀β.(α → β) → φ α → φ β}
 
 let μfold: ∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
-  Λφ.Λα.λF: Functor φ.
-    λalgebra: φ α → α.
-      μfold: μ(φ) → α.λv: μ(φ).algebra ◁ F.map[μ(φ)][α] fold v
+  Λφ.Λα.λF.
+    λalgebra.
+      μfold.λv.algebra ◁ F.map[μ(φ)][α] fold v
 
 # Option type
 type Opt = λα.'None | 'Some α
@@ -13,18 +13,18 @@ type Opt = λα.'None | 'Some α
 # List type
 type ListF = λα.λτ.Opt (α, τ)
 type List = λα.μ(ListF α)
-let ListF = Λτ.{
-  map = Λα.Λβ.λf: α → β.case {
+let ListF: ∀τ.Functor (ListF τ) = Λ_.{
+  map = Λ_.Λ_.λf.case {
       None = λ().'None
-      Some = λ(x: τ, xs: α).'Some (x, f xs)
+      Some = λ(x, xs).'Some (x, f xs)
     }
 }
 
 let List =
   let one = Λα.λx: α.'Some (x, 'None)
-  let μhas: ∀α.(α → bool) → List α → bool = Λα.λp: α → bool.case {
+  let μhas: ∀α.(α → bool) → List α → bool = Λα.λp.case {
       None = λ().false
-      Some = λ(x: α, xs: List α).p x ∨ has[α] p xs
+      Some = λ(x, xs).p x ∨ has[α] p xs
     }
   let fold = Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.
     fold[ListF α][ρ] ListF[α] ◁ case {
@@ -34,10 +34,10 @@ let List =
   let filter = Λα.λp: α → bool.λxs: List α.
     xs
     ▷ fold[List α][α]
-        λxs: List α.λx: α.if p x then 'Some (x, xs) else xs
+        λxs.λx.if p x then 'Some (x, xs) else xs
         'None
   let concat = Λα.λxs: List α.λys: List α.
-    fold[List α][α] (λxs: List α.λx: α.'Some (x, xs)) ys xs
+    fold[List α][α] (λxs.λx.'Some (x, xs)) ys xs
   {one, has, fold, filter, concat}
 
 # Set ADT
@@ -55,10 +55,10 @@ let Set = {
     type set = List elem
     let empty = 'None
     let singleton = List.one[elem]
-    let remove = λx: elem.List.filter[elem] λy: elem.¬eq x y
+    let remove = λx: elem.List.filter[elem] λy.¬eq x y
     let union = λl: set.λr: set.
       List.concat[elem] l
-      ◁ List.filter[elem] (λi: elem.¬List.has[elem] (eq i) l) r
+      ◁ List.filter[elem] (λi.¬List.has[elem] (eq i) l) r
     let to_list = λs: set.s
     «set, {empty, singleton, remove, union, to_list}»: ∃(Set elem)
 }
@@ -74,12 +74,12 @@ type Term = μ(TermF)
 type EvalCtx = TermBase string Term
 type VarTerm = λτ.TermBase τ Term Term
 
-let TermF = {
-  map = Λα.Λβ.λab: α → β.case {
-    Lit = λ{val: int}.'Lit {val}
-    Var = λ{id: string}.'Var {id}
-    Abs = λ{var: string, exp: α}.'Abs {var, exp = ab exp}
-    App = λ{fn: α, arg: α}.'App {fn = ab fn, arg = ab arg}
+let TermF: Functor TermF = {
+  map = Λ_.Λ_.λab.case {
+    Lit = λ{val}.'Lit {val}
+    Var = λ{id}.'Var {id}
+    Abs = λ{var, exp}.'Abs {var, exp = ab exp}
+    App = λ{fn, arg}.'App {fn = ab fn, arg = ab arg}
   }
 }
 
@@ -90,9 +90,9 @@ let «ids, Ids» = Set.make[string] (=[string])
 let fv =
   fold[TermF][ids] TermF ◁ case {
     Lit = λ{}.Ids.empty
-    Var = λ{id: string}.Ids.singleton id
-    Abs = λ{var: string, exp: ids}.Ids.remove var exp
-    App = λ{fn: ids, arg: ids}.Ids.union fn arg
+    Var = λ{id}.Ids.singleton id
+    Abs = λ{var, exp}.Ids.remove var exp
+    App = λ{fn, arg}.Ids.union fn arg
   }
 
 # Using `fv`

@@ -17,9 +17,9 @@ type μcontainer = λα.{
   map: ∀β.(α → β) → container β
 }
 
-let μcontainer: ∀α.α → container α = Λα.λx: α.{
+let μcontainer: ∀α.α → container α = Λ_.λx.{
   get = x
-  map = Λβ.λxy: α → β.container[β] (xy x)
+  map = Λβ.λxy.container[β] (xy x)
 }
 
 container[int](101).map[string] Int.to_string

@@ -60,7 +60,7 @@ exp
   | exp '.' (lab | '(' exp ')')                           // Product elimination
   | "'" lab exp?                                          // Sum introduction
   | 'case' exp                                            // Sum elimination (*5)
-  | '«' typ ',' exp '»' ':' typ                           // Existential packing
+  | '«' typ ',' exp '»'                                   // Existential packing
   | exp exp                                               // Apply function
   | exp '◁' exp                                           // (R) Apply forward (*6)
   | exp '▷' exp                                           // (L) Apply backward (*6)
@@ -105,9 +105,8 @@ incs                                                      // Syntax of .fomd inc
 
 - To reduce noise, end of line commas (`,`) inside braces (`{ ... }`),
   semicolons (`;`), `in` keywords, and parentheses around binding constructs (
-  `Λ`, `λ`, `μ`, `∃`, and `∀` ), conditionals ( `if … then … else …` ), pack
-  expressions ( `«…, …»: …` ), and type annotations ( `: …` ) are automatically
-  inserted based on layout.
+  `Λ`, `λ`, `μ`, `∃`, and `∀` ), conditionals ( `if … then … else …` ), and type
+  annotations ( `: …` ) are automatically inserted based on layout.
 
 - An identifier, right brace `}`, right bracket `]`, or right paren `)` followed
   without space by a left brace `{`, left bracket `[` or a left paren `(` is

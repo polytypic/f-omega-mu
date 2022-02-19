@@ -10,67 +10,69 @@ include "lib/types"
 
 let List = import "lib/list"
 
+type Stream = λstream.{
+  of_list: ∀α.list α → stream α
+  to_list: ∀α.stream α → list α
+  map: ∀α.∀β.(α → β) → stream α → stream β
+  filter: ∀α.(α → bool) → stream α → stream α
+  append: ∀α.stream α → stream α → stream α
+}
+
 # Non recursive existential stream type
-let «stream, Stream» =
-  type step = λα.λs.'Done | 'Yield (α, s) | 'Skip s
-  type stream = λα.∃s.(s, s → step α s)
-  let of_list = Λα.λxs: list α.«list α, (
-    xs,
-    case {
-      None = λ().'Done
-      Some = λc: (α, list α).'Yield c
-    }
-  )»: stream α
-  let to_list = Λα.λ«s, (xs, next)»: stream α.
-    let μto_list: list α → s → list α = λys: list α.λxs: s.
-      next xs ▷ case {
-        Done = λ().List.rev[α] ys
-        Yield = λ(hd: α, tl: s).to_list 'Some(hd, ys) tl
-        Skip = to_list ys
-      }
-    to_list 'None xs
-  let map = Λα.Λβ.λfn: α → β.λ«s, (xs, next)»: stream α.«s, (
+let «stream, Stream»: ∃(Stream) =
+  type stream = λα.∃s.(s, s → 'Done | 'Yield (α, s) | 'Skip s)
+  «stream, {
+    of_list = Λα.λxs.«list α, (
       xs,
-      λxs: s.
-        next xs ▷ case {
-          Done = λ().'Done
-          Yield = λ(hd: α, tl: s).'Yield (fn hd, tl)
-          Skip = λs: s.'Skip s
-        }
-    )»: stream β
-  let filter = Λα.λp: α → bool.λ«s, (xs, next)»: stream α.«s, (
-      xs,
-      λxs: s.
-        next xs ▷ case {
-          Done = λ().'Done
-          Yield = λ(hd: α, tl: s).
-            if p hd then 'Yield (hd, tl) else 'Skip tl
-          Skip = λs: s.'Skip s
-        }
-    )»: stream α
-  let append = Λα.λ«s1, (xs1, next1)»: stream α.λ«s2, (xs2, next2)»: stream α.
-    type s = 'S1 s1 | 'S2 s2 in«s, (
-      'S1 xs1,
       case {
-        S1 = λs1: s1.next1 s1 ▷ case {
-          Done = λ().'Skip 'S2(xs2)
-          Yield = λ(hd: α, tl: s1).'Yield (hd, 'S1 tl)
-          Skip = λs1: s1.'Skip 'S1(s1)
-        }
-        S2 = λs2: s2.next2 s2 ▷ case {
-          Done = λ().'Done
-          Yield = λ(hd: α, tl: s2).'Yield (hd, 'S2 tl)
-          Skip = λs2: s2.'Skip 'S2(s2)
-        }
+        None = λ().'Done
+        Some = λc.'Yield c
       }
-    )»: stream α
-  «stream, {of_list, to_list, map, filter, append}»: ∃stream.{
-    of_list: ∀α.list α → stream α
-    to_list: ∀α.stream α → list α
-    map: ∀α.∀β.(α → β) → stream α → stream β
-    filter: ∀α.(α → bool) → stream α → stream α
-    append: ∀α.stream α → stream α → stream α
-  }
+    )»
+    to_list = Λα.λ«s, (xs, next)».
+      let μto_list: list α → s → list α = λys.λxs.
+        next xs ▷ case {
+          Done = λ().List.rev[α] ys
+          Yield = λ(hd, tl).to_list 'Some(hd, ys) tl
+          Skip = to_list ys
+        }
+      to_list 'None xs
+    map = Λ_.Λ_.λfn.λ«s, (xs, next)».«s, (
+        xs,
+        λxs: s.
+          next xs ▷ case {
+            Done = λ().'Done
+            Yield = λ(hd, tl).'Yield (fn hd, tl)
+            Skip = λs.'Skip s
+          }
+      )»
+    filter = Λ_.λp.λ«s, (xs, next)».«s, (
+        xs,
+        λxs: s.
+          next xs ▷ case {
+            Done = λ().'Done
+            Yield = λ(hd, tl).
+              if p hd then 'Yield (hd, tl) else 'Skip tl
+            Skip = λs.'Skip s
+          }
+      )»
+    append = Λ_.λ«s1, (xs1, next1)».λ«s2, (xs2, next2)».
+      type s = 'S1 s1 | 'S2 s2 in «s, (
+        'S1 xs1,
+        case {
+          S1 = λs1.next1 s1 ▷ case {
+            Done = λ().'Skip 'S2(xs2)
+            Yield = λ(hd, tl).'Yield (hd, 'S1 tl)
+            Skip = λs1.'Skip 'S1(s1)
+          }
+          S2 = λs2.next2 s2 ▷ case {
+            Done = λ().'Done
+            Yield = λ(hd, tl).'Yield (hd, 'S2 tl)
+            Skip = λs2.'Skip 'S2(s2)
+          }
+        }
+      )»
+  }»
 
 # Thanks to the non-recursive implementation and a couple of optimizations, the
 # Fωμ toy compiler is able to fuse stream operations, eliminate intermediate
@@ -79,7 +81,7 @@ let «stream, Stream» =
 
 let xs = List.iota 5
 Stream.append[int] ◇ Stream.of_list[int] xs ◇ Stream.of_list[int] xs
-▷ Stream.map[int][int] λx: int.x + 1
-▷ Stream.filter[int] λx: int.x % 2 =[int] 1
-▷ Stream.map[int][int] λx: int.x * 2
+▷ Stream.map[int][int] λx.x + 1
+▷ Stream.filter[int] λx.x % 2 =[int] 1
+▷ Stream.map[int][int] λx.x * 2
 ▷ Stream.to_list[int]

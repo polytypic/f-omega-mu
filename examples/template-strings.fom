@@ -119,11 +119,11 @@ let «_, sql» =
     }
   «{sql, args, rev}, {
     begin = {sql = "", args = 'None, rev = rev0}
-    finish = λ{sql, args, rev}: state.
+    finish = λ{sql, args, rev}.
       {sql, args = rev 'None args}
-    string = λarg: arg.λ{sql, args, rev}: state.
+    string = λarg.λ{sql, args, rev}.
       {sql = sql ^ "?", args = 'Some (arg, args), rev = rev1 rev}
-    text = λtext: string.λ{sql, args, rev}: state.
+    text = λtext.λ{sql, args, rev}.
       {sql = sql ^ text, args, rev = rev1 rev}
   }»: ∃state.{
     begin: state

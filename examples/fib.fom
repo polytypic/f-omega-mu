@@ -5,7 +5,7 @@
 
 let fib =
   let μloop: int → int → int → int =
-    λi: int.λj: int.λn: int.
+    λi.λj.λn.
       if n ≤ 0
       then i
       else loop j ◇ i + j ◇ n - 1

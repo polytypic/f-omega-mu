@@ -5,10 +5,10 @@
 # definitions do not make the compiler loop.
 
 let Z = Λα.Λβ.λf: (α → β) → α → β.
-  let z = λx: μτ.τ → α → β.f λv: α.x x v
+  let z = λx: μτ.τ → α → β.f λv.x x v
   z z
 
-let fact = Z[int][int] λfact: int → int.
-  λn: int.if n ≤ 0 then 1 else n * fact (n-1)
+let fact = Z[int][int] λfact.
+  λn.if n ≤ 0 then 1 else n * fact (n-1)
 
 fact 5

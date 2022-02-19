@@ -4,15 +4,15 @@ let Opt = import "opt"
 
 let of = Λα.λx: α.'Some (x, 'None)
 
-let μhas: ∀α.(α → bool) → list α → bool = Λα.λp: α → bool.case {
+let μhas: ∀α.(α → bool) → list α → bool = Λα.λp.case {
   None = λ().false
-  Some = λ(x: α, xs: list α).p x ∨ has[α] p xs
+  Some = λ(x, xs).p x ∨ has[α] p xs
 }
 
 let μfold: ∀ρ.∀α.(α → ρ → ρ) → ρ → list α → ρ =
-  Λρ.Λα.λxrr: α → ρ → ρ.λr: ρ.case {
+  Λρ.Λα.λxrr.λr.case {
     None = λ().r
-    Some = λ(x: α, xs: list α).fold[ρ][α] xrr (xrr x r) xs
+    Some = λ(x, xs).fold[ρ][α] xrr (xrr x r) xs
   }
 
 let empty = Λ_.'None
@@ -25,61 +25,61 @@ let rev = Λα.rev_to[α] 'None
 
 let map = Λα.Λβ.λxy: α → β.λxs: list α.
   xs
-  ▷ fold[list β][α] (λx: α.λys: list β.'Some (xy x, ys)) 'None
+  ▷ fold[list β][α] (λx.λys.'Some (xy x, ys)) 'None
   ▷ rev[β]
 
 let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
   xs
-  ▷ fold[list β][α] (λx: α.λys: list β.rev_to[β] ys ◇ xys x) 'None
+  ▷ fold[list β][α] (λx.λys.rev_to[β] ys ◇ xys x) 'None
   ▷ rev[β]
 
 let filter = Λα.λp: α → bool.λxs: list α.
   xs
   ▷ fold[list α][α]
-      λx: α.λxs: list α.if p x then 'Some (x, xs) else xs
+      λx.λxs.if p x then 'Some (x, xs) else xs
       'None
   ▷ rev[α]
 
-let reject = Λα.λp: α → bool.filter[α] λx: α.¬p x
+let reject = Λα.λp: α → bool.filter[α] λx.¬p x
 
 let concat = Λα.λxs: list α.λys: list α.rev[α] xs ▷ rev_to[α] ys
 
 let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Some (x, xs)
 
-let head = Λα.Opt.map[(α, list α)][α] λ(x: α, _: list α).x
+let head = Λα.Opt.map[(α, list α)][α] λ(x, _).x
 
 let take_n = Λα.λn: int.λxs: list α.
   let μtake_n: list α → int → list α → list α =
-    λys: list α.λn: int.λxs: list α.
+    λys.λn.λxs.
       if n ≤ 0 then
         ys
       else
         xs ▷ case {
           None = λ().ys
-          Some = λ(x: α, xs: list α).take_n 'Some(x, ys) (n - 1) xs
+          Some = λ(x, xs).take_n 'Some(x, ys) (n - 1) xs
         }
   take_n 'None n xs ▷ rev[α]
 
-let μdrop_n: ∀α.int → list α → list α = Λα.λn: int.λxs: list α.
+let μdrop_n: ∀α.int → list α → list α = Λα.λn.λxs.
   if n ≤ 0 then
     xs
   else
     xs ▷ case {
       None = λ().'None
-      Some = λ(_: α, xs: list α).drop_n[α] (n-1) xs
+      Some = λ(_, xs).drop_n[α] (n-1) xs
     }
 
 let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ head[α]
 
 let iota =
-  let μiota: list int → int → list int = λxs: list int.λn: int.
+  let μiota: list int → int → list int = λxs.λn.
     if 0 < n then let n = n - 1 in iota 'Some(n, xs) n else xs
   iota 'None
 
-let is_empty = Λα.
+let is_empty: ∀α.list α → bool = Λ_.
   case {
-    None = λ().true
-    Some = λ(_: α, _: list α).false
+    None = λ_.true
+    Some = λ_.false
   }
 
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,

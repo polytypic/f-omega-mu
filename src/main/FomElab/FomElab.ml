@@ -263,27 +263,29 @@ let avoid i inn =
 
 let annot at i k t = `App (at, `Lam (at, i, k, `Var (at, i)), t)
 
+let lam at i t_opt e =
+  match t_opt with Some t -> `Lam (at, i, t, e) | None -> `LamImp (at, i, e)
+
 (* *)
 
 let rec type_of_pat_lam = function
   | `Annot (_, _, t) -> return t
   | `Const (_, `Unit) as t -> return t
   | `Product (at, fs) -> Row.map_fr type_of_pat_lam fs >>- Typ.product at
-  | `Var (at, _) | `Pack (at, _, _, _) -> fail @@ `Error_pat_lacks_annot at
+  | `Var _ | `Pack _ -> zero
 
 let rec pat_to_exp p' e' = function
-  | `Var (at, i) -> `LetIn (at, i, p', e')
-  | `Const (at, `Unit) ->
-    `App (at, `Lam (at, Exp.Var.fresh at, `Const (at, `Unit), e'), p')
+  | `Var (at, i) -> `App (at, `LamImp (at, i, e'), p')
+  | (`Const (at, `Unit) | `Product (at, [])) as t ->
+    `App (at, `Lam (at, Exp.Var.fresh at, t, e'), p')
   | `Annot (at, p, t) -> pat_to_exp (`Annot (at, p', t)) e' p
-  | `Product (at, []) as t -> `App (at, `Lam (at, Exp.Var.fresh at, t, e'), p')
   | `Product (at, fs) ->
     fs |> List.rev
     |> List.fold_left
          (fun e' (l, p) ->
            let i = Exp.Var.fresh at in
            let e' = pat_to_exp (`Var (at, i)) e' p in
-           `LetIn (at, i, `Select (at, p', Exp.atom l), e'))
+           `App (at, `LamImp (at, i, e'), `Select (at, p', Exp.atom l)))
          e'
   | `Pack (at, `Var (_, i), t, k) -> `UnpackIn (at, t, k, i, p', e')
   | `Pack (at, p, t, k) ->
@@ -401,6 +403,8 @@ let rec elaborate = function
   | `Const (at, c) ->
     Exp.Const.map_typ_fr elaborate_typ c >>- fun c -> `Const (at, c)
   | `Var _ as ast -> return ast
+  | `LamImp (at, i, e) | `LamPat (at, `Var (_, i), e) ->
+    elaborate e >>- fun e -> `LamImp (at, i, e)
   | `Lam (at, i, t, e) | `LamPat (at, `Annot (_, `Var (_, i), t), e) ->
     elaborate_typ t <*> elaborate e >>- fun (t, e) -> `Lam (at, i, t, e)
   | `App (at, f, x) ->
@@ -412,14 +416,11 @@ let rec elaborate = function
     >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     elaborate e <*> elaborate_typ t >>- fun (e, t) -> `Inst (at, e, t)
-  | `LetIn (at, i, v, e) ->
-    elaborate v <*> elaborate e >>- fun (v, e) -> `LetIn (at, i, v, e)
   | `Seq (at, e0, e1) ->
-    let+ e0 =
-      let at = FomCST.Exp.at e0 in
-      elaborate @@ `Annot (at, e0, `Const (at, `Unit))
-    and+ e1 = elaborate e1 in
-    `LetIn (at, Exp.Var.of_string at "_Seq" |> Exp.Var.freshen, e0, e1)
+    let t = `Const (at, `Unit)
+    and i = Exp.Var.of_string at "_Seq" |> Exp.Var.freshen in
+    let+ e0 = elaborate e0 and+ e1 = elaborate e1 in
+    `App (at, `Lam (at, i, t, e1), e0)
   | `Let (at, def, e) -> (
     match def with
     | #FomCST.Typ.Def.f as def ->
@@ -430,15 +431,18 @@ let rec elaborate = function
     | `PatPar [(p, v)] -> (
       let* v = elaborate v in
       match p with
-      | `Var (_, i) -> elaborate e >>- fun e -> `LetIn (at, i, v, e)
+      | `Var (_, i) -> elaborate e >>- fun e -> `App (at, `LamImp (at, i, e), v)
       | `Pack (_, `Var (_, ei), ti, k) ->
         avoid ti @@ fun ti ->
         Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
         >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
       | p ->
+        let* t_opt =
+          type_of_pat_lam p |> Option.run |> Option.map_fr elaborate_typ
+        in
         let i = Pat.id_for p in
         let+ e = elaborate_pat (`Var (at, i)) e p in
-        `LetIn (at, i, v, e))
+        `App (at, lam at i t_opt e, v))
     | `PatPar pvs ->
       let ls = pvs |> List.map (fst >>> Pat.label_for) in
       let p = `Product (at, List.map2 (fun l (p, _) -> (l, p)) ls pvs) in
@@ -463,6 +467,9 @@ let rec elaborate = function
   | `Pack (at, t, e, x) ->
     let+ t = elaborate_typ t and+ e = elaborate e and+ x = elaborate_typ x in
     `Pack (at, t, e, x)
+  | `PackImp (at, t, e) ->
+    let+ t = elaborate_typ t and+ e = elaborate e in
+    `PackImp (at, t, e)
   | `UnpackIn (at, ti, k, ei, v, e) ->
     let* v = elaborate v in
     avoid ti @@ fun ti ->
@@ -470,17 +477,19 @@ let rec elaborate = function
     Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LamPat (at, p, e) ->
-    let* t = type_of_pat_lam p >>= elaborate_typ in
+    let* t_opt =
+      type_of_pat_lam p |> Option.run |> Option.map_fr elaborate_typ
+    in
     let i = Pat.id_for p in
     let+ e = elaborate_pat (`Var (at, i)) e p in
-    `Lam (at, i, t, e)
+    lam at i t_opt e
   | `Annot (at, e, t) ->
     elaborate e <*> elaborate_typ t >>- fun (e, t) ->
     annot at (Exp.Var.of_string at "_Annot" |> Exp.Var.freshen) t e
   | `AppL (at, x, f) ->
     let+ x = elaborate x and+ f = elaborate f in
     let i = Exp.Var.of_string at "_AppL" |> Exp.Var.freshen in
-    `LetIn (at, i, x, `App (at, f, `Var (at, i)))
+    `App (at, `LamImp (at, i, `App (at, f, `Var (at, i))), x)
   | `AppR (at, f, x) ->
     elaborate x <*> elaborate f >>- fun (x, f) -> `App (at, f, x)
   | `Merge (at', l, r) ->

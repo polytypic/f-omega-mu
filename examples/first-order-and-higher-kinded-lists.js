@@ -1,2 +1,3 @@
 'use strict'
-list => list_1 => ({1: list_1, 2: list})
+const λxꓸx = x => x
+;({of_list_h: λxꓸx, of_list_1: λxꓸx})

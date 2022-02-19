@@ -139,6 +139,8 @@ module Label = struct
   let text' = mk "text"
 end
 
+module LabelMap = Map.Make (Label)
+
 module Row = struct
   type 't t = (Label.t * 't) list
 
@@ -887,14 +889,15 @@ module Exp = struct
 
   type ('e, 't, 'k) f =
     [ ('e, 't, 'k) Core.f
-    | `LetIn of Loc.t * Var.t * 'e * 'e
+    | `LamImp of Loc.t * Var.t * 'e
+    | `PackImp of Loc.t * 't * 'e
     | `Merge of Loc.t * 'e * 'e ]
 
   type t = (t, Typ.t, Kind.t) f
 
   let at = function
     | #Core.f as e -> Core.at e
-    | `LetIn (at, _, _, _) | `Merge (at, _, _) -> at
+    | `LamImp (at, _, _) | `PackImp (at, _, _) | `Merge (at, _, _) -> at
 
   (* *)
 
@@ -955,5 +958,7 @@ module Exp = struct
 
   let initial_exp e =
     builtins |> List.rev
-    |> List.fold_left (fun e (i, v) -> `LetIn (Var.at i, i, v, e)) e
+    |> List.fold_left
+         (fun e (i, v) -> `App (Var.at i, `LamImp (Var.at i, i, e), v))
+         e
 end

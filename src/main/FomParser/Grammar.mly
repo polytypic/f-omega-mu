@@ -281,6 +281,7 @@ exp_atom:
   | e=tstr                                          {e}
   | "(" es=list_n(exp, ",") ")"                     {Exp.tuple $loc es}
   | "{" fs=list_n(exp_lab, ",") "}"                 {Exp.product $loc fs}
+  | "«" x=typ "," e=exp "»"                         {`PackImp ($loc, x, e)}
   | f=exp_atom x=exp_high_prec                      {`App ($loc, f, x)}
   | f=exp_atom "_[" x=typ "]"                       {`Inst ($loc, f, x)}
   | e=exp_atom "." l=lab                            {`Select ($loc, e, Exp.atom l)}
@@ -354,13 +355,8 @@ exp_def:
   | "let" bs=list_1(              exp_eq,  "and")   {`PatPar bs}
   | "let" bs=list_1(preceded("μ", exp_eq), "and")   {`PatRec bs}
 
-exp_eff:
-  | e=exp_in t=preopt(":", typ)                     {Annot.opt Typ.at t e}
-  | "«" x=typ "," e=exp "»" ":" f=typ               {`Pack ($loc, x, e, f)}
-
 exp:
-  | e=exp_eff                                       {e}
-  | l=exp_eff ";" r=exp                             {`Seq ($loc, l, r)}
+  | l=exp_in t=preopt(":", typ) r=preopt(";", exp)  {Annot.opt Typ.at t l |> Option.fold ~none:id ~some:(fun r l -> `Seq ($loc, l, r)) r}
   | e=exp_lam("μ")                                  {`Mu ($loc, e)}
   | e=exp_lam("λ")                                  {e}
   | "Λ" b=typ_bind "." e=exp                        {`Gen ($loc, fst b, snd b, e)}

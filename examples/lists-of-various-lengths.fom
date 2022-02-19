@@ -39,30 +39,30 @@ let a_non_empty_list  : list_of_1_to_n int = 'Cons (101, 'Nil)
 let μan_infinite_list : list_of_inf    int = 'Cons (42, an_infinite_list)
 
 # Type safe function to get the first element of a non-empty list:
-let head = Λα.case { Cons = λ(x: α, _: list_of_0_to_n α).x }
+let head: ∀α.list_of_1_to_n α → α = Λ_.case { Cons = λ(x, _).x }
 
 let _ = head[int] an_infinite_list
 let _ = head[int] a_non_empty_list
 let _ = head[int] ◁ 'Cons (4, an_empty_list)
 
 # Extract the only element of a one element list:
-let only = Λα.case { Cons = λ(x: α, _: 'Nil).x }
+let only: ∀α.list_of_1 α → α = Λ_.case { Cons = λ(x, _).x }
 
 let _ = only[int] a_singleton_list
 
 # The type of `cycle` guarantees that it returns an infinite list:
-let cycle = Λα.λxxs: list_of_1_to_n α.
-  μcycle: list_of_inf α.
-    let μcomplete: list_of_0_to_n α → list_of_inf α = λxs: list_of_0_to_n α.
+let cycle: ∀α.list_of_1_to_n α → list_of_inf α = Λα.λxxs.
+  μcycle.
+    let μcomplete: list_of_0_to_n α → list_of_inf α = λxs.
       # Equality is work-in-progress 🤫
       if xxs =[list_of_0_to_n α] xs then
         cycle
       else
         xs ▷ case {
           Nil = λ().cycle
-          Cons = λ(x: α, xs: list_of_0_to_n α).'Cons (x, complete xs)
+          Cons = λ(x, xs).'Cons (x, complete xs)
         }
-    xxs ▷ case { Cons = λ(x: α, xs: list_of_0_to_n α).'Cons (x, complete xs) }
+    xxs ▷ case { Cons = λ(x, xs).'Cons (x, complete xs) }
 
 cycle[int] ◁ 'Cons (4, a_singleton_list)
 ▷ cycle[int]

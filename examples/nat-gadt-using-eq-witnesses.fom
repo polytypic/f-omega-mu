@@ -1,5 +1,7 @@
 # Natural number GADT encoding using type equality witnesses
 
+include "lib/types"
+
 let «eq, Eq» = import "lib/leibniz"
 
 type μNat = λn.
@@ -8,25 +10,25 @@ type μNat = λn.
 and μZero = λn.    eq 'Z    n
 and μSucc = λn.λm.(eq 'S(m) n, Nat m)
 
-let Zero = 'Zero Eq.refl['Z]
-let Succ = Λm.λm: Nat m.'Succ «m, (Eq.refl['S m], m)»: ∃(Succ 'S(m))
+let Zero: Nat 'Z = 'Zero Eq.refl['Z]
+let Succ: ∀n.Nat n → Nat 'S(n) = Λn.λn.'Succ «n, (Eq.refl['S n], n)»
 
-let from = λn: int.
+let from: int → opt ∃(Nat) = λn.
   if n < 0 then
     'None
   else
-    let μloop: ∀n.Nat n → int → ∃(Nat) = Λn.λn: Nat n.λi: int.
+    let μloop: ∀n.Nat n → int → ∃(Nat) = Λn.λn.λi.
       if i ≤ 0 then
-        «n, n»: ∃(Nat)
+        «n, n»
       else
         loop['S n] (Succ[n] n) (i-1)
     'Some (loop['Z] Zero n)
 
-let to = λ«n, n»: ∃(Nat).
-  let μloop: ∀n.Nat n → int → int = Λn.λn: Nat n.λi: int.
+let to: ∃(Nat) → int = λ«n, n».
+  let μloop: ∀n.Nat n → int → int = Λ_.λn.λi.
     n ▷ case {
-      Zero = λ_: Zero n.i
-      Succ = λ«m, (_, m)»: ∃(Succ n).loop[m] m (i+1)
+      Zero = λ_.i
+      Succ = λ«n, (_, n)».loop[n] n (i+1)
     }
   loop[n] n 0
 

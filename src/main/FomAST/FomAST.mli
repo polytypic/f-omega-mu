@@ -55,6 +55,8 @@ module Label : sig
   val text' : t
 end
 
+module LabelMap : Map.S with type key = Label.t
+
 module Row : sig
   type 't t = (Label.t * 't) list
 
@@ -358,7 +360,8 @@ module Exp : sig
 
   type ('e, 't, 'k) f =
     [ ('e, 't, 'k) Core.f
-    | `LetIn of Loc.t * Var.t * 'e * 'e
+    | `LamImp of Loc.t * Var.t * 'e
+    | `PackImp of Loc.t * 't * 'e
     | `Merge of Loc.t * 'e * 'e ]
 
   type t = (t, Typ.t, Kind.t) f

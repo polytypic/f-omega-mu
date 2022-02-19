@@ -115,6 +115,14 @@ let of_error = function
         ^^ text "but the expression has type"
         ^^ nested (Typ.pp typ) ),
       [(at, text "Product lacks label")] )
+  | `Error_sum_lacks (at, typ, label) ->
+    let+ typ = Typ.contract typ in
+    ( ( at,
+        text "Expected expression to have a type of the form"
+        ^^ nested (text "'" ^^ Label.pp label ^^ text " _")
+        ^^ text "but the expression has type"
+        ^^ nested (Typ.pp typ) ),
+      [(at, text "Sum lacks label")] )
   | `Error_label_missing (at, label, l_typ, m_typ) ->
     let+ l_typ = Typ.contract l_typ and+ m_typ = Typ.contract m_typ in
     ( ( at,
@@ -148,6 +156,10 @@ let of_error = function
     return
       ( (at, text "Type of pattern cannot be determined by shape only "),
         [(at, text "Pattern lacks type annotation")] )
+  | `Error_exp_lacks_annot at ->
+    return
+      ( (at, text "Type of expression cannot be determined by shape only "),
+        [(at, text "Expression lacks type annotation")] )
 
 let pp = function
   | (loc, overview), [] -> overview ^^ Loc.pp loc ^^ dot

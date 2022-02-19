@@ -44,6 +44,7 @@ type var_unbound = [`Error_var_unbound of Loc.t * Exp.Var.t]
 type typ_mismatch = [`Error_typ_mismatch of Loc.t * Typ.t * Typ.t]
 type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.Core.t]
 type product_lacks = [`Error_product_lacks of Loc.t * Typ.Core.t * Label.t]
+type sum_lacks = [`Error_sum_lacks of Loc.t * Typ.Core.t * Label.t]
 
 type label_missing =
   [`Error_label_missing of Loc.t * Label.t * Typ.Core.t * Typ.Core.t]
@@ -54,15 +55,18 @@ type non_disjoint_merge =
   [`Error_non_disjoint_merge of Loc.t * Typ.Core.t * Typ.Core.t]
 
 type pat_lacks_annot = [`Error_pat_lacks_annot of Loc.t]
+type exp_lacks_annot = [`Error_exp_lacks_annot of Loc.t]
 
 type type_errors =
   [ var_unbound
   | typ_mismatch
   | typ_unexpected
   | product_lacks
+  | sum_lacks
   | label_missing
   | typ_var_escapes
   | non_disjoint_merge
-  | pat_lacks_annot ]
+  | pat_lacks_annot
+  | exp_lacks_annot ]
 
 type t = [io_error | syntax_errors | source_errors | kind_errors | type_errors]
