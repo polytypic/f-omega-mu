@@ -214,10 +214,7 @@ let rec infer = function
   | `PackImp (at', _, _) -> fail @@ `Error_exp_lacks_annot at'
 
 and check a = function
-  | `PackImp (at', u, e) ->
-    let* a_con, d_kind = Typ.check_exists at' a and* u, u_kind = Typ.infer u in
-    Kind.unify at' d_kind u_kind >> check (Typ.Core.app_of_norm at' a_con u) e
-    >>- fun e -> `Pack (at', u, e, a)
+  | `PackImp (at', u, e) -> infer @@ `Pack (at', u, e, (a :> Typ.t)) >>- fst
   | `Lam (at', i, u, e) ->
     let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
     Typ.check_sub_of_norm at' d u
@@ -225,9 +222,8 @@ and check a = function
     >> VarMap.adding i d (check c e)
     >>- fun e -> `Lam (at', i, d, e)
   | `LamImp (at', i, e) ->
-    let* d, c = Typ.check_arrow at' a in
-    let+ e = Annot.Exp.def i d >> VarMap.adding i d (check c e) in
-    `Lam (at', i, d, e)
+    let* d, _ = Typ.check_arrow at' a in
+    check a @@ `Lam (at', i, (d :> Typ.t), e)
   | `App (at', `Lam (at'', d, u, r), x) ->
     let* u = Typ.check_and_norm u in
     let* x = check u x in
