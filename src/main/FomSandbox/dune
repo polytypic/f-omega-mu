@@ -7,4 +7,4 @@
   (flags ; --debug-info
          ; --pretty
          ; --source-map-inline
-         --wrap-with-fun=FomSandbox)))
+         )))

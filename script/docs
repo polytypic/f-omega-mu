@@ -8,7 +8,7 @@ build-sandbox() {
 
   opam exec -- dune build --root=. --profile release ./$TARGET
 
-  echo "'use strict'"           > $OUTPUT
+  echo "'use strict';"          > $OUTPUT
   cat ./_build/default/$TARGET >> $OUTPUT
 }
 

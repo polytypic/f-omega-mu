@@ -331,7 +331,6 @@ const updateDeps = () => {
 const run = onWorker({
   init: () => {
     importScripts('FomSandbox.js')
-    FomSandbox(self)
     importScripts('prelude.js')
   },
   before: js => ({js, width: getWidth(fomCM)}),
@@ -363,7 +362,6 @@ const build = throttled(
   onWorker({
     init: () => {
       importScripts('FomSandbox.js')
-      FomSandbox(self)
       importScripts('https://unpkg.com/prettier@2.5.1/standalone.js')
       importScripts('https://unpkg.com/prettier@2.5.1/parser-babel.js')
       importScripts('https://unpkg.com/terser@5.10.0/dist/bundle.min.js')
@@ -518,7 +516,6 @@ fomCM.on(
     onWorker({
       init: () => {
         importScripts('FomSandbox.js')
-        FomSandbox(self)
       },
       before: cm => ({
         current: getTokenEndingAt(cm, cm.getCursor()),
