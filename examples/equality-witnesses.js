@@ -12,9 +12,8 @@ const 𛰝ofFoldꘌλxꓸxꓹ_ofLeibnizꘌλxꓸxꓹ_ = {
   from: λabꓸab_𛰙λxꓸx𛰚,
 }
 const λbcꓸλabꓸλxꓸbc_𛰙ab_x𛰚 = bc => ab => x => bc(ab(x))
-const λabꓸλhꓸ𛰙ab_𛰙λxꓸx𛰚𛰚_h = ab => h => ab(λxꓸx)(h)
-const 𛰝ofFoldꘌλabꓸλhꓸ𛰙ab_𛰙λxꓸx𛰚𛰚_ = {
-  ofFold: λabꓸλhꓸ𛰙ab_𛰙λxꓸx𛰚𛰚_h,
+const 𛰝ofFoldꘌλabꓸab_𛰙λxꓸx𛰚ꓹ_ofLeibnizꘌλxꓸxꓹ_ = {
+  ofFold: λabꓸab_𛰙λxꓸx𛰚,
   ofLeibniz: λxꓸx,
   refl: λxꓸx,
   symm: λabꓸab_𛰙λxꓸx𛰚,
@@ -22,4 +21,7 @@ const 𛰝ofFoldꘌλabꓸλhꓸ𛰙ab_𛰙λxꓸx𛰚𛰚_ = {
   to: λxꓸx,
   from: λabꓸab_𛰙λxꓸx𛰚,
 }
-;({Leibniz: 𛰝ofFoldꘌλabꓸλhꓸ𛰙ab_𛰙λxꓸx𛰚𛰚_, Fold: 𛰝ofFoldꘌλxꓸxꓹ_ofLeibnizꘌλxꓸxꓹ_})
+;({
+  Leibniz: 𛰝ofFoldꘌλabꓸab_𛰙λxꓸx𛰚ꓹ_ofLeibnizꘌλxꓸxꓹ_,
+  Fold: 𛰝ofFoldꘌλxꓸxꓹ_ofLeibnizꘌλxꓸxꓹ_,
+})
