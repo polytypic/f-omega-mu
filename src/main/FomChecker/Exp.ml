@@ -170,14 +170,10 @@ let rec infer = function
     let d_typ = `Sum (at cs, cs_arrows |> Row.map fst) in
     (`Case (at', cs), `Arrow (at', d_typ, c_typ))
   | `Pack (at', t, e, et) ->
-    let* e, e_typ = infer e
-    and* t, t_kind = Typ.infer t
-    and* et = Typ.check_and_norm et in
+    let* t, t_kind = Typ.infer t and* et = Typ.check_and_norm et in
     let* et_con, d_kind = Typ.check_exists at' et in
-    Kind.unify at' d_kind t_kind
-    >>
-    let et_t = Typ.Core.app_of_norm at' et_con t in
-    Typ.check_sub_of_norm (at e) e_typ et_t >> return (`Pack (at', t, e, et), et)
+    Kind.unify at' d_kind t_kind >> check (Typ.Core.app_of_norm at' et_con t) e
+    >>- fun e -> (`Pack (at', t, e, et), et)
   | `UnpackIn (at', tid, k, id, v, e) ->
     let* v, v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
