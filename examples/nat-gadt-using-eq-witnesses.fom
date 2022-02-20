@@ -2,7 +2,7 @@
 
 include "lib/types"
 
-let «eq, Eq» = import "lib/leibniz"
+let «eq, Eq» = import "lib/eq"
 
 type μNat = λn.
   | 'Zero  (Zero n)
