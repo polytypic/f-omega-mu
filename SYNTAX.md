@@ -5,99 +5,99 @@ Below is an _approximation_ of the detailed
 
 ```g4
 lab
-  : eid | nat | string                                    // Label
+  : eid | nat | string                            // Label
 
 kind
   : '(' kind ')'
-  | '_'                                                   // Infer kind
-  | '*'                                                   // Type
-  | kind '→' kind                                         // Type constructor
+  | '_'                                           // Infer kind
+  | '*'                                           // Type
+  | kind '→' kind                                 // Type constructor
 
 typ_bind
-  : ('_' | tid) (':' kind)?                               // Type binding
+  : ('_' | tid) (':' kind)?                       // Type binding
 
 typ
-  : tid                                                   // Type variable (*1)
-  | typ ':' kind                                          // Kind annotation
-  | typ '→' typ                                           // Function type
-  | typ '∨' typ                                           // Join of types (*2)
-  | typ '∧' typ                                           // Meet of types (*2)
-  | '(' (typ, ',')* ')'                                   // Tuple type (*3)
-  | '{' (lab (':' typ)?, ',')* '}'                        // Product type
-  | '|'? ("'" lab typ?, '|')*                             // Sum type
-  | typ typ                                               // Apply type level function
-  | 'λ' typ_bind '.' typ                                  // Type level function
-  | '∃' (typ_bind '.' typ | '(' typ ')')                  // Existential type
-  | '∀' (typ_bind '.' typ | '(' typ ')')                  // Universal type
-  | 'μ' (typ_bind '.' typ | '(' typ ')')                  // Recursive type
-  | typ_def 'in' typ                                      // Type bindings (*4)
-  | 'import' string                                       // Import type
+  : tid                                           // Type variable (*1)
+  | typ ':' kind                                  // Kind annotation
+  | typ '→' typ                                   // Function type
+  | typ '∨' typ                                   // Join of types (*2)
+  | typ '∧' typ                                   // Meet of types (*2)
+  | '(' (typ, ',')* ')'                           // Tuple type (*3)
+  | '{' (lab (':' typ)?, ',')* '}'                // Product type
+  | '|'? ("'" lab typ?, '|')*                     // Sum type
+  | typ typ                                       // Apply type level function
+  | 'λ' typ_bind '.' typ                          // Type level function
+  | '∃' (typ_bind '.' typ | '(' typ ')')          // Existential type
+  | '∀' (typ_bind '.' typ | '(' typ ')')          // Universal type
+  | 'μ' (typ_bind '.' typ | '(' typ ')')          // Recursive type
+  | typ_def 'in' typ                              // Type bindings (*4)
+  | 'import' string                               // Import type
 
 typ_def
-  : 'type' (    typ_bind '=' typ, 'and')+                 // Parallel type bindings
-  | 'type' ('μ' typ_bind '=' typ, 'and')+                 // Recursive type bindings
-  | 'include' string                                      // Include type bindings
+  : 'type' (    typ_bind '=' typ, 'and')+         // Parallel type bindings
+  | 'type' ('μ' typ_bind '=' typ, 'and')+         // Recursive type bindings
+  | 'include' string                              // Include type bindings
 
 typ_defs
   : typ_def
-  | typ_def 'in' typ_defs                                 // Sequential type binding
-  | 'local' typ_def 'in' typ_defs                         // Local type binding
+  | typ_def 'in' typ_defs                         // Sequential type binding
+  | 'local' typ_def 'in' typ_defs                 // Local type binding
 
 pat
-  : eid                                                   // Variable pattern
-  | '_'                                                   // Wildcard pattern
-  | pat ':' typ                                           // Type annotation
-  | '(' (pat, ',')* ')'                                   // Tuple pattern (*3)
-  | '{' (lab (':' typ)? ('=' pat)?, ',')* '}'             // Product pattern
-  | '«' typ_bind ',' pat '»'                              // Existential pack pattern
+  : eid                                           // Variable pattern
+  | '_'                                           // Wildcard pattern
+  | pat ':' typ                                   // Type annotation
+  | '(' (pat, ',')* ')'                           // Tuple pattern (*3)
+  | '{' (lab (':' typ)? ('=' pat)?, ',')* '}'     // Product pattern
+  | '«' typ_bind ',' pat '»'                      // Existential pack pattern
 
 exp
-  : eid                                                   // Variable (*1)
-  | exp ':' typ                                           // Type annotation
-  | (nat | string)                                        // Literals
-  | '(' (exp, ',')* ')'                                   // Tuple introduction (*3)
-  | '{' (lab (':' typ)? ('=' exp)?, ',')* '}'             // Product introduction
-  | exp '.' (lab | '(' exp ')')                           // Product elimination
-  | "'" lab exp?                                          // Sum introduction
-  | 'case' exp                                            // Sum elimination (*5)
-  | '«' typ ',' exp '»'                                   // Existential packing
-  | exp exp                                               // Apply function
-  | exp '◁' exp                                           // (R) Apply forward (*6)
-  | exp '▷' exp                                           // (L) Apply backward (*6)
-  | exp '◇' exp                                           // (L) Apply (*6)
-  | uop exp                                               // Apply unary operator
-  | exp bop exp                                           // Apply binary operator
-  | typ_def 'in' exp                                      // Type bindings (*4)
-  | 'let' (    pat '=' exp, 'and')+ 'in' exp              // Parallel bindings (*7)
-  | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp              // Recursive bindings (*7)
-  | exp ';' exp                                           // Sequence (*8)
-  | 'if' exp 'then' exp 'else' exp                        // Conditional
-  | 'λ' pat '.' exp                                       // Function (*7)
-  | 'μ' pat '.' exp                                       // Recursive expression (*7, *9)
-  | 'Λ' typ_bind '.' exp                                  // Generalization
-  | exp '[' typ ']'                                       // Instantiation
-  | 'target' '[' typ ']' string                           // Inline JavaScript code
-  | 'import' string                                       // Import value
+  : eid                                           // Variable (*1)
+  | exp ':' typ                                   // Type annotation
+  | (nat | string)                                // Literals
+  | '(' (exp, ',')* ')'                           // Tuple introduction (*3)
+  | '{' (lab (':' typ)? ('=' exp)?, ',')* '}'     // Product introduction
+  | exp '.' (lab | '(' exp ')')                   // Product elimination
+  | "'" lab exp?                                  // Sum introduction
+  | 'case' exp                                    // Sum elimination (*5)
+  | '«' typ ',' exp '»'                           // Existential packing
+  | exp exp                                       // Apply function
+  | exp '◁' exp                                   // (R) Apply forward (*6)
+  | exp '▷' exp                                   // (L) Apply backward (*6)
+  | exp '◇' exp                                   // (L) Apply (*6)
+  | uop exp                                       // Apply unary operator
+  | exp bop exp                                   // Apply binary operator
+  | typ_def 'in' exp                              // Type bindings (*4)
+  | 'let' (    pat '=' exp, 'and')+ 'in' exp      // Parallel bindings (*7)
+  | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp      // Recursive bindings (*7)
+  | exp ';' exp                                   // Sequence (*8)
+  | 'if' exp 'then' exp 'else' exp                // Conditional
+  | 'λ' pat '.' exp                               // Function (*7)
+  | 'μ' pat '.' exp                               // Recursive expression (*7, *9)
+  | 'Λ' typ_bind '.' exp                          // Generalization
+  | exp '[' typ ']'                               // Instantiation
+  | 'target' '[' typ ']' string                   // Inline JavaScript code
+  | 'import' string                               // Import value
 
 uop
-  : '¬'                                                   // Logical negation
-  | '+' | '-'                                             // Sign (*10)
+  : '¬'                                           // Logical negation
+  | '+' | '-'                                     // Sign (*10)
 
 bop
-  : '∨' | '∧'                                             // (L) Logical connectives (*11)
-  | ('=' | '≠') '[' typ ']'                               // (-) Polymorphic equality
-  | '>' | '≥' | '<' | '≤'                                 // (-) Comparison
-  | '„'                                                   // (L) Merge (*12)
-  | '+' | '-' | '^'                                       // (L) Additive
-  | '*' | '/' | '%'                                       // (L) Multiplicative
+  : '∨' | '∧'                                     // (L) Logical connectives (*11)
+  | ('=' | '≠') '[' typ ']'                       // (-) Polymorphic equality
+  | '>' | '≥' | '<' | '≤'                         // (-) Comparison
+  | '„'                                           // (L) Merge (*12)
+  | '+' | '-' | '^'                               // (L) Additive
+  | '*' | '/' | '%'                               // (L) Multiplicative
 
-mods                                                      // Syntax of .fom modules
+mods                                              // Syntax of .fom modules
   : exp eof
 
-sigs                                                      // Syntax of .fomt signatures
+sigs                                              // Syntax of .fomt signatures
   : typ eof
 
-incs                                                      // Syntax of .fomd includes
+incs                                              // Syntax of .fomd includes
   : typ_defs eof
 ```
 
