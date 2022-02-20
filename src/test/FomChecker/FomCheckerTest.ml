@@ -410,4 +410,5 @@ let () =
     "let («t, x», «t, y») = («(), ()»: ∃t.t, «(), ()»: ∃t.t) in ()";
   testErrors "let _: int = false" "let _: int = false in true";
   testErrors "let () = 101" "let () = 101 in true";
+  testErrors "wider product annotation" "{x = 1}: {x: int, y: int}";
   ()

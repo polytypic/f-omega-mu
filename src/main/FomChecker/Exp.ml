@@ -244,14 +244,19 @@ and check a = function
   | `Mu (at', f) -> check (`Arrow (at', a, a)) f >>- fun f -> `Mu (at', f)
   | `Product (at', fs) ->
     let* las = Typ.check_product at' a >>- (List.to_seq >>> LabelMap.of_seq) in
-    Row.check fs
-    >> List.map_fr
-         (fun (l, e) ->
-           match LabelMap.find_opt l las with
-           | None -> infer e >>- fun (e, _) -> (l, e)
-           | Some a -> check a e >>- fun e -> (l, e))
-         fs
-    >>- fun fs -> `Product (at', fs)
+    let* leas =
+      Row.check fs
+      >> List.map_fr
+           (fun (l, e) ->
+             match LabelMap.find_opt l las with
+             | None -> infer e >>- fun (e, t) -> (l, e, t)
+             | Some a -> check a e >>- fun e -> (l, e, a))
+           fs
+    in
+    Typ.check_sub_of_norm at'
+      (Typ.product at' (List.map (fun (l, _, t) -> (l, t)) leas))
+      a
+    >> return @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
   | `UnpackIn (at', tid, k, id, v, e) ->
     let* v, v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
