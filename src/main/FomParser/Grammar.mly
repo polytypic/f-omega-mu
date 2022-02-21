@@ -236,14 +236,14 @@ pat_lab:
   | l=lab_lit t=preopt(":", typ) p=preopt("=", pat) {(l, Annot.opt Typ.at t (Option.value p ~default:(Exp.var (Exp.Var.underscore $loc))))}
   | i=exp_rid t=preopt(":", typ) p=preopt("=", pat) {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value p ~default:(Exp.var i)))}
 
-pat_in:
+pat_atom:
   | i=exp_bid                                       {Exp.var i}
   | "(" ps=list_n(pat, ",") ")"                     {Exp.Pat.tuple $loc ps}
   | "{" fs=list_n(pat_lab, ",") "}"                 {`Product ($loc, fs)}
   | "«" b=typ_bind "," p=pat "»"                    {`Pack ($loc, p, fst b, snd b)}
 
 pat:
-  | p=pat_in t=preopt(":", typ)                     {Annot.opt Typ.at t p}
+  | p=pat_atom t=preopt(":", typ)                   {Annot.opt Typ.at t p}
 
 //
 
