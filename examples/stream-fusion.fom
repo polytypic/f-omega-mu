@@ -20,8 +20,7 @@ type Stream = λstream.{
 
 # Non recursive existential stream type
 let «stream, Stream»: ∃(Stream) =
-  type stream = λα.∃s.(s, s → 'Done | 'Yield (α, s) | 'Skip s)
-  «stream, {
+  «λα.∃s.(s, s → 'Done | 'Yield (α, s) | 'Skip s), {
     of_list = Λα.λxs.«list α, (
       xs,
       case {
@@ -57,7 +56,7 @@ let «stream, Stream»: ∃(Stream) =
           }
       )»
     append = Λ_.λ«s1, (xs1, next1)».λ«s2, (xs2, next2)».
-      type s = 'S1 s1 | 'S2 s2 in «s, (
+      «'S1 s1 | 'S2 s2, (
         'S1 xs1,
         case {
           S1 = λs1.next1 s1 ▷ case {
