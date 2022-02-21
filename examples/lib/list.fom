@@ -13,7 +13,7 @@ let μfold: ∀α.∀ρ.(ρ → α → ρ) → ρ → list α → ρ =
     Cons = λ(x, xs).fold«α»«ρ» rxr (rxr r x) xs
   }
 
-let empty = Λ_.'Nil
+let empty = []
 
 let prepend = Λα.λx: α.λxs: list α.'Cons (x, xs)
 
@@ -77,7 +77,7 @@ let iota =
     if 0 < n then let n = n - 1 in iota 'Cons(n, xs) n else xs
   iota 'Nil
 
-let is_empty: ∀α.list α → bool = Λ_.
+let is_empty: ∀α.list α → bool =
   case {
     Nil = λ_.true
     Cons = λ_.false

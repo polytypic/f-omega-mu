@@ -12,7 +12,7 @@ let List = import "list"
 
   type map = λν.Compare κ ∧ {root: tree ν}
 
-  let empty = Λ_.key „ {root = 'Lf}
+  let empty = key „ {root = 'Lf}
 
   let get = Λν.λ{compare: κ → κ → ord, root: tree ν}.λkey: κ.
     let μget: tree ν → opt ν = case {

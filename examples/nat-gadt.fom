@@ -10,8 +10,8 @@ and μCases = λr.{
 }
 
 let {Zero, Succ}: Cases Nat = {
-  Zero = Λ_.λcs.cs.Zero
-  Succ = Λn.λn.Λ_.λcs.cs.Succ«n» n
+  Zero = λcs.cs.Zero
+  Succ = Λn.λn.λcs.cs.Succ«n» n
 }
 
 let from: int → opt ∃(Nat) = λn.
@@ -26,7 +26,7 @@ let from: int → opt ∃(Nat) = λn.
     'Some (loop«'Z» Zero n)
 
 let to: ∃(Nat) → int = λ«n, n».
-  let μloop: ∀n.Nat n → int → int = Λ_.λn.λi.
+  let μloop: ∀n.Nat n → int → int = λn.λi.
     n«λ_.int» {
       Zero = i
       Succ = Λn.λn.loop«n» n (i + 1)

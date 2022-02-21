@@ -1,7 +1,7 @@
 «λα.λβ.∀φ.φ α → φ β, {
-  refl = Λ_.Λ_.λx.x
-  symm = Λα.Λ_.λab.Λφ.ab«λβ.φ β → φ α» λx.x
-  trans = Λ_.Λ_.Λ_.λbc.λab.Λφ.λx.bc«φ» ab«φ»(x)
-  to = Λ_.Λ_.λab.ab«λx.x»
-  from = Λα.Λ_.λab.ab«λβ.β → α» λx.x
+  refl = λx.x
+  symm = Λα.λab.Λφ.ab«λβ.φ β → φ α» λx.x
+  trans = λbc.λab.Λφ.λx.bc«φ» ab«φ»(x)
+  to = λab.ab«λx.x»
+  from = Λα.λab.ab«λβ.β → α» λx.x
 }»

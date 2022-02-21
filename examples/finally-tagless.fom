@@ -52,11 +52,11 @@ type BoolExp = λσ.{
 let BoolExp: Σ BoolExp = {
   eval = {
     Bool = λb.λ().b
-    If = Λ_.λc.λt.λe.λ().if c() then t() else e()
+    If = λc.λt.λe.λ().if c() then t() else e()
   }
   size = {
     Bool = λ_.1
-    If = Λ_.λc.λt.λe.c + t + e + 1
+    If = λc.λt.λe.c + t + e + 1
   }
 }
 
@@ -69,12 +69,12 @@ type LamExp = λσ.{
 
 let LamExp: Σ LamExp = {
   eval = {
-    Lam = Λ_.Λ_.λf.λ().λx.f (λ().x) (),
-    App = Λ_.Λ_.λf.λx.λ().f() x()
+    Lam = λf.λ().λx.f (λ().x) (),
+    App = λf.λx.λ().f() x()
   }
   size = {
-    Lam = Λ_.Λ_.λf.f 0 + 1
-    App = Λ_.Λ_.λf.λx.f + x + 1
+    Lam = λf.f 0 + 1
+    App = λf.λx.f + x + 1
   }
 }
 
@@ -83,8 +83,8 @@ let LamExp: Σ LamExp = {
 type FixExp = λσ.{Fix: ∀α.(σ α → σ α) → σ α}
 
 let FixExp: Σ FixExp = {
-  eval = {Fix = Λ_.λf.λ().μx.f (λ().x) ()}
-  size = {Fix = Λ_.λf.f 0 + 1}
+  eval = {Fix = λf.λ().μx.f (λ().x) ()}
+  size = {Fix = λf.f 0 + 1}
 }
 
 # Composition of interpreter

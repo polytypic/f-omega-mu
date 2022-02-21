@@ -11,15 +11,15 @@ and μCases = λρ.{
 }
 
 let {Unit, Alt, Pair}: Cases Trie = {
-  Unit = Λν.λv.Λ_.λcs.cs.Unit«ν» v
-  Alt  = Λν.Λκ1.Λκ2.λt1.λt2.Λ_.λcs.cs.Alt«ν»«κ1»«κ2» t1 t2
-  Pair = Λν.Λκ1.Λκ2.λt.Λ_.λcs.cs.Pair«ν»«κ1»«κ2» t
+  Unit = Λν.λv.λcs.cs.Unit«ν» v
+  Alt  = Λν.Λκ1.Λκ2.λt1.λt2.λcs.cs.Alt«ν»«κ1»«κ2» t1 t2
+  Pair = Λν.Λκ1.Λκ2.λt.λcs.cs.Pair«ν»«κ1»«κ2» t
 }
 
 let match = Λρ.λcs: Cases ρ.Λκ.Λν.λt: Trie κ ν.t«ρ» cs
 
 let μlookup: ∀κ.∀ν.Trie κ ν → κ → opt ν = match«λκ.λν.κ → opt ν» {
-  Unit = Λ_.λv.λ().v
+  Unit = λv.λ().v
   Alt = Λν.Λκ1.Λκ2.λt1.λt2.case {
       In1 = λk1.lookup«κ1»«ν» t1 k1
       In2 = λk2.lookup«κ2»«ν» t2 k2

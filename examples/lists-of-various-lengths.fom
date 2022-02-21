@@ -39,14 +39,14 @@ let a_non_empty_list  : list_of_1_to_n int = 'Cons (101, 'Nil)
 let μan_infinite_list : list_of_inf    int = 'Cons (42, an_infinite_list)
 
 # Type safe function to get the first element of a non-empty list:
-let head: ∀α.list_of_1_to_n α → α = Λ_.case { Cons = λ(x, _).x }
+let head: ∀α.list_of_1_to_n α → α = case { Cons = λ(x, _).x }
 
 let _ = head«int» an_infinite_list
 let _ = head«int» a_non_empty_list
 let _ = head«int» 'Cons(4, an_empty_list)
 
 # Extract the only element of a one element list:
-let only: ∀α.list_of_1 α → α = Λ_.case { Cons = λ(x, _).x }
+let only: ∀α.list_of_1 α → α = case { Cons = λ(x, _).x }
 
 let _ = only«int» a_singleton_list
 

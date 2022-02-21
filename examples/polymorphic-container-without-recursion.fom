@@ -20,11 +20,11 @@ type ContainerM = λcontainer.{
 }
 
 let ContainerC: ContainerM λx.x = {
-  get = Λ_.λx.x
-  map = Λ_.Λ_.λab.ab
+  get = λx.x
+  map = λab.ab
 }
 
-let container: ∀α.α → Object ContainerM α = Λ_.λx.«λx.x, (x, ContainerC)»
+let container: ∀α.α → Object ContainerM α = λx.«λx.x, (x, ContainerC)»
 
 # Unlike in TAPL we use an explicit coercion (naïve witness) to encode bounded
 # quantification.
@@ -32,12 +32,12 @@ let container: ∀α.α → Object ContainerM α = Λ_.λx.«λx.x, (x, Containe
 type ContainerB = λM.∀τ.M τ → ContainerM τ
 
 let get: ∀M.ContainerB M → ∀α.Object M α → α =
-  Λ_.λB.Λα.λ«τ, (x, M)».
+  λB.Λα.λ«τ, (x, M)».
     let C = B«τ» M
     C.get«α» x
 
 let map: ∀M.ContainerB M → ∀α.∀β.(α → β) → Object M α → Object M β =
-  Λ_.λB.Λα.Λβ.λab.λ«τ, (x, M)».
+  λB.Λα.Λβ.λab.λ«τ, (x, M)».
     let C = B«τ» M
     «τ, (C.map«α»«β» ab x, M)»
 

@@ -14,23 +14,23 @@ type Eq = λeq.{
 }
 
 let Leibniz: Eq Leibniz = {
-  ofFold = Λ_.Λ_.λab.Λφ.ab«λα.λβ.φ α → φ β» Λ_.λx.x
-  ofLeibniz = Λ_.Λ_.λab.ab
-  refl = Λ_.Λ_.λx.x
-  symm = Λα.Λ_.λab.Λφ.ab«λβ.φ β → φ α» λx.x
-  trans = Λ_.Λ_.Λ_.λbc.λab.Λφ.λx.bc«φ» ab«φ»(x)
-  to = Λ_.Λ_.λab.ab«λx.x»
-  from = Λα.Λ_.λab.ab«λβ.β → α» λx.x
+  ofFold = λab.Λφ.ab«λα.λβ.φ α → φ β» λx.x
+  ofLeibniz = λab.ab
+  refl = λx.x
+  symm = Λα.λab.Λφ.ab«λβ.φ β → φ α» λx.x
+  trans = λbc.λab.Λφ.λx.bc«φ» ab«φ»(x)
+  to = λab.ab«λx.x»
+  from = Λα.λab.ab«λβ.β → α» λx.x
 }
 
 let Fold: Eq Fold = {
-  ofFold = Λ_.Λ_.λab.ab
-  ofLeibniz = Λα.Λ_.λab.Λφ.λh.ab«φ α» h«α»
-  refl = Λα.Λ_.λf.f«α»
-  symm = Λ_.Λ_.λab.Λφ.λf.ab«λα.λβ.φ β α» f
-  trans = Λα.Λ_.Λ_.λbc.λab.Λϕ.λf.bc«λγ.λδ.ϕ α γ → ϕ α δ» (Λ_.λx.x) ab«ϕ»(f)
-  to = Λ_.Λ_.λab.ab«λα.λβ.α → β» Λ_.λx.x
-  from = Λ_.Λ_.λab.ab«λα.λβ.β → α» Λ_.λx.x
+  ofFold = λab.ab
+  ofLeibniz = Λα.λab.Λφ.λh.ab«φ α» h«α»
+  refl = Λα.λf.f«α»
+  symm = λab.Λφ.λf.ab«λα.λβ.φ β α» f
+  trans = Λα.λbc.λab.Λϕ.λf.bc«λγ.λδ.ϕ α γ → ϕ α δ» (λx.x) ab«ϕ»(f)
+  to = λab.ab«λα.λβ.α → β» λx.x
+  from = λab.ab«λα.λβ.β → α» λx.x
 }
 
 {Leibniz, Fold}

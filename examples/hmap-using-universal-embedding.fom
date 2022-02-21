@@ -22,7 +22,7 @@ let «map, «κ, HMap»»: ∃map.∃(HMap map) =
             Some = λv.'Some v
           }
       }
-    add = Λ_.λk.λv.λm.'Cons (k.to v, m)
+    add = λk.λv.λm.'Cons (k.to v, m)
   }»»
 
 let k1 = HMap.new_key«int» ()

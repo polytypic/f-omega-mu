@@ -10,8 +10,8 @@ let μfold: ∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
 # List type
 type ListF = λα.λτ.'Nil | 'Cons (α, τ)
 type List = λα.μ(ListF α)
-let ListF: ∀τ.Functor (ListF τ) = Λ_.{
-  map = Λ_.Λ_.λf.case {
+let ListF: ∀τ.Functor (ListF τ) = {
+  map = λf.case {
       Nil = λ().'Nil
       Cons = λ(x, xs).'Cons (x, f xs)
     }
@@ -72,7 +72,7 @@ type EvalCtx = TermBase string Term
 type VarTerm = λτ.TermBase τ Term Term
 
 let TermF: Functor TermF = {
-  map = Λ_.Λ_.λab.case {
+  map = λab.case {
     Lit = λ{val}.'Lit {val}
     Var = λ{id}.'Var {id}
     Abs = λ{var, exp}.'Abs {var, exp = ab exp}

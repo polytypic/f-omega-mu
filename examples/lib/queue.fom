@@ -6,7 +6,7 @@ let List = import "list"
 
 type queue = λν.{front: list ν, back: list ν}
 
-let empty = Λ_.{front = [], back = []}
+let empty = {front = [], back = []}
 
 let is_empty = Λν.λq: queue ν.
   List.is_empty«ν» q.front

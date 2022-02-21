@@ -50,21 +50,21 @@ let aResetCounter: Object ResetCounterM =
 
 type CounterB = λM.∀τ.M τ → CounterM τ
 
-let inc: ∀M.CounterB M → Object M → Object M = Λ_.λB.λ«τ, (x, M)».
+let inc: ∀M.CounterB M → Object M → Object M = λB.λ«τ, (x, M)».
   let C = B«τ» M
   «τ, (C.inc x, M)»
 
-let get: ∀M.CounterB M → Object M → int = Λ_.λB.λ«τ, (x, M)».
+let get: ∀M.CounterB M → Object M → int = λB.λ«τ, (x, M)».
   let C = B«τ» M
   C.get x
 
 type ResetCounterB = λM.∀τ.M τ → ResetCounterM τ
 
-let reset: ∀M.ResetCounterB M → Object M → Object M = Λ_.λB.λ«τ, (x, M)».
+let reset: ∀M.ResetCounterB M → Object M → Object M = λB.λ«τ, (x, M)».
   let C = B«τ» M
   «τ, (C.reset x, M)»
 
-let reset_count: ∀M.ResetCounterB M → Object M → int = Λ_.λB.λ«τ, (x, M)».
+let reset_count: ∀M.ResetCounterB M → Object M → int = λB.λ«τ, (x, M)».
   let C = B«τ» M
   C.reset_count x
 

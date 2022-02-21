@@ -16,6 +16,6 @@ type coercion = λfrom.λto.∀α.from α → to α
 
 # Coercions between the representations are identity functions
 {
-  of_list_h: coercion list_h list_1 = Λ_.λx.x
-  of_list_1: coercion list_1 list_h = Λ_.λx.x
+  of_list_h: coercion list_h list_1 = λx.x
+  of_list_1: coercion list_1 list_h = λx.x
 }

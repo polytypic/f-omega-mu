@@ -9,9 +9,9 @@ type Stack = λstack.{
 }
 
 let «stack, Stack»: ∃(Stack) = «list, {
-  empty = Λ_.'Nil
-  push = Λ_.λx.λxs.'Cons (x, xs)
-  pop = Λ_.case {
+  empty = 'Nil
+  push = λx.λxs.'Cons (x, xs)
+  pop = case {
     Nil = λ().'None
     Cons = λxxs.'Some xxs
   }

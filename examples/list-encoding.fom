@@ -2,9 +2,9 @@
 
 type μlist = λt.∀r.{nil: r, cons: t → list t → r} → r
 
-let nil: ∀(list) = Λ_.Λ_.λc.c.nil
+let nil: ∀(list) = λc.c.nil
 let cons: ∀t.t → list t → list t =
-  Λ_.λhd.λtl.Λ_.λc.c.cons hd tl
+  λhd.λtl.λc.c.cons hd tl
 
 let μfold: ∀t.∀r.(t → r → r) → r → list t → r =
   Λt.Λr.λfn.λz.λxs.
