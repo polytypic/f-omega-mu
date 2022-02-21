@@ -16,6 +16,8 @@
 type ℰ = λα.() → α
 type 𝒮 = λ_.int
 
+type Σ = λ𝐹.{eval: 𝐹 ℰ, size: 𝐹 𝒮}
+
 # Integer expressions
 
 type IntExp = λσ.{
@@ -25,20 +27,20 @@ type IntExp = λσ.{
   Leq: σ int → σ int → σ bool
 }
 
-let IntExp =
-  let eval: IntExp ℰ = {
+let IntExp: Σ IntExp = {
+  eval = {
     Int = λi.λ().i
     Add = λx.λy.λ().x() + y()
     Mul = λx.λy.λ().x() * y()
     Leq = λx.λy.λ().x() ≤ y()
   }
-  let size: IntExp 𝒮 = {
+  size = {
     Int = λ_.1
     Add = λx.λy.x + y + 1
     Mul = λx.λy.x + y + 1
     Leq = λx.λy.x + y + 1
   }
-  {eval, size}
+}
 
 # Boolean expressions
 
@@ -47,16 +49,16 @@ type BoolExp = λσ.{
   If: ∀α.σ bool → σ α → σ α → σ α
 }
 
-let BoolExp =
-  let eval: BoolExp ℰ = {
+let BoolExp: Σ BoolExp = {
+  eval = {
     Bool = λb.λ().b
     If = Λ_.λc.λt.λe.λ().if c() then t() else e()
   }
-  let size: BoolExp 𝒮 = {
+  size = {
     Bool = λ_.1
     If = Λ_.λc.λt.λe.c + t + e + 1
   }
-  {eval, size}
+}
 
 # Lambda expressions
 
@@ -65,25 +67,25 @@ type LamExp = λσ.{
   App: ∀α.∀β.σ (α → β) → σ α → σ β
 }
 
-let LamExp =
-  let eval: LamExp ℰ = {
+let LamExp: Σ LamExp = {
+  eval = {
     Lam = Λ_.Λ_.λf.λ().λx.f (λ().x) (),
     App = Λ_.Λ_.λf.λx.λ().f() x()
   }
-  let size: LamExp 𝒮 = {
+  size = {
     Lam = Λ_.Λ_.λf.f 0 + 1
     App = Λ_.Λ_.λf.λx.f + x + 1
   }
-  {eval, size}
+}
 
 # Fixpoint expression
 
 type FixExp = λσ.{Fix: ∀α.(σ α → σ α) → σ α}
 
-let FixExp =
-  let eval: FixExp ℰ = {Fix = Λ_.λf.λ().μx.f (λ().x) ()}
-  let size: FixExp 𝒮 = {Fix = Λ_.λf.f 0 + 1}
-  {eval, size}
+let FixExp: Σ FixExp = {
+  eval = {Fix = Λ_.λf.λ().μx.f (λ().x) ()}
+  size = {Fix = Λ_.λf.f 0 + 1}
+}
 
 # Composition of interpreter
 
