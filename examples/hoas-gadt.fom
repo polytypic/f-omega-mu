@@ -12,19 +12,19 @@ and μCases = λρ.{
 }
 
 let {Val, Bin, If, App, Lam, Fix}: Cases Expr = {
-  Val = Λα.λx.Λ_.λcs.cs.Val«α» x
-  Bin = Λα.Λβ.Λγ.λf.λx.λy.Λ_.λcs.cs.Bin«α»«β»«γ» f x y
-  If  = Λα.λc.λt.λe.Λ_.λcs.cs.If«α» c t e
-  App = Λα.Λβ.λf.λx.Λ_.λcs.cs.App«α»«β» f x
-  Lam = Λα.Λβ.λf.Λ_.λcs.cs.Lam«α»«β» f
-  Fix = Λα.Λβ.λf.Λ_.λcs.cs.Fix«α»«β» f
+  Val = Λα.λx.λcs.cs.Val«α» x
+  Bin = Λα.Λβ.Λγ.λf.λx.λy.λcs.cs.Bin«α»«β»«γ» f x y
+  If  = Λα.λc.λt.λe.λcs.cs.If«α» c t e
+  App = Λα.Λβ.λf.λx.λcs.cs.App«α»«β» f x
+  Lam = Λα.Λβ.λf.λcs.cs.Lam«α»«β» f
+  Fix = Λα.Λβ.λf.λcs.cs.Fix«α»«β» f
 }
 
 let match = Λρ.λcs: Cases ρ.Λα.λe: Expr α.e«ρ» cs
 
 let μeval: ∀α.Expr α → α = match«λα.α» {
-  Val = Λ_.λx.x
-  Bin = Λα.Λβ.Λ_.λxyz.λx.λy.xyz eval«α»(x) eval«β»(y)
+  Val = λx.x
+  Bin = Λα.Λβ.λxyz.λx.λy.xyz eval«α»(x) eval«β»(y)
   If  = Λα.λc.λt.λe.eval«α» if eval«bool» c then t else e
   App = Λα.Λβ.λxy.λx.eval«α → β» xy eval«α»(x)
   Lam = Λα.Λβ.λf.λx.eval«β» f(Val«α»(x))

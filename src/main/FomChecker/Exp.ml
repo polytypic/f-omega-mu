@@ -79,6 +79,14 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 end
 
+let cannot_be_for_all = function
+  | `Case _ | `Lam _ | `LamImp _ | `Inject _ | `Merge _ | `Pack _ | `PackImp _
+  | `Product _ ->
+    true
+  | `Const (at', c) -> (
+    match Const.type_of at' c with `ForAll _ -> false | _ -> true)
+  | _ -> false
+
 let rec infer = function
   | `App (at', `Lam (at'', i, t, e), v) ->
     let* t = Typ.check_and_norm t in
@@ -213,70 +221,79 @@ let rec infer = function
   | `LamImp (_, i, _) -> fail @@ `Error_pat_lacks_annot (Var.at i)
   | `PackImp (at', _, _) -> fail @@ `Error_exp_lacks_annot at'
 
-and check a = function
-  | `PackImp (at', u, e) -> infer @@ `Pack (at', u, e, (a :> Typ.t)) >>- fst
-  | `Lam (at', i, u, e) ->
-    let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
-    Typ.check_sub_of_norm at' d u
-    >> Annot.Exp.def i d
-    >> VarMap.adding i d (check c e)
-    >>- fun e -> `Lam (at', i, d, e)
-  | `LamImp (at', i, e) ->
-    let* d, _ = Typ.check_arrow at' a in
-    check a @@ `Lam (at', i, (d :> Typ.t), e)
-  | `App (at', `Lam (at'', d, u, r), x) ->
-    let* u = Typ.check_and_norm u in
-    let* x = check u x in
-    let+ r = Annot.Exp.def d u >> VarMap.adding d u (check a r) in
-    `App (at', `Lam (at'', d, u, r), x)
-  | `App (at', ((`LamImp _ | `Case _) as f), x) ->
-    let* x, x_typ = infer x in
-    check (`Arrow (at', x_typ, a)) f >>- fun f -> `App (at', f, x)
-  | `Gen (at', d, d_kind, r) ->
-    let* a_con, d_kind' = Typ.check_for_all at' a in
-    let r_typ = Typ.Core.app_of_norm at' a_con (Typ.var d) in
-    Kind.unify at' d_kind d_kind'
-    >> Typ.VarMap.adding d (`Kind d_kind) (check r_typ r)
-    >>- fun r -> `Gen (at', d, d_kind', r)
-  | `IfElse (at', c, t, e) ->
-    let* c = check (`Const (at c, `Bool)) c in
-    check a t <*> check a e >>- fun (t, e) -> `IfElse (at', c, t, e)
-  | `Mu (at', f) -> check (`Arrow (at', a, a)) f >>- fun f -> `Mu (at', f)
-  | `Product (at', fs) ->
-    let* las = Typ.check_product at' a >>- (List.to_seq >>> LabelMap.of_seq) in
-    let* leas =
-      Row.check fs
-      >> List.map_fr
-           (fun (l, e) ->
-             match LabelMap.find_opt l las with
-             | None -> infer e >>- fun (e, t) -> (l, e, t)
-             | Some a -> check a e >>- fun e -> (l, e, a))
-           fs
-    in
-    Typ.check_sub_of_norm at'
-      (Typ.product at' (List.map (fun (l, _, t) -> (l, t)) leas))
-      a
-    >> return @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
-  | `UnpackIn (at', tid, k, id, v, e) ->
-    let* v, v_typ = infer v in
-    let* v_con, d_kind = Typ.check_exists at' v_typ in
-    let id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
-    Kind.unify at' k d_kind >> Annot.Exp.def id id_typ >> check a e
-    |> VarMap.adding id id_typ
-    |> Typ.VarMap.adding tid @@ `Kind d_kind
-    >>- fun e -> `UnpackIn (at', tid, k, id, v, e)
-  | `Case (at', cs) ->
-    let* d, c = Typ.check_arrow at' a in
-    let* ls = Typ.check_sum at' d in
-    let cs_typ = `Product (at', Row.map (fun d -> `Arrow (at', d, c)) ls) in
-    check cs_typ cs >>- fun cs -> `Case (at', cs)
-  | `Inject (at', l, e) -> (
-    Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
-    | None -> fail @@ `Error_sum_lacks (at', a, l)
-    | Some (_, a) -> check a e >>- fun e -> `Inject (at', l, e))
-  | e ->
-    let* e, e_typ = infer e in
-    Typ.check_sub_of_norm (at e) e_typ a >> return e
+and check a e =
+  match Typ.Core.unfold_of_norm a with
+  | `ForAll _ when cannot_be_for_all e ->
+    let at' = at e in
+    check a
+    @@ `Gen (at', fst (Typ.Var.fresh_from (a :> Typ.t)), Kind.fresh at', e)
+  | _ -> (
+    match e with
+    | `PackImp (at', u, e) -> infer @@ `Pack (at', u, e, (a :> Typ.t)) >>- fst
+    | `Lam (at', i, u, e) ->
+      let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
+      Typ.check_sub_of_norm at' d u
+      >> Annot.Exp.def i d
+      >> VarMap.adding i d (check c e)
+      >>- fun e -> `Lam (at', i, d, e)
+    | `LamImp (at', i, e) ->
+      let* d, _ = Typ.check_arrow at' a in
+      check a @@ `Lam (at', i, (d :> Typ.t), e)
+    | `App (at', `Lam (at'', d, u, r), x) ->
+      let* u = Typ.check_and_norm u in
+      let* x = check u x in
+      let+ r = Annot.Exp.def d u >> VarMap.adding d u (check a r) in
+      `App (at', `Lam (at'', d, u, r), x)
+    | `App (at', ((`LamImp _ | `Case _) as f), x) ->
+      let* x, x_typ = infer x in
+      check (`Arrow (at', x_typ, a)) f >>- fun f -> `App (at', f, x)
+    | `Gen (at', d, d_kind, r) ->
+      let* a_con, d_kind' = Typ.check_for_all at' a in
+      let r_typ = Typ.Core.app_of_norm at' a_con (Typ.var d) in
+      Kind.unify at' d_kind d_kind'
+      >> Typ.VarMap.adding d (`Kind d_kind) (check r_typ r)
+      >>- fun r -> `Gen (at', d, d_kind', r)
+    | `IfElse (at', c, t, e) ->
+      let* c = check (`Const (at c, `Bool)) c in
+      check a t <*> check a e >>- fun (t, e) -> `IfElse (at', c, t, e)
+    | `Mu (at', f) -> check (`Arrow (at', a, a)) f >>- fun f -> `Mu (at', f)
+    | `Product (at', fs) ->
+      let* las =
+        Typ.check_product at' a >>- (List.to_seq >>> LabelMap.of_seq)
+      in
+      let* leas =
+        Row.check fs
+        >> List.map_fr
+             (fun (l, e) ->
+               match LabelMap.find_opt l las with
+               | None -> infer e >>- fun (e, t) -> (l, e, t)
+               | Some a -> check a e >>- fun e -> (l, e, a))
+             fs
+      in
+      Typ.check_sub_of_norm at'
+        (Typ.product at' (List.map (fun (l, _, t) -> (l, t)) leas))
+        a
+      >> return @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
+    | `UnpackIn (at', tid, k, id, v, e) ->
+      let* v, v_typ = infer v in
+      let* v_con, d_kind = Typ.check_exists at' v_typ in
+      let id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
+      Kind.unify at' k d_kind >> Annot.Exp.def id id_typ >> check a e
+      |> VarMap.adding id id_typ
+      |> Typ.VarMap.adding tid @@ `Kind d_kind
+      >>- fun e -> `UnpackIn (at', tid, k, id, v, e)
+    | `Case (at', cs) ->
+      let* d, c = Typ.check_arrow at' a in
+      let* ls = Typ.check_sum at' d in
+      let cs_typ = `Product (at', Row.map (fun d -> `Arrow (at', d, c)) ls) in
+      check cs_typ cs >>- fun cs -> `Case (at', cs)
+    | `Inject (at', l, e) -> (
+      Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
+      | None -> fail @@ `Error_sum_lacks (at', a, l)
+      | Some (_, a) -> check a e >>- fun e -> `Inject (at', l, e))
+    | e ->
+      let* e, e_typ = infer e in
+      Typ.check_sub_of_norm (at e) e_typ a >> return e)
 
 let infer e =
   let* result = catch @@ infer e in

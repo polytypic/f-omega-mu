@@ -17,7 +17,7 @@ type μcontainer = λα.{
   map: ∀β.(α → β) → container β
 }
 
-let μcontainer: ∀α.α → container α = Λ_.λx.{
+let μcontainer: ∀α.α → container α = λx.{
   get = x
   map = Λβ.λxy.container«β» (xy x)
 }

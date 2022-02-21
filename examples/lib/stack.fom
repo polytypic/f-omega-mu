@@ -6,7 +6,7 @@ let List = import "list"
 
 type stack = list
 
-let empty = Λ_.[]
+let empty = []
 let is_empty = List.is_empty
 let insert = Λν.λv: ν.λq: stack ν.'Cons (v, q)
 let remove = Λν.case {

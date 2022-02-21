@@ -28,6 +28,58 @@ end
 
 (* *)
 
+let rec kind_of = function
+  | `Mu (_, f) -> kind_of_cod f
+  | `Const (at', c) -> return @@ Const.kind_of at' c
+  | `Var (_, i) -> (
+    VarMap.find_opt i >>- function
+    | Some (`Kind i_kind) -> i_kind
+    | _ -> failwithf "kind_of %s" @@ Var.to_string i)
+  | `Lam (at', d, d_kind, r) ->
+    let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
+    `Arrow (at', d_kind, r_kind)
+  | `App (_, f, _) -> kind_of_cod f
+  | `ForAll (at', _)
+  | `Exists (at', _)
+  | `Arrow (at', _, _)
+  | `Product (at', _)
+  | `Sum (at', _) ->
+    return @@ `Star at'
+  | `Join (_, l, _) | `Meet (_, l, _) -> kind_of l
+
+and kind_of_cod checked_typ =
+  let+ f_kind = kind_of checked_typ >>= Kind.resolve in
+  match f_kind with
+  | `Star _ | `Unk (_, _) -> failwith "kind_of_cod"
+  | `Arrow (_, _, c_kind) -> c_kind
+
+let kind_of t = kind_of t >>= Kind.resolve
+
+(* *)
+
+module Var = struct
+  include Var
+
+  let rec fresh_from = function
+    | `Join (_, ((`Mu _ | `Lam _) as t), _)
+    | `Join (_, _, ((`Mu _ | `Lam _) as t))
+    | `Meet (_, _, ((`Mu _ | `Lam _) as t))
+    | `Meet (_, ((`Mu _ | `Lam _) as t), _)
+    | `Exists (_, t)
+    | `ForAll (_, t)
+    | `App (_, t, _)
+    | `Mu (_, t) ->
+      fresh_from t
+    | `Lam (_, i, _, t) -> (Var.freshen i, t)
+    | t -> (Var.fresh (FomAST.Typ.at t), t)
+
+  let rec fresh_from_n n t =
+    if n <= 0 then []
+    else fresh_from t |> fun (i, t) -> i :: fresh_from_n (n - 1) t
+end
+
+(* *)
+
 module Core = struct
   include Core
 
@@ -107,8 +159,8 @@ let make_sub_and_eq at =
             let v = Var.fresh Loc.dummy in
             (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
         in
-        Kind.unify at lk rk >> sub l_env r_env lt rt
-        |> VarMap.adding v @@ `Kind lk
+        Kind.unify at lk rk
+        >> VarMap.adding v (`Kind lk) (sub l_env r_env lt rt)
       | _ -> (
         match (unapp l, unapp r) with
         | ((`Mu (la, lf) as lmu), lxs), _ ->
@@ -121,6 +173,13 @@ let make_sub_and_eq at =
           match k_opt with
           | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
           | _ -> fail @@ `Error_typ_var_unbound (at, lf))
+        | _, (`ForAll (at, rf), _) ->
+          let i, _ = Var.fresh_from (rf :> t) in
+          let k = Kind.fresh at in
+          let r = Core.app_of_norm at rf @@ var i in
+          kind_of rf
+          >>= Kind.unify at @@ `Arrow (at, k, `Star at)
+          >> VarMap.adding i (`Kind k) (sub l_env r_env l r)
         | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
     else unit
   and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
@@ -136,55 +195,6 @@ let as_predicate check l r =
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
 let is_equal_of_norm l r = as_predicate check_equal_of_norm l r
-
-(* *)
-
-let rec kind_of = function
-  | `Mu (_, f) -> kind_of_cod f
-  | `Const (at', c) -> return @@ Const.kind_of at' c
-  | `Var (_, i) -> (
-    VarMap.find_opt i >>- function
-    | Some (`Kind i_kind) -> i_kind
-    | _ -> failwithf "kind_of %s" @@ Var.to_string i)
-  | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
-    `Arrow (at', d_kind, r_kind)
-  | `App (_, f, _) -> kind_of_cod f
-  | `ForAll (at', _)
-  | `Exists (at', _)
-  | `Arrow (at', _, _)
-  | `Product (at', _)
-  | `Sum (at', _) ->
-    return @@ `Star at'
-  | `Join (_, l, _) | `Meet (_, l, _) -> kind_of l
-
-and kind_of_cod checked_typ =
-  let+ f_kind = kind_of checked_typ >>= Kind.resolve in
-  match f_kind with
-  | `Star _ | `Unk (_, _) -> failwith "kind_of_cod"
-  | `Arrow (_, _, c_kind) -> c_kind
-
-let kind_of t = kind_of t >>= Kind.resolve
-
-(* *)
-
-module Var = struct
-  include Var
-
-  let rec fresh_from = function
-    | `Join (_, ((`Mu _ | `Lam _) as t), _)
-    | `Join (_, _, ((`Mu _ | `Lam _) as t))
-    | `Meet (_, _, ((`Mu _ | `Lam _) as t))
-    | `Meet (_, ((`Mu _ | `Lam _) as t), _)
-    | `Mu (_, t) ->
-      fresh_from t
-    | `Lam (_, i, _, t) -> (Var.freshen i, t)
-    | t -> (Var.fresh (FomAST.Typ.at t), t)
-
-  let rec fresh_from_n n t =
-    if n <= 0 then []
-    else fresh_from t |> fun (i, t) -> i :: fresh_from_n (n - 1) t
-end
 
 (* *)
 

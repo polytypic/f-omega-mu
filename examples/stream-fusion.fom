@@ -38,7 +38,7 @@ let «stream, Stream»: ∃(Stream) =
           Skip = to_list ys
         }
       to_list 'Nil xs
-    map = Λ_.Λ_.λfn.λ«s, (xs, next)».«s, (
+    map = λfn.λ«s, (xs, next)».«s, (
         xs,
         λxs.
           next xs ▷ case {
@@ -47,7 +47,7 @@ let «stream, Stream»: ∃(Stream) =
             Skip = λs.'Skip s
           }
       )»
-    filter = Λ_.λp.λ«s, (xs, next)».«s, (
+    filter = λp.λ«s, (xs, next)».«s, (
         xs,
         λxs.
           next xs ▷ case {
@@ -57,7 +57,7 @@ let «stream, Stream»: ∃(Stream) =
             Skip = λs.'Skip s
           }
       )»
-    append = Λ_.λ«s1, (xs1, next1)».λ«s2, (xs2, next2)».
+    append = λ«s1, (xs1, next1)».λ«s2, (xs2, next2)».
       «'S1 s1 | 'S2 s2, (
         'S1 xs1,
         case {

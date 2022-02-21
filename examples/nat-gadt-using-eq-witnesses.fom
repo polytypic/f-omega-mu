@@ -25,7 +25,7 @@ let from: int → opt ∃(Nat) = λn.
     'Some (loop«'Z» Zero n)
 
 let to: ∃(Nat) → int = λ«n, n».
-  let μloop: ∀n.Nat n → int → int = Λ_.λn.λi.
+  let μloop: ∀n.Nat n → int → int = λn.λi.
     n ▷ case {
       Zero = λ_.i
       Succ = λ«n, (_, n)».loop«n» n (i+1)
