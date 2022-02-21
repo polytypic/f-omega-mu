@@ -39,7 +39,7 @@ let «stream, Stream»: ∃(Stream) =
       to_list 'None xs
     map = Λ_.Λ_.λfn.λ«s, (xs, next)».«s, (
         xs,
-        λxs: s.
+        λxs.
           next xs ▷ case {
             Done = λ().'Done
             Yield = λ(hd, tl).'Yield (fn hd, tl)
@@ -48,7 +48,7 @@ let «stream, Stream»: ∃(Stream) =
       )»
     filter = Λ_.λp.λ«s, (xs, next)».«s, (
         xs,
-        λxs: s.
+        λxs.
           next xs ▷ case {
             Done = λ().'Done
             Yield = λ(hd, tl).
