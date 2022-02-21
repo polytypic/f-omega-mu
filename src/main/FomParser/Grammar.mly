@@ -145,7 +145,7 @@ path:
 //
 
 typ_eq:
-  | b=typ_bind "=" t=typ                            {(fst b, snd b, t)}
+  | b=typ_pat "=" t=typ                             {(fst b, snd b, t)}
 
 typ_def:
   | "type" bs=list_1(              typ_eq,  "and")  {`TypPar bs}
@@ -178,7 +178,7 @@ typ_bid:
   | "_"                                             {Typ.Var.underscore $loc}
   | i=typ_rid                                       {i}
 
-typ_bind:
+typ_pat:
   | i=typ_bid                                       {(i, Kind.fresh $loc)}
   | i=typ_bid ":" k=kind                            {(i, k)}
 
@@ -220,7 +220,7 @@ typ_arr:
   | d=typ_inf "→" c=typ_arr                         {`Arrow ($loc, d, c)}
 
 typ_lam(head):
-  | head b=typ_bind "." t=typ                       {`Lam ($loc, fst b, snd b, t)}
+  | head b=typ_pat "." t=typ                        {`Lam ($loc, fst b, snd b, t)}
 
 typ:
   | t=typ_arr k=preopt(":", kind)                   {Annot.opt Kind.at k t}
@@ -240,7 +240,7 @@ pat_atom:
   | i=exp_bid                                       {Exp.var i}
   | "(" ps=list_n(pat, ",") ")"                     {Exp.Pat.tuple $loc ps}
   | "{" fs=list_n(pat_lab, ",") "}"                 {`Product ($loc, fs)}
-  | "«" b=typ_bind "," p=pat "»"                    {`Pack ($loc, p, fst b, snd b)}
+  | "«" b=typ_pat "," p=pat "»"                     {`Pack ($loc, p, fst b, snd b)}
 
 pat:
   | p=pat_atom t=preopt(":", typ)                   {Annot.opt Typ.at t p}
@@ -359,7 +359,7 @@ exp:
   | l=exp_in t=preopt(":", typ) r=preopt(";", exp)  {Annot.opt Typ.at t l |> Option.fold ~none:id ~some:(fun r l -> `Seq ($loc, l, r)) r}
   | e=exp_lam("μ")                                  {`Mu ($loc, e)}
   | e=exp_lam("λ")                                  {e}
-  | "Λ" b=typ_bind "." e=exp                        {`Gen ($loc, fst b, snd b, e)}
+  | "Λ" b=typ_pat "." e=exp                         {`Gen ($loc, fst b, snd b, e)}
   | "if" c=exp "then" t=exp "else" e=exp            {`IfElse ($loc, c, t, e)}
   | d=exp_def "in" e=exp                            {`Let ($loc, d, e)}
 

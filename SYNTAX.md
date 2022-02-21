@@ -13,7 +13,7 @@ kind
   | '*'                                           // Type
   | kind '→' kind                                 // Type constructor
 
-typ_bind
+typ_pat
   : ('_' | tid) (':' kind)?                       // Type binding
 
 typ
@@ -26,16 +26,16 @@ typ
   | '{' (lab (':' typ)?, ',')* '}'                // Product type
   | '|'? ("'" lab typ?, '|')*                     // Sum type
   | typ typ                                       // Apply type level function
-  | 'λ' typ_bind '.' typ                          // Type level function
-  | '∃' (typ_bind '.' typ | '(' typ ')')          // Existential type
-  | '∀' (typ_bind '.' typ | '(' typ ')')          // Universal type
-  | 'μ' (typ_bind '.' typ | '(' typ ')')          // Recursive type
+  | 'λ' typ_pat '.' typ                           // Type level function
+  | '∃' (typ_pat '.' typ | '(' typ ')')           // Existential type
+  | '∀' (typ_pat '.' typ | '(' typ ')')           // Universal type
+  | 'μ' (typ_pat '.' typ | '(' typ ')')           // Recursive type
   | typ_def 'in' typ                              // Type bindings (*4)
   | 'import' string                               // Import type
 
 typ_def
-  : 'type' (    typ_bind '=' typ, 'and')+         // Parallel type bindings
-  | 'type' ('μ' typ_bind '=' typ, 'and')+         // Recursive type bindings
+  : 'type' (    typ_pat '=' typ, 'and')+          // Parallel type bindings
+  | 'type' ('μ' typ_pat '=' typ, 'and')+          // Recursive type bindings
   | 'include' string                              // Include type bindings
 
 typ_defs
@@ -49,7 +49,7 @@ pat
   | pat ':' typ                                   // Type annotation
   | '(' (pat, ',')* ')'                           // Tuple pattern (*3)
   | '{' (lab (':' typ)? ('=' pat)?, ',')* '}'     // Product pattern
-  | '«' typ_bind ',' pat '»'                      // Existential pack pattern
+  | '«' typ_pat ',' pat '»'                       // Existential pack pattern
 
 exp
   : eid                                           // Variable (*1)
@@ -74,7 +74,7 @@ exp
   | 'if' exp 'then' exp 'else' exp                // Conditional
   | 'λ' pat '.' exp                               // Function (*7)
   | 'μ' pat '.' exp                               // Recursive expression (*7, *9)
-  | 'Λ' typ_bind '.' exp                          // Generalization
+  | 'Λ' typ_pat '.' exp                           // Generalization
   | exp '[' typ ']'                               // Instantiation
   | 'target' '[' typ ']' string                   // Inline JavaScript code
   | 'import' string                               // Import value
