@@ -1,7 +1,7 @@
 'use strict'
 const ᐟNone = ['None']
 const ᐥFωμᐥ = 'Fωμ'
-const μxsꓸᐟSome𛰙ᐥFωμᐥꓹ_xs𛰚 = rec(xs => ['Some', {1: ᐥFωμᐥ, 2: xs}])
+const 𝛍xsꓸᐟSome𛰙ᐥFωμᐥꓹ_xs𛰚 = rec(xs => ['Some', {1: ᐥFωμᐥ, 2: xs}])
 const _takeN = n => xs => {
   if (n <= 0) {
     return ᐟNone
@@ -14,4 +14,4 @@ const _takeN = n => xs => {
     }
   }
 }
-_takeN(5)(μxsꓸᐟSome𛰙ᐥFωμᐥꓹ_xs𛰚)
+_takeN(5)(𝛍xsꓸᐟSome𛰙ᐥFωμᐥꓹ_xs𛰚)

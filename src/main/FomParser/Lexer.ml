@@ -27,6 +27,9 @@ let not_equal = [%sedlex.regexp? 0x2260 (* ≠ *)]
 let triangle_lhs = [%sedlex.regexp? 0x25c1 (* ◁ *)]
 let triangle_rhs = [%sedlex.regexp? 0x25b7 (* ▷ *)]
 
+let bold_greek =
+  [%sedlex.regexp? 0x1d6a8 .. 0x1d6c0 | 0x1d6c2 .. 0x1d6e1 | 0x1d7ca | 0x1d7cb]
+
 (* *)
 
 let comment = [%sedlex.regexp? "#", Star (Compl ('\n' | '\r'))]
@@ -100,7 +103,8 @@ let id_ex =
     | 0x1bc19 (* 𛰙 *)
     | 0x1bc1a (* 𛰚 *)
     | 0x1bc1d (* 𛰝 *)
-    | 0x1bc1e (* 𛰞 *) )]
+    | 0x1bc1e (* 𛰞 *)
+    | bold_greek )]
 
 let non_id_hd = [%sedlex.regexp? lambda_lower | lambda_upper | mu_lower]
 let id_hd = [%sedlex.regexp? Sub (tr8876_ident_char, non_id_hd) | id_ex]
@@ -197,8 +201,11 @@ let coerce_to_id str =
     match%sedlex lexbuf with
     | sub_digit -> first ()
     | Compl id_tl -> non_id first
-    | id_hd | non_id_hd -> and_rest (Buffer.lexeme_utf_8 buffer)
+    | id_hd -> and_rest (Buffer.lexeme_utf_8 buffer)
     | "_" -> and_rest "_"
+    | lambda_lower -> and_rest "𝛌"
+    | lambda_upper -> and_rest "𝚲"
+    | mu_lower -> and_rest "𝛍"
     | id_tl ->
       Stack.push "_" cs;
       and_rest (Buffer.lexeme_utf_8 buffer)

@@ -1,6 +1,6 @@
 'use strict'
-const λsꓸs = s => s
-const λ_ꓸfalse = _ => false
+const 𝛌sꓸs = s => s
+const 𝛌_ꓸfalse = _ => false
 const Insert = _𛰙sꓹ_n𛰚 => {
   if (_𛰙sꓹ_n𛰚[1].contains(_𛰙sꓹ_n𛰚[2])) {
     return _𛰙sꓹ_n𛰚[1]
@@ -25,8 +25,8 @@ const Union = _𛰙s1ꓹ_s2𛰚 => {
 }
 const _Empty = {
   isEmpty: true,
-  contains: λ_ꓸfalse,
+  contains: 𝛌_ꓸfalse,
   insert: i => Insert({1: _Empty, 2: i}),
-  union: λsꓸs,
+  union: 𝛌sꓸs,
 }
 _Empty.insert(4).union(_Empty.insert(2))

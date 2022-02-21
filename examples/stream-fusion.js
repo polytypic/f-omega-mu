@@ -1,6 +1,6 @@
 'use strict'
 const ᐟNone = ['None']
-const λxꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚 = x => xs => ['Some', {1: x, 2: xs}]
+const 𝛌xꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚 = x => xs => ['Some', {1: x, 2: xs}]
 const _fold = xrr$1 => r$1 => ᐟNone_ǀ_ᐟSome$1 => {
   for (;;) {
     const xrr = xrr$1,
@@ -63,7 +63,7 @@ const S2 = ys$1 => ᐟNone_ǀ_ᐟSome$1 => {
         ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2]
       }
     } else {
-      return _fold(λxꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚)(ᐟNone)(ys)
+      return _fold(𝛌xꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚)(ᐟNone)(ys)
     }
   }
 }

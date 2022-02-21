@@ -1,6 +1,6 @@
 'use strict'
-const λxꓸx = x => x
-const λkꓸk_𛰙λxꓸx𛰚 = k => k(λxꓸx)
-const λkꓸk_𛰙λkꓸk_𛰙λxꓸx𛰚𛰚 = k => k(λkꓸk_𛰙λxꓸx𛰚)
-const λxꓸx_x = x => x(x)
-;({unquote: λxꓸx_x, size: 5, cps: λkꓸk_𛰙λkꓸk_𛰙λxꓸx𛰚𛰚, nf: true})
+const 𝛌xꓸx = x => x
+const 𝛌kꓸk_𝛌xꓸx = k => k(𝛌xꓸx)
+const 𝛌kꓸk_𛰙𝛌kꓸk_𝛌xꓸx𛰚 = k => k(𝛌kꓸk_𝛌xꓸx)
+const 𝛌xꓸx_x = x => x(x)
+;({unquote: 𝛌xꓸx_x, size: 5, cps: 𝛌kꓸk_𛰙𝛌kꓸk_𝛌xꓸx𛰚, nf: true})
