@@ -148,7 +148,7 @@ general case.
 ## Why?
 
 Greg Morrisett has called Fω
-["the workhorse of modern compilers"](https://dl.acm.org/doi/abs/10.1145/2837614.2837623).
+["the workhorse of modern compilers"](https://web.archive.org/web/20140917015759/http://www.eecs.harvard.edu/~greg/cs256sp2005/lec16.txt).
 Fωμ adds equirecursive types to Fω bringing it closer to practical programming
 languages.
 
