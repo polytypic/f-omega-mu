@@ -5,7 +5,7 @@ type Functor = λφ.{map: ∀α.∀β.(α → β) → φ α → φ β}
 let μfold: ∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
   Λφ.Λα.λF.
     λalgebra.
-      μfold.λv.algebra ◁ F.map[μ(φ)][α] fold v
+      μfold.λv.algebra ◁ F.map«μ(φ)»«α» fold v
 
 # Option type
 type Opt = λα.'None | 'Some α
@@ -24,20 +24,20 @@ let List =
   let one = Λα.λx: α.'Some (x, 'None)
   let μhas: ∀α.(α → bool) → List α → bool = Λα.λp.case {
       None = λ().false
-      Some = λ(x, xs).p x ∨ has[α] p xs
+      Some = λ(x, xs).p x ∨ has«α» p xs
     }
   let fold = Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.
-    fold[ListF α][ρ] ListF[α] ◁ case {
+    fold«ListF α»«ρ» ListF«α» ◁ case {
         None = λ().r
         Some = λ(x: α, r: ρ).rxr r x
       }
   let filter = Λα.λp: α → bool.λxs: List α.
     xs
-    ▷ fold[List α][α]
+    ▷ fold«List α»«α»
         λxs.λx.if p x then 'Some (x, xs) else xs
         'None
   let concat = Λα.λxs: List α.λys: List α.
-    fold[List α][α] (λxs.λx.'Some (x, xs)) ys xs
+    fold«List α»«α» (λxs.λx.'Some (x, xs)) ys xs
   {one, has, fold, filter, concat}
 
 # Set ADT
@@ -54,11 +54,11 @@ let Set = {
   make = Λelem.λeq: elem → elem → bool.
     type set = List elem
     let empty = 'None
-    let singleton = List.one[elem]
-    let remove = λx: elem.List.filter[elem] λy.¬eq x y
+    let singleton = List.one«elem»
+    let remove = λx: elem.List.filter«elem» λy.¬eq x y
     let union = λl: set.λr: set.
-      List.concat[elem] l
-      ◁ List.filter[elem] (λi.¬List.has[elem] (eq i) l) r
+      List.concat«elem» l
+      ◁ List.filter«elem» (λi.¬List.has«elem» (eq i) l) r
     let to_list = λs: set.s
     «set, {empty, singleton, remove, union, to_list}»: ∃(Set elem)
 }
@@ -84,11 +84,11 @@ let TermF: Functor TermF = {
 }
 
 # Set of strings
-let «ids, Ids» = Set.make[string] (=[string])
+let «ids, Ids» = Set.make«string» (=«string»)
 
 # Compute free variables using `fold`
 let fv =
-  fold[TermF][ids] TermF ◁ case {
+  fold«TermF»«ids» TermF ◁ case {
     Lit = λ{}.Ids.empty
     Var = λ{id}.Ids.singleton id
     Abs = λ{var, exp}.Ids.remove var exp

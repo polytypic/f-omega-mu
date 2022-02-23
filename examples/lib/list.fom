@@ -6,47 +6,47 @@ let of = Λα.λx: α.'Some (x, 'None)
 
 let μhas: ∀α.(α → bool) → list α → bool = Λα.λp.case {
   None = λ().false
-  Some = λ(x, xs).p x ∨ has[α] p xs
+  Some = λ(x, xs).p x ∨ has«α» p xs
 }
 
 let μfold: ∀ρ.∀α.(α → ρ → ρ) → ρ → list α → ρ =
   Λρ.Λα.λxrr.λr.case {
     None = λ().r
-    Some = λ(x, xs).fold[ρ][α] xrr (xrr x r) xs
+    Some = λ(x, xs).fold«ρ»«α» xrr (xrr x r) xs
   }
 
 let empty = Λ_.'None
 
 let prepend = Λα.λx: α.λxs: list α.'Some (x, xs)
 
-let rev_to = Λα.fold[list α][α] prepend[α]
+let rev_to = Λα.fold«list α»«α» prepend«α»
 
-let rev = Λα.rev_to[α] 'None
+let rev = Λα.rev_to«α» 'None
 
 let map = Λα.Λβ.λxy: α → β.λxs: list α.
   xs
-  ▷ fold[list β][α] (λx.λys.'Some (xy x, ys)) 'None
-  ▷ rev[β]
+  ▷ fold«list β»«α» (λx.λys.'Some (xy x, ys)) 'None
+  ▷ rev«β»
 
 let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
   xs
-  ▷ fold[list β][α] (λx.λys.rev_to[β] ys ◇ xys x) 'None
-  ▷ rev[β]
+  ▷ fold«list β»«α» (λx.λys.rev_to«β» ys ◇ xys x) 'None
+  ▷ rev«β»
 
 let filter = Λα.λp: α → bool.λxs: list α.
   xs
-  ▷ fold[list α][α]
+  ▷ fold«list α»«α»
       λx.λxs.if p x then 'Some (x, xs) else xs
       'None
-  ▷ rev[α]
+  ▷ rev«α»
 
-let reject = Λα.λp: α → bool.filter[α] λx.¬p x
+let reject = Λα.λp: α → bool.filter«α» λx.¬p x
 
-let concat = Λα.λxs: list α.λys: list α.rev[α] xs ▷ rev_to[α] ys
+let concat = Λα.λxs: list α.λys: list α.rev«α» xs ▷ rev_to«α» ys
 
 let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Some (x, xs)
 
-let head = Λα.Opt.map[(α, list α)][α] λ(x, _).x
+let head = Λα.Opt.map«(α, list α)»«α» λ(x, _).x
 
 let take_n = Λα.λn: int.λxs: list α.
   let μtake_n: list α → int → list α → list α =
@@ -58,7 +58,7 @@ let take_n = Λα.λn: int.λxs: list α.
           None = λ().ys
           Some = λ(x, xs).take_n 'Some(x, ys) (n - 1) xs
         }
-  take_n 'None n xs ▷ rev[α]
+  take_n 'None n xs ▷ rev«α»
 
 let μdrop_n: ∀α.int → list α → list α = Λα.λn.λxs.
   if n ≤ 0 then
@@ -66,10 +66,10 @@ let μdrop_n: ∀α.int → list α → list α = Λα.λn.λxs.
   else
     xs ▷ case {
       None = λ().'None
-      Some = λ(_, xs).drop_n[α] (n-1) xs
+      Some = λ(_, xs).drop_n«α» (n-1) xs
     }
 
-let nth = Λα.λn: int.λxs: list α.drop_n[α] n xs ▷ head[α]
+let nth = Λα.λn: int.λxs: list α.drop_n«α» n xs ▷ head«α»
 
 let iota =
   let μiota: list int → int → list int = λxs.λn.

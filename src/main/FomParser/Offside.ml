@@ -39,7 +39,7 @@ let classify indent tok and_then =
 let ns tok tok_ns =
   let* last_tok in
   match tok_of last_tok with
-  | (Id _ | BraceRhs | BracketRhs | ParenRhs)
+  | (Id _ | BraceRhs | DoubleAngleQuoteRhs | ParenRhs)
     when right_of last_tok = left_of tok ->
     emit (set tok_ns tok)
   | _ -> emit tok
@@ -60,9 +60,11 @@ let rec nest tok =
     >> as_typ (with_indent (insert_semis emit))
     >> with_indent (insert_semis ~dedent:true (emit_before ParenRhs))
   | DoubleAngleQuoteLhs ->
-    emit tok
+    ns tok DoubleAngleQuoteLhsNS
     >> as_typ (with_indent (insert_semis emit))
-    >> with_indent (insert_semis emit)
+    >> last_tok
+    >>= fun tok ->
+    if tok_of tok = Comma then with_indent (insert_semis emit) else unit
   | Include -> (
     emit tok
     >> with_indent @@ insert_semis ~dedent:true
@@ -75,8 +77,6 @@ let rec nest tok =
     >> emit (set ParenLhs tok)
     >> as_typ (with_indent (insert_semis ~dedent:true (emit_before ParenRhs)))
   | BraceLhs -> ns tok BraceLhsNS >> with_indent insert_commas
-  | BracketLhs ->
-    ns tok BracketLhsNS >> as_typ (with_indent (insert_semis emit))
   | ParenLhs ->
     ns tok ParenLhsNS >> with_indent (insert_semis ~commas:true emit)
   | If ->

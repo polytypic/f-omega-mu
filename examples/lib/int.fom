@@ -1,6 +1,6 @@
 let Target = import "target"
 
-let equals = (=[int])
+let equals = (=«int»)
 
 let compare = λl: int.λr: int.
   if equals l r then
@@ -10,6 +10,6 @@ let compare = λl: int.λr: int.
   else
     'Gt
 
-let to_string = Target.to_string[int]
+let to_string = Target.to_string«int»
 
 {compare, equals, to_string}

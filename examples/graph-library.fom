@@ -39,9 +39,9 @@ let AdjacencyListGraph =
   let num_vertices = λg: graph.g.num_vertices
   let vertices = λg: graph.List.iota g.num_vertices
   let out_edges = λg: graph.λi: vertex.
-    List.nth[list vertex] i g.vertices
-    ▷ Opt.map[list vertex][list edge] ◇
-        List.map[vertex][edge] λj: vertex.(i, j)
+    List.nth«list vertex» i g.vertices
+    ▷ Opt.map«list vertex»«list edge» ◇
+        List.map«vertex»«edge» λj: vertex.(i, j)
   let source = λ_: graph.λ(x: vertex, _: vertex).x
   let sink = λ_: graph.λ(_: vertex, x: vertex).x
   {num_vertices, vertices, out_edges, source, sink}
@@ -67,6 +67,6 @@ let bfs = Λmonad.Λmap.Λgraph.Λvertex.Λedge.
   λgraph: graph.
   λsource: vertex.
   # TODO: Actually implement BFS :)
-  Monad.of[()] ()
+  Monad.of«()» ()
 
 bfs

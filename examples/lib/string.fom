@@ -1,5 +1,5 @@
-let equals = (=[string])
+let equals = (=«string»)
 
-let to_literal = target[string → string] "JSON.stringify"
+let to_literal = target«string → string» "JSON.stringify"
 
 {equals, to_literal}

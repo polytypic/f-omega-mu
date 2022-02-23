@@ -1,12 +1,12 @@
 'use strict'
 const ᐟNone = ['None']
 const ᐥ42ᐥ = '42'
-const target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_ = r => x => {
+const target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_ = r => x => {
   r[0] = x
 }
-const target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1 = r => r[0]
-const target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_ = x => [x]
-const counter = target𖩇α_𐙤_impure_𛰙ꓱrefꓽᕯ_(0)
+const target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1 = r => r[0]
+const target_α_𐙤_impure_𛰙ꓱrefꓽᕯ_ = x => [x]
+const counter = target_α_𐙤_impure_𛰙ꓱrefꓽᕯ_(0)
 const 𝛍getꓸλkꓸcase_𛰝Noneꘌλ_𛰙𛰚ꓸᐟNoneꓹ_ = k$1 => ᐟNone_ǀ_ᐟSome$1 => {
   for (;;) {
     const k = k$1,
@@ -25,10 +25,10 @@ const 𝛍getꓸλkꓸcase_𛰝Noneꘌλ_𛰙𛰚ꓸᐟNoneꓹ_ = k$1 => ᐟNone
     }
   }
 }
-const id = target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1(counter)
-target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_(counter)((id + 1) | 0)
-const id$1 = target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1(counter)
-target𖩇𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_(counter)((id$1 + 1) | 0)
+const id = target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1(counter)
+target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_(counter)((id + 1) | 0)
+const id$1 = target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_$1(counter)
+target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_(counter)((id$1 + 1) | 0)
 ;({
   1: 𝛍getꓸλkꓸcase_𛰝Noneꘌλ_𛰙𛰚ꓸᐟNoneꓹ_({
     to: x => ({id, value: x}),

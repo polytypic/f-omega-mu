@@ -209,7 +209,7 @@ module Exp = struct
       | `Keep t -> keep' ^^ egyptian brackets 2 (typ t)
       | `Target (t, l) ->
         target'
-        ^^ egyptian brackets 2 (typ t)
+        ^^ egyptian double_angle_quotes 2 (typ t)
         ^^ space ^^ utf8string @@ JsonString.to_utf8_json l
 
     let pp c = pp' (Bigint.to_string >>> utf8string) Typ.pp c

@@ -11,7 +11,7 @@ and μCases = λr.{
 
 let {Zero, Succ}: Cases Nat = {
   Zero = Λ_.λcs.cs.Zero
-  Succ = Λn.λn.Λ_.λcs.cs.Succ[n] n
+  Succ = Λn.λn.Λ_.λcs.cs.Succ«n» n
 }
 
 let from: int → opt ∃(Nat) = λn.
@@ -22,16 +22,16 @@ let from: int → opt ∃(Nat) = λn.
       if i ≤ 0 then
         «n, n»
       else
-        loop['S n] (Succ[n] n) (i-1)
-    'Some (loop['Z] Zero n)
+        loop«'S n» (Succ«n» n) (i-1)
+    'Some (loop«'Z» Zero n)
 
 let to: ∃(Nat) → int = λ«n, n».
   let μloop: ∀n.Nat n → int → int = Λ_.λn.λi.
-    n[λ_.int] {
+    n«λ_.int» {
       Zero = i
-      Succ = Λn.λn.loop[n] n (i + 1)
+      Succ = Λn.λn.loop«n» n (i + 1)
     }
-  loop[n] n 0
+  loop«n» n 0
 
 from 10 ▷ case {
   None = λ().0

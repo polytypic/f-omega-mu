@@ -75,8 +75,8 @@ exp
   | 'λ' pat '.' exp                               // Function (*7)
   | 'μ' pat '.' exp                               // Recursive expression (*7, *9)
   | 'Λ' typ_pat '.' exp                           // Generalization
-  | exp '[' typ ']'                               // Instantiation
-  | 'target' '[' typ ']' string                   // Inline JavaScript code
+  | exp '«' typ '»'                               // Instantiation
+  | 'target' '«' typ '»' string                   // Inline JavaScript code
   | 'import' string                               // Import value
 
 uop
@@ -85,7 +85,7 @@ uop
 
 bop
   : '∨' | '∧'                                     // (L) Logical connectives (*11)
-  | ('=' | '≠') '[' typ ']'                       // (-) Polymorphic equality
+  | ('=' | '≠') '«' typ '»'                       // (-) Polymorphic equality
   | '>' | '≥' | '<' | '≤'                         // (-) Comparison
   | '„'                                           // (L) Merge (*12)
   | '+' | '-' | '^'                               // (L) Additive
@@ -108,10 +108,11 @@ incs                                              // Syntax of .fomd includes
   `Λ`, `λ`, `μ`, `∃`, and `∀` ), conditionals ( `if … then … else …` ), and type
   annotations ( `: …` ) are automatically inserted based on layout.
 
-- An identifier, right brace `}`, right bracket `]`, or right paren `)` followed
-  without space by a left brace `{`, left bracket `[` or a left paren `(` is
-  treated as a _high precedence instantiation, application, or introduction_.
-  For example, `(o.f x).g y` can also be written as `o.f(x).g(y)`.
+- An identifier, right brace `}`, right double angle quote `»`, or right paren
+  `)` followed without space by a left brace `{`, left double angle quote `«` or
+  a left paren `(` is treated as a _high precedence instantiation, application,
+  or introduction_. For example, `(o.f x).g y` can also be written as
+  `o.f(x).g(y)`.
 
 - Binary operators are listed above in order from lowest to highest precedence
   and with associativity {`L`, `-`, `R`}.

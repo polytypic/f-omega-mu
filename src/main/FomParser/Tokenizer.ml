@@ -42,7 +42,6 @@ let token_info_utf_8 =
     | BraceLhsNS -> punctuation
     | BraceRhs -> punctuation
     | BracketLhs -> punctuation
-    | BracketLhsNS -> punctuation
     | BracketRhs -> punctuation
     | Caret -> operator
     | Case -> keyword
@@ -52,6 +51,7 @@ let token_info_utf_8 =
     | Diamond -> punctuation
     | Dot -> punctuation
     | DoubleAngleQuoteLhs -> punctuation
+    | DoubleAngleQuoteLhsNS -> punctuation
     | DoubleAngleQuoteRhs -> punctuation
     | DoubleComma -> operator
     | EOF -> error

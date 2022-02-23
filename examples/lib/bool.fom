@@ -1,6 +1,6 @@
 let Target = import "target"
 
-let equals = (=[bool])
+let equals = (=«bool»)
 
 let compare = λl: bool.λr: bool.
   if equals l r then
@@ -10,6 +10,6 @@ let compare = λl: bool.λr: bool.
   else
     'Gt
 
-let to_string = Target.to_string[bool]
+let to_string = Target.to_string«bool»
 
 {compare, equals, to_string}

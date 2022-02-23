@@ -13,7 +13,7 @@ let μtakeN: ∀α.int → list α → list α =
     else
       xs ▷ case {
         None = λ().'None,
-        Some = λ(x, xs).'Some (x, takeN[α] ◇ n-1 ◇ xs)
+        Some = λ(x, xs).'Some (x, takeN«α» ◇ n-1 ◇ xs)
       }
 
-takeN[string] 5 ◁ infiniteOf[string] "Fωμ"
+takeN«string» 5 ◁ infiniteOf«string» "Fωμ"

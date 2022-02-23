@@ -96,7 +96,7 @@ let meaning = fmt"The \B(true) meaning of life is \D(42)."
 
 let fmt = fmt „ {
   I = λ{base: int, value: int}.λaccum: string.
-    accum ^ target[int → int → string] "b => v => v.toString(b)" base value
+    accum ^ target«int → int → string» "b => v => v.toString(b)" base value
 }
 
 let meaning = fmt"The \B(true) meaning of life is \I{base = 2, value = 42}."

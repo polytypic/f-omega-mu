@@ -33,16 +33,16 @@ type ContainerB = λM.∀τ.M τ → ContainerM τ
 
 let get: ∀M.ContainerB M → ∀α.Object M α → α =
   Λ_.λB.Λα.λ«τ, (x, M)».
-    let C = B[τ] M
-    C.get[α] x
+    let C = B«τ» M
+    C.get«α» x
 
 let map: ∀M.ContainerB M → ∀α.∀β.(α → β) → Object M α → Object M β =
   Λ_.λB.Λα.Λβ.λab.λ«τ, (x, M)».
-    let C = B[τ] M
-    «τ, (C.map[α][β] ab x, M)»
+    let C = B«τ» M
+    «τ, (C.map«α»«β» ab x, M)»
 
 let ContainerB = Λτ.λM: ContainerM τ.M
 
-container[int] 101
-▷ map[ContainerM] ContainerB [int] [string] Int.to_string
-▷ get[ContainerM] ContainerB [string]
+container«int» 101
+▷ map«ContainerM» ContainerB «int» «string» Int.to_string
+▷ get«ContainerM» ContainerB «string»

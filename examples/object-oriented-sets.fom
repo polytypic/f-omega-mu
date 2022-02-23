@@ -15,7 +15,7 @@ type μISet = {
 let μInsert: (ISet, int) → ISet = λ(s, n).
   if s.contains n then s else μthis.{
     isEmpty = false
-    contains = λi.i =[int] n ∨ s.contains i
+    contains = λi.i =«int» n ∨ s.contains i
     insert = λi.Insert (this, i)
     union = λs.Union (this, s)
   }
@@ -37,7 +37,7 @@ let μEmpty: ISet = {
 
 let μEven: ISet = {
     isEmpty = false
-    contains = λi.i % 2 =[int] 0
+    contains = λi.i % 2 =«int» 0
     insert = λi.Insert (Even, i)
     union = λs.Union (Even, s)
   }

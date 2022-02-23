@@ -28,7 +28,7 @@ type Semantics = λF.{
 
 type Exp = λα.∀F.Semantics F → F (α F)
 
-let strip = ΛF.Λσ.Λτ.Λα.λf: ∀β.F β → α.λx: ∀γ.F (τ γ).f[τ σ] x[σ]
+let strip = ΛF.Λσ.Λτ.Λα.λf: ∀β.F β → α.λx: ∀γ.F (τ γ).f«τ σ» x«σ»
 
 # Representation of the type: λα.α → α
 
@@ -42,31 +42,31 @@ type rep_id = λF.∀α.F (rep_id_fun F α)
 
 let rep_id: Exp rep_id =
   ΛF.λS.
-    S.tabs[rep_id F] strip[F][Star][rep_id_fun F]
-      Λα.S.abs[α][α] λx.x
+    S.tabs«rep_id F» strip«F»«Star»«rep_id_fun F»
+      Λα.S.abs«α»«α» λx.x
 
-# Representation of the term: λx: ∀α.α → α.x [∀α.α → α] x
+# Representation of the term: λx: ∀α.α → α.x «∀α.α → α» x
 
 type rep_id_to_id = λF.F (rep_id F) → F (rep_id F)
 
 let rep_id_to_id: Exp rep_id_to_id =
   ΛF.λS.
-    S.abs[rep_id F][rep_id F]
+    S.abs«rep_id F»«rep_id F»
       λx.
-        S.app[rep_id F][rep_id F]
-          (S.tapp[rep_id F] x [F (rep_id F) → F (rep_id F)]
-              λx.x[rep_id F])
+        S.app«rep_id F»«rep_id F»
+          (S.tapp«rep_id F» x «F (rep_id F) → F (rep_id F)»
+              λx.x«rep_id F»)
           x
 
 # Operation on representations
 
-let foldExp = ΛF.λS: Semantics F.Λα.λe: Exp α.e[F] S
+let foldExp = ΛF.λS: Semantics F.Λα.λe: Exp α.e«F» S
 
 # Implementation of unquote
 
 type Id = λα: *.α
 
-let unquote: ∀α.Exp α → α Id = foldExp[Id] {
+let unquote: ∀α.Exp α → α Id = foldExp«Id» {
   abs = Λ_.Λ_.λf.f
   app = Λ_.Λ_.λf.λx.f x
   tabs = Λ_.λ_.λf.f
@@ -77,10 +77,10 @@ let unquote: ∀α.Exp α → α Id = foldExp[Id] {
 
 type Int = λ_: *.int
 
-let size: ∀α.Exp α → int = foldExp[Int] {
+let size: ∀α.Exp α → int = foldExp«Int» {
   abs = Λ_.Λ_.λf.f 1 + 1
   app = Λ_.Λ_.λf.λx.f + x + 1
-  tabs = Λ_.λstrip.λf.strip[int] (Λ_.λx.x) f + 1
+  tabs = Λ_.λstrip.λf.strip«int» (Λ_.λx.x) f + 1
   tapp = Λ_.λf.Λ_.λ_.f + 1
 }
 
@@ -91,12 +91,12 @@ type KBools = λ_: *.Bools
 
 let nf: ∀α.Exp α → bool =
   Λα.λe.
-    (foldExp[KBools]
+    (foldExp«KBools»
       { abs = Λ_.Λ_.λf.((f (true, true)).1, false)
         app = Λ_.Λ_.λf.λx.(f.2 ∧ x.1, f.2 ∧ x.1)
-        tabs = Λ_.λstrip.λf.((strip[Bools] (Λ_.λx.x) f).1, false)
+        tabs = Λ_.λstrip.λf.((strip«Bools» (Λ_.λx.x) f).1, false)
         tapp = Λ_.λf.Λ_.λ_.(f.2, f.2) }
-      [α]
+      «α»
       e).1
 
 # Implementation of cps
@@ -104,18 +104,18 @@ let nf: ∀α.Exp α → bool =
 type Ct = λα.∀β.(α → β) → β
 type CPS = λα.Ct (α Ct)
 
-let cps: ∀α.Exp α → CPS α = foldExp[Ct] {
+let cps: ∀α.Exp α → CPS α = foldExp«Ct» {
   abs = Λ_.Λ_.λf.Λ_.λk.k f
-  app = Λ_.Λ_.λf.λx.ΛV.λk.f[V] λg.g x [V] k
+  app = Λ_.Λ_.λf.λx.ΛV.λk.f«V» λg.g x «V» k
   tabs = Λ_.λ_.λf.Λ_.λk.k f
-  tapp = Λ_.λf.Λ_.λinst.ΛV.λk.f[V] λe.inst e [V] k
+  tapp = Λ_.λf.Λ_.λinst.ΛV.λk.f«V» λe.inst e «V» k
 }
 
 # Applying operations to sample representations:
 
 {
-  unquote = unquote[rep_id_to_id] rep_id_to_id
-  size = size[rep_id_to_id] rep_id_to_id
-  cps = cps[rep_id] rep_id
-  nf = nf[rep_id_to_id] rep_id_to_id
+  unquote = unquote«rep_id_to_id» rep_id_to_id
+  size = size«rep_id_to_id» rep_id_to_id
+  cps = cps«rep_id» rep_id
+  nf = nf«rep_id_to_id» rep_id_to_id
 }

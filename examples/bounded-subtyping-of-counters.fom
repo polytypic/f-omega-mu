@@ -51,21 +51,21 @@ let aResetCounter: Object ResetCounterM =
 type CounterB = λM.∀τ.M τ → CounterM τ
 
 let inc: ∀M.CounterB M → Object M → Object M = Λ_.λB.λ«τ, (x, M)».
-  let C = B[τ] M
+  let C = B«τ» M
   «τ, (C.inc x, M)»
 
 let get: ∀M.CounterB M → Object M → int = Λ_.λB.λ«τ, (x, M)».
-  let C = B[τ] M
+  let C = B«τ» M
   C.get x
 
 type ResetCounterB = λM.∀τ.M τ → ResetCounterM τ
 
 let reset: ∀M.ResetCounterB M → Object M → Object M = Λ_.λB.λ«τ, (x, M)».
-  let C = B[τ] M
+  let C = B«τ» M
   «τ, (C.reset x, M)»
 
 let reset_count: ∀M.ResetCounterB M → Object M → int = Λ_.λB.λ«τ, (x, M)».
-  let C = B[τ] M
+  let C = B«τ» M
   C.reset_count x
 
 # Thanks to simple width subtyping, the coercions can be just identity
@@ -79,19 +79,19 @@ let ResetCounterB = Λτ.λM: ResetCounterM τ.M
 
 let four =
   aCounter
-  ▷ inc[CounterM] CounterB
-  ▷ inc[CounterM] CounterB
-  ▷ inc[CounterM] CounterB
-  ▷ inc[CounterM] CounterB
-  ▷ get[CounterM] CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ get«CounterM» CounterB
 
 let two =
   aResetCounter
-  ▷ inc[ResetCounterM] ResetCounterB
-  ▷ inc[ResetCounterM] ResetCounterB
-  ▷ reset[ResetCounterM] ResetCounterB
-  ▷ inc[ResetCounterM] ResetCounterB
-  ▷ reset[ResetCounterM] ResetCounterB
-  ▷ reset_count[ResetCounterM] ResetCounterB
+  ▷ inc«ResetCounterM» ResetCounterB
+  ▷ inc«ResetCounterM» ResetCounterB
+  ▷ reset«ResetCounterM» ResetCounterB
+  ▷ inc«ResetCounterM» ResetCounterB
+  ▷ reset«ResetCounterM» ResetCounterB
+  ▷ reset_count«ResetCounterM» ResetCounterB
 
 {four, two}

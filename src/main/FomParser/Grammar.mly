@@ -35,7 +35,6 @@
 %token BraceLhsNS "_{"
 %token BraceRhs "}"
 %token BracketLhs "["
-%token BracketLhsNS "_["
 %token BracketRhs "]"
 %token Caret "^"
 %token Colon ":"
@@ -43,6 +42,7 @@
 %token Diamond "◇"
 %token Dot "."
 %token DoubleAngleQuoteLhs "«"
+%token DoubleAngleQuoteLhsNS "_«"
 %token DoubleAngleQuoteRhs "»"
 %token DoubleComma "„"
 %token Equal "="
@@ -81,7 +81,7 @@
 %left "◇"
 %left "∨"
 %left "∧"
-%nonassoc "=" "≠" "]"
+%nonassoc "=" "≠" "»"
 %nonassoc "<" "≤" "≥" ">"
 %left "„"
 %left "+" "-" "^"
@@ -283,10 +283,10 @@ exp_atom:
   | "{" fs=list_n(exp_lab, ",") "}"                 {Exp.product $loc fs}
   | "«" x=typ "," e=exp "»"                         {`PackImp ($loc, x, e)}
   | f=exp_atom x=exp_high_prec                      {`App ($loc, f, x)}
-  | f=exp_atom "_[" x=typ "]"                       {`Inst ($loc, f, x)}
+  | f=exp_atom "_«" x=typ "»"                       {`Inst ($loc, f, x)}
   | e=exp_atom "." l=lab                            {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                    {`Select ($loc, e, i)}
-  | "target" "[" t=typ "]" c=lit_string             {`Const ($loc, `Target (t, c))}
+  | "target" "«" t=typ "»" c=lit_string             {`Const ($loc, `Target (t, c))}
   | "import" p=path                                 {`Import p}
 
 exp_tick:
@@ -300,7 +300,7 @@ exp_atom_tick:
 exp_app:
   | e=exp_atom                                      {e}
   | f=exp_app x=exp_atom_tick                       {`App ($loc, f, x)}
-  | f=exp_app "[" x=typ "]"                         {`Inst ($loc, f, x)}
+  | f=exp_app "«" x=typ "»"                         {`Inst ($loc, f, x)}
   | "case" cs=exp_atom                              {`Case ($loc, cs)}
 
 exp_inf:
@@ -323,8 +323,8 @@ exp_inf:
   | "∨"                                             {`Const ($loc, `OpLogicalOr)}
   | "∧"                                             {`Const ($loc, `OpLogicalAnd)}
 
-  | "=" "[" t=typ "]"                               {`Const ($loc, `OpEq t)}
-  | "≠" "[" t=typ "]"                               {`Const ($loc, `OpEqNot t)}
+  | "=" "«" t=typ "»"                               {`Const ($loc, `OpEq t)}
+  | "≠" "«" t=typ "»"                               {`Const ($loc, `OpEqNot t)}
 
   | ">"                                             {`Const ($loc, `OpCmpGt)}
   | "≥"                                             {`Const ($loc, `OpCmpGtEq)}

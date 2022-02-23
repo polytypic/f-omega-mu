@@ -23,15 +23,15 @@ const ᐥꓹ_ᐥ = ', '
 const ᐥ𛰚ᐥ = ')'
 const ᐥᐟIn2𛰙ᐥ = "'In2("
 const ᐥᐟIn1𛰙ᐥ = "'In1("
-const target𖩇string_𐙤_string𖩉_ᐥJSONꓸstringifyᐥ = JSON.stringify
-const target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_ = x => '' + x
+const target_string_𐙤_string_ᐥJSONꓸstringifyᐥ = JSON.stringify
+const target_ꓯαꓸα_𐙤_string_ᐥx_ꘌᐳ_ = x => '' + x
 const _to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
   const [tag_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_, val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_] =
     ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_
   switch (tag_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_) {
     case 'String': {
       return x =>
-        target𖩇string_𐙤_string𖩉_ᐥJSONꓸstringifyᐥ(
+        target_string_𐙤_string_ᐥJSONꓸstringifyᐥ(
           val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_(𝛌xꓸx)(x)
         )
     }
@@ -70,7 +70,7 @@ const _to_string = ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_ => {
     }
     default: {
       return x =>
-        target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_(𝛌xꓸx)(x))
+        target_ꓯαꓸα_𐙤_string_ᐥx_ꘌᐳ_(val_ᐟBool_ǀ_ᐟInt_ǀ_ᐟString_ǀ_(𝛌xꓸx)(x))
     }
   }
 }

@@ -1,7 +1,7 @@
-let to_string = target[∀α.α → string] "x => \"\"+x"
+let to_string = target«∀α.α → string» "x => \"\"+x"
 
 let fail = Λα.λm: string.
-  target[∀α.string → impure α] "m => { throw new Error(m) }" [α] m
-  ▷ keep[α]
+  target«∀α.string → impure α» "m => { throw new Error(m) }" «α» m
+  ▷ keep«α»
 
 {to_string, fail}

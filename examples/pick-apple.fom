@@ -23,4 +23,4 @@ let Apple = {
 let a1 = {apple = 101}
 and a2 = {apple = 42}
 
-pick[Apple] Apple a1 a2
+pick«Apple» Apple a1 a2

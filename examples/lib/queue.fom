@@ -9,10 +9,10 @@ type queue = λν.{front: list ν, back: list ν}
 let empty = Λ_.{front = 'None, back = 'None}
 
 let is_empty = Λν.λq: queue ν.
-  List.is_empty[ν] q.front
+  List.is_empty«ν» q.front
 
 let insert = Λν.λv: ν.λq: queue ν.
-  if List.is_empty[ν] q.front then
+  if List.is_empty«ν» q.front then
     {front = 'Some (v, 'None), back = 'None}
   else
     {front = q.front, back = 'Some (v, q.back)}
@@ -23,11 +23,11 @@ let remove = Λν.λq: queue ν.
     Some = λ(v: ν, front: list ν).
       'Some (
         v,
-        if List.is_empty[ν] front then
-          {front = List.rev[ν] q.back, back = 'None}
+        if List.is_empty«ν» front then
+          {front = List.rev«ν» q.back, back = 'None}
         else
           {front, back = q.back}
       )
   }
 
-«queue, of_core [queue] {empty, insert, remove, is_empty}»
+«queue, of_core «queue» {empty, insert, remove, is_empty}»

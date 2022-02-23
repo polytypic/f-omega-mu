@@ -112,7 +112,7 @@ let () =
     let fact =
       rec fact: int -> int =>
         fun n: int =>
-          if n =[int] 0
+          if n =«int» 0
           then 1
           else n * fact (n - 1)
     fact 5
@@ -123,9 +123,9 @@ let () =
     let nil = Λt.Λr.λc:{nil: r, cons: t → list t → r}.c.nil
     let cons = Λt.λhd:t.λtl:list t.Λr.λc:{nil: r, cons: t → list t → r}.c.cons hd tl
     let fold = Λt.Λr.μfold:(t → r → r) → r → list t → r.λfn:t → r → r.λz:r.λxs:list t.
-      xs[r] {nil = z, cons = λx:t.λxs:list t.fold fn (fn x z) xs}
-    let pi_digits = cons[int] 3 (cons[int] 1 (cons[int] 4 (cons[int] 1 (nil[int]))))
-    fold[int][int] (λx:int.λs:int.x + s) 0 pi_digits
+      xs«r» {nil = z, cons = λx:t.λxs:list t.fold fn (fn x z) xs}
+    let pi_digits = cons«int» 3 (cons«int» 1 (cons«int» 4 (cons«int» 1 (nil«int»))))
+    fold«int»«int» (λx:int.λs:int.x + s) 0 pi_digits
     |};
   testInfersAs "generic fold"
     {|∀f.(∀a.∀b.(a → b) → f a → f b) → ∀a.(f a → a) → μ(f) → a|}
@@ -135,7 +135,7 @@ let () =
       Λa.λalgebra: f a → a.
         μdoFold: μ(f) → a.
           λv: μ(f).
-            algebra (fmap[μ(f)][a] doFold v)
+            algebra (fmap«μ(f)»«a» doFold v)
     |};
   testInfersAs "existential silly" "∃t.{an: t, do: t → t}"
     {|
@@ -165,19 +165,19 @@ let () =
           'some {value = r.hd, stack = r.tl} : option {value: v, stack: list v}
       }
     }»
-    let a_stack = S.push[int] 4 (S.push[int] 1 (S.push[int] 3 (S.empty[int])))
+    let a_stack = S.push«int» 4 (S.push«int» 1 (S.push«int» 3 (S.empty«int»)))
     let to_list = Λv.μto_list:stack v → list v.λs:stack v.
-      S.pop[v] s ▷ case {
+      S.pop«v» s ▷ case {
         none = λ_:().
           'nil : list v
         some = λr:{value: v, stack: stack v}.
           'cons {hd = r.value, tl = to_list r.stack} : list v
       }
-    to_list[int] a_stack
+    to_list«int» a_stack
     |};
   testInfersAs "target" "string"
-    "type str = string in target[str] \"'a string'\"";
-  testInfersAs "type in const" "bool" "type t = int in 1 =[t] 2 || 3 !=[t] 4";
+    "type str = string in target«str» \"'a string'\"";
+  testInfersAs "type in const" "bool" "type t = int in 1 =«t» 2 || 3 !=«t» 4";
   testInfersAs "mutual rec" "()"
     {|
     type opt = λt.'none | 'some t
@@ -202,20 +202,20 @@ let () =
       Alt : ∀ν.∀κ1.∀κ2.Trie κ1 ν → Trie κ2 ν → ρ (alt κ1 κ2) ν
       Pair: ∀ν.∀κ1.∀κ2.  Trie κ1 (Trie κ2 ν) → ρ (κ1, κ2)    ν
     }
-    let Unit = Λν.        λv:opt ν.                   Λr.λcs:Cases r.cs.Unit[ν] v
-    let Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr.λcs:Cases r.cs.Alt[ν][κ1][κ2] t1 t2
-    let Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr.λcs:Cases r.cs.Pair[ν][κ1][κ2] t
-    let match = Λρ.λcs:Cases ρ.Λκ.Λν.λt:Trie κ ν.t[ρ] cs
-    let μlookup:∀κ.∀ν.Trie κ ν → κ → opt ν = match[λκ.λν.κ → opt ν] {
+    let Unit = Λν.        λv:opt ν.                   Λr.λcs:Cases r.cs.Unit«ν» v
+    let Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.Λr.λcs:Cases r.cs.Alt«ν»«κ1»«κ2» t1 t2
+    let Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).     Λr.λcs:Cases r.cs.Pair«ν»«κ1»«κ2» t
+    let match = Λρ.λcs:Cases ρ.Λκ.Λν.λt:Trie κ ν.t«ρ» cs
+    let μlookup:∀κ.∀ν.Trie κ ν → κ → opt ν = match«λκ.λν.κ → opt ν» {
       Unit = Λν.λv:opt ν.λ().v
       Alt  = Λν.Λκ1.Λκ2.λt1:Trie κ1 ν.λt2:Trie κ2 ν.case {
-          In1 = λk1:κ1.lookup[κ1][ν] t1 k1
-          In2 = λk2:κ2.lookup[κ2][ν] t2 k2
+          In1 = λk1:κ1.lookup«κ1»«ν» t1 k1
+          In2 = λk2:κ2.lookup«κ2»«ν» t2 k2
         }
       Pair = Λν.Λκ1.Λκ2.λt:Trie κ1 (Trie κ2 ν).λ(k1:κ1, k2:κ2).
-        lookup[κ1][Trie κ2 ν] t k1 ▷ case {
+        lookup«κ1»«Trie κ2 ν» t k1 ▷ case {
           none = λ().'none
-          some = λt:Trie κ2 ν.lookup[κ2][ν] t k2
+          some = λt:Trie κ2 ν.lookup«κ2»«ν» t k2
         }
     }
     ()
@@ -224,8 +224,8 @@ let () =
     {|
     type t = λa.λb.μt.t → a → b
     let fix = Λa.Λb.λf:(a → b) → a → b.(λg:t a b.g g) λx:t a b.λn:a.f (x x) n
-    let fact = λfact:int → int.λn:int.if n =[int] 0 then 1 else n*fact (n-1)
-    fix[int][int] fact 5
+    let fact = λfact:int → int.λn:int.if n =«int» 0 then 1 else n*fact (n-1)
+    fix«int»«int» fact 5
     |};
   testInfersAs "μ join and meet" "bool → (μd.'B d) → μc.'A | 'B c | 'C"
     {|

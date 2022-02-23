@@ -1,21 +1,21 @@
 type array = λα.∃array.array α
 
 let tabulate = Λα.λf: int → α.λn: int.
-  target[(int → α) → int → impure (array α)]
+  target«(int → α) → int → impure (array α)»
     "fn => n => {\
     \  const a = new Array(n);\
     \  for (let i=0; i<n; ++i) a[i] = fn(i);\
     \  return a;\
     \}"
     f n
-  ▷ keep[array α]
+  ▷ keep«array α»
 
 let length =
   # Can be considered pure as length cannot (currently) be changed
-  target[∀α.array α → int] "a => a.length"
+  target«∀α.array α → int» "a => a.length"
 
 let sub = Λα.λxs: array α.λi: int.
-  target[array α → int → impure α]
+  target«array α → int → impure α»
     "a => i => {\
     \  if (i < 0 || a.length <= i)\
     \    throw new Error(\
@@ -23,10 +23,10 @@ let sub = Λα.λxs: array α.λi: int.
     \  return a[i];\
     \}"
     xs i
-  ▷ keep[α]
+  ▷ keep«α»
 
 let update = Λα.λxs: array α.λi: int.λx: α.
-  target[array α → int → α → impure ()]
+  target«array α → int → α → impure ()»
     "a => i => v => {\
     \  if (i < 0 || a.length <= i)\
     \    throw new Error(\
@@ -34,6 +34,6 @@ let update = Λα.λxs: array α.λi: int.λx: α.
     \  a[i] = v;\
     \}"
     xs i x
-  ▷ keep[()]
+  ▷ keep«()»
 
 «array, {tabulate, length, sub, update}»

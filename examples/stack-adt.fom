@@ -15,15 +15,15 @@ let «stack, Stack»: ∃(Stack) = «list, {
 }»
 
 let a_stack =
-  Stack.empty[int]
-  ▷ Stack.push[int] 3
-  ▷ Stack.push[int] 1
-  ▷ Stack.push[int] 5
+  Stack.empty«int»
+  ▷ Stack.push«int» 3
+  ▷ Stack.push«int» 1
+  ▷ Stack.push«int» 5
 
 let μto_list: ∀α.stack α → list α = Λα.λs.
-  Stack.pop[α] s ▷ case {
+  Stack.pop«α» s ▷ case {
     None = λ().'None
-    Some = λ(x, xs).'Some (x, to_list[α] xs)
+    Some = λ(x, xs).'Some (x, to_list«α» xs)
   }
 
-to_list[int] a_stack
+to_list«int» a_stack

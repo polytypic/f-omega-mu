@@ -1,3 +1,3 @@
 'use strict'
-const target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_ = x => '' + x
-target𖩇ꓯαꓸα_𐙤_string𖩉_ᐥx_(101)
+const target_ꓯαꓸα_𐙤_string_ᐥx_ꘌᐳ_ = x => '' + x
+target_ꓯαꓸα_𐙤_string_ᐥx_ꘌᐳ_(101)

@@ -1,8 +1,8 @@
-let keeping = Λα.Λβ.λef: α → impure β.λx: α.ef x ▷ keep[β]
+let keeping = Λα.Λβ.λef: α → impure β.λx: α.ef x ▷ keep«β»
 
-let log = target[string → impure ()] "console.log" ▷ keeping[string][()]
-let info = target[string → impure ()] "console.info" ▷ keeping[string][()]
-let warn = target[string → impure ()] "console.warn" ▷ keeping[string][()]
-let error = target[string → impure ()] "console.error" ▷ keeping[string][()]
+let log = target«string → impure ()» "console.log" ▷ keeping«string»«()»
+let info = target«string → impure ()» "console.info" ▷ keeping«string»«()»
+let warn = target«string → impure ()» "console.warn" ▷ keeping«string»«()»
+let error = target«string → impure ()» "console.error" ▷ keeping«string»«()»
 
 {log, info, warn, error}
