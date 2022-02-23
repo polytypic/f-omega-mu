@@ -1,6 +1,6 @@
 open FomBasis
 open FomSource
-open FomPP
+open FomPPrint
 open FomError
 open FomChecker
 

@@ -1,5 +1,5 @@
 open FomBasis
-open FomPP
+open FomPPrint
 open FomParser
 open FomSource
 open FomAST
@@ -255,8 +255,7 @@ let rec pp atom : t -> document = function
     let d = Var.pp v in
     tick ^^ Label.pp l
     ^^
-    if d |> FomPP.to_string |> UTF.UTF8.to_uchar_array |> seems_parenthesized
-    then d
+    if d |> to_string |> UTF.UTF8.to_uchar_array |> seems_parenthesized then d
     else egyptian parens 2 d
   | `Inject (l, `Const `Unit) -> tick ^^ Label.pp l
   | `Inject (l, (`Product _ as e)) -> tick ^^ Label.pp l ^^ pp true e
@@ -281,13 +280,11 @@ let rec pp atom : t -> document = function
   | `Select (t, l) -> pp true t ^^ dot ^^ pp true l
   | `Var v ->
     let d = Var.pp v in
-    if
-      atom
-      && d |> FomPP.to_string |> UTF.UTF8.to_uchar_array |> seems_atomic |> not
+    if atom && d |> to_string |> UTF.UTF8.to_uchar_array |> seems_atomic |> not
     then egyptian parens 2 d
     else d
 
-let to_string = pp false >>> FomPP.to_string
+let to_string = pp false >>> to_string
 
 (* *)
 

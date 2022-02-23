@@ -1,5 +1,5 @@
 open FomBasis
-open FomPP
+open FomPPrint
 
 type t = Pos.t * Pos.t
 
@@ -38,4 +38,4 @@ let pp ((lhs, rhs) : t) =
        (format_range lhs.pos_lnum rhs.pos_lnum)
        (format_range (Pos.column_of lhs) (Pos.column_of rhs))
 
-let to_string = pp >>> FomPP.to_string
+let to_string = pp >>> to_string

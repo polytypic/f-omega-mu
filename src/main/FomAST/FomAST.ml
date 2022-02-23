@@ -1,5 +1,5 @@
 open FomBasis
-open FomPP
+open FomPPrint
 open FomSource
 
 module Kind = struct
@@ -91,7 +91,6 @@ module Kind = struct
 
   let pp ?(numbering = Numbering.create ()) kind =
     let rec pp atomize kind =
-      let open FomPP in
       match kind with
       | `Star _ -> star
       | `Arrow (_, dom, cod) ->
@@ -110,7 +109,7 @@ module Kind = struct
         in
         kappa_lower ^^ subscript n
     in
-    pp false kind |> FomPP.group
+    pp false kind |> group
 
   let pp_annot ?(numbering = Numbering.create ()) = function
     | `Star _ -> empty
@@ -662,9 +661,9 @@ module Typ = struct
     | `Var (_, id) -> Var.pp ~hr:config.hr id
     | `Lam (_, id, kind, body) ->
       binding config prec_outer lambda_lower id kind body
-    | `Mu (_, typ) -> quantifier config prec_outer FomPP.mu_lower typ
-    | `ForAll (_, typ) -> quantifier config prec_outer FomPP.for_all typ
-    | `Exists (_, typ) -> quantifier config prec_outer FomPP.exists typ
+    | `Mu (_, typ) -> quantifier config prec_outer mu_lower typ
+    | `ForAll (_, typ) -> quantifier config prec_outer FomPPrint.for_all typ
+    | `Exists (_, typ) -> quantifier config prec_outer FomPPrint.exists typ
     | `Arrow (_, dom, cod) ->
       config.pp config (prec_arrow + 1) dom
       ^^ (match hanging cod with

@@ -1,5 +1,5 @@
 open FomBasis
-open FomPP
+open FomPPrint
 open FomSource
 
 (* *)
@@ -90,7 +90,7 @@ let of_error = function
   | `Error_var_unbound (at, id) ->
     return
       ( (at, text "Unbound variable" ^^ nested (Exp.Var.pp id)),
-        [(Exp.Var.at id, FomPP.text "Unbound variable")] )
+        [(Exp.Var.at id, text "Unbound variable")] )
   | `Error_typ_mismatch (at, expected_typ, actual_typ) ->
     return
       ( ( at,

@@ -1,5 +1,5 @@
 open FomBasis
-open FomPP
+open FomPPrint
 
 module Counter : sig
   type t

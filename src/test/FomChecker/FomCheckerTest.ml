@@ -1,4 +1,5 @@
 open FomBasis
+open FomPPrint
 open FomTest
 open FomParser
 open FomElab
@@ -11,7 +12,7 @@ let fail_diag e =
     |> with_env (ignore >>> FomEnv.Env.empty)
     >>- Diagnostic.pp
   in
-  FomPP.to_string ~max_width:80 d |> failuref "%s"
+  to_string ~max_width:80 d |> failuref "%s"
 
 let parse_typ source and_then =
   source
@@ -98,7 +99,6 @@ let testInfersAs name typ exp =
   Typ.is_equal_of_norm expected actual |> with_env (ignore >>> Env.empty)
   >>= fun are_equal ->
   if not are_equal then
-    let open FomPP in
     utf8string "Types not equal"
     ^^ nest 2 (break_1 ^^ Typ.pp expected)
     ^^ break_1 ^^ utf8string "vs"
@@ -363,7 +363,6 @@ let testErrors name exp =
        >>> with_env (ignore >>> FomEnv.Env.empty)
        >>> try_in
              (fun (_, unexpected, _) ->
-               let open FomPP in
                utf8string "Expected type checking to fail, but got type"
                ^^ nest 2 (break_1 ^^ Typ.pp unexpected)
                |> group |> to_string ~max_width:80 |> failuref "%s")

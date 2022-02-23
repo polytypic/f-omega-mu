@@ -1,4 +1,5 @@
 open FomBasis
+open FomPPrint
 open FomSource
 open FomError
 open FomDiag
@@ -88,7 +89,7 @@ let process filename =
   let max_width = !Options.max_width in
   (let* ast, typ, paths = FomElab.elaborate cst in
    (if !Options.stop = `Typ then (
-    typ |> FomAST.Typ.pp |> FomPP.to_string ~max_width |> Printf.printf "%s\n";
+    typ |> FomAST.Typ.pp |> to_string ~max_width |> Printf.printf "%s\n";
     fail `Stop)
    else unit)
    >> let* js = FomToJsC.to_js ~whole:!Options.whole ast paths in
@@ -102,7 +103,7 @@ let process filename =
      | `Stop -> unit
      | #Error.t as error ->
        let+ diagnostic = Diagnostic.of_error error in
-       diagnostic |> Diagnostic.pp |> FomPP.to_string ~max_width
+       diagnostic |> Diagnostic.pp |> to_string ~max_width
        |> Printf.printf "%s\n";
        exit 1
 

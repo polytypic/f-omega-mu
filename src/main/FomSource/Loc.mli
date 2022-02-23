@@ -1,4 +1,4 @@
-open FomPP
+open FomPPrint
 
 type t = Pos.t * Pos.t
 

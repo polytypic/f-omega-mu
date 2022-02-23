@@ -1,4 +1,5 @@
 open FomBasis
+open FomPPrint
 open FomParser
 open FomTest
 
@@ -10,7 +11,7 @@ let () =
   let original = "∀x:*.μxs:*.(x→(x→x))→xs" in
   parse_typ original >>= FomElab.elaborate_typ
   |> with_env (ignore >>> FomEnv.Env.empty)
-  >>- FomAST.Typ.pp >>- FomPP.to_string
+  >>- FomAST.Typ.pp >>- to_string
   |> try_in
        (fun formatted -> verify (formatted = "∀x.μxs.(x → x → x) → xs"))
        (fun _ -> verify false)

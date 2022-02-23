@@ -1,6 +1,6 @@
 open Js_of_ocaml
 open FomBasis
-open FomPP
+open FomPPrint
 open FomSource
 open FomAnnot
 open FomDiag

@@ -1,4 +1,4 @@
-open FomPP
+open FomPPrint
 open FomBasis
 
 module Name : sig

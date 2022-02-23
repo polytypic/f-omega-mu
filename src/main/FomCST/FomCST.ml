@@ -1,5 +1,5 @@
 open FomBasis
-open FomPP
+open FomPPrint
 open FomAST
 open FomSource
 
@@ -94,7 +94,7 @@ module Exp = struct
           |> separate comma_break_1 |> egyptian braces 2
       | `Pack (_, p, _, _) -> pp p
 
-    let to_string p = p |> pp |> FomPP.to_string
+    let to_string p = p |> pp |> to_string
 
     let at = function
       | `Var (at, _)

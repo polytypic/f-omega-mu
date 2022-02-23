@@ -1,6 +1,6 @@
 open FomBasis
+open FomPPrint
 open FomSource
-open FomPP
 
 module Kind : sig
   module Unk : Id.S
