@@ -57,6 +57,7 @@ exp
   | (nat | string)                                // Literals
   | '(' (exp, ',')* ')'                           // Tuple introduction (*3)
   | '{' (lab (':' typ)? ('=' exp)?, ',')* '}'     // Product introduction
+  | '[' (exp, ',')* ']'                           // Aggregate introduction
   | exp '.' (lab | '(' exp ')')                   // Product elimination
   | "'" lab exp?                                  // Sum introduction
   | 'case' exp                                    // Sum elimination (*5)
@@ -103,16 +104,17 @@ incs                                              // Syntax of .fomd includes
 
 **Notes:**
 
-- To reduce noise, end of line commas (`,`) inside braces (`{ ... }`),
-  semicolons (`;`), `in` keywords, and parentheses around binding constructs (
-  `Λ`, `λ`, `μ`, `∃`, and `∀` ), conditionals ( `if … then … else …` ), and type
-  annotations ( `: …` ) are automatically inserted based on layout.
+- To reduce noise, end of line commas (`,`) inside braces (`{ ... }`) and
+  brackets (`[ ... ]`), semicolons (`;`), `in` keywords, and parentheses around
+  binding constructs ( `Λ`, `λ`, `μ`, `∃`, and `∀` ), conditionals (
+  `if … then … else …` ), and type annotations ( `: …` ) are automatically
+  inserted based on layout.
 
-- An identifier, right brace `}`, right double angle quote `»`, or right paren
-  `)` followed without space by a left brace `{`, left double angle quote `«` or
-  a left paren `(` is treated as a _high precedence instantiation, application,
-  or introduction_. For example, `(o.f x).g y` can also be written as
-  `o.f(x).g(y)`.
+- An identifier, right brace `}`, right bracket `]`', right double angle quote
+  `»`, or right paren `)` followed without space by a left brace `{`, left
+  bracket `[`, left double angle quote `«` or a left paren `(` is treated as a
+  _high precedence instantiation, application, or introduction_. For example,
+  `(o.f x).g y` can also be written as `o.f(x).g(y)`.
 
 - Binary operators are listed above in order from lowest to highest precedence
   and with associativity {`L`, `-`, `R`}.

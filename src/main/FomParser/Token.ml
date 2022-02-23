@@ -7,6 +7,7 @@ let[@warning "-32"] to_string = function
   | BraceLhsNS -> "{"
   | BraceRhs -> "}"
   | BracketLhs -> "["
+  | BracketLhsNS -> "["
   | BracketRhs -> "]"
   | Caret -> "^"
   | Case -> "case"

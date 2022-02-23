@@ -3,7 +3,7 @@ include "types" in {
   map: ∀α.∀β.(α → β) → list α → list β
   chain: ∀α.∀β.(α → list β) → list α → list β
   has: ∀α.(α → bool) → list α → bool
-  fold: ∀ρ.∀α.(α → ρ → ρ) → ρ → list α → ρ
+  fold: ∀α.∀ρ.(ρ → α → ρ) → ρ → list α → ρ
   rev_to: ∀α.list α → list α → list α
   rev: ∀α.list α → list α
   filter: ∀α.(α → bool) → list α → list α
@@ -17,4 +17,5 @@ include "types" in {
   is_empty: ∀α.list α → bool
   empty: ∀α.list α
   prepend: ∀α.α → list α → list α
+  iter: ∀α.(α → ()) → list α → ()
 }

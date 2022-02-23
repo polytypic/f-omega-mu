@@ -53,6 +53,6 @@ let List = import "list"
 
   let count = Λν.fold_back«int»«ν» (λ_.λn.n + 1) 0
 
-  let entries = Λν.fold_back«list (κ, ν)»«ν» List.prepend«(κ, ν)» 'None
+  let entries = Λν.fold_back«list (κ, ν)»«ν» List.prepend«(κ, ν)» 'Nil
 
   «map, {empty, get, put, fold_back, count, entries}»

@@ -6,9 +6,12 @@ let List = import "list"
 
 type stack = list
 
-let empty = Λ_.'None
+let empty = Λ_.[]
 let is_empty = List.is_empty
-let insert = Λν.λv: ν.λq: stack ν.'Some (v, q)
-let remove = Λν.λq: stack ν.q
+let insert = Λν.λv: ν.λq: stack ν.'Cons (v, q)
+let remove = Λν.case {
+  Nil = λ().'None
+  Cons = λ(x: ν, xs: list ν).'Some (x, xs)
+}
 
 «stack, of_core «stack» {empty, insert, remove, is_empty}»

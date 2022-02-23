@@ -7,37 +7,34 @@ let μfold: ∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
     λalgebra.
       μfold.λv.algebra ◁ F.map«μ(φ)»«α» fold v
 
-# Option type
-type Opt = λα.'None | 'Some α
-
 # List type
-type ListF = λα.λτ.Opt (α, τ)
+type ListF = λα.λτ.'Nil | 'Cons (α, τ)
 type List = λα.μ(ListF α)
 let ListF: ∀τ.Functor (ListF τ) = Λ_.{
   map = Λ_.Λ_.λf.case {
-      None = λ().'None
-      Some = λ(x, xs).'Some (x, f xs)
+      Nil = λ().'Nil
+      Cons = λ(x, xs).'Cons (x, f xs)
     }
 }
 
 let List =
-  let one = Λα.λx: α.'Some (x, 'None)
+  let one = Λα.λx: α.'Cons (x, 'Nil)
   let μhas: ∀α.(α → bool) → List α → bool = Λα.λp.case {
-      None = λ().false
-      Some = λ(x, xs).p x ∨ has«α» p xs
+      Nil = λ().false
+      Cons = λ(x, xs).p x ∨ has«α» p xs
     }
   let fold = Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.
     fold«ListF α»«ρ» ListF«α» ◁ case {
-        None = λ().r
-        Some = λ(x: α, r: ρ).rxr r x
+        Nil = λ().r
+        Cons = λ(x: α, r: ρ).rxr r x
       }
   let filter = Λα.λp: α → bool.λxs: List α.
     xs
     ▷ fold«List α»«α»
-        λxs.λx.if p x then 'Some (x, xs) else xs
-        'None
+        λxs.λx.if p x then 'Cons (x, xs) else xs
+        'Nil
   let concat = Λα.λxs: List α.λys: List α.
-    fold«List α»«α» (λxs.λx.'Some (x, xs)) ys xs
+    fold«List α»«α» (λxs.λx.'Cons (x, xs)) ys xs
   {one, has, fold, filter, concat}
 
 # Set ADT
@@ -53,7 +50,7 @@ type Set = λelem.λset.{
 let Set = {
   make = Λelem.λeq: elem → elem → bool.
     type set = List elem
-    let empty = 'None
+    let empty = 'Nil
     let singleton = List.one«elem»
     let remove = λx: elem.List.filter«elem» λy.¬eq x y
     let union = λl: set.λr: set.

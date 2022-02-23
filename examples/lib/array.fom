@@ -1,39 +1,52 @@
+include "types"
+
+let List = import "list"
+
 type array = λα.∃array.array α
 
 let tabulate = Λα.λf: int → α.λn: int.
-  target«(int → α) → int → impure (array α)»
+  target«∀α.(int → α) → int → impure (array α)»
     "fn => n => {\
     \  const a = new Array(n);\
     \  for (let i=0; i<n; ++i) a[i] = fn(i);\
     \  return a;\
     \}"
-    f n
+    «α» f n
   ▷ keep«array α»
 
-let length =
-  # Can be considered pure as length cannot (currently) be changed
-  target«∀α.array α → int» "a => a.length"
+let length = Λα.λxs: array α.
+  target«∀α.array α → impure int» "a => a.length" «α» xs
+  ▷ keep«int»
 
 let sub = Λα.λxs: array α.λi: int.
-  target«array α → int → impure α»
+  target«∀α.array α → int → impure α»
     "a => i => {\
     \  if (i < 0 || a.length <= i)\
     \    throw new Error(\
     \      `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`);\
     \  return a[i];\
     \}"
-    xs i
+    «α» xs i
   ▷ keep«α»
 
 let update = Λα.λxs: array α.λi: int.λx: α.
-  target«array α → int → α → impure ()»
+  target«∀α.array α → int → α → impure ()»
     "a => i => v => {\
     \  if (i < 0 || a.length <= i)\
     \    throw new Error(\
     \      `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`);\
     \  a[i] = v;\
     \}"
-    xs i x
+    «α» xs i x
   ▷ keep«()»
 
-«array, {tabulate, length, sub, update}»
+let push = Λα.λxs: array α.λx: α.
+  target«∀α.array α → α → impure ()» "a => v => a.push(v)" «α» xs x
+  ▷ keep«()»
+
+let of_list = Λα.λxs: list α.
+  let ys = target«impure (array α)» "[]" ▷ keep«array α»
+  List.iter«α» (push«α» ys) xs
+  ys
+
+«array, {tabulate, length, sub, update, push, of_list}»

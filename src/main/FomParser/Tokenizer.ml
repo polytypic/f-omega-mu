@@ -42,6 +42,7 @@ let token_info_utf_8 =
     | BraceLhsNS -> punctuation
     | BraceRhs -> punctuation
     | BracketLhs -> punctuation
+    | BracketLhsNS -> punctuation
     | BracketRhs -> punctuation
     | Caret -> operator
     | Case -> keyword

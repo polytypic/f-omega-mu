@@ -6,25 +6,25 @@ let List = import "list"
 
 type queue = λν.{front: list ν, back: list ν}
 
-let empty = Λ_.{front = 'None, back = 'None}
+let empty = Λ_.{front = [], back = []}
 
 let is_empty = Λν.λq: queue ν.
   List.is_empty«ν» q.front
 
 let insert = Λν.λv: ν.λq: queue ν.
   if List.is_empty«ν» q.front then
-    {front = 'Some (v, 'None), back = 'None}
+    {front = [v], back = []}
   else
-    {front = q.front, back = 'Some (v, q.back)}
+    {front = q.front, back = 'Cons (v, q.back)}
 
 let remove = Λν.λq: queue ν.
   q.front ▷ case {
-    None = λ().'None
-    Some = λ(v: ν, front: list ν).
+    Nil = λ().'None
+    Cons = λ(v: ν, front: list ν).
       'Some (
         v,
         if List.is_empty«ν» front then
-          {front = List.rev«ν» q.back, back = 'None}
+          {front = List.rev«ν» q.back, back = []}
         else
           {front, back = q.back}
       )

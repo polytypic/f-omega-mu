@@ -35,6 +35,7 @@
 %token BraceLhsNS "_{"
 %token BraceRhs "}"
 %token BracketLhs "["
+%token BracketLhsNS "_["
 %token BracketRhs "]"
 %token Caret "^"
 %token Colon ":"
@@ -274,6 +275,7 @@ exp_bid:
 exp_high_prec:
   | "_(" xs=list_n(exp, ",") ")"                    {Exp.tuple $loc xs}
   | "_{" fs=list_n(exp_lab, ",") "}"                {Exp.product $loc fs}
+  | "_[" xs=list_n(exp, ",") "]"                    {Exp.aggr $loc xs}
 
 exp_atom:
   | i=exp_rid                                       {Exp.var i}
@@ -288,6 +290,7 @@ exp_atom:
   | e=exp_atom "." "(" i=exp ")"                    {`Select ($loc, e, i)}
   | "target" "«" t=typ "»" c=lit_string             {`Const ($loc, `Target (t, c))}
   | "import" p=path                                 {`Import p}
+  | "[" xs=list_n(exp, ",") "]"                     {Exp.aggr $loc xs}
 
 exp_tick:
   | "'" l=lab                                       {Exp.atom l}

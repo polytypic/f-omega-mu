@@ -1,20 +1,17 @@
 'use strict'
-const ᐟNone = ['None']
-const 𛰙3ꓹ_ᐟNone𛰚 = {1: 3, 2: ᐟNone}
-const ᐟSome𛰙3ꓹ_ᐟNone𛰚 = ['Some', 𛰙3ꓹ_ᐟNone𛰚]
-const 𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚 = {1: 1, 2: ᐟSome𛰙3ꓹ_ᐟNone𛰚}
-const ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚 = ['Some', 𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚]
-const 𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚𛰚 = {1: 5, 2: ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚}
-const ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ = ['Some', 𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_ᐟNone𛰚𛰚𛰚]
-const _to_list = ᐟNone_ǀ_ᐟSome => {
-  const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
-  if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
-    return [
-      'Some',
-      {1: val_ᐟNone_ǀ_ᐟSome[1], 2: _to_list(val_ᐟNone_ǀ_ᐟSome[2])},
-    ]
+const ᐟNil = ['Nil']
+const 𛰙3ꓹ_ᐟNil𛰚 = {1: 3, 2: ᐟNil}
+const ᐟCons𛰙3ꓹ_ᐟNil𛰚 = ['Cons', 𛰙3ꓹ_ᐟNil𛰚]
+const 𛰙1ꓹ_ᐟCons𛰙3ꓹ_ᐟNil𛰚𛰚 = {1: 1, 2: ᐟCons𛰙3ꓹ_ᐟNil𛰚}
+const ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_ᐟNil𛰚𛰚 = ['Cons', 𛰙1ꓹ_ᐟCons𛰙3ꓹ_ᐟNil𛰚𛰚]
+const 𛰙5ꓹ_ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_ᐟNil𛰚𛰚𛰚 = {1: 5, 2: ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_ᐟNil𛰚𛰚}
+const ᐟCons𛰙5ꓹ_ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_ = ['Cons', 𛰙5ꓹ_ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_ᐟNil𛰚𛰚𛰚]
+const _to_list = ᐟNil_ǀ_ᐟCons => {
+  const [tag_ᐟNil_ǀ_ᐟCons, val_ᐟNil_ǀ_ᐟCons] = ᐟNil_ǀ_ᐟCons
+  if (tag_ᐟNil_ǀ_ᐟCons === 'Nil') {
+    return ᐟNil
   } else {
-    return ᐟNone
+    return ['Cons', {1: val_ᐟNil_ǀ_ᐟCons[1], 2: _to_list(val_ᐟNil_ǀ_ᐟCons[2])}]
   }
 }
-_to_list(ᐟSome𛰙5ꓹ_ᐟSome𛰙1ꓹ_ᐟSome𛰙3ꓹ_)
+_to_list(ᐟCons𛰙5ꓹ_ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_)

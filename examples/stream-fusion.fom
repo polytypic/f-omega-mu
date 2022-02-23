@@ -24,18 +24,18 @@ let «stream, Stream»: ∃(Stream) =
     of_list = Λα.λxs.«list α, (
       xs,
       case {
-        None = λ().'Done
-        Some = λc.'Yield c
+        Nil = λ().'Done
+        Cons = λc.'Yield c
       }
     )»
     to_list = Λα.λ«s, (xs, next)».
       let μto_list: list α → s → list α = λys.λxs.
         next xs ▷ case {
           Done = λ().List.rev«α» ys
-          Yield = λ(hd, tl).to_list 'Some(hd, ys) tl
+          Yield = λ(hd, tl).to_list 'Cons(hd, ys) tl
           Skip = to_list ys
         }
-      to_list 'None xs
+      to_list 'Nil xs
     map = Λ_.Λ_.λfn.λ«s, (xs, next)».«s, (
         xs,
         λxs.

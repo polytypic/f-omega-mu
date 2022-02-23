@@ -1,16 +1,16 @@
 'use strict'
-const ᐟNone = ['None']
+const ᐟNil = ['Nil']
 const ᐥexperimentalᐥ = 'experimental'
-const 𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚 = {1: ᐥexperimentalᐥ, 2: ᐟNone}
-const ᐟSome𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚 = ['Some', 𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚]
+const 𛰙ᐥexperimentalᐥꓹ_ᐟNil𛰚 = {1: ᐥexperimentalᐥ, 2: ᐟNil}
+const ᐟCons𛰙ᐥexperimentalᐥꓹ_ᐟNil𛰚 = ['Cons', 𛰙ᐥexperimentalᐥꓹ_ᐟNil𛰚]
 const ᐥtemplate_stringsᐥ = 'template strings'
-const 𛰙ᐥtemplate_stringsᐥꓹ_ᐟSome𛰙ᐥexperimentalᐥꓹ_ = {
+const 𛰙ᐥtemplate_stringsᐥꓹ_ᐟCons𛰙ᐥexperimentalᐥꓹ_ = {
   1: ᐥtemplate_stringsᐥ,
-  2: ᐟSome𛰙ᐥexperimentalᐥꓹ_ᐟNone𛰚,
+  2: ᐟCons𛰙ᐥexperimentalᐥꓹ_ᐟNil𛰚,
 }
-const ᐟSome𛰙ᐥtemplate_stringsᐥꓹ_ = [
-  'Some',
-  𛰙ᐥtemplate_stringsᐥꓹ_ᐟSome𛰙ᐥexperimentalᐥꓹ_,
+const ᐟCons𛰙ᐥtemplate_stringsᐥꓹ_ = [
+  'Cons',
+  𛰙ᐥtemplate_stringsᐥꓹ_ᐟCons𛰙ᐥexperimentalᐥꓹ_,
 ]
 const ᐥINSERT_INTO_language_VALUES_ = 'INSERT INTO language VALUES (?, ?)'
-;({sql: ᐥINSERT_INTO_language_VALUES_, args: ᐟSome𛰙ᐥtemplate_stringsᐥꓹ_})
+;({sql: ᐥINSERT_INTO_language_VALUES_, args: ᐟCons𛰙ᐥtemplate_stringsᐥꓹ_})

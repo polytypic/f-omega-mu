@@ -114,15 +114,15 @@ let «_, sql» =
   type state = {sql, args, rev}
   let rev0 = λys: args.λ_: args.ys
   let rev1 = λrev: rev.λys: args.case {
-      None = λ().ys
-      Some = λ(arg: arg, args: args).rev 'Some(arg, ys) args
+      Nil = λ().ys
+      Cons = λ(arg: arg, args: args).rev 'Cons(arg, ys) args
     }
   «{sql, args, rev}, {
-    begin = {sql = "", args = 'None, rev = rev0}
+    begin = {sql = "", args = 'Nil, rev = rev0}
     finish = λ{sql, args, rev}.
-      {sql, args = rev 'None args}
+      {sql, args = rev 'Nil args}
     string = λarg.λ{sql, args, rev}.
-      {sql = sql ^ "?", args = 'Some (arg, args), rev = rev1 rev}
+      {sql = sql ^ "?", args = 'Cons (arg, args), rev = rev1 rev}
     text = λtext.λ{sql, args, rev}.
       {sql = sql ^ text, args, rev = rev1 rev}
   }»: ∃state.{

@@ -1,17 +1,17 @@
 'use strict'
-const ᐟNone = ['None']
-const 𝛌xꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚 = x => xs => ['Some', {1: x, 2: xs}]
-const _fold = xrr$1 => r$1 => ᐟNone_ǀ_ᐟSome$1 => {
+const ᐟNil = ['Nil']
+const 𝛌xsꓸλxꓸᐟCons𛰙xꓹ_xs𛰚 = xs => x => ['Cons', {1: x, 2: xs}]
+const _fold = rxr$1 => r$1 => ᐟNil_ǀ_ᐟCons$1 => {
   for (;;) {
-    const xrr = xrr$1,
+    const rxr = rxr$1,
       r = r$1,
-      ᐟNone_ǀ_ᐟSome = ᐟNone_ǀ_ᐟSome$1
-    const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
-    if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
-      ;(r$1 = xrr(val_ᐟNone_ǀ_ᐟSome[1])(r)),
-        (ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2])
-    } else {
+      ᐟNil_ǀ_ᐟCons = ᐟNil_ǀ_ᐟCons$1
+    const [tag_ᐟNil_ǀ_ᐟCons, val_ᐟNil_ǀ_ᐟCons] = ᐟNil_ǀ_ᐟCons
+    if (tag_ᐟNil_ǀ_ᐟCons === 'Nil') {
       return r
+    } else {
+      ;(r$1 = rxr(r)(val_ᐟNil_ǀ_ᐟCons[1])),
+        (ᐟNil_ǀ_ᐟCons$1 = val_ᐟNil_ǀ_ᐟCons[2])
     }
   }
 }
@@ -20,51 +20,51 @@ const _iota = xs$1 => n$1 => {
     const xs = xs$1,
       n = n$1
     if (0 < n) {
-      ;(xs$1 = ['Some', {1: (n - 1) | 0, 2: xs}]), (n$1 = (n - 1) | 0)
+      ;(xs$1 = ['Cons', {1: (n - 1) | 0, 2: xs}]), (n$1 = (n - 1) | 0)
     } else {
       return xs
     }
   }
 }
-const xs = _iota(ᐟNone)(5)
-const S1 = ys$1 => ᐟNone_ǀ_ᐟSome$1 => {
+const xs = _iota(ᐟNil)(5)
+const S1 = ys$1 => ᐟNil_ǀ_ᐟCons$1 => {
   for (;;) {
     const ys = ys$1,
-      ᐟNone_ǀ_ᐟSome = ᐟNone_ǀ_ᐟSome$1
-    const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
-    if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
-      if ((((val_ᐟNone_ǀ_ᐟSome[1] + 1) | 0) % 2 | 0) === 1) {
-        ;(ys$1 = [
-          'Some',
-          {1: (((val_ᐟNone_ǀ_ᐟSome[1] + 1) | 0) * 2) | 0, 2: ys},
-        ]),
-          (ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2])
-      } else {
-        ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2]
-      }
-    } else {
+      ᐟNil_ǀ_ᐟCons = ᐟNil_ǀ_ᐟCons$1
+    const [tag_ᐟNil_ǀ_ᐟCons, val_ᐟNil_ǀ_ᐟCons] = ᐟNil_ǀ_ᐟCons
+    if (tag_ᐟNil_ǀ_ᐟCons === 'Nil') {
       return S2(ys)(xs)
+    } else {
+      if ((((val_ᐟNil_ǀ_ᐟCons[1] + 1) | 0) % 2 | 0) === 1) {
+        ;(ys$1 = [
+          'Cons',
+          {1: (((val_ᐟNil_ǀ_ᐟCons[1] + 1) | 0) * 2) | 0, 2: ys},
+        ]),
+          (ᐟNil_ǀ_ᐟCons$1 = val_ᐟNil_ǀ_ᐟCons[2])
+      } else {
+        ᐟNil_ǀ_ᐟCons$1 = val_ᐟNil_ǀ_ᐟCons[2]
+      }
     }
   }
 }
-const S2 = ys$1 => ᐟNone_ǀ_ᐟSome$1 => {
+const S2 = ys$1 => ᐟNil_ǀ_ᐟCons$1 => {
   for (;;) {
     const ys = ys$1,
-      ᐟNone_ǀ_ᐟSome = ᐟNone_ǀ_ᐟSome$1
-    const [tag_ᐟNone_ǀ_ᐟSome, val_ᐟNone_ǀ_ᐟSome] = ᐟNone_ǀ_ᐟSome
-    if (tag_ᐟNone_ǀ_ᐟSome === 'Some') {
-      if ((((val_ᐟNone_ǀ_ᐟSome[1] + 1) | 0) % 2 | 0) === 1) {
-        ;(ys$1 = [
-          'Some',
-          {1: (((val_ᐟNone_ǀ_ᐟSome[1] + 1) | 0) * 2) | 0, 2: ys},
-        ]),
-          (ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2])
-      } else {
-        ᐟNone_ǀ_ᐟSome$1 = val_ᐟNone_ǀ_ᐟSome[2]
-      }
+      ᐟNil_ǀ_ᐟCons = ᐟNil_ǀ_ᐟCons$1
+    const [tag_ᐟNil_ǀ_ᐟCons, val_ᐟNil_ǀ_ᐟCons] = ᐟNil_ǀ_ᐟCons
+    if (tag_ᐟNil_ǀ_ᐟCons === 'Nil') {
+      return _fold(𝛌xsꓸλxꓸᐟCons𛰙xꓹ_xs𛰚)(ᐟNil)(ys)
     } else {
-      return _fold(𝛌xꓸλxsꓸᐟSome𛰙xꓹ_xs𛰚)(ᐟNone)(ys)
+      if ((((val_ᐟNil_ǀ_ᐟCons[1] + 1) | 0) % 2 | 0) === 1) {
+        ;(ys$1 = [
+          'Cons',
+          {1: (((val_ᐟNil_ǀ_ᐟCons[1] + 1) | 0) * 2) | 0, 2: ys},
+        ]),
+          (ᐟNil_ǀ_ᐟCons$1 = val_ᐟNil_ǀ_ᐟCons[2])
+      } else {
+        ᐟNil_ǀ_ᐟCons$1 = val_ᐟNil_ǀ_ᐟCons[2]
+      }
     }
   }
 }
-S1(ᐟNone)(xs)
+S1(ᐟNil)(xs)

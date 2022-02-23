@@ -8,10 +8,10 @@ type opt = λα.'None | 'Some α
 
 type res = λω.λα.'Error ω | 'Ok α
 
-type μlist = λα.opt (α, list α)
-type μlist_of_1 = λα.'Some (α, 'None)
-type μlist_of_1_to_n = λα.'Some (α, list α)
-type μlist_of_inf = λα.'Some (α, list_of_inf α)
+type μlist = λα.'Nil | 'Cons (α, list α)
+type μlist_of_1 = λα.'Cons (α, 'Nil)
+type μlist_of_1_to_n = λα.'Cons (α, list α)
+type μlist_of_inf = λα.'Cons (α, list_of_inf α)
 
 type alt = λα.λβ.'In1 α | 'In2 β
 

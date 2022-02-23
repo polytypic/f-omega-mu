@@ -255,8 +255,8 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | "<" -> return Less
     | "=" -> return Equal
     | ">" -> return Greater
-    | "[" -> return BracketLhs
-    | "]" -> return BracketRhs
+    | "[" -> opening BracketLhs
+    | "]" -> closing BracketRhs
     | "^" -> return Caret
     | "{" -> opening BraceLhs
     | "|" -> return Pipe
@@ -280,8 +280,8 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     (* *)
     | arrow_right | "->" -> return ArrowRight
     | diamond | "<>" -> return Diamond
-    | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
-    | double_angle_quote_rhs | ">>" -> return DoubleAngleQuoteRhs
+    | double_angle_quote_lhs | "<<" -> opening DoubleAngleQuoteLhs
+    | double_angle_quote_rhs | ">>" -> closing DoubleAngleQuoteRhs
     | double_comma | ",," -> return DoubleComma
     | greater_equal | ">=" -> return GreaterEqual
     | lambda_lower | "fun" -> return LambdaLower
@@ -362,6 +362,8 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     match%sedlex lexbuf with
     | '(' -> return ParenLhs
     | '{' -> return BraceLhs
+    | '[' -> return BracketLhs
+    | double_angle_quote_lhs | "<<" -> return DoubleAngleQuoteLhs
     | _ -> raise @@ Exn_lexeme (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer))
 
 let string_continuation ({lexbuf; _} as buffer) =

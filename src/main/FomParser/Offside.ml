@@ -39,7 +39,7 @@ let classify indent tok and_then =
 let ns tok tok_ns =
   let* last_tok in
   match tok_of last_tok with
-  | (Id _ | BraceRhs | DoubleAngleQuoteRhs | ParenRhs)
+  | (Id _ | BraceRhs | BracketRhs | DoubleAngleQuoteRhs | ParenRhs)
     when right_of last_tok = left_of tok ->
     emit (set tok_ns tok)
   | _ -> emit tok
@@ -76,7 +76,12 @@ let rec nest tok =
     emit tok
     >> emit (set ParenLhs tok)
     >> as_typ (with_indent (insert_semis ~dedent:true (emit_before ParenRhs)))
-  | BraceLhs -> ns tok BraceLhsNS >> with_indent insert_commas
+  | BraceLhs ->
+    ns tok BraceLhsNS
+    >> with_indent (insert_commas ~equal:true ~closing:BraceRhs)
+  | BracketLhs ->
+    ns tok BracketLhsNS
+    >> with_indent (insert_commas ~equal:false ~closing:BracketRhs)
   | ParenLhs ->
     ns tok ParenLhsNS >> with_indent (insert_semis ~commas:true emit)
   | If ->
@@ -88,20 +93,23 @@ let rec nest tok =
   | _ -> emit tok)
   >> get
 
-and insert_commas indent tok =
+and insert_commas ~equal ~closing indent tok =
   match tok_of tok with
-  | BraceRhs -> emit tok
+  | t when t = closing -> emit tok
   | Comma -> (
     classify indent tok @@ function
     | `Dedent -> error "offside"
-    | _ -> emit tok >> get >>= insert_commas indent)
-  | Equal ->
-    emit tok >> with_indent @@ insert_semis ~dedent:true (insert_commas indent)
+    | _ -> emit tok >> get >>= insert_commas ~equal ~closing indent)
+  | Equal when equal ->
+    emit tok
+    >> with_indent
+       @@ insert_semis ~dedent:true (insert_commas ~equal ~closing indent)
   | _ -> (
     classify indent tok @@ function
     | `Dedent -> error "offside"
-    | `Indent -> emit (set Comma tok) >> nest tok >>= insert_commas indent
-    | _ -> nest tok >>= insert_commas indent)
+    | `Indent ->
+      emit (set Comma tok) >> nest tok >>= insert_commas ~equal ~closing indent
+    | _ -> nest tok >>= insert_commas ~equal ~closing indent)
 
 and pattern form tok =
   match tok_of tok with
