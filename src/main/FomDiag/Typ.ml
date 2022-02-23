@@ -3,6 +3,7 @@ open FomChecker
 
 (* *)
 
+include FomPP.Typ
 include FomChecker.Typ
 include FomChecker.Typ.Core
 

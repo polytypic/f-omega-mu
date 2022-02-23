@@ -1,5 +1,4 @@
 open FomBasis
-open FomPPrint
 open FomSource
 
 module Kind : sig
@@ -32,18 +31,6 @@ module Kind : sig
 
   val keep_phys_eq' : t -> t -> t
   val keep_phys_eq : (t -> t) -> t -> t
-
-  (* Formatting *)
-
-  module Numbering : sig
-    type t
-
-    val create : unit -> t
-  end
-
-  val pp : ?numbering:Numbering.t -> t -> document
-  val pp_annot : ?numbering:Numbering.t -> t -> document
-  val to_string : ?numbering:Numbering.t -> t -> string
 end
 
 module Label : sig
@@ -97,10 +84,6 @@ module Typ : sig
     (* Kinding *)
 
     val kind_of : Loc.t -> t -> Kind.t
-
-    (* Formatting *)
-
-    val pp : t -> document
   end
 
   module Var : sig
@@ -255,24 +238,6 @@ module Typ : sig
   (* Freshening *)
 
   val freshen : t -> t
-
-  (* Formatting *)
-
-  val hanging : ([> ('t, 'k) Core.f] as 't) -> (document * document) option
-
-  val pp :
-    ?hr:bool ->
-    ?pp_annot:(Kind.t -> document) ->
-    ([< ('t, Kind.t) f > `App `Const `Exists `ForAll `Lam `Mu `Product `Var]
-     as
-     't) ->
-    document
-
-  val to_string :
-    ([< ('t, Kind.t) f > `App `Const `Exists `ForAll `Lam `Mu `Product `Var]
-     as
-     't) ->
-    string
 end
 
 module Exp : sig
@@ -321,11 +286,6 @@ module Exp : sig
 
     val lit_false : ('nat, 't) t
     val lit_true : ('nat, 't) t
-
-    (* Formatting *)
-
-    val pp' : ('nat -> document) -> ('t -> document) -> ('nat, 't) t -> document
-    val pp : (Bigint.t, Typ.t) t -> document
   end
 
   module Var : sig

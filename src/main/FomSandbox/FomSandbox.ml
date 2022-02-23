@@ -94,7 +94,7 @@ let pp_typ t =
       |> List.map @@ fun mu ->
          let i, t = decon mu in
          let t = replace_closed_mus m t in
-         Var.pp i ^^ space_equals ^^ pp_typ t
+         FomPP.Typ.Var.pp i ^^ space_equals ^^ pp_typ t
     in
     nest 2 (pp_typ t)
     ^^ break_0
@@ -113,7 +113,7 @@ let js_use_def ?(max_width = 60) (def, o) =
     | `Label (i, t) -> pp_typ t >>- fun t -> FomAST.Label.pp i ^^ colon ^^ t
     | `ExpId (i, t) -> pp_typ t >>- fun t -> FomAST.Exp.Var.pp i ^^ colon ^^ t
     | `TypId (i, k) ->
-      return @@ gnest 2 (Typ.Var.pp i ^^ colon_break_1 ^^ FomAST.Kind.pp k))
+      return @@ gnest 2 (Typ.Var.pp i ^^ colon_break_1 ^^ FomPP.Kind.pp k))
     >>- to_js_string ~max_width
   in
   object%js

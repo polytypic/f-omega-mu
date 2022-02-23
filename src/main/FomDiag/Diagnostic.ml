@@ -4,9 +4,22 @@ open FomSource
 
 (* *)
 
-module Kind = FomAST.Kind
-module Label = FomAST.Label
-module Exp = FomAST.Exp
+module Kind = struct
+  include FomAST.Kind
+  include FomPP.Kind
+end
+
+module Label = struct
+  include FomAST.Label
+  include FomPP.Label
+end
+
+module Exp = struct
+  module Var = struct
+    include FomAST.Exp.Var
+    include FomPP.Exp.Var
+  end
+end
 
 type t = Loc.t * document
 

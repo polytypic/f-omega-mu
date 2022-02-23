@@ -215,7 +215,8 @@ let rec compare (l : t) (r : t) =
 
 (* *)
 
-let const_pp c = Const.pp' (Int32.to_string >>> utf8string) Typ.pp c
+let const_pp c =
+  FomPP.Exp.Const.pp' (Int32.to_string >>> utf8string) FomPP.Typ.pp c
 
 let seems_atomic cs =
   let n = Array.length cs in

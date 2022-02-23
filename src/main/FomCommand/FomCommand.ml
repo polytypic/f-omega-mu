@@ -89,7 +89,7 @@ let process filename =
   let max_width = !Options.max_width in
   (let* ast, typ, paths = FomElab.elaborate cst in
    (if !Options.stop = `Typ then (
-    typ |> FomAST.Typ.pp |> to_string ~max_width |> Printf.printf "%s\n";
+    typ |> FomPP.Typ.pp |> to_string ~max_width |> Printf.printf "%s\n";
     fail `Stop)
    else unit)
    >> let* js = FomToJsC.to_js ~whole:!Options.whole ast paths in
