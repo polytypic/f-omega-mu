@@ -142,6 +142,20 @@ module Typ = struct
     config.pp config prec l ^^ space ^^ op ^^ space ^^ config.pp config prec r
     |> if prec < prec_outer then egyptian parens 2 else id
 
+  let rec as_aggr typ =
+    match typ with
+    | `Sum (_, [(l, t)]) ->
+      let l = Label.to_string l in
+      if l = FomCST.Exp.cons then
+        match t with
+        | `Product (_, ([(_, x); (_, xs)] as ls)) when Row.is_tuple ls ->
+          as_aggr xs >>- fun xs -> x :: xs
+        | _ -> zero
+      else if l = FomCST.Exp.nil then
+        match t with `Const (_, `Unit) -> return [] | _ -> zero
+      else zero
+    | _ -> zero
+
   let pp config prec_outer typ =
     match typ with
     | `Const (_, const) -> Const.pp const
@@ -161,10 +175,18 @@ module Typ = struct
     | `Product (_, labels) ->
       if Row.is_tuple labels then tupled config labels |> egyptian parens 2
       else labeled config labels |> egyptian braces 2
-    | `Sum (_, [(l, `Const (_, `Unit))]) -> tick ^^ Label.pp l
-    | `Sum (_, labels) ->
-      ticked config labels
-      |> if prec_arrow < prec_outer then egyptian parens 2 else id
+    | `Sum _ as typ -> (
+      match as_aggr typ |> Option.run with
+      | Some xs ->
+        xs
+        |> List.map (config.pp config prec_min >>> group)
+        |> separate comma_break_1 |> egyptian brackets 2
+      | None -> (
+        match typ with
+        | `Sum (_, [(l, `Const (_, `Unit))]) -> tick ^^ Label.pp l
+        | `Sum (_, labels) ->
+          ticked config labels
+          |> if prec_arrow < prec_outer then egyptian parens 2 else id))
     | `App (_, _, _) -> (
       match FomAST.Typ.unapp typ with
       | f, xs ->
