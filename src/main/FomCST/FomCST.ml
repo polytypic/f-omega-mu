@@ -144,12 +144,15 @@ module Exp = struct
       at
     | #Exp.f as ast -> Exp.at ast
 
+  let cons = "Cons"
+  let nil = "Nil"
+
   let aggr at' xs =
     List.fold_right
       (fun x ys ->
-        `Inject (at', Label.of_string at' "Cons", Exp.tuple at' [x; ys]))
+        `Inject (at', Label.of_string at' cons, Exp.tuple at' [x; ys]))
       xs
-      (Exp.atom (Label.of_string at' "Nil"))
+      (Exp.atom (Label.of_string at' nil))
 end
 
 module Annot = struct

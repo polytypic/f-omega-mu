@@ -38,6 +38,7 @@ module Typ : sig
      `Lam
      `Mu
      `Product
+     `Sum
      `Var ]
      as
      't) ->
@@ -51,6 +52,7 @@ module Typ : sig
      `Lam
      `Mu
      `Product
+     `Sum
      `Var ]
      as
      't) ->
