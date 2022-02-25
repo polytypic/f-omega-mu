@@ -1,0 +1,49 @@
+# Simple Push Stream
+
+# This example is inspired by the talk
+#
+#   Even Better Stream Fusion
+#   by Oleg Kiselyov
+#   https://www.youtube.com/watch?v=WrbAwOTekaQ
+
+let «ref, Ref» = import "lib/ref"
+let «array, Array» = import "lib/array"
+
+# At the moment Fωμ does not have primitive support for arrays and ref cells so
+# we use opaque native JavaScript for those.
+
+type Arr = λarr.{
+  of_array: ∀α.array α → arr α
+  map: ∀α.∀β.(α → β) → arr α → arr β
+  filter: ∀α.(α → bool) → arr α → arr α
+  sum: arr int → int
+}
+
+let «arr, Arr»: ∃(Arr) =
+  «λα.{n: int, ix: int → (α → ()) → ()}, {
+    of_array = Λα.λxs.{n = Array.length«α» xs, ix = λi.λk.k (Array.sub«α» xs i)}
+    map = Λ_.Λ_.λxy.λ{n, ix}.{n, ix = λi.λk.ix i λx.k (xy x)}
+    filter = Λ_.λxb.λ{n, ix}.{n, ix = λi.λk.ix i λx.if xb x then k x else ()}
+    sum = λ{n, ix}.
+      let sum = Ref.ref«int» 0
+      let μloop: int → int = λi.
+        if i < n then
+          ix i λx.Ref.set«int» sum (x + Ref.get«int» sum)
+          loop (i + 1)
+        else
+          Ref.get«int» sum
+      loop 0
+  }»
+
+# The non-recursive implementation of push streams allows the Fωμ toy compiler
+# to essentially eliminate all abstraction overhead.  The end result is a loop
+# whose body contains no closures or other short lived allocations.  Of course,
+# the opaque native JavaScript cannot be optimized by the Fωμ toy compiler and
+# should be replaced with transparent primitives.
+
+10
+▷ Array.tabulate«int» λi.i
+▷ Arr.of_array«int»
+▷ Arr.filter«int» λx.x % 2 ≠«int» 0
+▷ Arr.map«int»«int» λx.x * x
+▷ Arr.sum
