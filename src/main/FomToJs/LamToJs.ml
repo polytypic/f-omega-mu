@@ -136,19 +136,16 @@ and to_js_stmts_renumbered finish ids exp =
     | `Exit -> assignments)
   | _ -> (
     match exp with
-    | `App (`Lam (i, e), v) -> (
+    | `App (`Lam (i, e), v) ->
       if VarSet.mem i ids then
         let i' = Var.freshen i in
         let vi' = `Var i' in
         to_js_stmts finish ids @@ `App (`Lam (i', subst i vi' e), v)
-      else
+      else if is_free i e then
         let body v =
-          let b =
-            if is_free i e then str "const " ^ Var.to_js i ^ str " = "
-            else str ""
-          in
           let+ e = to_js_stmts (as_return finish) (VarSet.add i ids) e in
-          do_finish finish (b ^ v ^ str "; " ^ e)
+          do_finish finish
+            (str "const " ^ Var.to_js i ^ str " = " ^ v ^ str "; " ^ e)
         in
         match v with
         | `Mu (`Lam (f, (`Product fs as b)))
@@ -184,7 +181,11 @@ and to_js_stmts_renumbered finish ids exp =
                && (not (is_free i v))
                && is_free i e ->
           to_js_expr (subst f (`Var i) b) >>= body
-        | _ -> to_js_expr v >>= body)
+        | _ -> to_js_expr v >>= body
+      else
+        let+ v = to_js_stmts `Top ids v
+        and+ e = to_js_stmts (as_return finish) ids e in
+        do_finish finish (v ^ str "; " ^ e)
     | `IfElse (c, t, e) ->
       let+ c = to_js_expr c
       and+ t = to_js_stmts (as_return finish) VarSet.empty t

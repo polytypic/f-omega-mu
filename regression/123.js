@@ -6,7 +6,11 @@ const ᐥ5ᐥ = '5'
 const ᐥ3ᐥ = '3'
 const 𝛌_𛰝b_ꘌ_b𛰞ꓸ𛰙λ_Seqꓸ𛰙λ_Seqꓸkeep𖩇α𖩉𛰙𛰙target_ = _𛰝b_ꘌ_b𛰞 => {
   target_string_𐙤_impure_𛰙𛰚_(ᐥ3ᐥ)
-  _𛰝b_ꘌ_b𛰞.b ? target_string_𐙤_impure_𛰙𛰚_(ᐥ4ᐥ) : target_string_𐙤_impure_𛰙𛰚_(ᐥ5ᐥ)
+  if (_𛰝b_ꘌ_b𛰞.b) {
+    target_string_𐙤_impure_𛰙𛰚_(ᐥ4ᐥ)
+  } else {
+    target_string_𐙤_impure_𛰙𛰚_(ᐥ5ᐥ)
+  }
   return target_string_𐙤_impure_𛰙𛰚_(ᐥ6ᐥ)
 }
 const ᐥ8ᐥ = '8'
