@@ -64,5 +64,5 @@ let cycle: ∀α.list_of_1_to_n α → list_of_inf α = Λα.λxxs.
         }
     xxs ▷ case { Cons = λ(x, xs).'Cons (x, complete xs) }
 
-cycle«int» ◁ 'Cons (4, a_singleton_list)
+cycle«int» 'Cons(4, a_singleton_list)
 ▷ cycle«int»
