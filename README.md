@@ -22,7 +22,8 @@ This Fωμ variant has
 - **impredicative universal and existential types**
   ([\*](https://polytypic.github.io/f-omega-mu/#*examples/stack-adt.fom)),
 - **structural subtyping**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/bounded-subtyping-of-counters.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/aggregate-syntax.fom),
+  [\*](https://polytypic.github.io/f-omega-mu/#*examples/bounded-subtyping-of-counters.fom)),
 - **decidable type checking**, and
 - **phase separation**.
 
