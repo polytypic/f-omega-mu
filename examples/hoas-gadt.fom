@@ -35,7 +35,7 @@ let Fact =
   Fix«int»«int»
   ◁ Lam«int → int»«int → int» λf.Lam«int»«int» λx.
       If«int» (Bin«int»«int»«bool» (=«int») x Val«int»(0))
-        (Val«int» 1)
+        Val«int»(1)
         (Bin«int»«int»«int» (*)
           x
           ◁ App«int»«int» f
