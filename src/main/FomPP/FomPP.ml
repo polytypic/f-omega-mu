@@ -146,12 +146,12 @@ module Typ = struct
     match typ with
     | `Sum (_, [(l, t)]) ->
       let l = Label.to_string l in
-      if l = FomCST.Exp.cons then
+      if l = FomCST.Aggr.cons then
         match t with
         | `Product (_, ([(_, x); (_, xs)] as ls)) when Row.is_tuple ls ->
           as_aggr xs >>- fun xs -> x :: xs
         | _ -> zero
-      else if l = FomCST.Exp.nil then
+      else if l = FomCST.Aggr.nil then
         match t with `Const (_, `Unit) -> return [] | _ -> zero
       else zero
     | _ -> zero

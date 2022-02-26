@@ -10,6 +10,11 @@ module Label = Label
 module Row = Row
 module Tuple = Tuple
 
+module Aggr = struct
+  let cons = "Cons"
+  let nil = "Nil"
+end
+
 module Typ = struct
   include Typ
 
@@ -38,6 +43,13 @@ module Typ = struct
       | `In of Loc.t * 't Def.f * 't f
       | `LocalIn of Loc.t * 't Def.f * 't f ]
   end
+
+  let aggr at' xs =
+    List.fold_right
+      (fun x ys ->
+        `Sum (at', [(Label.of_string at' Aggr.cons, Typ.tuple at' [x; ys])]))
+      xs
+      (Typ.atom (Label.of_string at' Aggr.nil))
 end
 
 module Exp = struct
@@ -144,15 +156,12 @@ module Exp = struct
       at
     | #Exp.f as ast -> Exp.at ast
 
-  let cons = "Cons"
-  let nil = "Nil"
-
   let aggr at' xs =
     List.fold_right
       (fun x ys ->
-        `Inject (at', Label.of_string at' cons, Exp.tuple at' [x; ys]))
+        `Inject (at', Label.of_string at' Aggr.cons, Exp.tuple at' [x; ys]))
       xs
-      (Exp.atom (Label.of_string at' nil))
+      (Exp.atom (Label.of_string at' Aggr.nil))
 end
 
 module Annot = struct
