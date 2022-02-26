@@ -225,7 +225,7 @@ let js_codemirror_mode =
             match classify value with
             | `Array value ->
               let label = get_label value |> string_label in
-              if label = FomCST.Exp.cons then
+              if label = FomCST.Aggr.cons then
                 match classify (get_value value) with
                 | `Object value -> (
                   match
@@ -236,7 +236,7 @@ let js_codemirror_mode =
                     >>- fun xs -> Js.Unsafe.get value key_x :: xs
                   | _ -> zero)
                 | _ -> zero
-              else if label = FomCST.Exp.nil && is_undefined (get_value value)
+              else if label = FomCST.Aggr.nil && is_undefined (get_value value)
               then return []
               else zero
             | _ -> zero)

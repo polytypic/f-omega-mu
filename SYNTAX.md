@@ -24,6 +24,7 @@ typ
   | typ '∧' typ                                   // Meet of types (*2)
   | '(' (typ, ',')* ')'                           // Tuple type (*3)
   | '{' (lab (':' typ)?, ',')* '}'                // Product type
+  | '[' (typ, ',')* ']'                           // Aggregate type
   | '|'? ("'" lab typ?, '|')*                     // Sum type
   | typ typ                                       // Apply type level function
   | 'λ' typ_pat '.' typ                           // Type level function

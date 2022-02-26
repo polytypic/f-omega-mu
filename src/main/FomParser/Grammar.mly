@@ -186,11 +186,13 @@ typ_pat:
 typ_high_prec:
   | "_(" xs=list_n(typ, ",") ")"                    {Typ.tuple $loc xs}
   | "_{" fs=list_n(typ_lab, ",") "}"                {Typ.product $loc fs}
+  | "_[" xs=list_n(typ, ",") "]"                    {Typ.aggr $loc xs}
 
 typ_atom:
   | i=typ_rid                                       {Typ.var i}
   | "(" ts=list_n(typ, ",") ")"                     {Typ.tuple $loc ts}
   | "{" fs=list_n(typ_lab, ",") "}"                 {Typ.product $loc fs}
+  | "[" xs=list_n(typ, ",") "]"                     {Typ.aggr $loc xs}
   | f=typ_atom x=typ_high_prec                      {`App ($loc, f, x)}
   | "μ" "(" t=typ ")"                               {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                               {`Exists ($loc, t)}
