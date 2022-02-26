@@ -20,4 +20,5 @@ const _cycle = xxs =>
     }
     return ['Cons', {1: xxs[1][1], 2: _complete(xxs[1][2])}]
   })
-_cycle(_cycle(ᐟCons𛰙4ꓹ_ᐟCons𛰙2ꓹ_ᐟNil𛰚𛰚))
+const _AppL = _cycle(ᐟCons𛰙4ꓹ_ᐟCons𛰙2ꓹ_ᐟNil𛰚𛰚)
+_cycle(_AppL)
