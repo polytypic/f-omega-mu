@@ -169,7 +169,7 @@ typ_lab:
 typ_tick_lab:
   | "'" l=lab                                       {(l, `Const ($loc, `Unit))}
   | "'" l=lab t=typ_atom_tick                       {(l, t)}
-  | "'" l=lab t=typ_high_prec                       {(l, t)}
+  | "'" l=lab t=typ_par("_{", "_[", "_(")           {(l, t)}
 
 typ_rid:
   | i=Id                                            {Typ.Var.of_string $loc i}
@@ -183,17 +183,15 @@ typ_pat:
   | i=typ_bid                                       {(i, Kind.fresh $loc)}
   | i=typ_bid ":" k=kind                            {(i, k)}
 
-typ_high_prec:
-  | "_(" xs=list_n(typ, ",") ")"                    {Typ.tuple $loc xs}
-  | "_{" fs=list_n(typ_lab, ",") "}"                {Typ.product $loc fs}
-  | "_[" xs=list_n(typ, ",") "]"                    {Typ.aggr $loc xs}
+typ_par(brace, bracket, paren):
+  | brace fs=list_n(typ_lab, ",") "}"               {Typ.product $loc fs}
+  | bracket xs=list_n(typ, ",") "]"                 {Typ.aggr $loc xs}
+  | paren xs=list_n(typ, ",") ")"                   {Typ.tuple $loc xs}
 
 typ_atom:
   | i=typ_rid                                       {Typ.var i}
-  | "(" ts=list_n(typ, ",") ")"                     {Typ.tuple $loc ts}
-  | "{" fs=list_n(typ_lab, ",") "}"                 {Typ.product $loc fs}
-  | "[" xs=list_n(typ, ",") "]"                     {Typ.aggr $loc xs}
-  | f=typ_atom x=typ_high_prec                      {`App ($loc, f, x)}
+  | t=typ_par("{", "[", "(")                        {t}
+  | f=typ_atom x=typ_par("_{", "_[", "_(")          {`App ($loc, f, x)}
   | "μ" "(" t=typ ")"                               {`Mu ($loc, t)}
   | "∃" "(" t=typ ")"                               {`Exists ($loc, t)}
   | "∀" "(" t=typ ")"                               {`ForAll ($loc, t)}
@@ -201,7 +199,7 @@ typ_atom:
 
 typ_tick:
   | "'" l=lab                                       {Typ.atom l}
-  | "'" l=lab t=typ_high_prec                       {Typ.sum $loc [(l, t)]}
+  | "'" l=lab t=typ_par("_{", "_[", "_(")           {Typ.sum $loc [(l, t)]}
 
 typ_atom_tick:
   | t=typ_atom                                      {t}
@@ -274,29 +272,27 @@ exp_bid:
   | "_"                                             {Exp.Var.underscore $loc}
   | i=exp_rid                                       {i}
 
-exp_high_prec:
-  | "_(" xs=list_n(exp, ",") ")"                    {Exp.tuple $loc xs}
-  | "_{" fs=list_n(exp_lab, ",") "}"                {Exp.product $loc fs}
-  | "_[" xs=list_n(exp, ",") "]"                    {Exp.aggr $loc xs}
+exp_par(brace, bracket, daq, paren):
+  | brace fs=list_n(exp_lab, ",") "}"               {Exp.product $loc fs}
+  | bracket xs=list_n(exp, ",") "]"                 {Exp.aggr $loc xs}
+  | daq x=typ "," e=exp "»"                         {`PackImp ($loc, x, e)}
+  | paren xs=list_n(exp, ",") ")"                   {Exp.tuple $loc xs}
 
 exp_atom:
   | i=exp_rid                                       {Exp.var i}
   | l=LitNat                                        {`Const ($loc, `Nat l)}
   | e=tstr                                          {e}
-  | "(" es=list_n(exp, ",") ")"                     {Exp.tuple $loc es}
-  | "{" fs=list_n(exp_lab, ",") "}"                 {Exp.product $loc fs}
-  | "«" x=typ "," e=exp "»"                         {`PackImp ($loc, x, e)}
-  | f=exp_atom x=exp_high_prec                      {`App ($loc, f, x)}
+  | e=exp_par("{", "[", "«", "(")                   {e}
+  | f=exp_atom x=exp_par("_{", "_[", "_«", "_(")    {`App ($loc, f, x)}
   | f=exp_atom "_«" x=typ "»"                       {`Inst ($loc, f, x)}
   | e=exp_atom "." l=lab                            {`Select ($loc, e, Exp.atom l)}
   | e=exp_atom "." "(" i=exp ")"                    {`Select ($loc, e, i)}
   | "target" "«" t=typ "»" c=lit_string             {`Const ($loc, `Target (t, c))}
   | "import" p=path                                 {`Import p}
-  | "[" xs=list_n(exp, ",") "]"                     {Exp.aggr $loc xs}
 
 exp_tick:
   | "'" l=lab                                       {Exp.atom l}
-  | "'" l=lab e=exp_high_prec                       {`Inject ($loc, l, e)}
+  | "'" l=lab e=exp_par("_{", "_[", "_«", "_(")     {`Inject ($loc, l, e)}
 
 exp_atom_tick:
   | e=exp_atom                                      {e}
