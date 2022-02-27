@@ -16,11 +16,13 @@ type Stream = λstream.{
   map: ∀α.∀β.(α → β) → stream α → stream β
   filter: ∀α.(α → bool) → stream α → stream α
   append: ∀α.stream α → stream α → stream α
+  concatMap: ∀α.∀β.(α → stream β) → stream α → stream β
 }
 
 # Non recursive existential stream type
 let «stream, Stream»: ∃(Stream) =
-  «λα.∃s.(s, s → 'Done | 'Yield (α, s) | 'Skip s), {
+  type stream = λα.∃s.(s, s → 'Done | 'Yield (α, s) | 'Skip s)
+  «stream, {
     of_list = Λα.λxs.«list α, (
       xs,
       case {
@@ -71,12 +73,30 @@ let «stream, Stream»: ∃(Stream) =
           }
         }
       )»
+    concatMap = Λ_.Λβ.λxys.λ«xs, (xs, next)».
+      «(xs, opt (stream β)), (
+        (xs, 'None),
+        λ(xs, ys_opt).
+          ys_opt ▷ case {
+            None = λ().next xs ▷ case {
+              Done = λ().'Done
+              Yield = λ(x, xs).'Skip (xs, 'Some (xys x))
+              Skip = λxs.'Skip (xs, 'None)
+            }
+            Some = λ«ys, (ys, next)».
+              next ys ▷ case {
+                Done = λ().'Skip (xs, 'None)
+                Yield = λ(y, ys).'Yield (y, (xs, 'Some «ys, (ys, next)»))
+                Skip = λys.'Skip (xs, 'Some «ys, (ys, next)»)
+              }
+          }
+      )»
   }»
 
-# Thanks to the non-recursive implementation and a couple of optimizations, the
-# Fωμ toy compiler is able to fuse stream operations, eliminate intermediate
-# stream data structures, and translate the stream expression to a collection of
-# loops.
+# Thanks to the non-recursive implementation and a couple of optimizations, with
+# the exception of `concatMap`, the Fωμ toy compiler is able to fuse stream
+# operations, eliminate intermediate stream data structures, and translate the
+# stream expression to a collection of loops.
 
 let xs = List.iota 5
 Stream.append«int» ◇ Stream.of_list«int» xs ◇ Stream.of_list«int» xs
