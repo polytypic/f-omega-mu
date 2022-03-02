@@ -82,8 +82,7 @@ let whole_program_to_js ast paths =
     >>- List.fold_left
           (fun prg (id, _, erased) -> `App (`Lam (id, prg), erased))
           (FomToJs.erase ast)
-    >>= FomToJs.simplify
-    >>= FomToJs.to_js ~top:`Top
+    >>= FomToJs.simplify >>= FomToJs.to_js ~top:`Top
   in
   str "'use strict'; " ^ js |> to_string
 
