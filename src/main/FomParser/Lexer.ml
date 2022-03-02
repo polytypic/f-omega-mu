@@ -13,6 +13,7 @@ let diamond = [%sedlex.regexp? 0x25c7 (* ◇ *)]
 let double_angle_quote_lhs = [%sedlex.regexp? 0x00ab (* « *)]
 let double_angle_quote_rhs = [%sedlex.regexp? 0x00bb (* » *)]
 let double_comma = [%sedlex.regexp? 0x201e (* „ *)]
+let ellipsis = [%sedlex.regexp? 0x2026 (* … *)]
 let exists = [%sedlex.regexp? 0x2203 (* ∃ *)]
 let for_all = [%sedlex.regexp? 0x2200 (* ∀ *)]
 let greater_equal = [%sedlex.regexp? 0x2265 (* ≥ *)]
@@ -283,6 +284,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | double_angle_quote_lhs | "<<" -> opening DoubleAngleQuoteLhs
     | double_angle_quote_rhs | ">>" -> closing DoubleAngleQuoteRhs
     | double_comma | ",," -> return DoubleComma
+    | ellipsis | "..." -> return Ellipsis
     | greater_equal | ">=" -> return GreaterEqual
     | lambda_lower | "fun" -> return LambdaLower
     | lambda_upper | "gen" -> return LambdaUpper

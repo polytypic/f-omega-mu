@@ -21,6 +21,7 @@ let[@warning "-32"] to_string = function
   | DoubleAngleQuoteRhs -> "»"
   | DoubleComma -> "„"
   | EOF -> "<EOF>"
+  | Ellipsis -> "…"
   | Else -> "else"
   | Equal -> "="
   | Escape s -> s

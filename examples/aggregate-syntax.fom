@@ -13,6 +13,10 @@ type μlist = λα.'Nil | 'Cons (α, list α)
 
 let a_list: list int = [1, 2, 3]
 
+# The list type can also be expressed as a recursive join of aggregates:
+
+type μlist = λα.[] ∨ [α, …list α]
+
 # Aggregates are not limited to homogenous lists.  Aggregate values and types
 # are structural and may be heterogenous.
 
