@@ -30,6 +30,7 @@ val to_js :
   top:
     [ `Body
     | `Return
+    | `Seq
     | `Tail of Exp.Var.t * Exp.Var.t list * Exp.Var.t list * [`Exit | `Case]
     | `Top ] ->
   Lam.t ->

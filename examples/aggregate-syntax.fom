@@ -34,4 +34,4 @@ let «array, Array» = import "lib/array"
 
 let an_array = Array.of_list«('A | 'B, int)»[('A, 1), ('B, 2)]
 
-Array.sub«('A | 'B, int)» an_array 1
+()
