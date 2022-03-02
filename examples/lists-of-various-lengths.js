@@ -14,11 +14,13 @@ const _cycle = xxs =>
         if (tag_xs === 'Nil') {
           return cycle
         } else {
-          return ['Cons', {1: val_xs[1], 2: _complete(val_xs[2])}]
+          const $2$ = _complete(val_xs[2])
+          return ['Cons', {1: val_xs[1], 2: $2$}]
         }
       }
     }
-    return ['Cons', {1: xxs[1][1], 2: _complete(xxs[1][2])}]
+    const $2$ = _complete(xxs[1][2])
+    return ['Cons', {1: xxs[1][1], 2: $2$}]
   })
 const _AppL = _cycle(ᐟCons𛰙4ꓹ_ᐟCons𛰙2ꓹ_ᐟNil𛰚𛰚)
 _cycle(_AppL)

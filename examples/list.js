@@ -10,7 +10,8 @@ const _takeN = n => xs => {
     if (tag_xs === 'Nil') {
       return ᐟNil
     } else {
-      return ['Cons', {1: val_xs[1], 2: _takeN((n - 1) | 0)(val_xs[2])}]
+      const $2$ = _takeN((n - 1) | 0)(val_xs[2])
+      return ['Cons', {1: val_xs[1], 2: $2$}]
     }
   }
 }

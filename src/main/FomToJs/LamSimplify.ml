@@ -243,7 +243,7 @@ and simplify_base = function
       Const.simplify_bop (c, x, y) >>= function
       | Some e -> simplify e
       | None -> default ())
-    | `Lam (i, e), x -> (
+    | `Lam (i, e), x ->
       let* defaulted = default () in
       let apply () =
         simplify (subst i x e) |> mapping Limit.field (fun v -> v / 16 * 15)
@@ -263,19 +263,7 @@ and simplify_base = function
                then return applied
                else return defaulted)
              (fun (`Limit | `Seen) -> return defaulted)
-      else
-        match x with
-        | `Product fs ->
-          fs |> List.rev
-          |> List.fold_left
-               (fun e (l, v) -> `App (`Lam (Var.of_label l, e), v))
-               ( fs |> List.map (fun (l, _) -> (l, `Var (Var.of_label l)))
-               |> fun fs -> `App (`Lam (i, e), `Product fs) )
-          |> simplify
-        | `Inject (l, v) ->
-          let i = Var.of_label l in
-          `App (`Lam (i, `App (f, `Inject (l, `Var i))), v) |> simplify
-        | _ -> return defaulted)
+      else return defaulted
     | `App (`Lam (x', `Lam (y', e)), x), y ->
       let x'' = Var.freshen x' in
       simplify
@@ -359,7 +347,26 @@ and simplify_base = function
           | true -> simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
           | false -> default ()
         else default ()))
-  | `Product fs -> Row.map_phys_eq_fr simplify fs >>- fun fs -> `Product fs
+  | `Product fs ->
+    let bs = MVar.create [] in
+    let* fs =
+      fs
+      |> List.map_phys_eq_fr (fun ((l, _) as le) ->
+             le
+             |> Pair.map_fr return @@ fun e ->
+                let* e = simplify e in
+                let* e_is_total = is_total e in
+                if e_is_total then
+                  match e with
+                  | `App (`Lam (i, e), v) ->
+                    MVar.mutate (fun bs -> (i, v) :: bs) bs >> return e
+                  | e -> return e
+                else
+                  let i = Var.of_label l in
+                  MVar.mutate (fun bs -> (i, e) :: bs) bs >> return @@ `Var i)
+    in
+    MVar.read bs
+    >>- List.fold_left (fun e (i, v) -> `App (`Lam (i, e), v)) (`Product fs)
   | `Select (e, l) -> (
     let* e = simplify e and* l = simplify l in
     let default () = return @@ `Select (e, l) in

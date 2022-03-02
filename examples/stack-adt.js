@@ -11,7 +11,8 @@ const _to_list = ᐟNil_ǀ_ᐟCons => {
   if (tag_ᐟNil_ǀ_ᐟCons === 'Nil') {
     return ᐟNil
   } else {
-    return ['Cons', {1: val_ᐟNil_ǀ_ᐟCons[1], 2: _to_list(val_ᐟNil_ǀ_ᐟCons[2])}]
+    const $2$ = _to_list(val_ᐟNil_ǀ_ᐟCons[2])
+    return ['Cons', {1: val_ᐟNil_ǀ_ᐟCons[1], 2: $2$}]
   }
 }
 _to_list(ᐟCons𛰙5ꓹ_ᐟCons𛰙1ꓹ_ᐟCons𛰙3ꓹ_)
