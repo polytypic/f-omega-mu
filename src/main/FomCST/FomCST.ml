@@ -44,12 +44,14 @@ module Typ = struct
       | `LocalIn of Loc.t * 't Def.f * 't f ]
   end
 
-  let aggr at' xs =
+  let aggr at' xs tl =
     List.fold_right
       (fun x ys ->
         `Sum (at', [(Label.of_string at' Aggr.cons, Typ.tuple at' [x; ys])]))
       xs
-      (Typ.atom (Label.of_string at' Aggr.nil))
+      (match tl with
+      | Some typ -> typ
+      | None -> Typ.atom (Label.of_string at' Aggr.nil))
 end
 
 module Exp = struct
@@ -156,12 +158,14 @@ module Exp = struct
       at
     | #Exp.f as ast -> Exp.at ast
 
-  let aggr at' xs =
+  let aggr at' xs tl =
     List.fold_right
       (fun x ys ->
         `Inject (at', Label.of_string at' Aggr.cons, Exp.tuple at' [x; ys]))
       xs
-      (Exp.atom (Label.of_string at' Aggr.nil))
+      (match tl with
+      | Some exp -> exp
+      | None -> Exp.atom (Label.of_string at' Aggr.nil))
 end
 
 module Annot = struct

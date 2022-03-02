@@ -46,6 +46,7 @@
 %token DoubleAngleQuoteLhsNS "_«"
 %token DoubleAngleQuoteRhs "»"
 %token DoubleComma "„"
+%token Ellipsis "…"
 %token Equal "="
 %token Exists "∃"
 %token ForAll "∀"
@@ -103,14 +104,24 @@ list_rev_1(elem, sep):
 list_1(elem, sep):
   | es=list_rev_1(elem, sep)                        {List.rev es}
 
-list_n(elem, sep):
-  | option(sep)                                     {[]}
-  | es=list_rev_1(elem, sep) option(sep)            {List.rev es}
+%inline list_n(elem, sep):
+  |                                                 {[]}
+  | es=list_rev_1(elem, sep)                        {List.rev es}
 
 //
 
 preopt(prefix, elem):
   | e=option(preceded(prefix, elem))                {e}
+
+//
+
+tail(elem):
+  |                                                 {None}
+  | "," e=preopt("…", elem)                         {e}
+
+aggr(elem):
+  | "…" e=elem                                      {([], Some e)}
+  | es=list_n(elem, ",") e=tail(elem)               {(es, e)}
 
 //
 
@@ -184,9 +195,9 @@ typ_pat:
   | i=typ_bid ":" k=kind                            {(i, k)}
 
 typ_par(brace, bracket, paren):
-  | brace fs=list_n(typ_lab, ",") "}"               {Typ.product $loc fs}
-  | bracket xs=list_n(typ, ",") "]"                 {Typ.aggr $loc xs}
-  | paren xs=list_n(typ, ",") ")"                   {Typ.tuple $loc xs}
+  | brace fs=list_n(typ_lab, ",") option(",") "}"   {Typ.product $loc fs}
+  | bracket a=aggr(typ) "]"                         {Typ.aggr $loc (fst a) (snd a)}
+  | paren xs=list_n(typ, ",") option(",") ")"       {Typ.tuple $loc xs}
 
 typ_atom:
   | i=typ_rid                                       {Typ.var i}
@@ -239,8 +250,8 @@ pat_lab:
 
 pat_atom:
   | i=exp_bid                                       {Exp.var i}
-  | "(" ps=list_n(pat, ",") ")"                     {Exp.Pat.tuple $loc ps}
-  | "{" fs=list_n(pat_lab, ",") "}"                 {`Product ($loc, fs)}
+  | "(" ps=list_n(pat, ",") option(",") ")"         {Exp.Pat.tuple $loc ps}
+  | "{" fs=list_n(pat_lab, ",") option(",") "}"     {`Product ($loc, fs)}
   | "«" b=typ_pat "," p=pat "»"                     {`Pack ($loc, p, fst b, snd b)}
 
 pat:
@@ -273,10 +284,10 @@ exp_bid:
   | i=exp_rid                                       {i}
 
 exp_par(brace, bracket, daq, paren):
-  | brace fs=list_n(exp_lab, ",") "}"               {Exp.product $loc fs}
-  | bracket xs=list_n(exp, ",") "]"                 {Exp.aggr $loc xs}
+  | brace fs=list_n(exp_lab, ",") option(",") "}"   {Exp.product $loc fs}
+  | bracket a=aggr(exp) "]"                         {Exp.aggr $loc (fst a) (snd a)}
   | daq x=typ "," e=exp "»"                         {`PackImp ($loc, x, e)}
-  | paren xs=list_n(exp, ",") ")"                   {Exp.tuple $loc xs}
+  | paren xs=list_n(exp, ",") option(",") ")"       {Exp.tuple $loc xs}
 
 exp_atom:
   | i=exp_rid                                       {Exp.var i}

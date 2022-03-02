@@ -56,6 +56,7 @@ let token_info_utf_8 =
     | DoubleAngleQuoteRhs -> punctuation
     | DoubleComma -> operator
     | EOF -> error
+    | Ellipsis -> punctuation
     | Else -> keyword
     | Equal -> operator
     | Escape _ -> string
@@ -140,6 +141,7 @@ let synonyms =
     ("λ", "fun", false);
     ("μ", "rec", false);
     ("„", ",,", true);
+    ("…", "...", false);
     ("→", "->", true);
     ("∀", "forall", false);
     ("∃", "exists", false);
