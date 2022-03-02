@@ -110,14 +110,14 @@ list_1(elem, sep):
 
 //
 
-preopt(prefix, elem):
-  | e=option(preceded(prefix, elem))                {e}
+pre(prefix, elem):
+  | e=preceded(prefix, elem)                        {e}
 
 //
 
 tail(elem):
   |                                                 {None}
-  | "," e=preopt("…", elem)                         {e}
+  | "," e=pre("…", elem)?                           {e}
 
 aggr(elem):
   | "…" e=elem                                      {([], Some e)}
@@ -160,8 +160,8 @@ typ_eq:
   | b=typ_pat "=" t=typ                             {(fst b, snd b, t)}
 
 typ_def:
-  | "type" bs=list_1(              typ_eq,  "and")  {`TypPar bs}
-  | "type" bs=list_1(preceded("μ", typ_eq), "and")  {`TypRec bs}
+  | "type" bs=list_1(         typ_eq,  "and")       {`TypPar bs}
+  | "type" bs=list_1(pre("μ", typ_eq), "and")       {`TypRec bs}
   | "include" p=path                                {`Include p}
 
 //
@@ -195,9 +195,9 @@ typ_pat:
   | i=typ_bid ":" k=kind                            {(i, k)}
 
 typ_par(brace, bracket, paren):
-  | brace fs=list_n(typ_lab, ",") option(",") "}"   {Typ.product $loc fs}
+  | brace fs=list_n(typ_lab, ",") ","? "}"          {Typ.product $loc fs}
   | bracket a=aggr(typ) "]"                         {Typ.aggr $loc (fst a) (snd a)}
-  | paren xs=list_n(typ, ",") option(",") ")"       {Typ.tuple $loc xs}
+  | paren xs=list_n(typ, ",") ","? ")"              {Typ.tuple $loc xs}
 
 typ_atom:
   | i=typ_rid                                       {Typ.var i}
@@ -221,7 +221,7 @@ typ_app:
   | f=typ_app x=typ_atom_tick                       {`App ($loc, f, x)}
 
 typ_inf:
-  | option("|") s=list_1(typ_tick_lab, "|")         {Typ.sum $loc s}
+  | "|"? s=list_1(typ_tick_lab, "|")                {Typ.sum $loc s}
   | "|"                                             {Typ.sum $loc []}
   | t=typ_app                                       {t}
   | l=typ_inf "∨" r=typ_inf                         {`Join ($loc, l, r)}
@@ -235,7 +235,7 @@ typ_lam(head):
   | head b=typ_pat "." t=typ                        {`Lam ($loc, fst b, snd b, t)}
 
 typ:
-  | t=typ_arr k=preopt(":", kind)                   {Annot.opt Kind.at k t}
+  | t=typ_arr k=pre(":", kind)?                     {Annot.opt Kind.at k t}
   | t=typ_lam("μ")                                  {`Mu ($loc, t)}
   | t=typ_lam("∃")                                  {`Exists ($loc, t)}
   | t=typ_lam("∀")                                  {`ForAll ($loc, t)}
@@ -245,17 +245,17 @@ typ:
 //
 
 pat_lab:
-  | l=lab_lit t=preopt(":", typ) p=preopt("=", pat) {(l, Annot.opt Typ.at t (Option.value p ~default:(Exp.var (Exp.Var.underscore $loc))))}
-  | i=exp_rid t=preopt(":", typ) p=preopt("=", pat) {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value p ~default:(Exp.var i)))}
+  | l=lab_lit t=pre(":", typ)? p=pre("=", pat)?     {(l, Annot.opt Typ.at t (Option.value p ~default:(Exp.var (Exp.Var.underscore $loc))))}
+  | i=exp_rid t=pre(":", typ)? p=pre("=", pat)?     {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value p ~default:(Exp.var i)))}
 
 pat_atom:
   | i=exp_bid                                       {Exp.var i}
-  | "(" ps=list_n(pat, ",") option(",") ")"         {Exp.Pat.tuple $loc ps}
-  | "{" fs=list_n(pat_lab, ",") option(",") "}"     {`Product ($loc, fs)}
+  | "(" ps=list_n(pat, ",") ","? ")"                {Exp.Pat.tuple $loc ps}
+  | "{" fs=list_n(pat_lab, ",") ","? "}"            {`Product ($loc, fs)}
   | "«" b=typ_pat "," p=pat "»"                     {`Pack ($loc, p, fst b, snd b)}
 
 pat:
-  | p=pat_atom t=preopt(":", typ)                   {Annot.opt Typ.at t p}
+  | p=pat_atom t=pre(":", typ)?                     {Annot.opt Typ.at t p}
 
 //
 
@@ -268,13 +268,13 @@ tstr_open:
   | i=TstrOpen                                      {Exp.Var.of_string $loc i}
 
 tstr:
-  | i=tstr_open es=list(tstr_elem) TstrClose        {`Tstr ($loc, i, es)}
+  | i=tstr_open es=tstr_elem* TstrClose             {`Tstr ($loc, i, es)}
 
 //
 
 exp_lab:
-  | l=lab_lit t=preopt(":", typ) "=" e=exp          {(l, Annot.opt Typ.at t e)}
-  | i=exp_rid t=preopt(":", typ) e=preopt("=", exp) {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value e ~default:(Exp.var i)))}
+  | l=lab_lit t=pre(":", typ)? "=" e=exp            {(l, Annot.opt Typ.at t e)}
+  | i=exp_rid t=pre(":", typ)? e=pre("=", exp)?     {(Exp.Var.to_label i, Annot.opt Typ.at t (Option.value e ~default:(Exp.var i)))}
 
 exp_rid:
   | i=Id                                            {Exp.Var.of_string $loc i}
@@ -284,10 +284,10 @@ exp_bid:
   | i=exp_rid                                       {i}
 
 exp_par(brace, bracket, daq, paren):
-  | brace fs=list_n(exp_lab, ",") option(",") "}"   {Exp.product $loc fs}
+  | brace fs=list_n(exp_lab, ",") ","? "}"          {Exp.product $loc fs}
   | bracket a=aggr(exp) "]"                         {Exp.aggr $loc (fst a) (snd a)}
   | daq x=typ "," e=exp "»"                         {`PackImp ($loc, x, e)}
-  | paren xs=list_n(exp, ",") option(",") ")"       {Exp.tuple $loc xs}
+  | paren xs=list_n(exp, ",") ","? ")"              {Exp.tuple $loc xs}
 
 exp_atom:
   | i=exp_rid                                       {Exp.var i}
@@ -364,11 +364,11 @@ exp_eq:
 
 exp_def:
   | d=typ_def                                       {d :> _ Exp.Def.f}
-  | "let" bs=list_1(              exp_eq,  "and")   {`PatPar bs}
-  | "let" bs=list_1(preceded("μ", exp_eq), "and")   {`PatRec bs}
+  | "let" bs=list_1(         exp_eq,  "and")        {`PatPar bs}
+  | "let" bs=list_1(pre("μ", exp_eq), "and")        {`PatRec bs}
 
 exp:
-  | l=exp_in t=preopt(":", typ) r=preopt(";", exp)  {Annot.opt Typ.at t l |> Option.fold ~none:id ~some:(fun r l -> `Seq ($loc, l, r)) r}
+  | l=exp_in t=pre(":", typ)? r=pre(";", exp)?      {Annot.opt Typ.at t l |> Option.fold ~none:id ~some:(fun r l -> `Seq ($loc, l, r)) r}
   | e=exp_lam("μ")                                  {`Mu ($loc, e)}
   | e=exp_lam("λ")                                  {e}
   | "Λ" b=typ_pat "." e=exp                         {`Gen ($loc, fst b, snd b, e)}
