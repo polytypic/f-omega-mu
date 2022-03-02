@@ -74,7 +74,7 @@ let parens exp = str "(" ^ exp ^ str ")"
 
 let to_return = function
   | `Return | `Tail _ -> str "return "
-  | `Top | `Body -> str " "
+  | `Top | `Body | `Seq -> str " "
 
 let do_finish finish js =
   match finish with `Body -> str "{" ^ js ^ str "}" | _ -> js
@@ -121,7 +121,8 @@ and to_js_stmts_renumbered finish ids exp =
     match exp with
     | `Const `Unit -> (
       match finish with
-      | `Top | `Return | `Tail _ -> return @@ str ""
+      | `Top -> return @@ str "void 0"
+      | `Seq | `Return | `Tail _ -> return @@ str ""
       | `Body -> return @@ str "{}")
     | exp ->
       let+ e = to_js_expr_renumbered exp in
@@ -183,7 +184,7 @@ and to_js_stmts_renumbered finish ids exp =
           to_js_expr (subst f (`Var i) b) >>= body
         | _ -> to_js_expr v >>= body
       else
-        let+ v = to_js_stmts `Top ids v
+        let+ v = to_js_stmts `Seq ids v
         and+ e = to_js_stmts (as_return finish) ids e in
         do_finish finish (v ^ str "; " ^ e)
     | `IfElse (c, t, e) ->

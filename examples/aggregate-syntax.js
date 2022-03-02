@@ -1,10 +1,5 @@
 'use strict'
-const target_ꓯαꓸ𛰙ꓱarrayꓽᕯ_𐙤_ᕯꓸarray_ = a => i => {
-  if (i < 0 || a.length <= i)
-    throw new Error(`Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`)
-  return a[i]
-}
-const target_ꓯαꓸ𛰙ꓱarrayꓽᕯ_𐙤_ᕯꓸarray_$1 = a => v => a.push(v)
+const target_ꓯαꓸ𛰙ꓱarrayꓽᕯ_𐙤_ᕯꓸarray_ = a => v => a.push(v)
 const ᐟNil = ['Nil']
 const ᐟB = ['B']
 const 𛰙ᐟBꓹ_2𛰚 = {1: ᐟB, 2: 2}
@@ -30,7 +25,7 @@ const _fold = rxr$1 => r$1 => ᐟNil_ǀ_ᐟCons$1 => {
   }
 }
 const ys = target_impure_𛰙ꓱarrayꓽᕯ_𐙤_
-_fold(_𛰙𛰚 => x => target_ꓯαꓸ𛰙ꓱarrayꓽᕯ_𐙤_ᕯꓸarray_$1(ys)(x))(void 0)(
+_fold(_𛰙𛰚 => x => target_ꓯαꓸ𛰙ꓱarrayꓽᕯ_𐙤_ᕯꓸarray_(ys)(x))(void 0)(
   ᐟCons𛰙𛰙ᐟAꓹ_1𛰚ꓹ_ᐟCons𛰙𛰙ᐟBꓹ_
 )
-target_ꓯαꓸ𛰙ꓱarrayꓽᕯ_𐙤_ᕯꓸarray_(ys)(1)
+void 0
