@@ -88,15 +88,24 @@ let cannot_be_for_all = function
   | _ -> false
 
 let rec infer = function
-  | `App (at', `Lam (at'', i, t, e), v) ->
-    let* t = Typ.check_and_norm t in
-    let+ v = check t v
-    and+ e, e_typ = Annot.Exp.def i t >> VarMap.adding i t (infer e) in
-    (`App (at', `Lam (at'', i, t, e), v), e_typ)
-  | `App (at', `LamImp (_, d, r), x) ->
-    let* x, x_typ = infer x in
-    let+ r, r_typ = Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r) in
-    (`App (at', `Lam (at', d, x_typ, r), x), r_typ)
+  | `App (at', f, x) -> (
+    match f with
+    | `Lam (at'', i, t, e) ->
+      let* t = Typ.check_and_norm t in
+      let+ x = check t x
+      and+ e, e_typ = Annot.Exp.def i t >> VarMap.adding i t (infer e) in
+      (`App (at', `Lam (at'', i, t, e), x), e_typ)
+    | `LamImp (_, d, r) ->
+      let* x, x_typ = infer x in
+      let+ r, r_typ =
+        Annot.Exp.def d x_typ >> VarMap.adding d x_typ (infer r)
+      in
+      (`App (at', `Lam (at', d, x_typ, r), x), r_typ)
+    | f ->
+      let* f, f_typ = infer f in
+      let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
+      let+ x = check d_typ x in
+      (`App (at', f, x), c_typ))
   | `Const (at', c) ->
     let+ c = Const.map_typ_fr Typ.check_and_norm c in
     (`Const (at', c), Const.type_of at' c)
@@ -109,11 +118,18 @@ let rec infer = function
     let* d_typ = Typ.check_and_norm d_typ in
     let+ r, r_typ = Annot.Exp.def d d_typ >> VarMap.adding d d_typ (infer r) in
     (`Lam (at', d, d_typ, r), `Arrow (at', d_typ, r_typ))
-  | `App (at', f, x) ->
-    let* f, f_typ = infer f in
-    let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
-    let+ x = check d_typ x in
-    (`App (at', f, x), c_typ)
+  | `LamImp (_, i, _) -> fail @@ `Error_pat_lacks_annot (Var.at i)
+  | `Case (at', cs) ->
+    let* cs, cs_typ = infer cs in
+    let* cs_fs = Typ.check_product (at cs) cs_typ in
+    let* cs_arrows = Row.map_fr (Typ.check_arrow (at cs)) cs_fs in
+    let+ c_typ =
+      match cs_arrows |> List.map (snd >>> snd) with
+      | [] -> return @@ Typ.zero (at cs)
+      | t :: ts -> ts |> List.fold_left_fr (Typ.join_of_norm (at cs)) t
+    in
+    let d_typ = `Sum (at cs, cs_arrows |> Row.map fst) in
+    (`Case (at', cs), `Arrow (at', d_typ, c_typ))
   | `Gen (at', d, d_kind, r) ->
     let* r, r_typ = infer r |> Typ.VarMap.adding d @@ `Kind d_kind in
     let+ d_kind = Kind.resolve d_kind >>- Kind.ground in
@@ -125,14 +141,16 @@ let rec infer = function
     let* x_typ, x_kind = Typ.infer x_typ in
     Kind.unify at' d_kind x_kind
     >> return (`Inst (at', f, x_typ), Typ.Core.app_of_norm at' f_con x_typ)
-  | `Mu (at', `Lam (at'', i, t, e)) ->
-    let* t = Typ.check_and_norm t in
-    let+ e = Annot.Exp.def i t >> VarMap.adding i t (check t e) in
-    (`Mu (at', `Lam (at'', i, t, e)), t)
-  | `Mu (at', f) ->
-    let* f, f_typ = infer f in
-    let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
-    Typ.check_sub_of_norm at' c_typ d_typ >> return (`Mu (at', f), c_typ)
+  | `Mu (at', f) -> (
+    match f with
+    | `Lam (at'', i, t, e) ->
+      let* t = Typ.check_and_norm t in
+      let+ e = Annot.Exp.def i t >> VarMap.adding i t (check t e) in
+      (`Mu (at', `Lam (at'', i, t, e)), t)
+    | f ->
+      let* f, f_typ = infer f in
+      let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
+      Typ.check_sub_of_norm at' c_typ d_typ >> return (`Mu (at', f), c_typ))
   | `IfElse (at', c, t, e) ->
     let* c = check (`Const (at c, `Bool)) c in
     let* t, t_typ = infer t and* e, e_typ = infer e in
@@ -164,24 +182,13 @@ let rec infer = function
     in
     return @@ `Select (at', p, i) <*> select None ls ks
   | `Inject (at', l, e) ->
-    let+ e, e_typ = infer e in
-    (`Inject (at', l, e), Typ.sum at' [(l, e_typ)])
-  | `Case (at', cs) ->
-    let* cs, cs_typ = infer cs in
-    let* cs_fs = Typ.check_product (at cs) cs_typ in
-    let* cs_arrows = Row.map_fr (Typ.check_arrow (at cs)) cs_fs in
-    let+ c_typ =
-      match cs_arrows |> List.map (snd >>> snd) with
-      | [] -> return @@ Typ.zero (at cs)
-      | t :: ts -> ts |> List.fold_left_fr (Typ.join_of_norm (at cs)) t
-    in
-    let d_typ = `Sum (at cs, cs_arrows |> Row.map fst) in
-    (`Case (at', cs), `Arrow (at', d_typ, c_typ))
+    infer e >>- fun (e, e_typ) -> (`Inject (at', l, e), Typ.sum at' [(l, e_typ)])
   | `Pack (at', t, e, et) ->
     let* t, t_kind = Typ.infer t and* et = Typ.check_and_norm et in
     let* et_con, d_kind = Typ.check_exists at' et in
     Kind.unify at' d_kind t_kind >> check (Typ.Core.app_of_norm at' et_con t) e
     >>- fun e -> (`Pack (at', t, e, et), et)
+  | `PackImp (at', _, _) -> fail @@ `Error_exp_lacks_annot at'
   | `UnpackIn (at', tid, k, id, v, e) ->
     let* v, v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
@@ -218,8 +225,6 @@ let rec infer = function
     ( binding l l_typ @@ fun l ->
       binding r r_typ @@ fun r -> merge l r l_typ r_typ )
     >>= fun e -> infer (e : Core.t :> t)
-  | `LamImp (_, i, _) -> fail @@ `Error_pat_lacks_annot (Var.at i)
-  | `PackImp (at', _, _) -> fail @@ `Error_exp_lacks_annot at'
 
 and check a e =
   match Typ.Core.unfold_of_norm a with
@@ -229,7 +234,6 @@ and check a e =
     @@ `Gen (at', fst (Typ.Var.fresh_from (a :> Typ.t)), Kind.fresh at', e)
   | _ -> (
     match e with
-    | `PackImp (at', u, e) -> infer @@ `Pack (at', u, e, (a :> Typ.t)) >>- fst
     | `Lam (at', i, u, e) ->
       let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
       Typ.check_sub_of_norm at' d u
@@ -239,14 +243,21 @@ and check a e =
     | `LamImp (at', i, e) ->
       let* d, _ = Typ.check_arrow at' a in
       check a @@ `Lam (at', i, (d :> Typ.t), e)
-    | `App (at', `Lam (at'', d, u, r), x) ->
-      let* u = Typ.check_and_norm u in
-      let* x = check u x in
-      let+ r = Annot.Exp.def d u >> VarMap.adding d u (check a r) in
-      `App (at', `Lam (at'', d, u, r), x)
-    | `App (at', ((`LamImp _ | `Case _) as f), x) ->
-      let* x, x_typ = infer x in
-      check (`Arrow (at', x_typ, a)) f >>- fun f -> `App (at', f, x)
+    | `Case (at', cs) ->
+      let* d, c = Typ.check_arrow at' a in
+      let* ls = Typ.check_sum at' d in
+      let cs_typ = `Product (at', Row.map (fun d -> `Arrow (at', d, c)) ls) in
+      check cs_typ cs >>- fun cs -> `Case (at', cs)
+    | `App (at', ((`Lam _ | `LamImp _ | `Case _) as f), x) -> (
+      match f with
+      | `Lam (at'', d, u, r) ->
+        let* u = Typ.check_and_norm u in
+        let* x = check u x in
+        let+ r = Annot.Exp.def d u >> VarMap.adding d u (check a r) in
+        `App (at', `Lam (at'', d, u, r), x)
+      | (`LamImp _ | `Case _) as f ->
+        let* x, x_typ = infer x in
+        check (`Arrow (at', x_typ, a)) f >>- fun f -> `App (at', f, x))
     | `Gen (at', d, d_kind, r) ->
       let* a_con, d_kind' = Typ.check_for_all at' a in
       let r_typ = Typ.Core.app_of_norm at' a_con (Typ.var d) in
@@ -274,6 +285,11 @@ and check a e =
         (Typ.product at' (List.map (fun (l, _, t) -> (l, t)) leas))
         a
       >> return @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
+    | `Inject (at', l, e) -> (
+      Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
+      | None -> fail @@ `Error_sum_lacks (at', a, l)
+      | Some (_, a) -> check a e >>- fun e -> `Inject (at', l, e))
+    | `PackImp (at', u, e) -> infer @@ `Pack (at', u, e, (a :> Typ.t)) >>- fst
     | `UnpackIn (at', tid, k, id, v, e) ->
       let* v, v_typ = infer v in
       let* v_con, d_kind = Typ.check_exists at' v_typ in
@@ -282,15 +298,6 @@ and check a e =
       |> VarMap.adding id id_typ
       |> Typ.VarMap.adding tid @@ `Kind d_kind
       >>- fun e -> `UnpackIn (at', tid, k, id, v, e)
-    | `Case (at', cs) ->
-      let* d, c = Typ.check_arrow at' a in
-      let* ls = Typ.check_sum at' d in
-      let cs_typ = `Product (at', Row.map (fun d -> `Arrow (at', d, c)) ls) in
-      check cs_typ cs >>- fun cs -> `Case (at', cs)
-    | `Inject (at', l, e) -> (
-      Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
-      | None -> fail @@ `Error_sum_lacks (at', a, l)
-      | Some (_, a) -> check a e >>- fun e -> `Inject (at', l, e))
     | e ->
       let* e, e_typ = infer e in
       Typ.check_sub_of_norm (at e) e_typ a >> return e)
