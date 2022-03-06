@@ -88,7 +88,7 @@ module Label = struct
     else
       let lhs = to_string lhs in
       let rhs = to_string rhs in
-      try int_of_string lhs - int_of_string rhs
+      try Bigint.compare (Bigint.of_string lhs) (Bigint.of_string rhs)
       with Failure _ -> String.compare lhs rhs
 
   let mk s = of_string (Loc.of_path s) s
