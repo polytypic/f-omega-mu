@@ -67,6 +67,6 @@ let bfs = Λmonad.Λmap.Λgraph.Λvertex.Λedge.
   λgraph: graph.
   λsource: vertex.
   # TODO: Actually implement BFS :)
-  Monad.of«()» ()
+  Monad.of ()
 
 bfs

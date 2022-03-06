@@ -19,14 +19,14 @@ let «stack, Stack»: ∃(Stack) = «list, {
 
 let a_stack =
   Stack.empty«int»
-  ▷ Stack.push«int» 3
-  ▷ Stack.push«int» 1
-  ▷ Stack.push«int» 5
+  ▷ Stack.push 3
+  ▷ Stack.push 1
+  ▷ Stack.push 5
 
-let μto_list: ∀α.stack α → list α = Λα.λs.
-  Stack.pop«α» s ▷ case {
+let μto_list: ∀α.stack α → list α = λs.
+  Stack.pop s ▷ case {
     None = λ().'Nil
-    Some = λ(x, xs).'Cons (x, to_list«α» xs)
+    Some = λ(x, xs).'Cons (x, to_list xs)
   }
 
-to_list«int» a_stack
+to_list a_stack

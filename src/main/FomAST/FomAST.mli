@@ -94,12 +94,15 @@ module Typ : sig
 
   module VarSet : Set.S with type elt = Var.t
   module VarMap : Map.S with type key = Var.t
+  module Unk : Id.S
+  module UnkMap : Map.S with type key = Unk.t
 
   module Core : sig
     type ('t, 'k) f =
       [ `Mu of Loc.t * 't
       | `Const of Loc.t * Const.t
       | `Var of Loc.t * Var.t
+      | `Unk of Loc.t * Unk.t
       | `Lam of Loc.t * Var.t * 'k * 't
       | `App of Loc.t * 't * 't
       | `ForAll of Loc.t * 't
@@ -156,6 +159,7 @@ module Typ : sig
   (* Macros *)
 
   val var : Var.t -> [> `Var of Loc.t * Var.t]
+  val unk : Unk.t -> [> `Unk of Loc.t * Unk.t]
   val product : Loc.t -> 't Row.t -> [> `Product of Loc.t * 't Row.t]
   val sum : Loc.t -> 't Row.t -> [> `Sum of Loc.t * 't Row.t]
   val zero : Loc.t -> [> `Sum of Loc.t * 't Row.t]

@@ -19,7 +19,7 @@ type μcontainer = λα.{
 
 let μcontainer: ∀α.α → container α = λx.{
   get = x
-  map = Λβ.λxy.container«β» (xy x)
+  map = λxy.container (xy x)
 }
 
-container«int»(101).map«string» Int.to_string
+container(101).map Int.to_string

@@ -3,6 +3,7 @@ open FomBasis
 
 (* *)
 
+include FomPP.Typ
 include FomAST.Typ
 
 (* *)
@@ -26,6 +27,33 @@ module VarMap = struct
   type ('t, 'r) f = < typ_env : ('t t, 'r) Field.t >
 end
 
+module UnkMap = struct
+  include UnkMap
+
+  type nonrec t = FomAST.Typ.Core.t t MVar.t
+
+  let empty () = MVar.create empty
+  let field r : (t, _) Field.t = r#typ_unk_env
+  let resetting op = setting field (empty ()) op
+  let find_opt i = read field >>- UnkMap.find_opt i
+  let add i k = mutate field @@ UnkMap.add i k
+  let cloning op = read field >>= fun v -> setting field (MVar.create v) op
+
+  let rec deref i =
+    find_opt i >>= function
+    | None -> return (i, None)
+    | Some (`Unk (_, i)) -> deref i
+    | some -> return (i, some)
+
+  class con =
+    object
+      val typ_unk_env : t = empty ()
+      method typ_unk_env = Field.make typ_unk_env (fun v -> {<typ_unk_env = v>})
+    end
+
+  type 'r f = < typ_unk_env : (t, 'r) Field.t >
+end
+
 (* *)
 
 let rec kind_of = function
@@ -41,6 +69,7 @@ let rec kind_of = function
   | `App (_, f, _) -> kind_of_cod f
   | `ForAll (at', _)
   | `Exists (at', _)
+  | `Unk (at', _)
   | `Arrow (at', _, _)
   | `Product (at', _)
   | `Sum (at', _) ->
@@ -95,9 +124,16 @@ module Core = struct
   let unfold at f mu xs = apps_of_norm at (app_of_norm at f mu) xs
 
   let rec unfold_of_norm typ =
+    match typ with
+    | `Unk (_, i') -> (
+      let* _, t_opt = UnkMap.deref i' in
+      match t_opt with None -> return typ | Some t -> unfold_of_norm_unapp t)
+    | _ -> unfold_of_norm_unapp typ
+
+  and unfold_of_norm_unapp typ =
     match unapp typ with
     | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
-    | _ -> typ
+    | _ -> return typ
 
   (* *)
 
@@ -163,7 +199,19 @@ let intersection op =
 
 (* *)
 
-let make_sub_and_eq at =
+let rec solve_of_norm = function
+  | `Unk (at', i) -> (
+    let* i', t_opt = UnkMap.deref i in
+    match t_opt with
+    | None -> return @@ `Unk (at', i')
+    | Some t -> solve_of_norm (t :> t))
+  | #Core.f as t -> Core.map_fr solve_of_norm t
+  | `Join (at', l, r) | `Meet (at', l, r) ->
+    fail @@ `Error_typ_mismatch (at', l, r)
+
+(* *)
+
+let rec make_sub_and_eq at' =
   let goals = ref GoalSet.empty in
   let rec sub l_env r_env (l : Core.t) (r : Core.t) =
     let g = (l_env, r_env, l, r) in
@@ -173,14 +221,32 @@ let make_sub_and_eq at =
       let rec subset l r flip ls ms =
         match (ls, ms) with
         | [], _ -> unit
-        | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
+        | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
         | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
           let c = Label.compare ll ml in
           if c = 0 then flip (sub l_env r_env) mt lt >> subset l r flip ls ms
           else if 0 < c then subset l r flip lls ms
-          else fail @@ `Error_label_missing (at, ll, l, r)
+          else fail @@ `Error_label_missing (at', ll, l, r)
       in
       match (l, r) with
+      | `Unk (_, l'), `Unk (_, r') -> (
+        let* l', l_opt = UnkMap.deref l' and* r', r_opt = UnkMap.deref r' in
+        match (l_opt, r_opt) with
+        | None, _ -> UnkMap.add l' @@ `Unk (at', r')
+        | Some _, None -> UnkMap.add r' @@ `Unk (at', l')
+        | Some l, Some r -> sub l_env r_env l r)
+      | _, `Unk (_, r') -> (
+        let* r', r_opt = UnkMap.deref r' in
+        match r_opt with
+        | None -> UnkMap.add r' l
+        | Some r -> sub l_env r_env l r)
+      | `Unk (_, l'), _ -> (
+        let* l', l_opt = UnkMap.deref l' in
+        match l_opt with
+        | None -> UnkMap.add l' r
+        | Some l ->
+          join_of_norm at' (l :> t) (r :> t) >>= solve_of_norm >>= UnkMap.add l'
+        )
       | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
         sub r_env l_env rd ld >> sub l_env r_env lc rc
       | `Product (_, lls), `Product (_, rls) -> subset r l id rls lls
@@ -195,7 +261,7 @@ let make_sub_and_eq at =
             let v = Var.fresh Loc.dummy in
             (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
         in
-        Kind.unify at lk rk
+        Kind.unify at' lk rk
         >> VarMap.adding v (`Kind lk) (sub l_env r_env lt rt)
       | _ -> (
         match (unapp l, unapp r) with
@@ -208,23 +274,23 @@ let make_sub_and_eq at =
           let* k_opt = VarMap.find_opt lf in
           match k_opt with
           | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
-          | _ -> fail @@ `Error_typ_var_unbound (at, lf))
-        | _, (`ForAll (at, rf), _) ->
+          | _ -> fail @@ `Error_typ_var_unbound (at', lf))
+        | _, (`ForAll (at', rf), _) ->
           let i, _ = Var.fresh_from (rf :> t) in
-          let k = Kind.fresh at in
-          let r = Core.app_of_norm at rf @@ var i in
+          let k = Kind.fresh at' in
+          let r = Core.app_of_norm at' rf @@ var i in
           kind_of rf
-          >>= Kind.unify at @@ `Arrow (at, k, `Star at)
+          >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
           >> VarMap.adding i (`Kind k) (sub l_env r_env l r)
-        | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
+        | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))))
     else unit
   and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
   (sub, eq)
 
-let check_sub_of_norm at = fst (make_sub_and_eq at) VarMap.empty VarMap.empty
-let check_equal_of_norm at = snd (make_sub_and_eq at) VarMap.empty VarMap.empty
+and check_sub_of_norm at = fst (make_sub_and_eq at) VarMap.empty VarMap.empty
+and check_equal_of_norm at = snd (make_sub_and_eq at) VarMap.empty VarMap.empty
 
-let rec mu_of_norm at = function
+and mu_of_norm at = function
   | `Lam (_, i, _, t) when not (is_free i t) -> return t
   | `Lam (_, i, _, `Mu (at1, `Lam (at2, j, k, t))) ->
     let+ t = subst_of_norm (VarMap.singleton i @@ var j) t in
@@ -295,6 +361,10 @@ and classify t =
     let* k = kind_of mu in
     unfold at' f (var mu') xs >>= classify |> VarMap.adding mu' @@ `Kind k
   | `Var _, _ -> return None
+  | `Unk (_, i), _ -> (
+    UnkMap.deref i >>= function
+    | _, None -> return None
+    | _, Some t -> classify (t :> t))
   | `Const (_, c), _ -> return @@ Some (`Const c)
   | `Lam _, _ -> return @@ Some `Lam
   | `ForAll _, _ -> return @@ Some `ForAll
@@ -321,6 +391,9 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
   if compare l r = 0 then return l
   else
     match (l, r) with
+    | `Unk (_, l'), `Unk (_, r') -> failwith "TODO"
+    | _, `Unk (_, r') -> failwith "TODO"
+    | `Unk (_, l'), _ -> failwith "TODO"
     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
       lower ld rd <*> upper lc rc >>- fun (d, c) -> `Arrow (at', d, c)
     | `Product (_, lls), `Product (_, rls) ->
@@ -509,6 +582,9 @@ let rec infer = function
   | (`Join (at', l, r) | `Meet (at', l, r)) as t ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
     Kind.unify at' lk rk >> (jm_op_of t l r <*> return lk)
+  | `Unk (at', _) as t ->
+    (* TODO *)
+    return (t, `Star at')
 
 and infer_row at' ls con =
   let star = `Star at' in
@@ -526,11 +602,6 @@ and check expected t =
   Kind.unify (at t) expected actual >> return t
 
 (* *)
-
-let rec solve_of_norm = function
-  | #Core.f as t -> Core.map_fr solve_of_norm t
-  | `Join (at', l, r) | `Meet (at', l, r) ->
-    fail @@ `Error_typ_mismatch (at', l, r)
 
 let join_of_norm at' (l : Core.t) (r : Core.t) =
   join_of_norm at' (l :> t) (r :> t) >>= solve_of_norm
@@ -550,7 +621,7 @@ let check_and_resolve k = check k >=> Core.resolve
 let as_predicate check l r =
   check Loc.dummy l r
   |> try_in (const @@ return true) (const @@ return false)
-  |> Kind.UnkMap.cloning
+  |> Kind.UnkMap.cloning |> UnkMap.cloning
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
 let is_equal_of_norm l r = as_predicate check_equal_of_norm l r

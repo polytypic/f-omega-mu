@@ -33,7 +33,7 @@ let «stream, Stream»: ∃(Stream) =
     to_list = Λα.λ«s, (xs, next)».
       let μto_list: list α → s → list α = λys.λxs.
         next xs ▷ case {
-          Done = λ().List.rev«α» ys
+          Done = λ().List.rev ys
           Yield = λ(hd, tl).to_list 'Cons(hd, ys) tl
           Skip = to_list ys
         }
@@ -99,8 +99,8 @@ let «stream, Stream»: ∃(Stream) =
 # stream expression to a collection of loops.
 
 let xs = List.iota 5
-Stream.append«int» ◇ Stream.of_list«int» xs ◇ Stream.of_list«int» xs
-▷ Stream.map«int»«int» λx.x + 1
-▷ Stream.filter«int» λx.x % 2 =«int» 1
-▷ Stream.map«int»«int» λx.x * 2
-▷ Stream.to_list«int»
+Stream.append ◇ Stream.of_list xs ◇ Stream.of_list xs
+▷ Stream.map λx.x + 1
+▷ Stream.filter λx.x % 2 =«int» 1
+▷ Stream.map λx.x * 2
+▷ Stream.to_list

@@ -23,6 +23,7 @@ module Env : sig
      ; 'r ModSimplified.f
      ; 'r Parameters.f
      ; ('t, 'r) Typ.VarMap.f
+     ; 'r Typ.UnkMap.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; 'r Typ.Solved.f >

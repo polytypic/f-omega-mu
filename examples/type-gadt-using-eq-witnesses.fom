@@ -32,31 +32,31 @@ let String = import "lib/string"
 and Int = import "lib/int"
 and Bool = import "lib/bool"
 
-let μto_string: ∀τ.Type τ → τ → string = Λτ.case {
+let μto_string: ∀τ.Type τ → τ → string = case {
   Bool = λeq.λx.
-    Bool.to_string ◁ Eq.from«bool»«τ» eq x
+    Bool.to_string ◁ Eq.from eq x
   Int = λeq.λx.
-    Int.to_string ◁ Eq.from«int»«τ» eq x
+    Int.to_string ◁ Eq.from eq x
   String = λeq.λx.
-    String.to_literal ◁ Eq.from«string»«τ» eq x
+    String.to_literal ◁ Eq.from eq x
   Alt = λ«α, «β, (eq, ta, tb)»».
-    let to_string_a = to_string«α» ta
-    let to_string_b = to_string«β» tb
-    λt.Eq.from«alt α β»«τ» eq t ▷ case {
+    let to_string_a = to_string ta
+    let to_string_b = to_string tb
+    λt.Eq.from eq t ▷ case {
       In1 = λa."'In1(\(to_string_a a))"
       In2 = λb."'In2(\(to_string_b b))"
     }
   Pair = λ«α, «β, (eq, ta, tb)»».
-    let to_string_a = to_string«α» ta
-    let to_string_b = to_string«β» tb
+    let to_string_a = to_string ta
+    let to_string_b = to_string tb
     λt.
-      let (a, b) = Eq.from«(α, β)»«τ» eq t
+      let (a, b) = Eq.from eq t
       "(\(to_string_a a), \(to_string_b b))"
   Iso = λ«α, «β, (eq, (a2b, _), tb)»».
-    let to_string_b = to_string«β» tb
-    λt.to_string_b ◁ a2b ◁ Eq.from«α»«τ» eq t
+    let to_string_b = to_string tb
+    λt.to_string_b ◁ a2b ◁ Eq.from eq t
 }
 
-to_string«(bool, alt string int)»
-  (pair«bool»«alt string int» bool (alt«string»«int» string int))
+to_string
+  (pair bool (alt string int))
   (false, 'In1 "foo")

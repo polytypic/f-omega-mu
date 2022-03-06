@@ -11,12 +11,12 @@ let tabulate = Λα.λf: int → α.λn: int.
     \  for (let i=0; i<n; ++i) a[i] = fn(i);\
     \  return a;\
     \}"
-    «α» f n
-  ▷ keep«array α»
+    f n
+  ▷ keep
 
 let length = Λα.λxs: array α.
   target«∀α.array α → impure int» "a => a.length" «α» xs
-  ▷ keep«int»
+  ▷ keep
 
 let sub = Λα.λxs: array α.λi: int.
   target«∀α.array α → int → impure α»
@@ -26,8 +26,8 @@ let sub = Λα.λxs: array α.λi: int.
     \      `Array.sub: Index out of bounds: 0 <= ${i} < ${a.length}`);\
     \  return a[i];\
     \}"
-    «α» xs i
-  ▷ keep«α»
+    xs i
+  ▷ keep
 
 let update = Λα.λxs: array α.λi: int.λx: α.
   target«∀α.array α → int → α → impure ()»
@@ -37,12 +37,12 @@ let update = Λα.λxs: array α.λi: int.λx: α.
     \      `Array.update: Index out of bounds: 0 <= ${i} < ${a.length}`);\
     \  a[i] = v;\
     \}"
-    «α» xs i x
-  ▷ keep«()»
+    xs i x
+  ▷ keep
 
 let push = Λα.λxs: array α.λx: α.
-  target«∀α.array α → α → impure ()» "a => v => a.push(v)" «α» xs x
-  ▷ keep«()»
+  target«∀α.array α → α → impure ()» "a => v => a.push(v)" xs x
+  ▷ keep
 
 let of_list = Λα.λxs: list α.
   let ys = target«impure (array α)» "[]" ▷ keep«array α»

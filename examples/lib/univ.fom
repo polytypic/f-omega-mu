@@ -2,10 +2,10 @@ include "types"
 
 let new_id =
   let «ref, {ref, get, set}» = import "ref"
-  let counter = ref«int» 0
+  let counter = ref 0
   λ().
-    let id = get«int» counter
-    set«int» counter (id + 1)
+    let id = get counter
+    set counter (id + 1)
     id
 
 let unsafe_cast = target«∀α.α → nothing» "x => x"
@@ -14,7 +14,7 @@ type univ = {id: int, value: nothing}
 
 let new = Λα.λ().
   let id = new_id ()
-  let to = λx: α.{id, value = unsafe_cast«α» x}
+  let to = λx: α.{id, value = unsafe_cast x}
   let of = λx: univ.
     if x.id =«int» id then
       'Some x.value«α»

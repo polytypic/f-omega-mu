@@ -96,11 +96,11 @@ let Exp = IntExp „ BoolExp „ LamExp „ FixExp
 # An example
 
 let pow_exp = Λσ.λS: Exp σ.
-  S.Lam«int»«int → int» λx.S.Fix«int → int» λpow.
-    S.Lam«int»«int» λn.
-      S.If«int» S.Leq(n)(S.Int(0))
+  S.Lam λx.S.Fix«int → int» λpow.
+    S.Lam λn.
+      S.If S.Leq(n)(S.Int(0))
         S.Int(1)
-        S.Mul(x)(S.App«int»«int» pow ◁ S.Add n S.Int(-1))
+        S.Mul(x)(S.App pow ◁ S.Add n S.Int(-1))
 
 let pow = pow_exp«ℰ» Exp.eval ()
 let pow_size = pow_exp«𝒮» Exp.size

@@ -5,8 +5,8 @@ type S = λx.λy.λz.x z (y z)
 type I = S K K
 
 type μL = L → L
-let K = λx: L.λ_: L.x
-let S = λx: L.λy: L.λz: L.x z (y z)
+let K: L = λx.λ_.x
+let S: L = λx.λy.λz.x z (y z)
 let I = S K K
 
 I

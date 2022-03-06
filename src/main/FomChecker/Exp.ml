@@ -34,22 +34,40 @@ module Typ = struct
   let check_and_norm typ = check_and_resolve (`Star (at typ)) typ
 
   let check_arrow at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Arrow (_, dom, cod) -> return (dom, cod)
     | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
 
+  let rec inst_arrow f typ =
+    let err () =
+      fail @@ `Error_typ_unexpected (FomAST.Exp.at f, "_ → _", typ)
+    in
+    Core.unfold_of_norm typ >>= function
+    | `ForAll (_, f_con) -> (
+      let* f_kind = kind_of f_con in
+      match f_kind with
+      | `Arrow (_, `Star _, `Star _) ->
+        let at' = FomAST.Exp.at f in
+        let x_typ = unk (Unk.fresh at') in
+        let typ = Typ.Core.app_of_norm at' f_con x_typ in
+        let f = `Inst (at', f, x_typ) in
+        inst_arrow f typ
+      | _ -> err ())
+    | `Arrow (_, dom, cod) -> return (f, dom, cod)
+    | _ -> err ()
+
   let check_product at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Product (_, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
   let check_sum at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Sum (_, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
   let check_unit at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Const (_, `Unit) -> unit
     | _ -> fail @@ `Error_typ_unexpected (at, "()", typ)
 
@@ -61,7 +79,7 @@ module Typ = struct
       ls |> List.iter_fr (snd >>> check_unit at) >> return (List.map fst ls)
 
   let check_for_all at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `ForAll (_, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
@@ -70,7 +88,7 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
   let check_exists at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Exists (_, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
@@ -103,7 +121,7 @@ let rec infer = function
       (`App (at', `Lam (at', d, x_typ, r), x), r_typ)
     | f ->
       let* f, f_typ = infer f in
-      let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
+      let* f, d_typ, c_typ = Typ.inst_arrow f f_typ in
       let+ x = check d_typ x in
       (`App (at', f, x), c_typ))
   | `Const (at', c) ->
@@ -118,7 +136,11 @@ let rec infer = function
     let* d_typ = Typ.check_and_norm d_typ in
     let+ r, r_typ = Annot.Exp.def d d_typ >> VarMap.adding d d_typ (infer r) in
     (`Lam (at', d, d_typ, r), `Arrow (at', d_typ, r_typ))
-  | `LamImp (_, i, _) -> fail @@ `Error_pat_lacks_annot (Var.at i)
+  | `LamImp (at', i, e) ->
+    let u =
+      Var.to_string i |> Typ.Unk.of_string (Var.at i) |> Typ.Unk.freshen
+    in
+    infer @@ `Lam (at', i, Typ.unk u, e)
   | `Case (at', cs) ->
     let* cs, cs_typ = infer cs in
     let* cs_fs = Typ.check_product (at cs) cs_typ in
@@ -149,7 +171,7 @@ let rec infer = function
       (`Mu (at', `Lam (at'', i, t, e)), t)
     | f ->
       let* f, f_typ = infer f in
-      let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
+      let* f, d_typ, c_typ = Typ.inst_arrow f f_typ in
       Typ.check_sub_of_norm at' c_typ d_typ >> return (`Mu (at', f), c_typ))
   | `IfElse (at', c, t, e) ->
     let* c = check (`Const (at c, `Bool)) c in
@@ -227,12 +249,12 @@ let rec infer = function
     >>= fun e -> infer (e : Core.t :> t)
 
 and check a e =
-  match Typ.Core.unfold_of_norm a with
+  Typ.Core.unfold_of_norm a >>= function
   | `ForAll _ when cannot_be_for_all e ->
     let at' = at e in
     check a
     @@ `Gen (at', fst (Typ.Var.fresh_from (a :> Typ.t)), Kind.fresh at', e)
-  | _ -> (
+  | a -> (
     match e with
     | `Lam (at', i, u, e) ->
       let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
@@ -269,26 +291,15 @@ and check a e =
       check a t <*> check a e >>- fun (t, e) -> `IfElse (at', c, t, e)
     | `Mu (at', f) -> check (`Arrow (at', a, a)) f >>- fun f -> `Mu (at', f)
     | `Product (at', fs) ->
-      let* las =
-        Typ.check_product at' a >>- (List.to_seq >>> LabelMap.of_seq)
-      in
-      let* leas =
-        Row.check fs
-        >> List.map_fr
-             (fun (l, e) ->
-               match LabelMap.find_opt l las with
-               | None -> infer e >>- fun (e, t) -> (l, e, t)
-               | Some a -> check a e >>- fun e -> (l, e, a))
-             fs
-      in
-      Typ.check_sub_of_norm at'
-        (Typ.product at' (List.map (fun (l, _, t) -> (l, t)) leas))
-        a
-      >> return @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
-    | `Inject (at', l, e) -> (
-      Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
-      | None -> fail @@ `Error_sum_lacks (at', a, l)
-      | Some (_, a) -> check a e >>- fun e -> `Inject (at', l, e))
+      let us = Row.map (fun _ -> Typ.unk (Typ.Unk.fresh at')) fs in
+      Row.check fs
+      >> Typ.check_sub_of_norm at' (Typ.product at' us) a
+      >> List.map2_fr (fun (l, e) (_, u) -> check u e >>- fun e -> (l, e)) fs us
+      >>- fun fs -> `Product (at', fs)
+    | `Inject (at', l, e) ->
+      let u = Typ.unk (Typ.Unk.fresh at') in
+      let t = `Sum (at', [(l, u)]) in
+      Typ.check_sub_of_norm at' t a >> check u e >>- fun e -> `Inject (at', l, e)
     | `PackImp (at', u, e) -> infer @@ `Pack (at', u, e, (a :> Typ.t)) >>- fst
     | `UnpackIn (at', tid, k, id, v, e) ->
       let* v, v_typ = infer v in

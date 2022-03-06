@@ -5,7 +5,7 @@ type Functor = λφ.{map: ∀α.∀β.(α → β) → φ α → φ β}
 let μfold: ∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
   Λφ.Λα.λF.
     λalgebra.
-      μfold.λv.algebra ◁ F.map«μ(φ)»«α» fold v
+      μfold.λv.algebra ◁ F.map«μ(φ)» fold v
 
 # List type
 type ListF = λα.λτ.'Nil | 'Cons (α, τ)
@@ -21,7 +21,7 @@ let List =
   let one = Λα.λx: α.'Cons (x, 'Nil)
   let μhas: ∀α.(α → bool) → List α → bool = Λα.λp.case {
       Nil = λ().false
-      Cons = λ(x, xs).p x ∨ has«α» p xs
+      Cons = λ(x, xs).p x ∨ has p xs
     }
   let fold = Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.
     fold«ListF α»«ρ» ListF«α» ◁ case {
@@ -30,11 +30,11 @@ let List =
       }
   let filter = Λα.λp: α → bool.λxs: List α.
     xs
-    ▷ fold«List α»«α»
+    ▷ fold«List α»
         λxs.λx.if p x then 'Cons (x, xs) else xs
         'Nil
   let concat = Λα.λxs: List α.λys: List α.
-    fold«List α»«α» (λxs.λx.'Cons (x, xs)) ys xs
+    fold«List α» (λxs.λx.'Cons (x, xs)) ys xs
   {one, has, fold, filter, concat}
 
 # Set ADT
@@ -52,10 +52,10 @@ let Set = {
     type set = List elem
     let empty = 'Nil
     let singleton = List.one«elem»
-    let remove = λx: elem.List.filter«elem» λy.¬eq x y
+    let remove = λx: elem.List.filter λy.¬eq x y
     let union = λl: set.λr: set.
-      List.concat«elem» l
-      ◁ List.filter«elem» (λi.¬List.has«elem» (eq i) l) r
+      List.concat l
+      ◁ List.filter (λi.¬List.has (eq i) l) r
     let to_list = λs: set.s
     «set, {empty, singleton, remove, union, to_list}»: ∃(Set elem)
 }
@@ -81,7 +81,7 @@ let TermF: Functor TermF = {
 }
 
 # Set of strings
-let «ids, Ids» = Set.make«string» (=«string»)
+let «ids, Ids» = Set.make (=«string»)
 
 # Compute free variables using `fold`
 let fv =

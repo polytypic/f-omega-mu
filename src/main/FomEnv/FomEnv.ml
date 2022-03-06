@@ -21,6 +21,7 @@ module Env = struct
       inherit Parameters.con
       inherit Typ.Solved.con
       inherit [_] Typ.VarMap.con
+      inherit Typ.UnkMap.con
       inherit TypImports.con typ_imports
       inherit TypIncludes.con typ_includes
     end

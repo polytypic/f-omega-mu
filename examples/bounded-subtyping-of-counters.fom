@@ -51,21 +51,21 @@ let aResetCounter: Object ResetCounterM =
 type CounterB = λM.∀τ.M τ → CounterM τ
 
 let inc: ∀M.CounterB M → Object M → Object M = λB.λ«τ, (x, M)».
-  let C = B«τ» M
+  let C = B M
   «τ, (C.inc x, M)»
 
 let get: ∀M.CounterB M → Object M → int = λB.λ«τ, (x, M)».
-  let C = B«τ» M
+  let C = B M
   C.get x
 
 type ResetCounterB = λM.∀τ.M τ → ResetCounterM τ
 
 let reset: ∀M.ResetCounterB M → Object M → Object M = λB.λ«τ, (x, M)».
-  let C = B«τ» M
+  let C = B M
   «τ, (C.reset x, M)»
 
 let reset_count: ∀M.ResetCounterB M → Object M → int = λB.λ«τ, (x, M)».
-  let C = B«τ» M
+  let C = B M
   C.reset_count x
 
 # Thanks to simple width subtyping, the coercions can be just identity

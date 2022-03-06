@@ -28,7 +28,7 @@ and contract_base t =
   let+ s, t' =
     match t with
     | `Mu (at', e) -> contract e >>- fun (s, e') -> (s, `Mu (at', e'))
-    | (`Const _ | `Var _) as t -> return (TypSet.empty, t)
+    | (`Const _ | `Var _ | `Unk _) as t -> return (TypSet.empty, t)
     | `Lam (at', x, k, e) ->
       contract e >>- fun (s, e') -> (s, `Lam (at', x, k, e'))
     | `App (at', f, x) ->
@@ -72,6 +72,7 @@ let rec collect_mus_closed bvs t mus =
   | `Mu (_, e) -> collect_mus_closed bvs e mus
   | `Const _ -> (mus, VarSet.empty)
   | `Var (_, i) -> (mus, VarSet.singleton i)
+  | `Unk _ -> (* TODO *) (mus, VarSet.empty)
   | `App (_, f, x) ->
     let mus, f_vs = collect_mus_closed bvs f mus in
     let mus, x_vs = collect_mus_closed bvs x mus in

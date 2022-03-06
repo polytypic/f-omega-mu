@@ -1,48 +1,48 @@
 include "types"
 
-let of = Λα.λx: α.'Cons (x, 'Nil)
+let of = Λα.λx: α.[x]
 
-let μhas: ∀α.(α → bool) → list α → bool = Λα.λp.case {
+let μhas: ∀α.(α → bool) → list α → bool = λp.case {
   Nil = λ().false
-  Cons = λ(x, xs).p x ∨ has«α» p xs
+  Cons = λ(x, xs).p x ∨ has p xs
 }
 
 let μfold: ∀α.∀ρ.(ρ → α → ρ) → ρ → list α → ρ =
-  Λα.Λρ.λrxr.λr.case {
+  λrxr.λr.case {
     Nil = λ().r
-    Cons = λ(x, xs).fold«α»«ρ» rxr (rxr r x) xs
+    Cons = λ(x, xs).fold rxr (rxr r x) xs
   }
 
 let empty = []
 
-let prepend = Λα.λx: α.λxs: list α.'Cons (x, xs)
+let prepend = Λα.λx: α.λxs: list α.[x, …xs]
 
-let rev_to = Λα.fold«α»«list α» λxs.λx.prepend«α» x xs
+let rev_to = Λα.fold«α»«list α» λxs.λx.prepend x xs
 
-let rev = Λα.rev_to«α» 'Nil
+let rev = Λα.rev_to«α» []
 
 let map = Λα.Λβ.λxy: α → β.λxs: list α.
   xs
-  ▷ fold«α»«list β» (λys.λx.'Cons (xy x, ys)) 'Nil
-  ▷ rev«β»
+  ▷ fold«α»«list β» (λys.λx.[xy x, …ys]) []
+  ▷ rev
 
 let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
   xs
-  ▷ fold«α»«list β» (λys.λx.rev_to«β» ys ◇ xys x) 'Nil
-  ▷ rev«β»
+  ▷ fold«α»«list β» (λys.λx.rev_to«β» ys ◇ xys x) []
+  ▷ rev
 
 let filter = Λα.λp: α → bool.λxs: list α.
   xs
   ▷ fold«α»«list α»
-      λxs.λx.if p x then 'Cons (x, xs) else xs
-      'Nil
-  ▷ rev«α»
+      λxs.λx.if p x then [x, …xs] else xs
+      []
+  ▷ rev
 
-let reject = Λα.λp: α → bool.filter«α» λx.¬p x
+let reject = Λα.λp: α → bool.filter λx.¬p x
 
-let concat = Λα.λxs: list α.λys: list α.rev«α» xs ▷ rev_to«α» ys
+let concat = Λα.λxs: list α.λys: list α.rev xs ▷ rev_to ys
 
-let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Cons (x, xs)
+let infinite_of = Λα.λx: α.μxs: list_of_inf α.[x, …xs]
 
 let head = Λα.case {
   Nil = λ().'None
@@ -57,25 +57,25 @@ let take_n = Λα.λn: int.λxs: list α.
       else
         xs ▷ case {
           Nil = λ().ys
-          Cons = λ(x, xs).take_n 'Cons(x, ys) (n - 1) xs
+          Cons = λ(x, xs).take_n [x, …ys] (n - 1) xs
         }
-  take_n 'Nil n xs ▷ rev«α»
+  take_n [] n xs ▷ rev
 
-let μdrop_n: ∀α.int → list α → list α = Λα.λn.λxs.
+let μdrop_n: ∀α.int → list α → list α = λn.λxs.
   if n ≤ 0 then
     xs
   else
     xs ▷ case {
-      Nil = λ().'Nil
-      Cons = λ(_, xs).drop_n«α» (n-1) xs
+      Nil = λ().[]
+      Cons = λ(_, xs).drop_n (n-1) xs
     }
 
-let nth = Λα.λn: int.λxs: list α.drop_n«α» n xs ▷ head«α»
+let nth = Λα.λn: int.λxs: list α.drop_n n xs ▷ head
 
 let iota =
   let μiota: list int → int → list int = λxs.λn.
-    if 0 < n then let n = n - 1 in iota 'Cons(n, xs) n else xs
-  iota 'Nil
+    if 0 < n then let n = n - 1 in iota [n, …xs] n else xs
+  iota []
 
 let is_empty: ∀α.list α → bool =
   case {
@@ -83,7 +83,7 @@ let is_empty: ∀α.list α → bool =
     Cons = λ_.false
   }
 
-let iter = Λα.λxu: α → ().fold«α»«()» (λ().xu) ()
+let iter = Λα.λxu: α → ().fold (λ().xu) ()
 
 {of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
  head, take_n, drop_n, nth, iota, is_empty, empty, prepend, iter}

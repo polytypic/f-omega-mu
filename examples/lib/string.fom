@@ -6,6 +6,6 @@ let equals = (=«string»)
 
 let to_literal = target«string → string» "JSON.stringify"
 
-let join: list string → string = List.fold«string»«string» (^) ""
+let join = List.fold (^) ""
 
 {equals, to_literal, join}

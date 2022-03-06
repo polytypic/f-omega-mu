@@ -65,6 +65,7 @@ module Typ = struct
   end
 
   module Var = FomAST.Typ.Var
+  module Unk = FomAST.Typ.Unk
 
   (* *)
 
@@ -196,6 +197,7 @@ module Typ = struct
         |> if prec_app < prec_outer then egyptian parens 2 else group)
     | `Join (_, l, r) -> infix config prec_outer prec_join logical_or l r
     | `Meet (_, l, r) -> infix config prec_outer prec_meet logical_and l r
+    | `Unk (_, i) -> Unk.pp ~hr:config.hr i
 
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =

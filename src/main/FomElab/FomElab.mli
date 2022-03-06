@@ -116,6 +116,7 @@ val elaborate_typ :
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; 'r Typ.Solved.f
+     ; 'r Typ.UnkMap.f
      ; .. >
      as
      'r),
@@ -136,6 +137,7 @@ val elaborate :
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; 'r Typ.Solved.f
+     ; 'r Typ.UnkMap.f
      ; .. >
      as
      'r),

@@ -14,11 +14,11 @@ let «map, «κ, HMap»»: ∃map.∃(HMap map) =
   «list univ, «λν.{to: ν → univ, of: univ → opt ν}, {
     empty = 'Nil
     new_key = Univ.new
-    get = μget.Λν.λk.case {
+    get = μget.λk.case {
         Nil = λ().'None
         Cons = λ(u, m).
           k.of u ▷ case {
-            None = λ().get«ν» k m
+            None = λ().get k m
             Some = λv.'Some v
           }
       }
@@ -29,7 +29,7 @@ let k1 = HMap.new_key«int» ()
 let k2 = HMap.new_key«string» ()
 let m =
   HMap.empty
-  ▷ HMap.add«int» k1 101
-  ▷ HMap.add«string» k2 "42"
+  ▷ HMap.add k1 101
+  ▷ HMap.add k2 "42"
 
-(HMap.get«int» k1 m, HMap.get«string» k2 m)
+(HMap.get k1 m, HMap.get k2 m)

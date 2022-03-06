@@ -178,6 +178,8 @@ module Typ = struct
 
   module VarSet = Set.Make (Var)
   module VarMap = Map.Make (Var)
+  module Unk = Id.Make ()
+  module UnkMap = Map.Make (Unk)
 
   let union_m =
     Constant.of_monoid
@@ -191,6 +193,7 @@ module Typ = struct
       [ `Mu of Loc.t * 't
       | `Const of Loc.t * Const.t
       | `Var of Loc.t * Var.t
+      | `Unk of Loc.t * Unk.t
       | `Lam of Loc.t * Var.t * 'k * 't
       | `App of Loc.t * 't * 't
       | `ForAll of Loc.t * 't
@@ -205,6 +208,7 @@ module Typ = struct
       | `Mu (_, t) -> `Mu (at, t)
       | `Const (_, c) -> `Const (at, c)
       | `Var (_, i) -> `Var (at, i)
+      | `Unk (_, i) -> `Unk (at, i)
       | `Lam (_, i, k, t) -> `Lam (at, i, k, t)
       | `App (_, f, x) -> `App (at, f, x)
       | `ForAll (_, t) -> `ForAll (at, t)
@@ -215,7 +219,7 @@ module Typ = struct
 
     let map_fr' row fn = function
       | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
-      | (`Const _ | `Var _) as inn -> return inn
+      | (`Const _ | `Var _ | `Unk _) as inn -> return inn
       | `Lam (at, i, k, t) -> fn t >>- fun t -> `Lam (at, i, k, t)
       | `App (at, f, x) -> fn f <*> fn x >>- fun (f, x) -> `App (at, f, x)
       | `ForAll (at, t) -> fn t >>- fun t -> `ForAll (at, t)
@@ -243,6 +247,7 @@ module Typ = struct
       | `Mu l, `Mu r -> eq'2 l r
       | `Const l, `Const r -> eq'2 l r
       | `Var l, `Var r -> eq'2 l r
+      | `Unk l, `Unk r -> eq'2 l r
       | `Lam l, `Lam r -> eq'4 l r
       | `App l, `App r -> eq'3 l r
       | `ForAll l, `ForAll r -> eq'2 l r
@@ -317,6 +322,7 @@ module Typ = struct
     | `Mu (at, _)
     | `Const (at, _)
     | `Var (at, _)
+    | `Unk (at, _)
     | `Lam (at, _, _, _)
     | `App (at, _, _)
     | `ForAll (at, _)
@@ -336,6 +342,7 @@ module Typ = struct
   (* Macros *)
 
   let var v = `Var (Var.at v, v)
+  let unk v = `Unk (Unk.at v, v)
   let sort labels = List.sort (Compare.the fst Label.compare) labels
   let product at fs = `Product (at, sort fs)
   let sum at cs = `Sum (at, sort cs)
@@ -484,6 +491,7 @@ module Typ = struct
     | `Mu _ -> `Mu
     | `Const _ -> `Const
     | `Var _ -> `Var
+    | `Unk _ -> `Unk
     | `Lam _ -> `Lam
     | `App _ -> `App
     | `ForAll _ -> `ForAll
@@ -502,6 +510,9 @@ module Typ = struct
       let l = VarMap.find_opt l l_env |> Option.value ~default:l in
       let r = VarMap.find_opt r r_env |> Option.value ~default:r in
       Var.compare l r
+    | `Unk (_, l), `Unk (_, r) ->
+      (* TODO *)
+      Unk.compare l r
     | `Lam (_, l_i, l_k, l_t), `Lam (_, r_i, r_k, r_t) ->
       Kind.compare l_k r_k <>? fun () ->
       if Var.equal l_i r_i then

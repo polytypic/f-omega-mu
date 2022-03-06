@@ -385,6 +385,7 @@ and elaborate_typ = function
     elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Join (at', l, r)
   | `Meet (at', l, r) ->
     elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Meet (at', l, r)
+  | `Unk _ as t -> (* TODO *) return t
 
 and elaborate_defs accum = function
   | #FomCST.Typ.Def.f as d ->

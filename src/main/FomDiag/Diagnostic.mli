@@ -8,7 +8,13 @@ type t = Loc.t * document
 
 val of_error :
   [< Error.t] ->
-  ( (< 'r Kind.UnkMap.f ; ([> `Kind of Kind.t], 'r) Typ.VarMap.f ; .. > as 'r),
+  ( (< 'r Kind.UnkMap.f
+     ; ([> `Kind of Kind.t], 'r) Typ.VarMap.f
+     ; 'r Typ.UnkMap.f
+     ; 'r Typ.Solved.f
+     ; .. >
+     as
+     'r),
     'e,
     t * t list )
   rea

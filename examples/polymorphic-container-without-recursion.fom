@@ -32,17 +32,17 @@ let container: ∀α.α → Object ContainerM α = λx.«λx.x, (x, ContainerC)�
 type ContainerB = λM.∀τ.M τ → ContainerM τ
 
 let get: ∀M.ContainerB M → ∀α.Object M α → α =
-  λB.Λα.λ«τ, (x, M)».
+  λB.λ«τ, (x, M)».
     let C = B«τ» M
-    C.get«α» x
+    C.get x
 
 let map: ∀M.ContainerB M → ∀α.∀β.(α → β) → Object M α → Object M β =
-  λB.Λα.Λβ.λab.λ«τ, (x, M)».
+  λB.λab.λ«τ, (x, M)».
     let C = B«τ» M
-    «τ, (C.map«α»«β» ab x, M)»
+    «τ, (C.map ab x, M)»
 
 let ContainerB = Λτ.λM: ContainerM τ.M
 
-container«int» 101
-▷ map«ContainerM» ContainerB «int» «string» Int.to_string
-▷ get«ContainerM» ContainerB «string»
+container 101
+▷ map«ContainerM» ContainerB Int.to_string
+▷ get«ContainerM» ContainerB

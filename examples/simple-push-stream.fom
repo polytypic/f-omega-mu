@@ -21,17 +21,17 @@ type Arr = λarr.{
 
 let «arr, Arr»: ∃(Arr) =
   «λα.{n: int, ix: int → (α → ()) → ()}, {
-    of_array = Λα.λxs.{n = Array.length«α» xs, ix = λi.λk.k (Array.sub«α» xs i)}
+    of_array = λxs.{n = Array.length xs, ix = λi.λk.k (Array.sub xs i)}
     map = λxy.λ{n, ix}.{n, ix = λi.λk.ix i λx.k (xy x)}
     filter = λxb.λ{n, ix}.{n, ix = λi.λk.ix i λx.if xb x then k x else ()}
     sum = λ{n, ix}.
-      let sum = Ref.ref«int» 0
+      let sum = Ref.ref 0
       let μloop: int → int = λi.
         if i < n then
-          ix i λx.Ref.set«int» sum (x + Ref.get«int» sum)
+          ix i λx.Ref.set sum (x + Ref.get sum)
           loop (i + 1)
         else
-          Ref.get«int» sum
+          Ref.get sum
       loop 0
   }»
 
@@ -42,8 +42,8 @@ let «arr, Arr»: ∃(Arr) =
 # should be replaced with transparent primitives.
 
 10
-▷ Array.tabulate«int» λi.i
-▷ Arr.of_array«int»
-▷ Arr.filter«int» λx.x % 2 ≠«int» 0
-▷ Arr.map«int»«int» λx.x * x
+▷ Array.tabulate λi.i
+▷ Arr.of_array
+▷ Arr.filter λx.x % 2 ≠«int» 0
+▷ Arr.map λx.x * x
 ▷ Arr.sum

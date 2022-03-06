@@ -5,13 +5,13 @@ type μlist = λα.'Nil | 'Cons (α, list α)
 let infiniteOf = Λα.λx: α.μxs: μω.'Cons (α, ω).'Cons (x, xs)
 
 let μtakeN: ∀α.int → list α → list α =
-  Λα.λn.λxs.
+  λn.λxs.
     if n ≤ 0 then
       'Nil
     else
       xs ▷ case {
         Nil = λ().'Nil,
-        Cons = λ(x, xs).'Cons (x, takeN«α» ◇ n-1 ◇ xs)
+        Cons = λ(x, xs).'Cons (x, takeN ◇ n-1 ◇ xs)
       }
 
-takeN«string» 5 ◁ infiniteOf«string» "Fωμ"
+takeN 5 ◁ infiniteOf "Fωμ"
