@@ -364,7 +364,7 @@ const build = throttled(
       importScripts('FomSandbox.js')
       importScripts('https://unpkg.com/prettier@2.5.1/standalone.js')
       importScripts('https://unpkg.com/prettier@2.5.1/parser-babel.js')
-      importScripts('https://unpkg.com/terser@5.10.0/dist/bundle.min.js')
+      importScripts('https://unpkg.com/terser@5.12.0/dist/bundle.min.js')
     },
     before: () => {
       clearMarkers(diagnosticMarkers)
