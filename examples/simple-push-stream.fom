@@ -22,8 +22,8 @@ type Arr = λarr.{
 let «arr, Arr»: ∃(Arr) =
   «λα.{n: int, ix: int → (α → ()) → ()}, {
     of_array = Λα.λxs.{n = Array.length«α» xs, ix = λi.λk.k (Array.sub«α» xs i)}
-    map = Λ_.Λ_.λxy.λ{n, ix}.{n, ix = λi.λk.ix i λx.k (xy x)}
-    filter = Λ_.λxb.λ{n, ix}.{n, ix = λi.λk.ix i λx.if xb x then k x else ()}
+    map = λxy.λ{n, ix}.{n, ix = λi.λk.ix i λx.k (xy x)}
+    filter = λxb.λ{n, ix}.{n, ix = λi.λk.ix i λx.if xb x then k x else ()}
     sum = λ{n, ix}.
       let sum = Ref.ref«int» 0
       let μloop: int → int = λi.
