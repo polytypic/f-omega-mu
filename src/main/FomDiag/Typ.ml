@@ -28,7 +28,7 @@ and contract_base t =
   let+ s, t' =
     match t with
     | `Mu (at', e) -> contract e >>- fun (s, e') -> (s, `Mu (at', e'))
-    | (`Const (_, _) | `Var (_, _)) as t -> return (TypSet.empty, t)
+    | (`Const _ | `Var _) as t -> return (TypSet.empty, t)
     | `Lam (at', x, k, e) ->
       contract e >>- fun (s, e') -> (s, `Lam (at', x, k, e'))
     | `App (at', f, x) ->
