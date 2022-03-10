@@ -127,6 +127,42 @@ module GoalSet = Set.Make (struct
     Core.compare_in_env r_env1 r_env2 r1 r2
 end)
 
+(* *)
+
+module Solved = struct
+  include Map.Make (FomAST.Typ)
+
+  type nonrec t = FomAST.Typ.t t
+
+  let field r : (t, _) Field.t = r#typ_solved
+
+  class con =
+    object
+      val typ_solved : t = empty
+      method typ_solved = Field.make typ_solved (fun v -> {<typ_solved = v>})
+    end
+
+  type 'r f = < typ_solved : (t, 'r) Field.t >
+end
+
+(* *)
+
+let union op (ls, rs) =
+  Row.union_fr (const return) (const return) (const op) ls rs
+
+let intersection op =
+  let rec loop os = function
+    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
+      let c = Label.compare ll rl in
+      if c < 0 then loop os (lls, rlls)
+      else if 0 < c then loop os (llls, rls)
+      else op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
+    | [], _ | _, [] -> return @@ List.rev os
+  in
+  loop []
+
+(* *)
+
 let make_sub_and_eq at =
   let goals = ref GoalSet.empty in
   let rec sub l_env r_env (l : Core.t) (r : Core.t) =
@@ -187,48 +223,6 @@ let make_sub_and_eq at =
 
 let check_sub_of_norm at = fst (make_sub_and_eq at) VarMap.empty VarMap.empty
 let check_equal_of_norm at = snd (make_sub_and_eq at) VarMap.empty VarMap.empty
-
-let as_predicate check l r =
-  check Loc.dummy l r
-  |> try_in (const @@ return true) (const @@ return false)
-  |> Kind.UnkMap.cloning
-
-let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
-let is_equal_of_norm l r = as_predicate check_equal_of_norm l r
-
-(* *)
-
-module Solved = struct
-  include Map.Make (FomAST.Typ)
-
-  type nonrec t = FomAST.Typ.t t
-
-  let field r : (t, _) Field.t = r#typ_solved
-
-  class con =
-    object
-      val typ_solved : t = empty
-      method typ_solved = Field.make typ_solved (fun v -> {<typ_solved = v>})
-    end
-
-  type 'r f = < typ_solved : (t, 'r) Field.t >
-end
-
-(* *)
-
-let union op (ls, rs) =
-  Row.union_fr (const return) (const return) (const op) ls rs
-
-let intersection op =
-  let rec loop os = function
-    | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
-      let c = Label.compare ll rl in
-      if c < 0 then loop os (lls, rlls)
-      else if 0 < c then loop os (llls, rls)
-      else op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
-    | [], _ | _, [] -> return @@ List.rev os
-  in
-  loop []
 
 let rec mu_of_norm at = function
   | `Lam (_, i, _, t) when not (is_free i t) -> return t
@@ -550,3 +544,13 @@ let check k = check k >=> solve_of_norm
 
 let infer_and_resolve t = infer t >>= (fst >>> Core.resolve)
 let check_and_resolve k = check k >=> Core.resolve
+
+(* *)
+
+let as_predicate check l r =
+  check Loc.dummy l r
+  |> try_in (const @@ return true) (const @@ return false)
+  |> Kind.UnkMap.cloning
+
+let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
+let is_equal_of_norm l r = as_predicate check_equal_of_norm l r
