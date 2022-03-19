@@ -73,5 +73,11 @@ val map_m : ('a -> ('f, 'F, 'b) Monad.fr) -> 'a t -> ('f, 'F, 'b t) Monad.fr
 val map_fr :
   ('a -> ('f, 'F, 'b) Applicative.fr) -> 'a t -> ('f, 'F, 'b t) Applicative.fr
 
+val map2_fr :
+  ('a -> 'b -> ('f, 'F, 'c) Applicative.fr) ->
+  'a t ->
+  'b t ->
+  ('f, 'F, 'c t) Applicative.fr
+
 val map_phys_eq_fr :
   ('a -> ('f, 'F, 'a) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr

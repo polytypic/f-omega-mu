@@ -127,6 +127,15 @@ let rec map_fr xyF ysF = function
 
 let map_fr xyF = map_fr xyF (return [])
 
+let rec map2_fr xyzF zsF xs ys =
+  match (xs, ys) with
+  | x :: xs, y :: ys ->
+    map2_fr xyzF (xyzF x y <*> zsF >>- fun (z, zs) -> z :: zs) xs ys
+  | [], [] -> zsF >>- rev
+  | _ -> raise @@ Invalid_argument "map2_fr"
+
+let map2_fr xyzF = map2_fr xyzF (return [])
+
 let rec map_phys_eq_fr fn inn =
   match inn with
   | x :: xs as inn ->
