@@ -1,39 +1,39 @@
 # Fωμ type checker and compiler
 
 A type checker and compiler
-([\*](https://polytypic.github.io/f-omega-mu/#*examples/stream-fusion.fom),
-[\*](https://polytypic.github.io/f-omega-mu/#*examples/template-strings.fom))
+([\*](https://polytypic.github.io/f-omega-mu/#*examples/stream-fusion.fom 'Stream fusion'),
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/template-strings.fom 'Template strings'))
 for Fωμ _restricted to non-nested types_
-([\*](https://polytypic.github.io/f-omega-mu/#*examples/errors/nested.fom)).
+([\*](https://polytypic.github.io/f-omega-mu/#*examples/errors/nested.fom 'Nested datatypes are disallowed')).
 This Fωμ variant has
 
 - **structural sum and product types**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/lists-of-various-lengths.fom),
-  [\*](https://polytypic.github.io/f-omega-mu/#*examples/generic-folds.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/lists-of-various-lengths.fom 'Types of lists of various lengths'),
+  [\*](https://polytypic.github.io/f-omega-mu/#*examples/generic-folds.fom 'Generic folds')),
 - **join and meet type operators**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/finally-tagless.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/finally-tagless.fom 'Finally Tagless')),
 - **equirecursive types**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/first-order-and-higher-kinded-lists.fom),
-  [\*](https://polytypic.github.io/f-omega-mu/#*examples/polymorphic-container-without-pretense.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/first-order-and-higher-kinded-lists.fom 'Both first-order and higher-kinded recursive types are allowed'),
+  [\*](https://polytypic.github.io/f-omega-mu/#*examples/polymorphic-container-without-pretense.fom 'Polymorphic container without pretense')),
 - **higher-kinded types**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/equality-witnesses.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/equality-witnesses.fom 'First-class type equality witnesses')),
   including **type level lambdas** and **kind inference**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-level-programming.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-level-programming.fom 'Type level programming in Fωμ')),
 - **impredicative universal and existential types**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/stack-adt.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/stack-adt.fom 'Stack ADT using an existential type')),
 - **structural subtyping**
-  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/aggregate-syntax.fom),
-  [\*](https://polytypic.github.io/f-omega-mu/#*examples/bounded-subtyping-of-counters.fom)),
+  ([\*](https://polytypic.github.io/f-omega-mu/#*examples/aggregate-syntax.fom 'Aggregate syntax'),
+  [\*](https://polytypic.github.io/f-omega-mu/#*examples/bounded-subtyping-of-counters.fom 'Bounded subtyping of counters with identity coercions')),
 - **decidable type checking**, and
 - **phase separation**.
 
 These features make Fωμ relatively well-behaved as well as expressive
-([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-gadt-using-eq-witnesses.fom),
-[\*](https://polytypic.github.io/f-omega-mu/#*examples/hoas-gadt.fom),
-[\*](https://polytypic.github.io/f-omega-mu/#*examples/f-omega-self-interpreter.fom))
+([\*](https://polytypic.github.io/f-omega-mu/#*examples/type-gadt-using-eq-witnesses.fom 'GADT type encoding using type equality witnesses'),
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/hoas-gadt.fom 'HOAS GADT using Scott encoding'),
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/f-omega-self-interpreter.fom 'A self-interpreter for the Fω subset'))
 and also allow a compiler to make good use of untyped compilation targets
-([\*](https://polytypic.github.io/f-omega-mu/#*examples/equirecursive-fixpoint-combinator.fom),
-[\*](https://polytypic.github.io/f-omega-mu/#*examples/object-oriented-sets.fom))
+([\*](https://polytypic.github.io/f-omega-mu/#*examples/equirecursive-fixpoint-combinator.fom 'Equirecursive applicative fixpoint combinator'),
+[\*](https://polytypic.github.io/f-omega-mu/#*examples/object-oriented-sets.fom 'Object-oriented integer set implementations'))
 such as JavaScript.
 
 Although this is ultimately really intended to serve as an intermediate language
@@ -97,7 +97,7 @@ needs to be rewritten as
 
 Both of the above types are allowed by this generalized system and are also
 considered equivalent as shown in this
-[example](https://polytypic.github.io/f-omega-mu/#*examples/first-order-and-higher-kinded-lists.fom).
+[example](https://polytypic.github.io/f-omega-mu/#*examples/first-order-and-higher-kinded-lists.fom 'Both first-order and higher-kinded recursive types are allowed').
 
 In this generalized system, nested types are not allowed. For example,
 
@@ -106,7 +106,7 @@ In this generalized system, nested types are not allowed. For example,
 ```
 
 is disallowed due to the argument `(α, α)` as demonstrated in this
-[example](https://polytypic.github.io/f-omega-mu/#*examples/errors/nested.fom).
+[example](https://polytypic.github.io/f-omega-mu/#*examples/errors/nested.fom 'Nested datatypes are disallowed').
 
 Disallowing nested types is sufficient to keep the number of distinct subtrees
 finite in the infinite expansions of recursive types and to keep type
