@@ -23,9 +23,14 @@ build-examples() {
     cp "$example" docs/examples/
     echo "  '$example'," >> $OUTPUT
   done
+  echo "]" >> $OUTPUT
+
   cp -r examples/lib docs/examples/lib
   cp -r examples/errors docs/examples/errors
-  echo "]" >> $OUTPUT
+
+  rm -rf docs/regression
+  mkdir -p docs/regression
+  cp regression/*.fom docs/regression
 }
 
 build-sandbox &
