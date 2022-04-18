@@ -410,4 +410,10 @@ let () =
   testErrors "let _: int = false" "let _: int = false in true";
   testErrors "let () = 101" "let () = 101 in true";
   testErrors "wider product annotation" "{x = 1}: {x: int, y: int}";
+  testErrors "variance with annotation"
+    {|
+    let is = Λα.λx: α → α.x
+    is«{x: int, y: int}»
+      λx: {x: int}.x
+    |};
   ()

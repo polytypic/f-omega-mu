@@ -237,8 +237,8 @@ and check a e =
     | `Lam (at', i, u, e) ->
       let* d, c = Typ.check_arrow at' a and* u = Typ.check_and_norm u in
       Typ.check_sub_of_norm at' d u
-      >> Annot.Exp.def i d
-      >> VarMap.adding i d (check c e)
+      >> Annot.Exp.def i u
+      >> VarMap.adding i u (check c e)
       >>- fun e -> `Lam (at', i, d, e)
     | `LamImp (at', i, e) ->
       let* d, _ = Typ.check_arrow at' a in
