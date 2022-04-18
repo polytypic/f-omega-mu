@@ -492,7 +492,8 @@ let rec infer = function
     | Some (`Kind i_kind) -> return (t, i_kind)
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
-    let+ r, r_kind = infer r |> VarMap.adding d @@ `Kind d_kind in
+    let+ r, r_kind = infer r |> VarMap.adding d @@ `Kind d_kind
+    and+ d_kind = Kind.resolve d_kind in
     (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
   | `App (at', f, x) ->
     let* f, f_kind = infer f and* x, d_kind = infer x in
