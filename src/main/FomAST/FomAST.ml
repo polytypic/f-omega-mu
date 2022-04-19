@@ -201,17 +201,19 @@ module Typ = struct
 
     type t = (t, Kind.t) f
 
-    let set_at at = function
-      | `Mu (_, t) -> `Mu (at, t)
-      | `Const (_, c) -> `Const (at, c)
-      | `Var (_, i) -> `Var (at, i)
-      | `Lam (_, i, k, t) -> `Lam (at, i, k, t)
-      | `App (_, f, x) -> `App (at, f, x)
-      | `ForAll (_, t) -> `ForAll (at, t)
-      | `Exists (_, t) -> `Exists (at, t)
-      | `Arrow (_, d, c) -> `Arrow (at, d, c)
-      | `Product (_, ls) -> `Product (at, ls)
-      | `Sum (_, ls) -> `Sum (at, ls)
+    let map_at_fr' fn = function
+      | `Mu (at, t) -> fn at >>- fun at -> `Mu (at, t)
+      | `Const (at, c) -> fn at >>- fun at -> `Const (at, c)
+      | `Var (at, i) -> fn at >>- fun at -> `Var (at, i)
+      | `Lam (at, i, k, t) -> fn at >>- fun at -> `Lam (at, i, k, t)
+      | `App (at, f, x) -> fn at >>- fun at -> `App (at, f, x)
+      | `ForAll (at, t) -> fn at >>- fun at -> `ForAll (at, t)
+      | `Exists (at, t) -> fn at >>- fun at -> `Exists (at, t)
+      | `Arrow (at, d, c) -> fn at >>- fun at -> `Arrow (at, d, c)
+      | `Product (at, ls) -> fn at >>- fun at -> `Product (at, ls)
+      | `Sum (at, ls) -> fn at >>- fun at -> `Sum (at, ls)
+
+    let set_at at = Identity.run <<< map_at_fr' @@ const @@ return at
 
     let map_fr' row fn = function
       | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
@@ -313,25 +315,13 @@ module Typ = struct
 
   type t = (t, Kind.t) f
 
-  let at = function
-    | `Mu (at, _)
-    | `Const (at, _)
-    | `Var (at, _)
-    | `Lam (at, _, _, _)
-    | `App (at, _, _)
-    | `ForAll (at, _)
-    | `Exists (at, _)
-    | `Arrow (at, _, _)
-    | `Product (at, _)
-    | `Sum (at, _)
-    | `Join (at, _, _)
-    | `Meet (at, _, _) ->
-      at
+  let map_at_fr' fn = function
+    | #Core.f as t -> Core.map_at_fr' fn t
+    | `Join (at, l, r) -> fn at >>- fun at -> `Join (at, l, r)
+    | `Meet (at, l, r) -> fn at >>- fun at -> `Meet (at, l, r)
 
-  let set_at at = function
-    | #Core.f as t -> Core.set_at at t
-    | `Join (_, l, r) -> `Join (at, l, r)
-    | `Meet (_, l, r) -> `Meet (at, l, r)
+  let at t = Constant.run @@ map_at_fr' Constant.inj'0 t
+  let set_at at = Identity.run <<< map_at_fr' @@ const @@ return at
 
   (* Macros *)
 
