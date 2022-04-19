@@ -15,12 +15,22 @@ let eval x = eval @@ prj x
 
 (* *)
 
-let inj'0 x _ = from x
-let inj'1 xy x = inj'0 @@ xy x
+let ( let+ ) _ xF = from @@ eval xF
 
 (* *)
 
-let ( let+ ) _ xF = from @@ eval xF
+let inj'0 x _ = from x
+let inj'1 xy x = inj'0 @@ xy x
+
+let methods =
+  object
+    method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
+  end
+
+let run xF = xF methods |> eval
+
+(* *)
+
 let pair combine xF yF = from (combine (eval xF) (eval yF))
 
 let of_monoid m =
