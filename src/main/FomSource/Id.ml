@@ -45,9 +45,13 @@ end
 module Counter : sig
   type t = int
 
+  val compare : t cmp
+
+  (* *)
+
   val next : unit -> int
 end = struct
-  type t = int
+  include Int
 
   let counter = ref 0
 

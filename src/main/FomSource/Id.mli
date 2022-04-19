@@ -3,6 +3,8 @@ open FomPPrint
 
 module Counter : sig
   type t
+
+  val compare : t cmp
 end
 
 module Name : sig
