@@ -359,7 +359,7 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
       | _ -> (
         classify l <*> classify r >>= fun (l', r') ->
         match Option.both ( = ) l' r' with
-        | Some false -> fail @@ `Error_typ_mismatch (at', l, r)
+        | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
         | _ -> return problem))
 
 and join_of_norm at' l r =
@@ -531,7 +531,7 @@ and check expected t =
 let rec solve_of_norm = function
   | #Core.f as t -> Core.map_fr solve_of_norm t
   | `Join (at', l, r) | `Meet (at', l, r) ->
-    fail @@ `Error_typ_mismatch (at', l, r)
+    fail @@ `Error_typ_unrelated (at', l, r)
 
 let join_of_norm at' (l : Core.t) (r : Core.t) =
   join_of_norm at' (l :> t) (r :> t) >>= solve_of_norm

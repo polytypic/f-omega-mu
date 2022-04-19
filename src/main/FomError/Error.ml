@@ -42,6 +42,7 @@ type kind_errors =
 
 type var_unbound = [`Error_var_unbound of Loc.t * Exp.Var.t]
 type typ_mismatch = [`Error_typ_mismatch of Loc.t * Typ.t * Typ.t]
+type typ_unrelated = [`Error_typ_unrelated of Loc.t * Typ.t * Typ.t]
 type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.Core.t]
 type product_lacks = [`Error_product_lacks of Loc.t * Typ.Core.t * Label.t]
 type sum_lacks = [`Error_sum_lacks of Loc.t * Typ.Core.t * Label.t]
@@ -60,6 +61,7 @@ type exp_lacks_annot = [`Error_exp_lacks_annot of Loc.t]
 type type_errors =
   [ var_unbound
   | typ_mismatch
+  | typ_unrelated
   | typ_unexpected
   | product_lacks
   | sum_lacks

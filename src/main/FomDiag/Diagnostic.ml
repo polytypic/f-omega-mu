@@ -114,6 +114,18 @@ let of_error = function
         [
           (at, text "Type mismatch"); (Typ.at expected_typ, text "Expected type");
         ] )
+  | `Error_typ_unrelated (at, expected_typ, actual_typ) ->
+    return
+      ( ( at,
+          text "The types"
+          ^^ nested (Typ.pp expected_typ)
+          ^^ text "and"
+          ^^ nested (Typ.pp actual_typ)
+          ^^ text "are unrelated " ),
+        [
+          (at, text "Type unrelated");
+          (Typ.at expected_typ, text "Unrelated type");
+        ] )
   | `Error_typ_unexpected (at, mnemo, typ) ->
     let+ typ = Typ.contract typ in
     ( ( at,
