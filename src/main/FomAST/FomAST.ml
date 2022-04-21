@@ -8,21 +8,20 @@ module Kind = struct
   module Core = struct
     type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
 
-    let at = function `Star at -> at | `Arrow (at, _, _) -> at
-
-    let set_at at = function
-      | `Star _ -> `Star at
-      | `Arrow (_, d, c) -> `Arrow (at, d, c)
+    let map_at_fr fn = function
+      | `Star at -> fn at >>- fun at -> `Star at
+      | `Arrow (at, d, c) -> fn at >>- fun at -> `Arrow (at, d, c)
   end
 
   type 'k f = ['k Core.f | `Unk of Loc.t * Unk.t]
   type t = t f
 
-  let at = function #Core.f as k -> Core.at k | `Unk (at, _) -> at
+  let map_at_fr fn = function
+    | #Core.f as t -> Core.map_at_fr fn t
+    | `Unk (at, i) -> fn at >>- fun at -> `Unk (at, i)
 
-  let set_at at = function
-    | #Core.f as k -> Core.set_at at k
-    | `Unk (_, i) -> `Unk (at, i)
+  let at t = Constant.run @@ map_at_fr Constant.inj'0 t
+  let set_at at = Identity.run <<< map_at_fr @@ const @@ return at
 
   (* *)
 
