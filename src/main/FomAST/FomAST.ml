@@ -201,7 +201,7 @@ module Typ = struct
 
     type t = (t, Kind.t) f
 
-    let map_at_fr' fn = function
+    let map_at_fr fn = function
       | `Mu (at, t) -> fn at >>- fun at -> `Mu (at, t)
       | `Const (at, c) -> fn at >>- fun at -> `Const (at, c)
       | `Var (at, i) -> fn at >>- fun at -> `Var (at, i)
@@ -213,7 +213,7 @@ module Typ = struct
       | `Product (at, ls) -> fn at >>- fun at -> `Product (at, ls)
       | `Sum (at, ls) -> fn at >>- fun at -> `Sum (at, ls)
 
-    let set_at at = Identity.run <<< map_at_fr' @@ const @@ return at
+    let set_at at = Identity.run <<< map_at_fr @@ const @@ return at
 
     let map_fr' row fn = function
       | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
@@ -309,13 +309,13 @@ module Typ = struct
 
   type t = (t, Kind.t) f
 
-  let map_at_fr' fn = function
-    | #Core.f as t -> Core.map_at_fr' fn t
+  let map_at_fr fn = function
+    | #Core.f as t -> Core.map_at_fr fn t
     | `Join (at, l, r) -> fn at >>- fun at -> `Join (at, l, r)
     | `Meet (at, l, r) -> fn at >>- fun at -> `Meet (at, l, r)
 
-  let at t = Constant.run @@ map_at_fr' Constant.inj'0 t
-  let set_at at = Identity.run <<< map_at_fr' @@ const @@ return at
+  let at t = Constant.run @@ map_at_fr Constant.inj'0 t
+  let set_at at = Identity.run <<< map_at_fr @@ const @@ return at
 
   (* Macros *)
 
