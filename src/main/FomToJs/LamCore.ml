@@ -61,8 +61,7 @@ let map_fr' row fn = function
   | `App (f, x) -> fn f <*> fn x >>- fun f_x -> `App f_x
   | `Case e -> fn e >>- fun e -> `Case e
   | `Const _ as inn -> return inn
-  | `IfElse (c, t, e) ->
-    fn c <*> fn t <*> fn e >>- fun ((c, t), e) -> `IfElse (c, t, e)
+  | `IfElse (c, t, e) -> tuple'3 (fn c) (fn t) (fn e) >>- fun x -> `IfElse x
   | `Inject (l, e) -> fn e >>- fun e -> `Inject (l, e)
   | `Lam (i, e) -> fn e >>- fun e -> `Lam (i, e)
   | `Mu e -> fn e >>- fun e -> `Mu e

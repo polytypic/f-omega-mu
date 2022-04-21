@@ -21,6 +21,14 @@ module Syntax = struct
 
   (* *)
 
+  let tuple'2 = ( and+ )
+
+  let tuple'3 xM yM zM =
+    let+ x = xM and+ y = yM and+ z = zM in
+    (x, y, z)
+
+  (* *)
+
   let unit : (_, _, _) fr = fun f -> f#return ()
   let do_unless c uM = if c then unit else uM
   let do_when c uM = if c then uM else unit

@@ -20,6 +20,16 @@ module Syntax : sig
 
   (* *)
 
+  val tuple'2 : ('f, 'F, 'a) fr -> ('f, 'F, 'b) fr -> ('f, 'F, 'a * 'b) fr
+
+  val tuple'3 :
+    ('f, 'F, 'a) fr ->
+    ('f, 'F, 'b) fr ->
+    ('f, 'F, 'c) fr ->
+    ('f, 'F, 'a * 'b * 'c) fr
+
+  (* *)
+
   val unit : ('f, 'F, unit) fr
   val do_unless : bool -> ('f, 'F, unit) fr -> ('f, 'F, unit) fr
   val do_when : bool -> ('f, 'F, unit) fr -> ('f, 'F, unit) fr
