@@ -23,5 +23,6 @@ let methods =
       fun xyF xF -> inj (prj (xyF (prj xF)))
   end
 
+let inj'0 x _ = x |> inj
 let inj'1 xy x _ = xy x |> inj
 let run xF = xF methods |> prj
