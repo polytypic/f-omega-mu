@@ -23,6 +23,7 @@ module Profiling = Profiling
 module Rea = Rea
 module Res = Res
 module String = String
+module Traverse = Traverse
 module UTF = UTF
 module Zero = Zero
 

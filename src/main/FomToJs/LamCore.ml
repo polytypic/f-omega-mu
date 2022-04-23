@@ -71,22 +71,12 @@ let map_fr' row fn = function
 
 let map_fr fn = map_fr' Row.map_fr fn
 let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
-let map fn = map_fr (Identity.inj'1 fn) >>> Identity.run
-let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
-let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
-
-let exists fn =
-  map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
-
-let find_map fn =
-  map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
-
-let map_reduce plus zero =
-  map_constant @@ Constant.of_monoid
-  @@ object
-       method identity = zero
-       method combine = plus
-     end
+let map fn = Traverse.to_map map_fr fn
+let map_eq fn = Traverse.to_map map_eq_fr fn
+let map_constant m = Traverse.to_map_constant map_fr m
+let exists fn = Traverse.to_exists map_fr fn
+let find_map fn = Traverse.to_find_map map_fr fn
+let map_reduce plus = Traverse.to_map_reduce map_fr plus
 
 (* *)
 

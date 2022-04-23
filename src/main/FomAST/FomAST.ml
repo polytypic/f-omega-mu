@@ -20,8 +20,8 @@ module Kind = struct
     | #Core.f as t -> Core.map_at_fr fn t
     | `Unk (at, i) -> fn at >>- fun at -> `Unk (at, i)
 
-  let at t = Constant.run @@ map_at_fr Constant.inj'0 t
-  let set_at at = Identity.run <<< map_at_fr @@ const @@ return at
+  let at t = Traverse.to_get map_at_fr t
+  let set_at at = Traverse.to_set map_at_fr at
 
   (* *)
 
@@ -200,42 +200,26 @@ module Typ = struct
 
     type t = (t, Kind.t) f
 
-    let map_at_fr fn = function
-      | `Mu (at, t) -> fn at >>- fun at -> `Mu (at, t)
-      | `Const (at, c) -> fn at >>- fun at -> `Const (at, c)
-      | `Var (at, i) -> fn at >>- fun at -> `Var (at, i)
-      | `Lam (at, i, k, t) -> fn at >>- fun at -> `Lam (at, i, k, t)
-      | `App (at, f, x) -> fn at >>- fun at -> `App (at, f, x)
-      | `ForAll (at, t) -> fn at >>- fun at -> `ForAll (at, t)
-      | `Exists (at, t) -> fn at >>- fun at -> `Exists (at, t)
-      | `Arrow (at, d, c) -> fn at >>- fun at -> `Arrow (at, d, c)
-      | `Product (at, ls) -> fn at >>- fun at -> `Product (at, ls)
-      | `Sum (at, ls) -> fn at >>- fun at -> `Sum (at, ls)
+    let map_fr' fl row ft = function
+      | `Mu (l, t) -> fl l <*> ft t >>- fun x -> `Mu x
+      | `Const (l, c) -> fl l >>- fun l -> `Const (l, c)
+      | `Var (l, i) -> fl l >>- fun l -> `Var (l, i)
+      | `Lam (l, i, k, t) -> fl l <*> ft t >>- fun (l, t) -> `Lam (l, i, k, t)
+      | `App (l, f, x) -> tuple'3 (fl l) (ft f) (ft x) >>- fun x -> `App x
+      | `ForAll (l, t) -> fl l <*> ft t >>- fun x -> `ForAll x
+      | `Exists (l, t) -> fl l <*> ft t >>- fun x -> `Exists x
+      | `Arrow (l, d, c) -> tuple'3 (fl l) (ft d) (ft c) >>- fun x -> `Arrow x
+      | `Product (l, ls) -> fl l <*> row ft ls >>- fun x -> `Product x
+      | `Sum (l, ls) -> fl l <*> row ft ls >>- fun x -> `Sum x
 
-    let set_at at = Identity.run <<< map_at_fr @@ const @@ return at
-
-    let map_fr' row fn = function
-      | `Mu (at, t) -> fn t >>- fun t -> `Mu (at, t)
-      | (`Const _ | `Var _) as inn -> return inn
-      | `Lam (at, i, k, t) -> fn t >>- fun t -> `Lam (at, i, k, t)
-      | `App (at, f, x) -> fn f <*> fn x >>- fun (f, x) -> `App (at, f, x)
-      | `ForAll (at, t) -> fn t >>- fun t -> `ForAll (at, t)
-      | `Exists (at, t) -> fn t >>- fun t -> `Exists (at, t)
-      | `Arrow (at, d, c) -> fn d <*> fn c >>- fun (d, c) -> `Arrow (at, d, c)
-      | `Product (at, ls) -> row fn ls >>- fun ls -> `Product (at, ls)
-      | `Sum (at, ls) -> row fn ls >>- fun ls -> `Sum (at, ls)
-
-    let map_fr fn = map_fr' Row.map_fr fn
-    let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
-    let map fn = map_fr (Identity.inj'1 fn) >>> Identity.run
-    let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
-    let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
-
-    let exists fn =
-      map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
-
-    let find_map fn =
-      map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
+    let map_at_fr fl = map_fr' fl (const return) return
+    let set_at at = Traverse.to_set map_at_fr at
+    let map_fr fn = map_fr' return Row.map_fr fn
+    let map fn = Traverse.to_map map_fr fn
+    let map_eq_fr fn = map_fr' return Row.map_phys_eq_fr fn
+    let map_eq fn = Traverse.to_map map_eq_fr fn
+    let exists fn = Traverse.to_exists map_fr fn
+    let find_map fn = Traverse.to_find_map map_fr fn
 
     (* *)
 
@@ -308,13 +292,14 @@ module Typ = struct
 
   type t = (t, Kind.t) f
 
-  let map_at_fr fn = function
-    | #Core.f as t -> Core.map_at_fr fn t
-    | `Join (at, l, r) -> fn at >>- fun at -> `Join (at, l, r)
-    | `Meet (at, l, r) -> fn at >>- fun at -> `Meet (at, l, r)
+  let map_fr' fl row ft = function
+    | #Core.f as t -> Core.map_fr' fl row ft t
+    | `Join (l, x, y) -> tuple'3 (fl l) (ft x) (ft y) >>- fun x -> `Join x
+    | `Meet (l, x, y) -> tuple'3 (fl l) (ft x) (ft y) >>- fun x -> `Meet x
 
-  let at t = Constant.run @@ map_at_fr Constant.inj'0 t
-  let set_at at = Identity.run <<< map_at_fr @@ const @@ return at
+  let map_at_fr fl = map_fr' fl (const return) return
+  let at t = Traverse.to_get_opt map_at_fr t |> Option.get
+  let set_at at = Traverse.to_set map_at_fr at
 
   (* Macros *)
 
@@ -363,29 +348,14 @@ module Typ = struct
 
   (* *)
 
-  let map_fr' row fn = function
-    | #Core.f as t -> Core.map_fr' row fn t
-    | `Join (at, l, r) -> fn l <*> fn r >>- fun (l, r) -> `Join (at, l, r)
-    | `Meet (at, l, r) -> fn l <*> fn r >>- fun (l, r) -> `Meet (at, l, r)
-
-  let map_fr fn = map_fr' Row.map_fr fn
-  let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
-  let map fn = map_fr (Identity.inj'1 fn) >>> Identity.run
-  let map_eq fn = map_eq_fr (Identity.inj'1 fn) >>> Identity.run
-  let map_constant m fn t = map_fr (Constant.inj'1 fn) t m |> Constant.eval
-
-  let map_reduce plus zero =
-    map_constant @@ Constant.of_monoid
-    @@ object
-         method identity = zero
-         method combine = plus
-       end
-
-  let exists fn =
-    map_constant Constant.or_lm (fun x -> lazy (fn x)) >>> Lazy.force
-
-  let find_map fn =
-    map_constant Constant.option_lm (fun x -> lazy (fn x)) >>> Lazy.force
+  let map_fr fn = map_fr' return Row.map_fr fn
+  let map fn = Traverse.to_map map_fr fn
+  let map_eq_fr fn = map_fr' return Row.map_phys_eq_fr fn
+  let map_eq fn = Traverse.to_map map_eq_fr fn
+  let map_constant m = Traverse.to_map_constant map_fr m
+  let map_reduce plus = Traverse.to_map_reduce map_fr plus
+  let exists fn = Traverse.to_exists map_fr fn
+  let find_map fn = Traverse.to_find_map map_fr fn
 
   (* *)
 

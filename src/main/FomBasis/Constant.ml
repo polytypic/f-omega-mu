@@ -1,7 +1,9 @@
+open Higher.Syntax
+
 type ('c, 'a) t
 
-external from : 'c -> ('c, 'a) t = "%identity"
-external eval : ('c, 'a) t -> 'c = "%identity"
+external inject : 'c -> ('c, 'a) t = "%identity"
+external project : ('c, 'a) t -> 'c = "%identity"
 
 include
   Higher.New'2
@@ -10,34 +12,36 @@ include
     end)
     ()
 
-let from x = inj @@ from x
-let eval x = eval @@ prj x
+let inject x = inj @@ inject x
+let project x = project @@ prj x
+
+type 'c f'1 = ('c, f) app'1
+type ('c, 'a) f'2 = ('c, 'a, f) app'2
 
 (* *)
 
-let ( let+ ) _ xF = from @@ eval xF
+let run m xF = xF m |> project
 
 (* *)
 
-let inj'0 x _ = from x
-let inj'1 xy x = inj'0 @@ xy x
+let ( let+ ) _ xF = inject @@ project xF
 
-let methods =
+let m =
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
   end
 
-let run xF = xF methods |> eval
+let from x _ = inject x
 
 (* *)
 
-let pair combine xF yF = from (combine (eval xF) (eval yF))
+let pair combine xF yF = inject (combine (project xF) (project yF))
 
 let of_monoid m =
   let identity = m#identity and combine = m#combine in
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
-    method return : 'a. ('a, _) Applicative.return = inj'0 identity
+    method return : 'a. ('a, _) Applicative.return = from identity
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair combine
   end
 
@@ -63,6 +67,14 @@ let option_lm =
   in
   object
     method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
-    method return : 'a. ('a, _) Applicative.return = inj'0 identity
+    method return : 'a. ('a, _) Applicative.return = from identity
+    method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair combine
+  end
+
+let option_m =
+  let identity = None and combine l r = match l with None -> r | _ -> l in
+  object
+    method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
+    method return : 'a. ('a, _) Applicative.return = from identity
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair combine
   end

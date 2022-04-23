@@ -1,5 +1,3 @@
-open Higher.Syntax
-
 type 'a t = 'a
 
 include
@@ -8,8 +6,6 @@ include
       type 'a t = 'a
     end)
     ()
-
-type 'a fr = f Monad.t -> ('a, f) app'1
 
 let methods =
   object
@@ -23,6 +19,4 @@ let methods =
       fun xyF xF -> inj (prj (xyF (prj xF)))
   end
 
-let inj'0 x _ = x |> inj
-let inj'1 xy x _ = xy x |> inj
 let run xF = xF methods |> prj

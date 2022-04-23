@@ -9,6 +9,7 @@ type 'f t =
   ; pair : 'a 'b. ('a, 'b, 'f) pair >
 
 type ('f, 'F, 'a) fr = (< 'f t ; .. > as 'F) -> ('a, 'f) app'1
+type ('f, 'a) frm = ('f, 'f t, 'a) fr
 
 module Syntax : sig
   val return : 'a -> ('f, 'F, 'a) fr
