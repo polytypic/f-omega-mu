@@ -1,6 +1,7 @@
 module Alternative = Alternative
 module Applicative = Applicative
 module Array = Array
+module Cat = Cat
 module Cats = Cats
 module Compare = Compare
 module Constant = Constant

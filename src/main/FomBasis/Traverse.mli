@@ -39,6 +39,11 @@ val to_find_map :
   's ->
   'b Option.t
 
+val to_collect :
+  (('a -> (('a Cat.t Constant.f'1, 'I) Applicative.frm as 'R)) -> 's -> 'R) ->
+  's ->
+  'a list
+
 val to_map_reduce :
   (('a -> (('m Constant.f'1, 'I) Applicative.frm as 'R)) -> 's -> 'R) ->
   ('m -> 'm -> 'm) ->

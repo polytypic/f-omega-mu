@@ -26,6 +26,7 @@ val of_monoid : < 'c Monoid.t ; .. > -> 'c f'1 Applicative.t
 
 (* *)
 
+val cat_m : 'a Cat.t f'1 Applicative.t
 val or_lm : bool Lazy.t f'1 Applicative.t
 val option_lm : 'a Option.t Lazy.t f'1 Applicative.t
 val option_m : 'a Option.t f'1 Applicative.t

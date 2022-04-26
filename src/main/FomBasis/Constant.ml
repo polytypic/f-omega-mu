@@ -47,6 +47,13 @@ let of_monoid m =
 
 (* *)
 
+let cat_m =
+  object
+    method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
+    method return : 'a. ('a, _) Applicative.return = from Cat.empty
+    method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair Cat.append
+  end
+
 let or_lm =
   of_monoid
   @@ object
