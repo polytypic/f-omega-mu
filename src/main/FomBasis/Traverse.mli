@@ -31,6 +31,12 @@ val to_exists :
   's ->
   bool
 
+val to_exists_fr :
+  (('a -> (('a Cat.t Constant.f'1, 'I) Applicative.frm as 'R)) -> 's -> 'R) ->
+  ('a -> ('f, 'F, bool) Monad.fr) ->
+  's ->
+  ('f, 'F, bool) Monad.fr
+
 val to_find_map :
   (('a -> (('b Option.t Lazy.t Constant.f'1, 'I) Applicative.frm as 'R)) ->
   's ->

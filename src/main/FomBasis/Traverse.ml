@@ -25,3 +25,5 @@ let to_map_reduce map_fr plus zero =
        method identity = zero
        method combine = plus
      end
+
+let to_exists_fr map_fr pr = to_collect map_fr >>> List.exists_fr pr
