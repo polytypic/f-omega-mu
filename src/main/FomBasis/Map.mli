@@ -7,6 +7,9 @@ module type S = sig
 
   val add_list : (key * 'v) list -> 'v t uop
   val of_list : (key * 'v) list -> 'v t
+
+  val exists_fr :
+    (key -> 'v -> ('f, 'F, bool) Monad.fr) -> 'v t -> ('f, 'F, bool) Monad.fr
 end
 
 module Make : functor (Ord : OrderedType) -> S with type key = Ord.t
