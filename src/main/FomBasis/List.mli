@@ -81,3 +81,8 @@ val map2_fr :
 
 val map_phys_eq_fr :
   ('a -> ('f, 'F, 'a) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr
+
+(* *)
+
+val filter_fr :
+  ('a -> ('f, 'F, bool) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr

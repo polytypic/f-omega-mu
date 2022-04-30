@@ -142,3 +142,10 @@ let rec map_phys_eq_fr fn inn =
     let+ x' = fn x and+ xs' = map_phys_eq_fr fn xs in
     if x == x' && xs == xs' then inn else x' :: xs'
   | [] -> return inn
+
+(* *)
+
+let rec filter_fr fn = function
+  | [] -> return []
+  | x :: xs -> (
+    fn x <*> filter_fr fn xs >>- function b, xs -> if b then x :: xs else xs)
