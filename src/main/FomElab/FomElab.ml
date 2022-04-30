@@ -231,7 +231,7 @@ module Elab = struct
   let modularly op =
     op
     |> Typ.VarMap.resetting_to Typ.initial_env
-    |> Kind.UnkMap.resetting |> Parameters.resetting
+    |> Kind.UnkEnv.resetting |> Parameters.resetting
     |> map_error @@ fun (#Error.t as e) -> e
 end
 

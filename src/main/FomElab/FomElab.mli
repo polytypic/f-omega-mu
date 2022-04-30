@@ -110,7 +110,7 @@ val elaborate_typ :
   ( (< 'r Annot.f
      ; 'r Fetch.f
      ; 'r ImportChain.f
-     ; 'r Kind.UnkMap.f
+     ; 'r Kind.UnkEnv.f
      ; 'r Parameters.f
      ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarMap.f
      ; 'r TypImports.f
@@ -130,7 +130,7 @@ val elaborate :
      ; 'r ExpImports.f
      ; 'r Fetch.f
      ; 'r ImportChain.f
-     ; 'r Kind.UnkMap.f
+     ; 'r Kind.UnkEnv.f
      ; 'r Parameters.f
      ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarMap.f
      ; 'r TypImports.f

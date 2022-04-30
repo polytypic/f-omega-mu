@@ -18,7 +18,7 @@ module Env : sig
      ; 'r ExpImports.f
      ; 'r Fetch.f
      ; 'r ImportChain.f
-     ; 'r Kind.UnkMap.f
+     ; 'r Kind.UnkEnv.f
      ; 'r ModInJs.f
      ; 'r ModSimplified.f
      ; 'r Parameters.f

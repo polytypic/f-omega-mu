@@ -551,7 +551,7 @@ let check_and_resolve k = check k >=> Core.resolve
 let as_predicate check l r =
   check Loc.dummy l r
   |> try_in (const @@ return true) (const @@ return false)
-  |> Kind.UnkMap.cloning
+  |> Kind.UnkEnv.cloning
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
 let is_equal_of_norm l r = as_predicate check_equal_of_norm l r

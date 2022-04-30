@@ -15,7 +15,7 @@ module Env = struct
       inherit ExpImports.con exp_imports
       inherit [_] Fetch.con fetch
       inherit ImportChain.con
-      inherit Kind.UnkMap.con
+      inherit Kind.UnkEnv.con
       inherit ModInJs.con mod_in_js
       inherit ModSimplified.con mod_simplified
       inherit Parameters.con

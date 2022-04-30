@@ -3,7 +3,6 @@ open FomSource
 
 module Kind : sig
   module Unk : Id.S
-  module UnkMap : Map.S with type key = Unk.t
 
   module Core : sig
     type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
@@ -11,6 +10,28 @@ module Kind : sig
 
   type 'k f = ['k Core.f | `Unk of Loc.t * Unk.t]
   type t = t f
+
+  (* *)
+
+  module UnkMap : Map.S with type key = Unk.t
+
+  module UnkEnv : sig
+    type 'r m
+
+    class con :
+      object ('r)
+        method kind_env : 'r m
+      end
+
+    type 'r f = < kind_env : 'r m >
+
+    val resetting : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
+    val find_opt : Unk.t -> ((< 'r f ; .. > as 'r), 'e, t option) rea
+    val add : Unk.t -> t -> ((< 'r f ; .. > as 'r), 'e, unit) rea
+    val cloning : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
+  end
+
+  (* *)
 
   val at : t -> Loc.t
   val set_at : Loc.t -> t -> t
