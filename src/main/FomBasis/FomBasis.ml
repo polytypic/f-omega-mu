@@ -23,6 +23,7 @@ module Pair = Pair
 module Profiling = Profiling
 module Rea = Rea
 module Res = Res
+module Set = Set
 module String = String
 module Traverse = Traverse
 module UTF = UTF
