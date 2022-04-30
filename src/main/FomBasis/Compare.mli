@@ -10,17 +10,14 @@ end
 
 val the : ('a -> 'b) -> 'b cmp -> 'a cmp
 
-module Tuple'2 (T1 : Set.OrderedType) (T2 : Set.OrderedType) :
-  Set.OrderedType with type t = T1.t * T2.t
+module Tuple'2 (T1 : OrderedType) (T2 : OrderedType) :
+  OrderedType with type t = T1.t * T2.t
 
-module Tuple'3
-    (T1 : Set.OrderedType)
-    (T2 : Set.OrderedType)
-    (T3 : Set.OrderedType) : Set.OrderedType with type t = T1.t * T2.t * T3.t
+module Tuple'3 (T1 : OrderedType) (T2 : OrderedType) (T3 : OrderedType) :
+  OrderedType with type t = T1.t * T2.t * T3.t
 
 module Tuple'4
-    (T1 : Set.OrderedType)
-    (T2 : Set.OrderedType)
-    (T3 : Set.OrderedType)
-    (T4 : Set.OrderedType) :
-  Set.OrderedType with type t = T1.t * T2.t * T3.t * T4.t
+    (T1 : OrderedType)
+    (T2 : OrderedType)
+    (T3 : OrderedType)
+    (T4 : OrderedType) : OrderedType with type t = T1.t * T2.t * T3.t * T4.t
