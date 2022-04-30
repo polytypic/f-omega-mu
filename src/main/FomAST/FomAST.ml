@@ -197,13 +197,6 @@ module Typ = struct
   module VarSet = Set.Make (Var)
   module VarMap = Map.Make (Var)
 
-  let union_m =
-    Constant.of_monoid
-    @@ object
-         method combine = VarSet.union
-         method identity = VarSet.empty
-       end
-
   module Core = struct
     type ('t, 'k) f =
       [ `Mu of Loc.t * 't
@@ -371,7 +364,6 @@ module Typ = struct
   let map fn = Traverse.to_map map_fr fn
   let map_eq_fr fn = map_fr' return Row.map_phys_eq_fr fn
   let map_eq fn = Traverse.to_map map_eq_fr fn
-  let map_constant m = Traverse.to_map_constant map_fr m
   let map_reduce plus = Traverse.to_map_reduce map_fr plus
   let exists fn = Traverse.to_exists map_fr fn
   let find_map fn = Traverse.to_find_map map_fr fn
@@ -386,13 +378,6 @@ module Typ = struct
 
   let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
   let keep_phys_eq fn t = keep_phys_eq' t (fn t)
-
-  (* Substitution *)
-
-  let rec free = function
-    | `Var (_, i) -> VarSet.singleton i
-    | `Lam (_, i, _, e) -> free e |> VarSet.remove i
-    | t -> map_constant union_m free t
 
   (* *)
 

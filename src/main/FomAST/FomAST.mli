@@ -246,7 +246,6 @@ module Typ : sig
 
   (* *)
 
-  val free : t -> VarSet.t
   val is_free : Var.t -> t -> bool
 
   (* Freshening *)
