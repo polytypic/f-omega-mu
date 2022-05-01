@@ -27,3 +27,4 @@ let to_map_reduce map_fr plus zero =
      end
 
 let to_exists_fr map_fr pr = to_collect map_fr >>> List.exists_fr pr
+let to_find_map_fr map_fr pr = to_collect map_fr >>> List.find_map_fr pr

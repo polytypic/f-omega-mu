@@ -45,6 +45,12 @@ val to_find_map :
   's ->
   'b Option.t
 
+val to_find_map_fr :
+  (('a -> (('a Cat.t Constant.f'1, 'I) Applicative.frm as 'R)) -> 's -> 'R) ->
+  ('a -> ('f, 'F, 'b Option.t) Monad.fr) ->
+  's ->
+  ('f, 'F, 'b Option.t) Monad.fr
+
 val to_collect :
   (('a -> (('a Cat.t Constant.f'1, 'I) Applicative.frm as 'R)) -> 's -> 'R) ->
   's ->

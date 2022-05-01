@@ -66,6 +66,9 @@ val exists_fr :
 val find_opt_fr :
   ('a -> ('f, 'F, bool) Monad.fr) -> 'a t -> ('f, 'F, 'a option) Monad.fr
 
+val find_map_fr :
+  ('a -> ('f, 'F, 'b option) Monad.fr) -> 'a t -> ('f, 'F, 'b option) Monad.fr
+
 (* *)
 
 val map_m : ('a -> ('f, 'F, 'b) Monad.fr) -> 'a t -> ('f, 'F, 'b t) Monad.fr

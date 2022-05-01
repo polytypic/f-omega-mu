@@ -149,3 +149,10 @@ let rec filter_fr fn = function
   | [] -> return []
   | x :: xs -> (
     fn x <*> filter_fr fn xs >>- function b, xs -> if b then x :: xs else xs)
+
+(* *)
+
+let rec find_map_fr fn = function
+  | [] -> return None
+  | x :: xs -> (
+    fn x >>= function None -> find_map_fr fn xs | some -> return some)
