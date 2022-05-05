@@ -353,7 +353,7 @@ and simplify_base = function
       fs
       |> List.map_phys_eq_fr (fun ((l, _) as le) ->
              le
-             |> Pair.map_fr return @@ fun e ->
+             |> Pair.map_phys_eq_fr return @@ fun e ->
                 let* e = simplify e in
                 let* e_is_total = is_total e in
                 if e_is_total then
