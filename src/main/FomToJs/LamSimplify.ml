@@ -188,12 +188,11 @@ let rec inline_continuation e k =
     `App (k, e)
 
 let rec simplify e =
-  let* seen = Seen.mem e in
-  if seen then fail `Seen
-  else
+  Seen.adding e @@ function
+  | `Old -> fail `Seen
+  | `New ->
     let* limit = get Limit.field in
-    if limit < size e then fail `Limit
-    else Seen.adding e (simplify_base e >>- keep_phys_eq' e)
+    if limit < size e then fail `Limit else simplify_base e >>- keep_phys_eq' e
 
 and simplify_base = function
   | `Const (`Target (_, l)) when Js.is_identity l ->

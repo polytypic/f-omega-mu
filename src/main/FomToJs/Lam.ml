@@ -37,8 +37,12 @@ module Seen = struct
   include Set.Make (Compare.Tuple'2 (Int) (LamCore))
 
   let field r = r#seen
-  let adding e = mapping field (add (hash e, e))
-  let mem e = get field >>- mem (hash e, e)
+
+  let adding e on =
+    let k = (hash e, e) in
+    let* old_seen = get field in
+    let new_seen = add k old_seen in
+    if old_seen == new_seen then on `Old else setting field new_seen (on `New)
 
   class con =
     object
@@ -118,37 +122,34 @@ let dummy_var = `Var (Var.fresh Loc.dummy)
 let rec is_total e =
   match e with
   | `Const _ | `Var _ | `Lam _ -> return true
-  | _ ->
-    let* seen = Seen.mem e in
-    if seen then return false
-    else
-      Seen.adding e
-        (match unapp e with
-        | (`Const _ | `Var _ | `Lam _), [] -> return true
-        | `IfElse (c, t, e), xs ->
-          is_total c &&& is_total (apps t xs) &&& is_total (apps e xs)
-        | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
-        | `Mu (`Lam (i, e)), xs -> is_total (apps e xs) |> Env.adding i e
-        | `Select (e, l), [] -> is_total e &&& is_total l
-        | `Inject (_, e), _ -> is_total e
-        | `Var f, xs -> (
-          let* f_opt = Env.find_opt f in
-          match f_opt with
-          | None -> return false
-          | Some f -> is_total (apps f xs))
-        | `Lam (i, e), x :: xs ->
-          is_total x
-          &&& (is_total e |> Env.adding i x)
-          &&& (is_total (apps e xs) |> Env.adding i x)
-        | `Const c, xs ->
-          return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
-        | `Case (`Product fs), x :: xs ->
-          is_total x
-          &&& (fs
-              |> List.for_all_fr (fun (_, f) ->
-                     is_total (apps f (dummy_var :: xs))))
-        | `Case e, [] -> is_total e
-        | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false)
+  | _ -> (
+    Seen.adding e @@ function
+    | `Old -> return false
+    | `New -> (
+      match unapp e with
+      | (`Const _ | `Var _ | `Lam _), [] -> return true
+      | `IfElse (c, t, e), xs ->
+        is_total c &&& is_total (apps t xs) &&& is_total (apps e xs)
+      | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
+      | `Mu (`Lam (i, e)), xs -> is_total (apps e xs) |> Env.adding i e
+      | `Select (e, l), [] -> is_total e &&& is_total l
+      | `Inject (_, e), _ -> is_total e
+      | `Var f, xs -> (
+        let* f_opt = Env.find_opt f in
+        match f_opt with None -> return false | Some f -> is_total (apps f xs))
+      | `Lam (i, e), x :: xs ->
+        is_total x
+        &&& (is_total e |> Env.adding i x)
+        &&& (is_total (apps e xs) |> Env.adding i x)
+      | `Const c, xs ->
+        return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
+      | `Case (`Product fs), x :: xs ->
+        is_total x
+        &&& (fs
+            |> List.for_all_fr (fun (_, f) ->
+                   is_total (apps f (dummy_var :: xs))))
+      | `Case e, [] -> is_total e
+      | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false))
 
 (* *)
 
