@@ -188,8 +188,8 @@ let rec inline_continuation e k =
     `App (k, e)
 
 let rec simplify e =
-  let* seen = get Seen.field in
-  if Seen.mem e seen then fail `Seen
+  let* seen = Seen.mem e in
+  if seen then fail `Seen
   else
     let* limit = get Limit.field in
     if limit < size e then fail `Limit

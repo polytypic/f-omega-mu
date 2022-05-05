@@ -204,6 +204,11 @@ let rec compare (l : t) (r : t) =
 
 (* *)
 
+let rec hash t =
+  map_reduce (fun l r -> (l * 3) + r) 0 hash t + (tag t |> Hashtbl.hash)
+
+(* *)
+
 let const_pp c =
   FomPP.Exp.Const.pp' (Int32.to_string >>> utf8string) FomPP.Typ.pp c
 

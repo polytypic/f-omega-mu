@@ -34,10 +34,11 @@ module Limit = struct
 end
 
 module Seen = struct
-  include Set.Make (LamCore)
+  include Set.Make (Compare.Tuple'2 (Int) (LamCore))
 
   let field r = r#seen
-  let adding e = mapping field (add e)
+  let adding e = mapping field (add (hash e, e))
+  let mem e = get field >>- mem (hash e, e)
 
   class con =
     object
@@ -118,8 +119,8 @@ let rec is_total e =
   match e with
   | `Const _ | `Var _ | `Lam _ -> return true
   | _ ->
-    let* seen = get Seen.field in
-    if Seen.mem e seen then return false
+    let* seen = Seen.mem e in
+    if seen then return false
     else
       Seen.adding e
         (match unapp e with
