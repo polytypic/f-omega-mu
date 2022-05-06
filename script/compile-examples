@@ -1,13 +1,14 @@
 #!/bin/bash
 
-set -eo pipefail
+# shellcheck source=common
+. "${BASH_SOURCE%/*}/common"
 
 foms=(examples/*.fom regression/*.fom)
 
 for fom in "${foms[@]}"; do
   read -r code
   echo "$code" > "$fom.js"
-done < <(_build/default/src/main/FomCommand/FomCommand.exe -stop js "${foms[@]}")
+done < <($FOM_COMMAND -stop js "${foms[@]}")
 
 prettier -w examples/*.fom.js regression/*.fom.js > /dev/null
 
@@ -46,7 +47,7 @@ done
 
 for fom in "${foms[@]}"; do
   fomi="${fom%.fom}.fomi"
-  _build/default/src/main/FomCommand/FomCommand.exe -stop type "$fom" > "$fomi" &
+  $FOM_COMMAND -stop type "$fom" > "$fomi" &
 done
 
 wait

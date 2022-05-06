@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -eo pipefail
+# shellcheck source=common
+. "${BASH_SOURCE%/*}/common"
 
 export TIMEFORMAT="CPU: %Us, Real: %Es"
 
@@ -13,8 +14,6 @@ folded() {
 
 folded "Building docs" \
   script/docs
-
-FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
 
 run_error_examples() {
   for f in examples/errors/*.fom; do
