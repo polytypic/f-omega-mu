@@ -6,12 +6,12 @@ export TIMEFORMAT="CPU: %Us, Real: %Es"
 
 folded() {
   echo
-  echo "RUNNING: $1"
+  echo "JOB: $1"
   shift
   time "$@"
 }
 
-folded "Build docs" \
+folded "Building docs" \
   script/docs
 
 FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
