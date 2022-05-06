@@ -1,4 +1,4 @@
-name: Main workflow
+name: build-and-test
 
 on:
   - pull_request
@@ -11,24 +11,25 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        ocaml-version:
+        ocaml-compiler:
           - 4.14.0
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Install prettier
-        run: npm i -g prettier@2.5.1
-
-      - name: Use OCaml ${{ matrix.ocaml-version }}
-        uses: avsm/setup-ocaml@v1
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-version: ${{ matrix.ocaml-version }}
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
       - name: Install dependencies
         run: ./script/install-deps
 
-      - run: ./script/ci
+      - name: Install prettier
+        run: npm i -g prettier@2.5.1
+
+      - name: Build and test
+        run: ./script/ci
