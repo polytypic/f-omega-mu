@@ -1,0 +1,1 @@
+{sql: string, args: (μlist:* → *.λα.'Nil | 'Cons (α, list α)) string}

@@ -1,0 +1,8 @@
+{
+  of_list_h: ∀α.
+    (μlist_h:* → *.λα.'Nil | 'Cons (α, list_h α)) α → μlist_1.
+      'Nil | 'Cons (α, list_1)
+  of_list_1: ∀α.
+    (μlist_1.'Nil | 'Cons (α, list_1)) →
+    (μlist_h:* → *.λα.'Nil | 'Cons (α, list_h α)) α
+}

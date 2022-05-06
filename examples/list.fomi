@@ -1,0 +1,1 @@
+(μlist:* → *.λα.'Nil | 'Cons (α, list α)) string

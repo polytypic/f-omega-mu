@@ -1,0 +1,1 @@
+(μlist_of_inf:* → *.λα.'Cons (α, list_of_inf α)) int

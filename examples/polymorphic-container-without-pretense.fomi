@@ -1,0 +1,1 @@
+(μcontainer:* → *.λα.{get: α, map: ∀β.(α → β) → container β}) string

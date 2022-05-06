@@ -43,3 +43,10 @@ for fom in "${foms[@]}"; do
     mv "$fom_js" "$js"
   fi
 done
+
+for fom in "${foms[@]}"; do
+  fomi="${fom%.fom}.fomi"
+  _build/default/src/main/FomCommand/FomCommand.exe -stop type "$fom" > "$fomi" &
+done
+
+wait

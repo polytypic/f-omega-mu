@@ -1,0 +1,6 @@
+μISet.{
+  isEmpty: bool
+  contains: int → bool
+  insert: int → ISet
+  union: ISet → ISet
+}

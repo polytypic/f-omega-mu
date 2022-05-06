@@ -11,9 +11,15 @@ COMMAND="(\
 if command -v entr > /dev/null; then
   git ls-files \
     | grep -v '^docs/' \
+    | grep -v '[.]js$' \
+    | grep -v '[.]fomi$' \
     | entr sh -c "$COMMAND"
 elif command -v watchexec > /dev/null; then
-  watchexec --debounce 250 --ignore docs -- "$COMMAND"
+  watchexec --debounce 250 \
+            --ignore docs \
+            --ignore '*.fomi' \
+            --ignore '*.js' \
+            -- "$COMMAND"
 else
   >&2 echo "WARNING: Could not find suitable file watcher."
   exit 1
