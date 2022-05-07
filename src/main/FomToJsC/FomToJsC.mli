@@ -33,6 +33,7 @@ end
 
 val to_js :
   whole:bool ->
+  top:[`Top | `Body] ->
   Exp.Core.t ->
   string List.t ->
   ( (< 'r ExpImports.f ; 'r ModSimplified.f ; 'r ModInJs.f ; .. > as 'r),

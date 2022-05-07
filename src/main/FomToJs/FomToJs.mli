@@ -28,7 +28,7 @@ val simplify : Lam.t -> ('r, 'e, Lam.t) rea
 
 val to_js :
   top:
-    [ `Body
+    [< `Body
     | `Return
     | `Seq
     | `Tail of Exp.Var.t * Exp.Var.t list * Exp.Var.t list * [`Exit | `Case]
