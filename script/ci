@@ -16,9 +16,10 @@ folded "Building docs" \
   script/docs
 
 run_error_examples() {
-  for f in examples/errors/*.fom; do
-    if $FOM_COMMAND "$f" > /dev/null; then
-      echo "$f unexpectedly ran successfully"
+  for fom in examples/errors/*.fom; do
+    out="${fom%.fom}.out"
+    if $FOM_COMMAND "$fom" > "$out"; then
+      echo "$fom unexpectedly ran successfully"
       exit 1
     fi
   done

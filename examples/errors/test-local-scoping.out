@@ -1,0 +1,15 @@
+Unbound type variable
+
+  opt
+
+in file
+
+  "/Users/vesakarvonen/Projects/f-omega-mu/examples/errors/test-local-scoping.fom"
+
+on line 3, columns 37-40.
+
+Also in file
+
+  "/Users/vesakarvonen/Projects/f-omega-mu/examples/errors/test-local-scoping.fom"
+
+on line 3, columns 37-40: Unbound type variable.
