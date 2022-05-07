@@ -1,0 +1,10 @@
+(executable
+ (name FomToJsRT)
+ (modes js)
+ (libraries FomParser)
+ (preprocess (pps js_of_ocaml-ppx))
+ (js_of_ocaml
+  (flags ; --debug-info
+         ; --pretty
+         ; --source-map-inline
+         )))

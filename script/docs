@@ -2,14 +2,14 @@
 
 set -eo pipefail
 
-build-sandbox() {
-  local TARGET=src/main/FomSandbox/FomSandbox.bc.js
-  local OUTPUT=docs/FomSandbox.js
+build-js() {
+  local TARGET="$1"
+  local OUTPUT="$2"
 
-  opam exec -- dune build --root=. --profile release ./$TARGET
+  opam exec -- dune build --root=. --profile release "./$TARGET"
 
-  echo "'use strict';"          > $OUTPUT
-  cat ./_build/default/$TARGET >> $OUTPUT
+  echo "'use strict';"            > "$OUTPUT"
+  cat "./_build/default/$TARGET" >> "$OUTPUT"
 }
 
 build-examples() {
@@ -33,6 +33,9 @@ build-examples() {
   cp regression/*.fom docs/regression
 }
 
-build-sandbox &
 build-examples &
+
+build-js src/main/FomToJsRT/FomToJsRT.bc.js docs/FomToJsRT.js
+build-js src/main/FomSandbox/FomSandbox.bc.js docs/FomSandbox.js
+
 wait

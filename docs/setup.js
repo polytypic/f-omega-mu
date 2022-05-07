@@ -330,7 +330,7 @@ const updateDeps = () => {
 
 const run = onWorker({
   init: () => {
-    importScripts('FomSandbox.js')
+    importScripts('FomToJsRT.js')
     importScripts('prelude.js')
   },
   before: js => ({js, width: getWidth(fomCM)}),
@@ -341,7 +341,7 @@ const run = onWorker({
           timed('eval', () => eval(params.js))
         )
         return withContext('formatting output', () =>
-          timed('format', () => fom.format(result, params.width))
+          timed('format', () => format(params.width, result))
         )
       },
       onResult,
