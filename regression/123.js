@@ -1,5 +1,5 @@
 'use strict'
-const target_string_𐙤_impure_𛰙𛰚_ = console.warn
+const target_string_𐙤_impure_𛰙𛰚_ = _ => {}
 const ᐥ6ᐥ = '6'
 const ᐥ4ᐥ = '4'
 const ᐥ5ᐥ = '5'

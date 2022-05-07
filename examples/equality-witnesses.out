@@ -1,0 +1,1 @@
+{Leibniz = {ofFold = λ𝛌abꓸab_𝛌xꓸx, ofLeibniz = λ𝛌xꓸx, refl = λ𝛌xꓸx, symm = λ𝛌abꓸab_𝛌xꓸx, trans = λ𝛌bcꓸλabꓸλxꓸbc_𛰙ab_x𛰚, to = λ𝛌xꓸx, from = λ𝛌abꓸab_𝛌xꓸx}, Fold = {ofFold = λ𝛌xꓸx, ofLeibniz = λ𝛌xꓸx, refl = λ𝛌xꓸx, symm = λ𝛌xꓸx, trans = λ𝛌bcꓸλabꓸλfꓸ𛰙bc_𝛌xꓸx𛰚_𛰙ab_, to = λ𝛌abꓸab_𝛌xꓸx, from = λ𝛌abꓸab_𝛌xꓸx}}

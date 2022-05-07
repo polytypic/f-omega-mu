@@ -1,4 +1,4 @@
-let {warn} = import "../examples/lib/console"
+let warn = λs: string.target«string → impure ()» "_ => {}" s ▷ keep«()»
 
 warn "1"
 let fn = λ{b: bool}.

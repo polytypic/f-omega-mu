@@ -1,0 +1,1 @@
+{sql = "INSERT INTO language VALUES (?, ?)", args = ["template strings", "experimental"]}

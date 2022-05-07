@@ -15,8 +15,41 @@ folded() {
 folded "Building docs" \
   script/docs
 
+foms=(examples/*.fom regression/*.fom)
+
+type_examples() {
+  for fom in "${foms[@]}"; do
+    read -r code
+    echo "$code" > "${fom%.fom}.fomi"
+  done < <($FOM_COMMAND -max-width 0 -stop type "${foms[@]}")
+}
+
+eval_examples() {
+  for fom in "${foms[@]}"; do
+    read -r code
+    echo "$code" > "${fom%.fom}.out"
+  done < <($FOM_COMMAND -max-width 0 -stop eval "${foms[@]}")
+}
+
+js_examples() {
+  for fom in "${foms[@]}"; do
+    read -r code
+    echo "$code" > "${fom%.fom}.js"
+  done < <($FOM_COMMAND -max-width 0 -stop js "${foms[@]}")
+
+  prettier -w examples/*.js regression/*.js > /dev/null
+}
+
+js_and_eval_examples() {
+  js_examples &
+  eval_examples &
+  wait
+}
+
+error_foms=(examples/errors/*.fom)
+
 run_error_examples() {
-  for fom in examples/errors/*.fom; do
+  for fom in "${error_foms[@]}"; do
     out="${fom%.fom}.out"
     if $FOM_COMMAND "$fom" | sed -e "s#$(pwd)##g" > "$out"; then
       echo "$fom unexpectedly ran successfully"
@@ -38,11 +71,14 @@ build_and_test() {
   folded "Testing" \
     opam exec -- dune test "${OPTS[@]}"
 
-  folded "Running examples" \
-    $FOM_COMMAND examples/*.fom
+  folded "Typing examples" \
+    type_examples
 
   folded "Running error examples" \
     run_error_examples
+
+  folded "Compiling and Evaluating examples" \
+    js_and_eval_examples
 }
 
 if [ "$CI" = true ]; then
@@ -52,9 +88,6 @@ if [ "$CI" = true ]; then
 fi
 
 PROFILE=release build_and_test
-
-folded "Compiling examples" \
-  script/compile-examples
 
 if [ "$CI" = true ]; then
   if [[ $(git status --porcelain) ]] ; then
