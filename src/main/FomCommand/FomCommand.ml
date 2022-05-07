@@ -53,63 +53,39 @@ let fetch at uri =
          `Error_file_doesnt_exist (at, uri)
        | exn -> `Error_io (at, exn)
 
-(* *)
-
-let run_process_with_input at command input =
-  of_lwt (fun () ->
-      Lwt_process.with_process_out command @@ fun out ->
-      let open Lwt.Syntax in
-      let rec write_input = function
-        | [] ->
-          let* () = Lwt_io.flush out#stdin in
-          Lwt_io.close out#stdin
-        | line :: lines ->
-          let* () = Lwt_io.write out#stdin line in
-          write_input lines
-      in
-      let* () = write_input input in
-      out#status)
-  |> try_in
-       (function
-         | Unix.WEXITED 0 -> unit
-         | Unix.WEXITED c ->
-           error_io at @@ Failure ("Process exited with code " ^ Int.to_string c)
-         | Unix.WSIGNALED s ->
-           error_io at @@ Failure ("Process killed by signal " ^ Int.to_string s)
-         | Unix.WSTOPPED s ->
-           error_io at
-           @@ Failure ("Process stopped by signal " ^ Int.to_string s))
-       (error_io at)
-
-let process ~at ~whole ~max_width ~stop uri =
-  let* ast, typ, paths =
-    FomElab.elaborate @@ `Import (at, JsonString.of_utf8 uri)
+let with_process_write at cmd args op =
+  let* out =
+    of_lwt (fun () -> Lwt_process.open_process_out (cmd, args) |> Lwt.return)
+    |> try_in return (error_io at)
   in
-  match stop with
-  | `Typ ->
-    typ |> FomPP.Typ.pp |> to_string ~max_width |> Printf.printf "%s\n"
-    |> return
-  | `Js -> FomToJsC.to_js ~whole ~top:`Top ast paths >>- Printf.printf "%s\n"
-  | `Run ->
-    let* js = FomToJsC.to_js ~whole ~top:`Top ast paths
-    and* prelude = fetch at "docs/prelude.js" in
-    run_process_with_input at ("node", [|"-"|]) [prelude; ";\n"; js]
-  | `Eval ->
-    let* js = FomToJsC.to_js ~whole ~top:`Body ast paths
-    and* prelude = fetch at "docs/prelude.js"
-    and* runtime = fetch at "docs/FomToJsRT.js" in
-    run_process_with_input at ("node", [|"-"|])
-      [
-        prelude;
-        runtime;
-        "; console.log(format(";
-        Int.to_string max_width;
-        ", (() => ";
-        js;
-        ")()))";
-      ]
+  let write s =
+    of_lwt (fun () -> Lwt_io.write out#stdin s) |> try_in return (error_io at)
+  and flush =
+    of_lwt (fun () -> Lwt_io.flush out#stdin) |> try_in return (error_io at)
+  in
+  op write flush
+  >> (of_lwt (fun () -> Lwt_io.close out#stdin) |> try_in return (error_io at))
+  >> (of_lwt (fun () -> out#status)
+     |> try_in
+          (function
+            | Unix.WEXITED 0 -> unit
+            | Unix.WEXITED c ->
+              error_io at
+              @@ Failure ("Process exited with code " ^ Int.to_string c)
+            | Unix.WSIGNALED s ->
+              error_io at
+              @@ Failure ("Process killed by signal " ^ Int.to_string s)
+            | Unix.WSTOPPED s ->
+              error_io at
+              @@ Failure ("Process stopped by signal " ^ Int.to_string s))
+          (error_io at))
 
 let doc msg default = "    (default: " ^ default ^ ")\n\n    " ^ msg ^ "\n"
+
+let repl_js =
+  {|'use strict'
+require('repl').start({prompt: '', terminal: false, ignoreUndefined: true})
+|}
 
 let () =
   let files = ref [] in
@@ -140,16 +116,51 @@ let () =
   let at = Loc.of_path (Sys.getcwd () ^ "/.")
   and max_width = !Options.max_width
   and whole = !Options.whole
-  and stop = !Options.stop in
+  and stop = !Options.stop
+  and files = List.rev !files in
   let p, r = Lwt.wait () in
-  !files |> List.rev
-  |> List.iter_fr
-       (process ~at ~whole ~max_width ~stop
-       >>> try_in return @@ fun error ->
-           let+ diagnostic = Diagnostic.of_error error in
-           diagnostic |> Diagnostic.pp |> to_string ~max_width
-           |> Printf.printf "%s\n";
-           exit 1)
+  let elab uri = FomElab.elaborate @@ `Import (at, JsonString.of_utf8 uri) in
+  (match stop with
+  | `Typ ->
+    List.iter_fr
+      (fun uri ->
+        let+ _, typ, _ = elab uri in
+        typ |> FomPP.Typ.pp |> to_string ~max_width |> Printf.printf "%s\n")
+      files
+  | `Js ->
+    List.iter_fr
+      (fun uri ->
+        let* ast, _, paths = elab uri in
+        FomToJsC.to_js ~whole ~top:`Top ast paths >>- Printf.printf "%s\n")
+      files
+  | `Run ->
+    with_process_write at "node" [|"-"|] @@ fun write flush ->
+    write repl_js
+    >> (fetch at "docs/prelude.js" >>= write)
+    >> List.iter_fr
+         (fun uri ->
+           let* ast, _, paths = elab uri in
+           let* js = FomToJsC.to_js ~whole ~top:`Body ast paths in
+           write ";(() => " >> write js >> write ")()\n" >> flush)
+         files
+  | `Eval ->
+    with_process_write at "node" [|"-"|] @@ fun write flush ->
+    write repl_js
+    >> (fetch at "docs/FomToJsRT.js" >>= write)
+    >> (fetch at "docs/prelude.js" >>= write)
+    >> List.iter_fr
+         (fun uri ->
+           let* ast, _, paths = elab uri in
+           let* js = FomToJsC.to_js ~whole ~top:`Body ast paths in
+           write ";console.log(format("
+           >> write @@ Int.to_string max_width
+           >> write ", (() => " >> write js >> write ")()))\n" >> flush)
+         files)
+  |> try_in return (fun error ->
+         let+ diagnostic = Diagnostic.of_error error in
+         diagnostic |> Diagnostic.pp |> to_string ~max_width
+         |> Printf.printf "%s\n";
+         exit 1)
   >>- Lwt.wakeup r
   |> start (FomEnv.Env.empty ~fetch ());
   Lwt_main.run p
