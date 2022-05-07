@@ -4,12 +4,12 @@ Nested types like
 
 are not allowed to keep type checking decidable in file
 
-  "/Users/vesakarvonen/Projects/f-omega-mu/examples/errors/nested.fom"
+  "/examples/errors/nested.fom"
 
 on line 3, columns 7-13.
 
 Also in file
 
-  "/Users/vesakarvonen/Projects/f-omega-mu/examples/errors/nested.fom"
+  "/examples/errors/nested.fom"
 
 on line 3, columns 30-36: Nested argument passed to μ type constructor.

@@ -18,7 +18,7 @@ folded "Building docs" \
 run_error_examples() {
   for fom in examples/errors/*.fom; do
     out="${fom%.fom}.out"
-    if $FOM_COMMAND "$fom" > "$out"; then
+    if $FOM_COMMAND "$fom" | sed -e "s#$(pwd)##g" > "$out"; then
       echo "$fom unexpectedly ran successfully"
       exit 1
     fi
@@ -55,3 +55,11 @@ PROFILE=release build_and_test
 
 folded "Compiling examples" \
   script/compile-examples
+
+if [ "$CI" = true ]; then
+  if [[ $(git status --porcelain) ]] ; then
+    git status
+    git diff
+    exit 1
+  fi
+fi
