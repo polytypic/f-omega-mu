@@ -159,7 +159,7 @@ let () =
   |> try_in return (fun error ->
          let+ diagnostic = Diagnostic.of_error error in
          diagnostic |> Diagnostic.pp |> to_string ~max_width
-         |> Printf.printf "%s\n";
+         |> Printf.eprintf "%s\n";
          exit 1)
   >>- Lwt.wakeup r
   |> start (FomEnv.Env.empty ~fetch ());

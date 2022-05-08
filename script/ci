@@ -51,7 +51,7 @@ error_foms=(examples/errors/*.fom)
 run_error_examples() {
   for fom in "${error_foms[@]}"; do
     out="${fom%.fom}.out"
-    if $FOM_COMMAND "$fom" | sed -e "s#$(pwd)##g" > "$out"; then
+    if $FOM_COMMAND "$fom" 2>&1 | sed -e "s#$(pwd)##g" > "$out"; then
       echo "$fom unexpectedly ran successfully"
       exit 1
     fi
