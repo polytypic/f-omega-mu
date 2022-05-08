@@ -5,7 +5,7 @@ type t = Pos.t * Pos.t
 
 let of_path path =
   let pos = Pos.of_path path in
-  (pos, Pos.add_cnum (String.length path) pos)
+  (pos, Pos.add_cnum 1 pos)
 
 let dummy = (Lexing.dummy_pos, Lexing.dummy_pos)
 let union l r = (fst l, snd r)
