@@ -157,7 +157,7 @@ incs                                              // Syntax of .fomd includes
    identifiers and that type variables allow some additional Unicode symbols.
 
 2. Structural joins `∨` and meets `∧` are eliminated during type checking and
-   are not allowed over arbitrary or unknown types.
+   are not allowed over unrelated or unknown types.
 
 3. For type checking side-effecting operations, the unit value and pattern `()`
    of unit type `()` is neither a tuple nor a product. There are no zero nor
@@ -179,7 +179,9 @@ incs                                              // Syntax of .fomd includes
 
 8. `exp₁ ; exp₂` is equivalent to `let () = exp₁ in exp₂`.
 
-9. Recursive expressions are currently not fully statically checked.
+9. Recursive expressions are currently not fully statically checked meaning that
+   some obviously diverging expressions that should preferably be rejected are
+   allowed.
 
 10. When applied to literals, sign operators are interpreted at compile-time.
 
