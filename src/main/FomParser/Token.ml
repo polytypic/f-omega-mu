@@ -57,6 +57,7 @@ let[@warning "-32"] to_string = function
   | Pipe -> "|"
   | Plus -> "+"
   | Semicolon -> ";"
+  | DoubleSemicolon -> ";;"
   | Slash -> "/"
   | Star -> "*"
   | Target -> "target"

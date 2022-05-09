@@ -76,6 +76,9 @@ module Grammar : sig
 
   val incs : Typ.t Typ.Defs.f t
   (** Grammar of Fωμ type definitions or includes. *)
+
+  val repl : Repl.t t
+  (** Grammar of Fωμ REPL. *)
 end
 
 module Parser : sig

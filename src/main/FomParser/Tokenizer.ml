@@ -94,6 +94,7 @@ let token_info_utf_8 =
     | Pipe -> punctuation
     | Plus -> operator
     | Semicolon -> punctuation
+    | DoubleSemicolon -> punctuation
     | Slash -> operator
     | Star -> operator
     | Target -> keyword

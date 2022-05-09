@@ -170,3 +170,7 @@ end
 module Annot = struct
   let opt at = Option.fold ~none:id ~some:(fun a x -> `Annot (at a, x, a))
 end
+
+module Repl = struct
+  type t = [Exp.t | Exp.t Exp.Def.f]
+end

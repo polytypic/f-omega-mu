@@ -69,6 +69,7 @@
 %token Pipe "|"
 %token Plus "+"
 %token Semicolon ";"
+%token DoubleSemicolon ";;"
 %token Slash "/"
 %token Star "*"
 %token Tick "'"
@@ -92,6 +93,7 @@
 %start <Exp.t> mods
 %start <Typ.t> sigs
 %start <Typ.t Typ.Defs.f> incs
+%start <Repl.t> repl
 
 %{ open FomBasis open FomCST %}
 
@@ -387,3 +389,7 @@ sigs:
 
 incs:
   | ds=typ_defs EOF                                 {ds}
+
+repl:
+  | e=exp ";;"                                      {e :> Repl.t}
+  | d=def ";;"                                      {d :> Repl.t}

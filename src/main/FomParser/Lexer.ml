@@ -253,6 +253,7 @@ let rec token_or_comment ({lexbuf; _} as buffer) =
     | "/" -> return Slash
     | ":" -> return Colon
     | ";" -> return Semicolon
+    | ";;" -> return DoubleSemicolon
     | "<" -> return Less
     | "=" -> return Equal
     | ">" -> return Greater

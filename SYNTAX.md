@@ -104,6 +104,10 @@ sigs                                              // Syntax of .fomt signatures
 
 incs                                              // Syntax of .fomd includes
   : typ_defs eof
+
+repl                                              // Syntax of REPL (*13)
+  : exp ';;'
+  | def ';;'
 ```
 
 **Notes:**
@@ -193,6 +197,9 @@ incs                                              // Syntax of .fomd includes
 11. Binary logical connectives, `∧` and `∨`, evaluate their arguments lazily.
 
 12. Disjoint merge `„` is allowed between nested disjoint products.
+
+13. The REPL accepts expressions and bindings terminated with a double semicolon
+    `;;`.
 
 ### Alternative tokens
 
