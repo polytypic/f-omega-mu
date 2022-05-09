@@ -7,7 +7,7 @@ module Env : sig
   val empty :
     ?annot:Annot.t ->
     ?exp_imports:ExpImports.t ->
-    ?fetch:'r Fetch.t ->
+    ?fetch:'r Fetch.m ->
     ?mod_in_js:ModInJs.t ->
     ?mod_simplified:ModSimplified.t ->
     ?typ_imports:TypImports.t ->

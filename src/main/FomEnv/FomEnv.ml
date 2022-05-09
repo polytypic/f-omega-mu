@@ -13,7 +13,7 @@ module Env = struct
       inherit Annot.con annot
       inherit Exp.VarMap.con
       inherit ExpImports.con exp_imports
-      inherit [_] Fetch.con fetch
+      inherit Fetch.con fetch
       inherit ImportChain.con
       inherit Kind.UnkEnv.con
       inherit ModInJs.con mod_in_js

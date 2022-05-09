@@ -8,35 +8,37 @@ include LamCore
 module Env = struct
   include VarMap
 
-  type nonrec t = LamCore.t t
+  type 'r m = (LamCore.t t, 'r) Field.t
 
-  let field r = r#env
+  let field r : _ m = r#env
   let find_opt i = get_as field (find_opt i)
   let adding i e = mapping field (add i e)
 
   class con =
     object
-      val env : t = empty
-      method env = Field.make env (fun v -> {<env = v>})
+      val env = empty
+      method env : _ m = Field.make env (fun v -> {<env = v>})
     end
 end
 
 module Limit = struct
-  type t = int
+  type 'r m = (int, 'r) Field.t
 
-  let field r = r#limit
+  let field r : _ m = r#limit
 
   class con =
     object
-      val limit : t = 0
-      method limit = Field.make limit (fun v -> {<limit = v>})
+      val limit = 0
+      method limit : _ m = Field.make limit (fun v -> {<limit = v>})
     end
 end
 
 module Seen = struct
   include Set.Make (Compare.Tuple'2 (Int) (LamCore))
 
-  let field r = r#seen
+  type 'r m = (t, 'r) Field.t
+
+  let field r : _ m = r#seen
 
   let adding e on =
     let k = (hash e, e) in
@@ -46,22 +48,24 @@ module Seen = struct
 
   class con =
     object
-      val seen : t = empty
-      method seen = Field.make seen (fun v -> {<seen = v>})
+      val seen = empty
+      method seen : _ m = Field.make seen (fun v -> {<seen = v>})
     end
 end
 
 module Renumbering = struct
   include Map.Make (Id.Name)
 
-  type nonrec t = int t
+  type 'r m = (int t, 'r) Field.t
 
-  let field r = r#renumbering
+  let field r : _ m = r#renumbering
 
   class con =
     object
-      val renumbering : t = empty
-      method renumbering = Field.make renumbering (fun v -> {<renumbering = v>})
+      val renumbering = empty
+
+      method renumbering : _ m =
+        Field.make renumbering (fun v -> {<renumbering = v>})
     end
 
   let fresh_of_name at name inn =

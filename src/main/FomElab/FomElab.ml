@@ -75,17 +75,17 @@ end
 
 module Fetch = struct
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type 'r t = Loc.t -> string -> ('r, e, string) rea
+  type 'r m = Loc.t -> string -> ('r, e, string) rea
 
   let dummy at path = fail @@ `Error_file_doesnt_exist (at, path)
-  let field r = r#fetch
+  let field r : _ m = r#fetch
 
-  class ['r] con (fetch : 'r t) =
-    object
-      method fetch = fetch
+  class con fetch =
+    object (_ : 'r)
+      method fetch : 'r m = fetch
     end
 
-  type 'r f = 'r con
+  type 'r f = < fetch : 'r m >
 
   let fetch at path =
     invoke (fun r -> field r at path) |> map_error (fun (#e as x) -> x)
@@ -95,9 +95,9 @@ module PathMap = Map.Make (String)
 module PathSet = Set.Make (String)
 
 module ImportChain = struct
-  type t = Loc.t PathMap.t
+  type 'r m = (Loc.t PathMap.t, 'r) Field.t
 
-  let field r = r#import_chain
+  let field r : _ m = r#import_chain
 
   let with_path at path compute =
     let* include_chain = get field in
@@ -108,13 +108,13 @@ module ImportChain = struct
 
   class con =
     object
-      val import_chain : t = PathMap.empty
+      val import_chain = PathMap.empty
 
-      method import_chain =
+      method import_chain : _ m =
         Field.make import_chain (fun v -> {<import_chain = v>})
     end
 
-  type 'r f = < import_chain : (t, 'r) Field.t >
+  type 'r f = < import_chain : 'r m >
 end
 
 module PathTable = struct
@@ -190,10 +190,10 @@ end
 module Parameters = struct
   include PathSet
 
-  type nonrec t = t MVar.t
+  type 'r m = (t MVar.t, 'r) Field.t
 
   let empty () = MVar.create empty
-  let field r : (t, _) Field.t = r#parameters
+  let field r : _ m = r#parameters
   let resetting op = setting field (empty ()) op
   let add filename = mutate field (add filename)
   let get () = read field >>- elements
@@ -220,11 +220,13 @@ module Parameters = struct
 
   class con =
     object
-      val parameters : t = empty ()
-      method parameters = Field.make parameters (fun v -> {<parameters = v>})
+      val parameters = empty ()
+
+      method parameters : _ m =
+        Field.make parameters (fun v -> {<parameters = v>})
     end
 
-  type 'r f = < parameters : (t, 'r) Field.t >
+  type 'r f = < parameters : 'r m >
 end
 
 module Elab = struct

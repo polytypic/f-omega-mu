@@ -10,6 +10,8 @@ include FomAST.Typ
 module VarMap = struct
   include VarMap
 
+  type ('t, 'r) m = ('t t, 'r) Field.t
+
   let field r = r#typ_env
   let find_opt i = get_as field @@ find_opt i
   let existing pr = get_as field @@ exists pr
@@ -19,11 +21,11 @@ module VarMap = struct
 
   class ['t] con =
     object
-      val typ_env : 't t = empty
-      method typ_env = Field.make typ_env (fun v -> {<typ_env = v>})
+      val typ_env = empty
+      method typ_env : ('t, _) m = Field.make typ_env (fun v -> {<typ_env = v>})
     end
 
-  type ('t, 'r) f = < typ_env : ('t t, 'r) Field.t >
+  type ('t, 'r) f = < typ_env : ('t, 'r) m >
 end
 
 (* *)
@@ -132,17 +134,19 @@ end)
 module Solved = struct
   include Map.Make (FomAST.Typ)
 
-  type nonrec t = FomAST.Typ.t t
+  type 'r m = (FomAST.Typ.t t, 'r) Field.t
 
-  let field r : (t, _) Field.t = r#typ_solved
+  let field r : _ m = r#typ_solved
 
   class con =
     object
-      val typ_solved : t = empty
-      method typ_solved = Field.make typ_solved (fun v -> {<typ_solved = v>})
+      val typ_solved = empty
+
+      method typ_solved : _ m =
+        Field.make typ_solved (fun v -> {<typ_solved = v>})
     end
 
-  type 'r f = < typ_solved : (t, 'r) Field.t >
+  type 'r f = < typ_solved : 'r m >
 end
 
 (* *)

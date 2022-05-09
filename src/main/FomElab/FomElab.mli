@@ -21,28 +21,28 @@ end
 
 module Fetch : sig
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type 'r t = Loc.t -> string -> ('r, e, string) rea
+  type 'r m = Loc.t -> string -> ('r, e, string) rea
 
-  val dummy : 'r t
+  val dummy : 'r m
 
-  class ['r] con :
-    'r t
-    -> object
-         method fetch : 'r t
+  class con :
+    'r m
+    -> object ('r)
+         method fetch : 'r m
        end
 
-  type 'r f = 'r con
+  type 'r f = < fetch : 'r m >
 end
 
 module Parameters : sig
-  type t
+  type 'r m
 
   class con :
     object ('r)
-      method parameters : (t, 'r) Field.t
+      method parameters : 'r m
     end
 
-  type 'r f = < parameters : (t, 'r) Field.t >
+  type 'r f = < parameters : 'r m >
 end
 
 module TypIncludes : sig
@@ -95,14 +95,14 @@ module ExpImports : sig
 end
 
 module ImportChain : sig
-  type t
+  type 'r m
 
   class con :
     object ('r)
-      method import_chain : (t, 'r) Field.t
+      method import_chain : 'r m
     end
 
-  type 'r f = < import_chain : (t, 'r) Field.t >
+  type 'r f = < import_chain : 'r m >
 end
 
 val elaborate_typ :

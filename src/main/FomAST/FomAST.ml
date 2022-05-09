@@ -20,7 +20,7 @@ module Kind = struct
     type 'r m = (t UnkMap.t MVar.t, 'r) Field.t
 
     let empty () = MVar.create UnkMap.empty
-    let field r = r#kind_env
+    let field r : _ m = r#kind_env
     let resetting op = setting field (empty ()) op
     let find_opt i = read field >>- UnkMap.find_opt i
     let add i k = mutate field @@ UnkMap.add i k
