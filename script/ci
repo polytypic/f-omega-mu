@@ -12,8 +12,10 @@ folded() {
   time "$@"
 }
 
-folded "Building docs" \
-  script/docs
+if ! [ "$DOCS" = 0 ]; then
+  folded "Building docs" \
+    script/docs
+fi
 
 foms=(examples/*.fom regression/*.fom)
 
