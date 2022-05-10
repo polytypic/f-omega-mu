@@ -16,6 +16,16 @@ kind
 typ_pat
   : ('_' | tid) (':' kind)?                       // Type binding
 
+typ_def
+  : 'type' (    typ_pat '=' typ, 'and')+          // Parallel type bindings
+  | 'type' ('μ' typ_pat '=' typ, 'and')+          // Recursive type bindings
+  | 'include' string                              // Include type bindings
+
+typ_defs
+  : typ_def
+  | typ_def 'in' typ_defs                         // Sequential type binding
+  | 'local' typ_def 'in' typ_defs                 // Local type binding
+
 typ
   : tid                                           // Type variable (*1)
   | typ ':' kind                                  // Kind annotation
@@ -34,16 +44,6 @@ typ
   | typ_def 'in' typ                              // Type bindings (*4)
   | 'import' string                               // Import type
 
-typ_def
-  : 'type' (    typ_pat '=' typ, 'and')+          // Parallel type bindings
-  | 'type' ('μ' typ_pat '=' typ, 'and')+          // Recursive type bindings
-  | 'include' string                              // Include type bindings
-
-typ_defs
-  : typ_def
-  | typ_def 'in' typ_defs                         // Sequential type binding
-  | 'local' typ_def 'in' typ_defs                 // Local type binding
-
 pat
   : eid                                           // Variable pattern
   | '_'                                           // Wildcard pattern
@@ -51,6 +51,11 @@ pat
   | '(' (pat, ',')* ')'                           // Tuple pattern (*3)
   | '{' (lab (':' typ)? ('=' pat)?, ',')* '}'     // Product pattern
   | '«' typ_pat ',' pat '»'                       // Existential pack pattern
+
+def
+  : typ_def                                       // Type bindings (*4)
+  | 'let' (    pat '=' exp, 'and')+               // Parallel bindings (*7)
+  | 'let' ('μ' pat '=' exp, 'and')+               // Recursive bindings (*7)
 
 exp
   : eid                                           // Variable (*1)
@@ -69,9 +74,7 @@ exp
   | exp '◇' exp                                   // (L) Apply (*6)
   | uop exp                                       // Apply unary operator
   | exp bop exp                                   // Apply binary operator
-  | typ_def 'in' exp                              // Type bindings (*4)
-  | 'let' (    pat '=' exp, 'and')+ 'in' exp      // Parallel bindings (*7)
-  | 'let' ('μ' pat '=' exp, 'and')+ 'in' exp      // Recursive bindings (*7)
+  | def 'in' exp                                  // Bindings
   | exp ';' exp                                   // Sequence (*8)
   | 'if' exp 'then' exp 'else' exp                // Conditional
   | 'λ' pat '.' exp                               // Function (*7)
@@ -104,6 +107,8 @@ incs                                              // Syntax of .fomd includes
 ```
 
 **Notes:**
+
+- An empty file is not valid syntax.
 
 - To reduce noise, end of line commas (`,`) inside braces (`{ ... }`) and
   brackets (`[ ... ]`), semicolons (`;`), `in` keywords, and parentheses around

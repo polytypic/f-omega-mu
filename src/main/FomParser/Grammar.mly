@@ -259,6 +259,16 @@ pat:
 
 //
 
+eq:
+  | p=pat "=" v=exp                                 {(p, v)}
+
+def:
+  | d=typ_def                                       {d :> _ Exp.Def.f}
+  | "let" bs=list_1(         eq,  "and")            {`PatPar bs}
+  | "let" bs=list_1(pre("μ", eq), "and")            {`PatRec bs}
+
+//
+
 tstr_elem:
   | l=TstrEsc v=exp                                 {`Exp (Label.of_string $loc(l) l, v)}
   | s=TstrStr                                       {`Str s}
@@ -359,21 +369,13 @@ exp_in:
   | e=exp_bop                                       {e}
   | e=exp_inf                                       {e}
 
-exp_eq:
-  | p=pat "=" v=exp                                 {(p, v)}
-
-exp_def:
-  | d=typ_def                                       {d :> _ Exp.Def.f}
-  | "let" bs=list_1(         exp_eq,  "and")        {`PatPar bs}
-  | "let" bs=list_1(pre("μ", exp_eq), "and")        {`PatRec bs}
-
 exp:
   | l=exp_in t=pre(":", typ)? r=pre(";", exp)?      {Annot.opt Typ.at t l |> Option.fold ~none:id ~some:(fun r l -> `Seq ($loc, l, r)) r}
   | e=exp_lam("μ")                                  {`Mu ($loc, e)}
   | e=exp_lam("λ")                                  {e}
   | "Λ" b=typ_pat "." e=exp                         {`Gen ($loc, fst b, snd b, e)}
   | "if" c=exp "then" t=exp "else" e=exp            {`IfElse ($loc, c, t, e)}
-  | d=exp_def "in" e=exp                            {`Let ($loc, d, e)}
+  | d=def "in" e=exp                                {`Let ($loc, d, e)}
 
 //
 
