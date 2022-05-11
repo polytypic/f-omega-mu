@@ -28,7 +28,7 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
       - name: Install dependencies
-        run: ./script/install-deps
+        run: opam pin . --yes
 
       - name: Install prettier
         run: npm i -g prettier@2.5.1
