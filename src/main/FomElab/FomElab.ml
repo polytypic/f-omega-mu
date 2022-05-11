@@ -196,27 +196,25 @@ module Parameters = struct
   let field r : _ m = r#parameters
   let resetting op = setting field (empty ()) op
   let add filename = mutate field (add filename)
-  let get () = read field >>- elements
+  let get eta = (read field >>- elements) eta
 
   let taking_in ast =
     let* imports = env_as ExpImports.field in
-    get ()
+    get
     >>= List.fold_left_fr
           (fun ast filename ->
-            let+ (id, _, typ, _), _ =
-              Hashtbl.find imports filename |> LVar.eval
-            in
-            `Lam (Exp.Var.at id, id, (typ :> Typ.t), ast))
+            let+ (i, _, t, _), _ = Hashtbl.find imports filename |> LVar.eval in
+            `Lam (Exp.Var.at i, i, (t :> Typ.t), ast))
           ast
 
-  let result_without et =
+  let without et =
     let rec loop et ps =
       match (et, ps) with
       | (`Lam (_, _, _, e), `Arrow (_, _, t)), _ :: ps -> loop (e, t) ps
       | et, [] -> et
-      | _ -> failwith "result_without"
+      | _ -> failwith "without"
     in
-    get () >>- loop et
+    get >>- loop et
 
   class con =
     object
@@ -538,11 +536,9 @@ let rec elaborate = function
        let e =
          match t_opt with None -> e | Some t -> annot at' i (t :> Typ.t) e
        in
-       let* e, t =
-         Parameters.taking_in e >>= Exp.infer >>= Parameters.result_without
-       in
-       let+ parameters = Parameters.get () in
-       (i, e, t, parameters))
+       let+ e, t = Parameters.taking_in e >>= Exp.infer >>= Parameters.without
+       and+ ps = Parameters.get in
+       (i, e, t, ps))
       |> ExpImports.get_or_put at' mod_path
       |> Elab.modularly
     in
@@ -559,9 +555,7 @@ let elaborate_typ x = elaborate_typ x |> Annot.setup |> Elab.modularly
 
 let elaborate cst =
   (let* ast = elaborate cst |> Annot.setup >>- Exp.initial_exp in
-   let* ast, typ =
-     Parameters.taking_in ast >>= Exp.infer >>= Parameters.result_without
-   in
-   let+ parameters = Parameters.get () in
-   (ast, typ, parameters))
+   let+ ast, typ = Parameters.taking_in ast >>= Exp.infer >>= Parameters.without
+   and+ ps = Parameters.get in
+   (ast, typ, ps))
   |> Elab.modularly
