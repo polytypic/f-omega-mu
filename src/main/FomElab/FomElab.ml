@@ -292,7 +292,7 @@ let rec pat_to_exp p' e' = function
     let i = Pat.id_for p in
     `UnpackIn (at, t, k, i, p', pat_to_exp (`Var (at, i)) e' p)
 
-let rec elaborate_def = function
+let rec elaborate_typ_def = function
   | `TypPar ikts ->
     ikts
     |> List.map_fr (fun (i, k, t) ->
@@ -335,11 +335,24 @@ let rec elaborate_def = function
     (let* env =
        Fetch.fetch at' inc_path
        >>= Parser.parse_utf_8 Grammar.incs Lexer.offside ~path:inc_path
-       >>= elaborate_defs Typ.VarMap.empty
+       >>= elaborate_typ_defs Typ.VarMap.empty
      in
      Annot.Typ.resolve Kind.resolve >> return env)
     |> TypIncludes.get_or_put at' inc_path
     |> Elab.modularly
+
+and elaborate_typ_defs accum = function
+  | #FomCST.Typ.Def.f as d ->
+    let+ d = elaborate_typ_def d in
+    Typ.VarMap.merge Map.prefer_rhs accum d
+  | `In (_, d, ds) ->
+    let* d = elaborate_typ_def d in
+    elaborate_typ_defs (Typ.VarMap.merge Map.prefer_rhs accum d) ds
+    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+  | `LocalIn (_, d, ds) ->
+    let* d = elaborate_typ_def d in
+    elaborate_typ_defs accum ds
+    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 and elaborate_typ = function
   | `Mu (at', t) -> elaborate_typ t >>- fun t -> `Mu (at', t)
@@ -367,7 +380,7 @@ and elaborate_typ = function
     Row.map_fr elaborate_typ ls >>- fun ls -> `Product (at', ls)
   | `Sum (at', ls) -> Row.map_fr elaborate_typ ls >>- fun ls -> `Sum (at', ls)
   | `Let (_, def, e) ->
-    let* typ_aliases = elaborate_def def in
+    let* typ_aliases = elaborate_typ_def def in
     elaborate_typ e
     |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Annot (at', t, k) ->
@@ -385,19 +398,6 @@ and elaborate_typ = function
     elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Join (at', l, r)
   | `Meet (at', l, r) ->
     elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Meet (at', l, r)
-
-and elaborate_defs accum = function
-  | #FomCST.Typ.Def.f as d ->
-    let+ d = elaborate_def d in
-    Typ.VarMap.merge Map.prefer_rhs accum d
-  | `In (_, d, ds) ->
-    let* d = elaborate_def d in
-    elaborate_defs (Typ.VarMap.merge Map.prefer_rhs accum d) ds
-    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
-  | `LocalIn (_, d, ds) ->
-    let* d = elaborate_def d in
-    elaborate_defs accum ds
-    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 let rec elaborate = function
   | `Const (at, c) ->
@@ -424,7 +424,7 @@ let rec elaborate = function
   | `Let (at, def, e) -> (
     match def with
     | #FomCST.Typ.Def.f as def ->
-      let* typ_aliases = elaborate_def def in
+      let* typ_aliases = elaborate_typ_def def in
       elaborate e
       |> Typ.VarMap.merging
            (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
