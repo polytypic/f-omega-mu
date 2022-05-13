@@ -354,8 +354,6 @@ and elaborate_typ_defs accum = function
     |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 and elaborate_typ = function
-  | `Mu (at', t) -> elaborate_typ t >>- fun t -> `Mu (at', t)
-  | `Const (_, _) as inn -> return inn
   | `Var (at', i) as inn -> (
     let* t_opt = Typ.VarMap.find_opt i in
     match t_opt with
@@ -369,22 +367,13 @@ and elaborate_typ = function
     let k = Kind.set_at (Typ.Var.at i) k in
     Annot.Typ.def i k >> elaborate_typ t |> Typ.VarMap.adding i @@ `Kind k
     >>- fun t -> `Lam (at', i, k, t)
-  | `App (at', f, x) ->
-    elaborate_typ f <*> elaborate_typ x >>- fun (f, x) -> `App (at', f, x)
-  | `ForAll (at', t) -> elaborate_typ t >>- fun t -> `ForAll (at', t)
-  | `Exists (at', t) -> elaborate_typ t >>- fun t -> `Exists (at', t)
-  | `Arrow (at', d, c) ->
-    elaborate_typ d <*> elaborate_typ c >>- fun (d, c) -> `Arrow (at', d, c)
-  | `Product (at', ls) ->
-    Row.map_fr elaborate_typ ls >>- fun ls -> `Product (at', ls)
-  | `Sum (at', ls) -> Row.map_fr elaborate_typ ls >>- fun ls -> `Sum (at', ls)
   | `Let (_, def, e) ->
     let* typ_aliases = elaborate_typ_def def in
     elaborate_typ e
     |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Annot (at', t, k) ->
-    elaborate_typ t >>- fun t ->
-    annot at' (Typ.Var.of_string at' "_Annot" |> Typ.Var.freshen) k t
+    elaborate_typ t
+    >>- annot at' (Typ.Var.of_string at' "_Annot" |> Typ.Var.freshen) k
   | `Import (at', p) ->
     let sig_path = Path.coalesce at' p |> Path.ensure_ext Path.sig_ext in
     Fetch.fetch at' sig_path
@@ -393,10 +382,7 @@ and elaborate_typ = function
     |> TypImports.get_or_put at' sig_path
     |> Elab.modularly
     >>- fun t -> (t : Typ.Core.t :> Typ.t)
-  | `Join (at', l, r) ->
-    elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Join (at', l, r)
-  | `Meet (at', l, r) ->
-    elaborate_typ l <*> elaborate_typ r >>- fun (l, r) -> `Meet (at', l, r)
+  | #Typ.f as t -> Typ.map_fr elaborate_typ t
 
 let rec elaborate = function
   | `Const (at, c) ->
