@@ -343,8 +343,7 @@ let rec elaborate_typ_def = function
 
 and elaborate_typ_defs accum = function
   | #FomCST.Typ.Def.f as d ->
-    let+ d = elaborate_typ_def d in
-    Typ.VarMap.merge Map.prefer_rhs accum d
+    elaborate_typ_def d >>- Typ.VarMap.merge Map.prefer_rhs accum
   | `In (_, d, ds) ->
     let* d = elaborate_typ_def d in
     elaborate_typ_defs (Typ.VarMap.merge Map.prefer_rhs accum d) ds
@@ -468,8 +467,7 @@ let rec elaborate = function
     let+ t = elaborate_typ t and+ e = elaborate e and+ x = elaborate_typ x in
     `Pack (at, t, e, x)
   | `PackImp (at, t, e) ->
-    let+ t = elaborate_typ t and+ e = elaborate e in
-    `PackImp (at, t, e)
+    elaborate_typ t <*> elaborate e >>- fun (t, e) -> `PackImp (at, t, e)
   | `UnpackIn (at, ti, k, ei, v, e) ->
     let* v = elaborate v in
     avoid ti @@ fun ti ->
@@ -499,16 +497,14 @@ let rec elaborate = function
     let select l = `Select (Label.at l, semantics, Exp.atom l) in
     let app f x = `App (Exp.at f, f, x) in
     let app2 f x y = app (app f x) y in
-    let+ e =
-      fragments
-      |> List.fold_left_fr
-           (fun e -> function
-             | `Str s ->
-               return @@ app2 (select Label.text') (`Const (at', `String s)) e
-             | `Exp (l, v) -> elaborate v >>- fun v -> app2 (select l) v e)
-           (select Label.begin')
-    in
-    app (select Label.finish') e
+    fragments
+    |> List.fold_left_fr
+         (fun e -> function
+           | `Str s ->
+             return @@ app2 (select Label.text') (`Const (at', `String s)) e
+           | `Exp (l, v) -> elaborate v >>- fun v -> app2 (select l) v e)
+         (select Label.begin')
+    >>- app (select Label.finish')
   | `Import (at', p) ->
     let mod_path = Path.coalesce at' p |> Path.ensure_ext Path.mod_ext in
     let sig_path = Filename.remove_extension mod_path ^ Path.sig_ext in
