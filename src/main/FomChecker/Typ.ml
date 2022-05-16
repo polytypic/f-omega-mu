@@ -37,9 +37,8 @@ let rec kind_of = function
     VarMap.find_opt i >>- function
     | Some (`Kind i_kind) -> i_kind
     | _ -> failwithf "kind_of %s" @@ Var.to_string i)
-  | `Lam (at', d, d_kind, r) ->
-    let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
-    `Arrow (at', d_kind, r_kind)
+  | `Lam (at', i, d, t) ->
+    kind_of t |> VarMap.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
   | `App (_, f, _) -> kind_of_cod f
   | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
     return @@ `Star at'
