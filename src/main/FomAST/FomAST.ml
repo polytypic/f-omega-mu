@@ -293,15 +293,13 @@ module Typ = struct
     let apps_of_norm at = List.fold_left @@ app_of_norm at
   end
 
-  type ('t, 'k) f =
-    [('t, 'k) Core.f | `Join of Loc.t * 't * 't | `Meet of Loc.t * 't * 't]
-
+  type ('t, 'k) f = [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet] * 't * 't]
   type t = (t, Kind.t) f
 
   let map_fr' fl row ft = function
     | #Core.f as t -> Core.map_fr' fl row ft t
-    | `Join (l, x, y) -> tuple'3 (fl l) (ft x) (ft y) >>- fun x -> `Join x
-    | `Meet (l, x, y) -> tuple'3 (fl l) (ft x) (ft y) >>- fun x -> `Meet x
+    | `Bop (l, o, x, y) ->
+      tuple'3 (fl l) (ft x) (ft y) >>- fun (l, x, y) -> `Bop (l, o, x, y)
 
   let map_at_fr fl = map_fr' fl (const return) return
   let at t = Traverse.to_get_opt map_at_fr t |> Option.get
@@ -363,10 +361,7 @@ module Typ = struct
   (* *)
 
   let eq l r =
-    match (l, r) with
-    | `Join l, `Join r -> eq'3 l r
-    | `Meet l, `Meet r -> eq'3 l r
-    | l, r -> Core.eq l r
+    match (l, r) with `Bop l, `Bop r -> eq'4 l r | l, r -> Core.eq l r
 
   let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
   let keep_phys_eq fn t = keep_phys_eq' t (fn t)
@@ -435,8 +430,7 @@ module Typ = struct
     | `For _ -> `For
     | `Arrow _ -> `Arrow
     | `Row _ -> `Row
-    | `Join _ -> `Join
-    | `Meet _ -> `Meet
+    | `Bop _ -> `Bop
 
   let compare' compare l_env r_env l r =
     match (l, r) with
@@ -465,8 +459,9 @@ module Typ = struct
         (fun (l_l, l_t) (r_l, r_t) ->
           Label.compare l_l r_l <>? fun () -> compare l_env r_env l_t r_t)
         l_ls r_ls
-    | `Join (_, a, b), `Join (_, c, d) | `Meet (_, a, b), `Meet (_, c, d) ->
-      compare l_env r_env a c <>? fun () -> compare l_env r_env b d
+    | `Bop (_, l_o, l_x, l_y), `Bop (_, r_o, r_x, r_y) ->
+      Stdlib.compare l_o r_o <>? fun () ->
+      compare l_env r_env l_x r_x <>? fun () -> compare l_env r_env l_y r_y
     | _ -> Stdlib.compare (tag l) (tag r)
 
   let rec compare_in_env l_env r_env l r =

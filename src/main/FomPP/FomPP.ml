@@ -93,6 +93,8 @@ module Typ = struct
     | _ -> None
 
   let symbol_of = function `All -> for_all | `Unk -> exists | `Mu -> mu_lower
+  let op_of = function `Join -> logical_or | `Meet -> logical_and
+  let prec_of = function `Join -> prec_join | `Meet -> prec_meet
 
   let binding config prec_outer head i k t =
     (group (head ^^ Var.pp i ^^ config.pp_annot k ^^ dot |> nest 2)
@@ -139,10 +141,6 @@ module Typ = struct
     labels
     |> List.map (snd >>> config.pp config prec_min)
     |> separate comma_break_1
-
-  let infix config prec_outer prec op l r =
-    config.pp config prec l ^^ space ^^ op ^^ space ^^ config.pp config prec r
-    |> if prec < prec_outer then egyptian parens 2 else id
 
   let rec as_aggr typ =
     match typ with
@@ -195,8 +193,11 @@ module Typ = struct
         :: (xs |> List.map (config.pp config (prec_app + 1) >>> group))
         |> separate break_1
         |> if prec_app < prec_outer then egyptian parens 2 else group)
-    | `Join (_, l, r) -> infix config prec_outer prec_join logical_or l r
-    | `Meet (_, l, r) -> infix config prec_outer prec_meet logical_and l r
+    | `Bop (_, o, l, r) ->
+      let prec = prec_of o in
+      config.pp config prec l ^^ space ^^ op_of o ^^ space
+      ^^ config.pp config prec r
+      |> if prec < prec_outer then egyptian parens 2 else id
 
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =

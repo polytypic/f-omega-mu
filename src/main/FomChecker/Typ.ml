@@ -43,7 +43,7 @@ let rec kind_of = function
   | `App (_, f, _) -> kind_of_cod f
   | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
     return @@ `Star at'
-  | `Join (_, l, _) | `Meet (_, l, _) -> kind_of l
+  | `Bop (_, _, l, _) -> kind_of l
 
 and kind_of_cod checked_typ =
   let+ f_kind = kind_of checked_typ >>= Kind.resolve in
@@ -59,10 +59,8 @@ module Var = struct
   include Var
 
   let rec fresh_from = function
-    | `Join (_, ((`Mu _ | `Lam _) as t), _)
-    | `Join (_, _, ((`Mu _ | `Lam _) as t))
-    | `Meet (_, _, ((`Mu _ | `Lam _) as t))
-    | `Meet (_, ((`Mu _ | `Lam _) as t), _)
+    | `Bop (_, _, ((`Mu _ | `Lam _) as t), _)
+    | `Bop (_, _, _, ((`Mu _ | `Lam _) as t))
     | `For (_, _, t)
     | `App (_, t, _)
     | `Mu (_, t) ->
@@ -160,6 +158,16 @@ let intersection op =
   in
   loop []
 
+let product_op = function `Join -> intersection | `Meet -> union
+let sum_op = function `Join -> union | `Meet -> intersection
+
+let bop o = function
+  | at1, `Bop (at2, o', a, b), c when o = o' ->
+    `Bop (at1, o, a, `Bop (at2, o, b, c))
+  | at', l, r -> `Bop (at', o, l, r)
+
+let inv = function `Join -> `Meet | `Meet -> `Join
+
 (* *)
 
 let make_sub_and_eq at =
@@ -232,7 +240,7 @@ let rec mu_of_norm at = function
     let t', iks = unlam t in
     let* f' =
       match t' with
-      | `Join _ | `Meet _ ->
+      | `Bop _ ->
         let mu' =
           List.fold_right (fun (i, _) f -> `App (at, f, var i)) iks (var i)
         in
@@ -244,33 +252,29 @@ let rec mu_of_norm at = function
     if compare f f' = 0 then return @@ `Mu (at, f) else mu_of_norm at f'
   | f -> return @@ `Mu (at, f)
 
-and jm_op_of = function
-  | `Join (at, _, _) -> join_of_norm at
-  | `Meet (at, _, _) -> meet_of_norm at
-
 and unfold_at_jms x f = function
   | #Core.f as t -> map_eq_fr (unfold_at_jms x f) t
-  | (`Join (at, l, r) | `Meet (at, l, r)) as t ->
+  | `Bop (at', o, l, r) as t ->
     let* l = unfold_at_jms x f l and* r = unfold_at_jms x f r in
-    let op = jm_op_of t in
+    let op = bop_of_norm o at' in
     let+ t' =
       match (unapp l, unapp r) with
       | (`Var (_, lf), lxs), _ when Var.equal lf x ->
-        apps_of_norm at f lxs >>= fun l ->
+        apps_of_norm at' f lxs >>= fun l ->
         op l r >>= unfold_at_jms x f |> memoing t
       | _, (`Var (_, rf), rxs) when Var.equal rf x ->
-        apps_of_norm at f rxs >>= fun r ->
+        apps_of_norm at' f rxs >>= fun r ->
         op l r >>= unfold_at_jms x f |> memoing t
       | _ -> op l r
     in
     keep_phys_eq' t t'
 
 and drop_legs x = function
-  | (`Join (_, l, r) | `Meet (_, l, r)) as t ->
+  | `Bop (at', o, l, r) ->
     let* r = drop_legs x r in
     if compare x l = 0 then return r
     else if compare x r = 0 then return l
-    else jm_op_of t l r
+    else bop_of_norm o at' l r
   | t -> return t
 
 and lam_of_norm at i k = function
@@ -301,7 +305,7 @@ and classify t =
     return @@ Some (match q with `All -> `All | `Unk -> `Unk)
   | `Row (_, m, _), _ ->
     return @@ Some (match m with `Product -> `Product | `Sum -> `Sum)
-  | `Join (_, l, r), _ | `Meet (_, l, r), _ -> (
+  | `Bop (_, _, l, r), _ -> (
     classify l >>= function None -> classify r | some -> return some)
   | `App _, _ -> failwith "classify"
 
@@ -316,16 +320,18 @@ and memoing t op =
     let* t' = op |> mapping Solved.field (Solved.add t v) in
     kind_of t >>= fun k -> mu_of_norm at' (lam_of_norm at' i k t')
 
-and join_or_meet_of_norm con lower upper sum product at' l r =
+and bop_of_norm o at' l r =
   if compare l r = 0 then return l
   else
     match (l, r) with
     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-      lower ld rd <*> upper lc rc >>- fun (d, c) -> `Arrow (at', d, c)
+      bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc
+      >>- fun (d, c) -> `Arrow (at', d, c)
     | `Row (_, `Product, lls), `Row (_, `Product, rls) ->
-      product upper (lls, rls) >>- fun ls -> `Row (at', `Product, ls)
+      product_op o (bop_of_norm o at') (lls, rls) >>- fun ls ->
+      `Row (at', `Product, ls)
     | `Row (_, `Sum, lls), `Row (_, `Sum, rls) ->
-      sum upper (lls, rls) >>- fun ls -> `Row (at', `Sum, ls)
+      sum_op o (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', `Sum, ls)
     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
       let* i, lt, rt =
         if Var.equal li ri then return (li, lt, rt)
@@ -342,36 +348,25 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
           and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
           (i, lt, rt)
       in
-      Kind.unify at' lk rk >> upper lt rt |> VarMap.adding i @@ `Kind lk
+      Kind.unify at' lk rk >> bop_of_norm o at' lt rt
+      |> VarMap.adding i @@ `Kind lk
       >>- fun t -> `Lam (at', i, lk, t)
     | `For (_, q, lt), `For (_, q', rt) when q = q' ->
-      upper lt rt >>- fun t -> `For (at', q, t)
+      bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
     | _ -> (
-      let problem = con (at', l, r) in
+      let problem = bop o (at', l, r) in
       match (unapp l, unapp r) with
       | ((`Mu (la, lf) as lmu), lxs), _ ->
-        unfold la lf lmu lxs >>= fun l -> upper l r |> memoing problem
+        unfold la lf lmu lxs >>= fun l ->
+        bop_of_norm o at' l r |> memoing problem
       | _, ((`Mu (ra, rf) as rmu), rxs) ->
-        unfold ra rf rmu rxs >>= fun r -> upper l r |> memoing problem
+        unfold ra rf rmu rxs >>= fun r ->
+        bop_of_norm o at' l r |> memoing problem
       | _ -> (
         classify l <*> classify r >>= fun (l', r') ->
         match Option.both ( = ) l' r' with
         | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
         | _ -> return problem))
-
-and join_of_norm at' l r =
-  join_or_meet_of_norm
-    (function
-      | at1, `Join (at2, a, b), c -> `Join (at1, a, `Join (at2, b, c))
-      | x -> `Join x)
-    (meet_of_norm at') (join_of_norm at') union intersection at' l r
-
-and meet_of_norm at' l r =
-  join_or_meet_of_norm
-    (function
-      | at1, `Meet (at2, a, b), c -> `Meet (at1, a, `Meet (at2, b, c))
-      | x -> `Meet x)
-    (join_of_norm at') (meet_of_norm at') intersection union at' l r
 
 and subst_of_norm env t =
   let+ t' =
@@ -392,9 +387,9 @@ and subst_of_norm env t =
     | `App (at, f, x) ->
       subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
       app_of_norm at f x
-    | (`Join (_, l, r) | `Meet (_, l, r)) as t ->
+    | `Bop (at', o, l, r) ->
       subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
-      jm_op_of t l r
+      bop_of_norm o at' l r
     | t -> map_eq_fr (subst_of_norm env) t
   in
   keep_phys_eq' t t'
@@ -509,9 +504,9 @@ let rec infer = function
     let star = `Star at' in
     let+ ls = Row.check ls >> Row.map_fr (check star) ls in
     (`Row (at', m, ls), star)
-  | (`Join (at', l, r) | `Meet (at', l, r)) as t ->
+  | `Bop (at', o, l, r) ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
-    Kind.unify at' lk rk >> (jm_op_of t l r <*> return lk)
+    Kind.unify at' lk rk >> (bop_of_norm o at' l r <*> return lk)
 
 and check expected t =
   let* t, actual = infer t in
@@ -521,11 +516,10 @@ and check expected t =
 
 let rec solve_of_norm = function
   | #Core.f as t -> Core.map_fr solve_of_norm t
-  | `Join (at', l, r) | `Meet (at', l, r) ->
-    fail @@ `Error_typ_unrelated (at', l, r)
+  | `Bop (at', _, l, r) -> fail @@ `Error_typ_unrelated (at', l, r)
 
 let join_of_norm at' (l : Core.t) (r : Core.t) =
-  join_of_norm at' (l :> t) (r :> t) >>= solve_of_norm
+  bop_of_norm `Join at' (l :> t) (r :> t) >>= solve_of_norm
 
 (* *)
 

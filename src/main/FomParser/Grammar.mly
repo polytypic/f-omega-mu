@@ -224,8 +224,8 @@ typ_inf:
   | "|"? s=list_1(typ_tick_lab, "|")                {Typ.sum $loc s}
   | "|"                                             {Typ.sum $loc []}
   | t=typ_app                                       {t}
-  | l=typ_inf "∨" r=typ_inf                         {`Join ($loc, l, r)}
-  | l=typ_inf "∧" r=typ_inf                         {`Meet ($loc, l, r)}
+  | l=typ_inf "∨" r=typ_inf                         {`Bop ($loc, `Join, l, r)}
+  | l=typ_inf "∧" r=typ_inf                         {`Bop ($loc, `Meet, l, r)}
 
 typ_arr:
   | t=typ_inf                                       {t}
