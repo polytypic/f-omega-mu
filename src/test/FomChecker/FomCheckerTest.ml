@@ -80,7 +80,10 @@ let () =
   test_equal_typs "μx.{x}" "μx.μy.{x:y}";
   test_not_equal_typs "∀x.∀y.x→y" "∀y.∀x.x→y";
   test_not_equal_typs "∀x.x→x" "∀y.y→y→y";
-  test_not_equal_typs "λx.μxs.x→xs" "λy.y→y"
+  test_not_equal_typs "λx.μxs.x→xs" "λy.y→y";
+  test_not_equal_typs "∀f.f()→()" "∃f.f()→()";
+  test_not_equal_typs "∀x.x→()" "∃x.x→()";
+  ()
 
 (* *)
 
