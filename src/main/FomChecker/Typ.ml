@@ -174,27 +174,27 @@ let inv = function `Join -> `Meet | `Meet -> `Join
 
 let make_sub_and_eq at =
   let goals = ref GoalSet.empty in
-  let rec sub l_env r_env (l : Core.t) (r : Core.t) =
+  let rec subset l_env r_env l r flip ls ms =
+    match (ls, ms) with
+    | [], _ -> unit
+    | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
+    | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
+      let c = Label.compare ll ml in
+      if c = 0 then
+        flip (sub l_env r_env) mt lt >> subset l_env r_env l r flip ls ms
+      else if 0 < c then subset l_env r_env l r flip lls ms
+      else fail @@ `Error_label_missing (at, ll, l, r)
+  and sub l_env r_env (l : Core.t) (r : Core.t) =
     let g = (l_env, r_env, l, r) in
     if 0 <> Core.compare_in_env l_env r_env l r && not (GoalSet.mem g !goals)
     then (
       goals := GoalSet.add g !goals;
-      let rec subset l r flip ls ms =
-        match (ls, ms) with
-        | [], _ -> unit
-        | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
-        | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
-          let c = Label.compare ll ml in
-          if c = 0 then flip (sub l_env r_env) mt lt >> subset l r flip ls ms
-          else if 0 < c then subset l r flip lls ms
-          else fail @@ `Error_label_missing (at, ll, l, r)
-      in
       match (l, r) with
       | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
         sub r_env l_env rd ld >> sub l_env r_env lc rc
-      | `Row (_, `Product, lls), `Row (_, `Product, rls) ->
-        subset r l id rls lls
-      | `Row (_, `Sum, lls), `Row (_, `Sum, rls) -> subset l r Fun.flip lls rls
+      | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+        let flip = match m with `Product -> id | `Sum -> Fun.flip in
+        flip (flip (subset l_env r_env) r l flip) rls lls
       | `For (_, l_q, l), `For (_, r_q, r) when l_q = r_q -> sub l_env r_env l r
       | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
         let v, l_env, r_env =
