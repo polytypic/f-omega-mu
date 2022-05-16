@@ -158,8 +158,10 @@ let intersection op =
   in
   loop []
 
-let product_op = function `Join -> intersection | `Meet -> union
-let sum_op = function `Join -> union | `Meet -> intersection
+let rop o m =
+  match (o, m) with
+  | `Join, `Product | `Meet, `Sum -> intersection
+  | `Join, `Sum | `Meet, `Product -> union
 
 let bop o = function
   | at1, `Bop (at2, o', a, b), c when o = o' ->
@@ -327,11 +329,8 @@ and bop_of_norm o at' l r =
     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
       bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc
       >>- fun (d, c) -> `Arrow (at', d, c)
-    | `Row (_, `Product, lls), `Row (_, `Product, rls) ->
-      product_op o (bop_of_norm o at') (lls, rls) >>- fun ls ->
-      `Row (at', `Product, ls)
-    | `Row (_, `Sum, lls), `Row (_, `Sum, rls) ->
-      sum_op o (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', `Sum, ls)
+    | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+      rop o m (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', m, ls)
     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
       let* i, lt, rt =
         if Var.equal li ri then return (li, lt, rt)
