@@ -41,11 +41,8 @@ let rec kind_of = function
     let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
     `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
-  | `ForAll (at', _)
-  | `Exists (at', _)
-  | `Arrow (at', _, _)
-  | `Product (at', _)
-  | `Sum (at', _) ->
+  | `ForAll (at', _) | `Exists (at', _) | `Arrow (at', _, _) | `Row (at', _, _)
+    ->
     return @@ `Star at'
   | `Join (_, l, _) | `Meet (_, l, _) -> kind_of l
 
@@ -187,8 +184,9 @@ let make_sub_and_eq at =
       match (l, r) with
       | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
         sub r_env l_env rd ld >> sub l_env r_env lc rc
-      | `Product (_, lls), `Product (_, rls) -> subset r l id rls lls
-      | `Sum (_, lls), `Sum (_, rls) -> subset l r Fun.flip lls rls
+      | `Row (_, `Product, lls), `Row (_, `Product, rls) ->
+        subset r l id rls lls
+      | `Row (_, `Sum, lls), `Row (_, `Sum, rls) -> subset l r Fun.flip lls rls
       | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
         sub l_env r_env l r
       | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
@@ -304,8 +302,8 @@ and classify t =
   | `ForAll _, _ -> return @@ Some `ForAll
   | `Exists _, _ -> return @@ Some `Exists
   | `Arrow _, _ -> return @@ Some `Arrow
-  | `Product _, _ -> return @@ Some `Product
-  | `Sum _, _ -> return @@ Some `Sum
+  | `Row (_, m, _), _ ->
+    return @@ Some (match m with `Product -> `Product | `Sum -> `Sum)
   | `Join (_, l, r), _ | `Meet (_, l, r), _ -> (
     classify l >>= function None -> classify r | some -> return some)
   | `App _, _ -> failwith "classify"
@@ -327,10 +325,10 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
     match (l, r) with
     | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
       lower ld rd <*> upper lc rc >>- fun (d, c) -> `Arrow (at', d, c)
-    | `Product (_, lls), `Product (_, rls) ->
-      product upper (lls, rls) >>- fun ls -> `Product (at', ls)
-    | `Sum (_, lls), `Sum (_, rls) ->
-      sum upper (lls, rls) >>- fun ls -> `Sum (at', ls)
+    | `Row (_, `Product, lls), `Row (_, `Product, rls) ->
+      product upper (lls, rls) >>- fun ls -> `Row (at', `Product, ls)
+    | `Row (_, `Sum, lls), `Row (_, `Sum, rls) ->
+      sum upper (lls, rls) >>- fun ls -> `Row (at', `Sum, ls)
     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
       let* i, lt, rt =
         if Var.equal li ri then return (li, lt, rt)
@@ -509,16 +507,13 @@ let rec infer = function
   | `Arrow (at', d, c) ->
     let star = `Star at' in
     check star d <*> check star c >>- fun (d, c) -> (`Arrow (at', d, c), star)
-  | `Product (at', ls) -> infer_row at' ls @@ fun at' ls -> `Product (at', ls)
-  | `Sum (at', ls) -> infer_row at' ls @@ fun at' ls -> `Sum (at', ls)
+  | `Row (at', m, ls) ->
+    let star = `Star at' in
+    let+ ls = Row.check ls >> Row.map_fr (check star) ls in
+    (`Row (at', m, ls), star)
   | (`Join (at', l, r) | `Meet (at', l, r)) as t ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
     Kind.unify at' lk rk >> (jm_op_of t l r <*> return lk)
-
-and infer_row at' ls con =
-  let star = `Star at' in
-  let+ ls = Row.check ls >> Row.map_fr (check star) ls in
-  (con at' ls, star)
 
 and infer_quantifier at' f con =
   let* f, f_kind = infer f in

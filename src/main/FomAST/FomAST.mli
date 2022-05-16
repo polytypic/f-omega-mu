@@ -126,8 +126,7 @@ module Typ : sig
       | `ForAll of Loc.t * 't
       | `Exists of Loc.t * 't
       | `Arrow of Loc.t * 't * 't
-      | `Product of Loc.t * 't Row.t
-      | `Sum of Loc.t * 't Row.t ]
+      | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
 
     type t = (t, Kind.t) f
 
@@ -177,16 +176,21 @@ module Typ : sig
   (* Macros *)
 
   val var : Var.t -> [> `Var of Loc.t * Var.t]
-  val product : Loc.t -> 't Row.t -> [> `Product of Loc.t * 't Row.t]
-  val sum : Loc.t -> 't Row.t -> [> `Sum of Loc.t * 't Row.t]
-  val zero : Loc.t -> [> `Sum of Loc.t * 't Row.t]
+  val product : Loc.t -> 't Row.t -> [> `Row of Loc.t * [> `Product] * 't Row.t]
+  val sum : Loc.t -> 't Row.t -> [> `Row of Loc.t * [> `Sum] * 't Row.t]
+  val zero : Loc.t -> [> `Row of Loc.t * [> `Sum] * 't Row.t]
 
   val tuple :
     Loc.t ->
-    ([> `Const of Loc.t * [> `Unit] | `Product of Loc.t * 't Row.t] as 't) list ->
+    ([> `Const of Loc.t * [> `Unit] | `Row of Loc.t * [> `Product] * 't Row.t]
+     as
+     't)
+    list ->
     't
 
-  val atom : Label.t -> [> `Sum of Loc.t * [> `Const of Loc.t * [> `Unit]] Row.t]
+  val atom :
+    Label.t ->
+    [> `Row of Loc.t * [> `Sum] * [> `Const of Loc.t * [> `Unit]] Row.t]
 
   (* Comparison *)
 

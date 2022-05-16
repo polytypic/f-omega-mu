@@ -37,8 +37,7 @@ module Typ : sig
      `ForAll
      `Lam
      `Mu
-     `Product
-     `Sum
+     `Row
      `Var ]
      as
      't) ->
@@ -51,8 +50,7 @@ module Typ : sig
      `ForAll
      `Lam
      `Mu
-     `Product
-     `Sum
+     `Row
      `Var ]
      as
      't) ->

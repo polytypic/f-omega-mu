@@ -46,12 +46,11 @@ module Typ = struct
 
   let aggr at' xs tl =
     List.fold_right
-      (fun x ys ->
-        `Sum (at', [(Label.of_string at' Aggr.cons, Typ.tuple at' [x; ys])]))
+      (fun x ys -> sum at' [(Label.of_string at' Aggr.cons, tuple at' [x; ys])])
       xs
       (match tl with
       | Some typ -> typ
-      | None -> Typ.atom (Label.of_string at' Aggr.nil))
+      | None -> atom (Label.of_string at' Aggr.nil))
 end
 
 module Exp = struct

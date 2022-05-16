@@ -40,12 +40,12 @@ module Typ = struct
 
   let check_product at typ =
     match Core.unfold_of_norm typ with
-    | `Product (_, ls) -> return ls
+    | `Row (_, `Product, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
   let check_sum at typ =
     match Core.unfold_of_norm typ with
-    | `Sum (_, ls) -> return ls
+    | `Row (_, `Sum, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
   let check_unit at typ =
@@ -128,7 +128,7 @@ let rec infer = function
       | [] -> return @@ Typ.zero (at cs)
       | t :: ts -> ts |> List.fold_left_fr (Typ.join_of_norm (at cs)) t
     in
-    let d_typ = `Sum (at cs, cs_arrows |> Row.map fst) in
+    let d_typ = Typ.sum (at cs) (Row.map fst cs_arrows) in
     (`Case (at', cs), `Arrow (at', d_typ, c_typ))
   | `Gen (at', d, d_kind, r) ->
     let* r, r_typ = infer r |> Typ.VarMap.adding d @@ `Kind d_kind in
@@ -210,7 +210,7 @@ let rec infer = function
     in
     let rec merge le re lt rt =
       match (lt, rt) with
-      | `Product (_, ls), `Product (_, rs) ->
+      | `Row (_, `Product, ls), `Row (_, `Product, rs) ->
         Row.union_fr
           (select le >>> return >>> const)
           (select re >>> return >>> const)
@@ -246,7 +246,7 @@ and check a e =
     | `Case (at', cs) ->
       let* d, c = Typ.check_arrow at' a in
       let* ls = Typ.check_sum at' d in
-      let cs_typ = `Product (at', Row.map (fun d -> `Arrow (at', d, c)) ls) in
+      let cs_typ = Typ.product at' (Row.map (fun d -> `Arrow (at', d, c)) ls) in
       check cs_typ cs >>- fun cs -> `Case (at', cs)
     | `App (at', ((`Lam _ | `LamImp _ | `Case _) as f), x) -> (
       match f with

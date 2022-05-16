@@ -207,8 +207,7 @@ module Typ = struct
       | `ForAll of Loc.t * 't
       | `Exists of Loc.t * 't
       | `Arrow of Loc.t * 't * 't
-      | `Product of Loc.t * 't Row.t
-      | `Sum of Loc.t * 't Row.t ]
+      | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
 
     type t = (t, Kind.t) f
 
@@ -221,8 +220,7 @@ module Typ = struct
       | `ForAll (l, t) -> fl l <*> ft t >>- fun x -> `ForAll x
       | `Exists (l, t) -> fl l <*> ft t >>- fun x -> `Exists x
       | `Arrow (l, d, c) -> tuple'3 (fl l) (ft d) (ft c) >>- fun x -> `Arrow x
-      | `Product (l, ls) -> fl l <*> row ft ls >>- fun x -> `Product x
-      | `Sum (l, ls) -> fl l <*> row ft ls >>- fun x -> `Sum x
+      | `Row (l, m, ls) -> fl l <*> row ft ls >>- fun (l, ls) -> `Row (l, m, ls)
 
     let map_at_fr fl = map_fr' fl (const return) return
     let set_at at = Traverse.to_set map_at_fr at
@@ -245,8 +243,7 @@ module Typ = struct
       | `ForAll l, `ForAll r -> eq'2 l r
       | `Exists l, `Exists r -> eq'2 l r
       | `Arrow l, `Arrow r -> eq'3 l r
-      | `Product l, `Product r -> eq'2 l r
-      | `Sum l, `Sum r -> eq'2 l r
+      | `Row l, `Row r -> eq'3 l r
       | _ -> false
 
     let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
@@ -317,19 +314,17 @@ module Typ = struct
 
   let var v = `Var (Var.at v, v)
   let sort labels = List.sort (Compare.the fst Label.compare) labels
-  let product at fs = `Product (at, sort fs)
-  let sum at cs = `Sum (at, sort cs)
+  let row at m fs = `Row (at, m, sort fs)
+  let product at = row at `Product
+  let sum at = row at `Sum
+  let unit at = `Const (at, `Unit)
+  let atom l = Label.at l |> fun at -> sum at [(l, unit at)]
+  let zero at = sum at []
 
   let tuple at = function
-    | [] -> `Const (at, `Unit)
+    | [] -> unit at
     | [t] -> t
-    | ts -> `Product (at, Tuple.labels at ts)
-
-  let atom l =
-    let at = Label.at l in
-    `Sum (at, [(l, `Const (at, `Unit))])
-
-  let zero at = `Sum (at, [])
+    | ts -> product at (Tuple.labels at ts)
 
   (* Type predicates *)
 
@@ -443,8 +438,7 @@ module Typ = struct
     | `ForAll _ -> `ForAll
     | `Exists _ -> `Exists
     | `Arrow _ -> `Arrow
-    | `Product _ -> `Product
-    | `Sum _ -> `Sum
+    | `Row _ -> `Row
     | `Join _ -> `Join
     | `Meet _ -> `Meet
 
@@ -469,7 +463,8 @@ module Typ = struct
       compare l_env r_env l r
     | `Arrow (_, l_d, l_c), `Arrow (_, r_d, r_c) ->
       compare l_env r_env l_d r_d <>? fun () -> compare l_env r_env l_c r_c
-    | `Product (_, l_ls), `Product (_, r_ls) | `Sum (_, l_ls), `Sum (_, r_ls) ->
+    | `Row (_, l_m, l_ls), `Row (_, r_m, r_ls) ->
+      Stdlib.compare l_m r_m <>? fun () ->
       List.compare_with
         (fun (l_l, l_t) (r_l, r_t) ->
           Label.compare l_l r_l <>? fun () -> compare l_env r_env l_t r_t)

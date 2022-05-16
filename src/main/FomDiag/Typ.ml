@@ -39,10 +39,8 @@ and contract_base t =
     | `Arrow (at', d, c) ->
       let+ ds, d' = contract d and+ cs, c' = contract c in
       (TypSet.union ds cs, `Arrow (at', d', c'))
-    | `Product (at', ls) ->
-      contract_labels ls >>- fun (s, ls') -> (s, `Product (at', ls'))
-    | `Sum (at', ls) ->
-      contract_labels ls >>- fun (s, ls') -> (s, `Sum (at', ls'))
+    | `Row (at', m, ls) ->
+      contract_labels ls >>- fun (s, ls') -> (s, `Row (at', m, ls'))
   in
   (s, keep_phys_eq' t t')
 
@@ -84,7 +82,7 @@ let rec collect_mus_closed bvs t mus =
     let mus, d_vs = collect_mus_closed bvs d mus in
     let mus, c_vs = collect_mus_closed bvs c mus in
     (mus, VarSet.union d_vs c_vs)
-  | `Product (_, ls) | `Sum (_, ls) ->
+  | `Row (_, _, ls) ->
     ls
     |> List.fold_left
          (fun (mus, vs) (_, t) ->

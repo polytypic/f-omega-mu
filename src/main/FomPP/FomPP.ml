@@ -88,7 +88,7 @@ module Typ = struct
   let rec hanging = function
     | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
       some_spaces
-    | `Product _ -> some_spaces
+    | `Row (_, `Product, _) -> some_spaces
     | `App _ as t -> (
       match FomAST.Typ.unapp t with `Var _, [x] -> hanging x | _ -> None)
     | _ -> None
@@ -144,11 +144,11 @@ module Typ = struct
 
   let rec as_aggr typ =
     match typ with
-    | `Sum (_, [(l, t)]) ->
+    | `Row (_, `Sum, [(l, t)]) ->
       let l = Label.to_string l in
       if l = FomCST.Aggr.cons then
         match t with
-        | `Product (_, ([(_, x); (_, xs)] as ls)) when Row.is_tuple ls ->
+        | `Row (_, `Product, ([(_, x); (_, xs)] as ls)) when Row.is_tuple ls ->
           as_aggr xs >>- fun xs -> x :: xs
         | _ -> zero
       else if l = FomCST.Aggr.nil then
@@ -172,10 +172,10 @@ module Typ = struct
          | None -> space_arrow_right_break_1)
       ^^ config.pp config (prec_arrow - 1) cod
       |> if prec_arrow < prec_outer then egyptian parens 2 else id
-    | `Product (_, labels) ->
+    | `Row (_, `Product, labels) ->
       if Row.is_tuple labels then tupled config labels |> egyptian parens 2
       else labeled config labels |> egyptian braces 2
-    | `Sum _ as typ -> (
+    | `Row (_, `Sum, _) as typ -> (
       match as_aggr typ |> Option.run with
       | Some xs ->
         xs
@@ -183,8 +183,8 @@ module Typ = struct
         |> separate comma_break_1 |> egyptian brackets 2
       | None -> (
         match typ with
-        | `Sum (_, [(l, `Const (_, `Unit))]) -> tick ^^ Label.pp l
-        | `Sum (_, labels) ->
+        | `Row (_, `Sum, [(l, `Const (_, `Unit))]) -> tick ^^ Label.pp l
+        | `Row (_, `Sum, labels) ->
           ticked config labels
           |> if prec_arrow < prec_outer then egyptian parens 2 else id))
     | `App (_, _, _) -> (

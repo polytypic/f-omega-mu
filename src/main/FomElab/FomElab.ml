@@ -276,8 +276,9 @@ let rec type_of_pat_lam = function
 
 let rec pat_to_exp p' e' = function
   | `Var (at, i) -> `App (at, `LamImp (at, i, e'), p')
-  | (`Const (at, `Unit) | `Product (at, [])) as t ->
-    `App (at, `Lam (at, Exp.Var.fresh at, t, e'), p')
+  | `Const (at, `Unit) as t -> `App (at, `Lam (at, Exp.Var.fresh at, t, e'), p')
+  | `Product (at, []) ->
+    `App (at, `Lam (at, Exp.Var.fresh at, Typ.product at [], e'), p')
   | `Annot (at, p, t) -> pat_to_exp (`Annot (at, p', t)) e' p
   | `Product (at, fs) ->
     fs |> List.rev
