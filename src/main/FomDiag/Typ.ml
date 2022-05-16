@@ -34,11 +34,10 @@ and contract_base t =
     | `App (at', f, x) ->
       let+ fs, f' = contract f and+ xs, x' = contract x in
       (TypSet.union fs xs, `App (at', f', x'))
-    | `ForAll (at', e) -> contract e >>- fun (s, e') -> (s, `ForAll (at', e'))
-    | `Exists (at', e) -> contract e >>- fun (s, e') -> (s, `Exists (at', e'))
     | `Arrow (at', d, c) ->
       let+ ds, d' = contract d and+ cs, c' = contract c in
       (TypSet.union ds cs, `Arrow (at', d', c'))
+    | `For (at', q, e) -> contract e >>- fun (s, e') -> (s, `For (at', q, e'))
     | `Row (at', m, ls) ->
       contract_labels ls >>- fun (s, ls') -> (s, `Row (at', m, ls'))
   in
@@ -77,7 +76,7 @@ let rec collect_mus_closed bvs t mus =
   | `Lam (_, i, _, e) ->
     let mus, vs = collect_mus_closed (VarSet.add i bvs) e mus in
     (mus, VarSet.remove i vs)
-  | `ForAll (_, e) | `Exists (_, e) -> collect_mus_closed bvs e mus
+  | `For (_, _, e) -> collect_mus_closed bvs e mus
   | `Arrow (_, d, c) ->
     let mus, d_vs = collect_mus_closed bvs d mus in
     let mus, c_vs = collect_mus_closed bvs c mus in

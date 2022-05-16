@@ -204,8 +204,8 @@ typ_atom:
   | t=typ_par("{", "[", "(")                        {t}
   | f=typ_atom x=typ_par("_{", "_[", "_(")          {`App ($loc, f, x)}
   | "μ" "(" t=typ ")"                               {`Mu ($loc, t)}
-  | "∃" "(" t=typ ")"                               {`Exists ($loc, t)}
-  | "∀" "(" t=typ ")"                               {`ForAll ($loc, t)}
+  | "∃" "(" t=typ ")"                               {`For ($loc, `Unk, t)}
+  | "∀" "(" t=typ ")"                               {`For ($loc, `All, t)}
   | "import" p=path                                 {`Import p}
 
 typ_tick:
@@ -237,8 +237,8 @@ typ_lam(head):
 typ:
   | t=typ_arr k=pre(":", kind)?                     {Annot.opt Kind.at k t}
   | t=typ_lam("μ")                                  {`Mu ($loc, t)}
-  | t=typ_lam("∃")                                  {`Exists ($loc, t)}
-  | t=typ_lam("∀")                                  {`ForAll ($loc, t)}
+  | t=typ_lam("∃")                                  {`For ($loc, `Unk, t)}
+  | t=typ_lam("∀")                                  {`For ($loc, `All, t)}
   | t=typ_lam("λ")                                  {t}
   | d=typ_def "in" t=typ                            {`Let ($loc, d, t)}
 

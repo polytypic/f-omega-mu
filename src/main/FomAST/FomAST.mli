@@ -123,9 +123,8 @@ module Typ : sig
       | `Var of Loc.t * Var.t
       | `Lam of Loc.t * Var.t * 'k * 't
       | `App of Loc.t * 't * 't
-      | `ForAll of Loc.t * 't
-      | `Exists of Loc.t * 't
       | `Arrow of Loc.t * 't * 't
+      | `For of Loc.t * [`All | `Unk] * 't
       | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
 
     type t = (t, Kind.t) f

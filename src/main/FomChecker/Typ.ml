@@ -41,8 +41,7 @@ let rec kind_of = function
     let+ r_kind = kind_of r |> VarMap.adding d @@ `Kind d_kind in
     `Arrow (at', d_kind, r_kind)
   | `App (_, f, _) -> kind_of_cod f
-  | `ForAll (at', _) | `Exists (at', _) | `Arrow (at', _, _) | `Row (at', _, _)
-    ->
+  | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
     return @@ `Star at'
   | `Join (_, l, _) | `Meet (_, l, _) -> kind_of l
 
@@ -64,8 +63,7 @@ module Var = struct
     | `Join (_, _, ((`Mu _ | `Lam _) as t))
     | `Meet (_, _, ((`Mu _ | `Lam _) as t))
     | `Meet (_, ((`Mu _ | `Lam _) as t), _)
-    | `Exists (_, t)
-    | `ForAll (_, t)
+    | `For (_, _, t)
     | `App (_, t, _)
     | `Mu (_, t) ->
       fresh_from t
@@ -187,8 +185,7 @@ let make_sub_and_eq at =
       | `Row (_, `Product, lls), `Row (_, `Product, rls) ->
         subset r l id rls lls
       | `Row (_, `Sum, lls), `Row (_, `Sum, rls) -> subset l r Fun.flip lls rls
-      | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
-        sub l_env r_env l r
+      | `For (_, l_q, l), `For (_, r_q, r) when l_q = r_q -> sub l_env r_env l r
       | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
         let v, l_env, r_env =
           if Var.equal li ri then
@@ -211,7 +208,7 @@ let make_sub_and_eq at =
           match k_opt with
           | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
           | _ -> fail @@ `Error_typ_var_unbound (at, lf))
-        | _, (`ForAll (at, rf), _) ->
+        | _, (`For (at, `All, rf), _) ->
           let i, _ = Var.fresh_from (rf :> t) in
           let k = Kind.fresh at in
           let r = Core.app_of_norm at rf @@ var i in
@@ -299,9 +296,9 @@ and classify t =
   | `Var _, _ -> return None
   | `Const (_, c), _ -> return @@ Some (`Const c)
   | `Lam _, _ -> return @@ Some `Lam
-  | `ForAll _, _ -> return @@ Some `ForAll
-  | `Exists _, _ -> return @@ Some `Exists
   | `Arrow _, _ -> return @@ Some `Arrow
+  | `For (_, q, _), _ ->
+    return @@ Some (match q with `All -> `All | `Unk -> `Unk)
   | `Row (_, m, _), _ ->
     return @@ Some (match m with `Product -> `Product | `Sum -> `Sum)
   | `Join (_, l, r), _ | `Meet (_, l, r), _ -> (
@@ -347,10 +344,8 @@ and join_or_meet_of_norm con lower upper sum product at' l r =
       in
       Kind.unify at' lk rk >> upper lt rt |> VarMap.adding i @@ `Kind lk
       >>- fun t -> `Lam (at', i, lk, t)
-    | `ForAll (_, lt), `ForAll (_, rt) ->
-      upper lt rt >>- fun t -> `ForAll (at', t)
-    | `Exists (_, lt), `Exists (_, rt) ->
-      upper lt rt >>- fun t -> `Exists (at', t)
+    | `For (_, q, lt), `For (_, q', rt) when q = q' ->
+      upper lt rt >>- fun t -> `For (at', q, t)
     | _ -> (
       let problem = con (at', l, r) in
       match (unapp l, unapp r) with
@@ -502,8 +497,11 @@ let rec infer = function
     let c_kind = Kind.fresh at' in
     Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
     >> (app_of_norm at' f x <*> return c_kind)
-  | `ForAll (at', f) -> infer_quantifier at' f @@ fun at' f -> `ForAll (at', f)
-  | `Exists (at', f) -> infer_quantifier at' f @@ fun at' f -> `Exists (at', f)
+  | `For (at', q, f) ->
+    let* f, f_kind = infer f in
+    let d_kind = Kind.fresh at' and c_kind = `Star at' in
+    Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
+    >> return (`For (at', q, f), c_kind)
   | `Arrow (at', d, c) ->
     let star = `Star at' in
     check star d <*> check star c >>- fun (d, c) -> (`Arrow (at', d, c), star)
@@ -514,12 +512,6 @@ let rec infer = function
   | (`Join (at', l, r) | `Meet (at', l, r)) as t ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
     Kind.unify at' lk rk >> (jm_op_of t l r <*> return lk)
-
-and infer_quantifier at' f con =
-  let* f, f_kind = infer f in
-  let d_kind = Kind.fresh at' and c_kind = `Star at' in
-  Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
-  >> return (con at' f, c_kind)
 
 and check expected t =
   let* t, actual = infer t in

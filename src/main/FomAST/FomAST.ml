@@ -204,9 +204,8 @@ module Typ = struct
       | `Var of Loc.t * Var.t
       | `Lam of Loc.t * Var.t * 'k * 't
       | `App of Loc.t * 't * 't
-      | `ForAll of Loc.t * 't
-      | `Exists of Loc.t * 't
       | `Arrow of Loc.t * 't * 't
+      | `For of Loc.t * [`All | `Unk] * 't
       | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
 
     type t = (t, Kind.t) f
@@ -217,8 +216,7 @@ module Typ = struct
       | `Var (l, i) -> fl l >>- fun l -> `Var (l, i)
       | `Lam (l, i, k, t) -> fl l <*> ft t >>- fun (l, t) -> `Lam (l, i, k, t)
       | `App (l, f, x) -> tuple'3 (fl l) (ft f) (ft x) >>- fun x -> `App x
-      | `ForAll (l, t) -> fl l <*> ft t >>- fun x -> `ForAll x
-      | `Exists (l, t) -> fl l <*> ft t >>- fun x -> `Exists x
+      | `For (l, q, t) -> fl l <*> ft t >>- fun (l, t) -> `For (l, q, t)
       | `Arrow (l, d, c) -> tuple'3 (fl l) (ft d) (ft c) >>- fun x -> `Arrow x
       | `Row (l, m, ls) -> fl l <*> row ft ls >>- fun (l, ls) -> `Row (l, m, ls)
 
@@ -240,9 +238,8 @@ module Typ = struct
       | `Var l, `Var r -> eq'2 l r
       | `Lam l, `Lam r -> eq'4 l r
       | `App l, `App r -> eq'3 l r
-      | `ForAll l, `ForAll r -> eq'2 l r
-      | `Exists l, `Exists r -> eq'2 l r
       | `Arrow l, `Arrow r -> eq'3 l r
+      | `For l, `For r -> eq'3 l r
       | `Row l, `Row r -> eq'3 l r
       | _ -> false
 
@@ -435,8 +432,7 @@ module Typ = struct
     | `Var _ -> `Var
     | `Lam _ -> `Lam
     | `App _ -> `App
-    | `ForAll _ -> `ForAll
-    | `Exists _ -> `Exists
+    | `For _ -> `For
     | `Arrow _ -> `Arrow
     | `Row _ -> `Row
     | `Join _ -> `Join
@@ -459,8 +455,8 @@ module Typ = struct
         compare (VarMap.add l_i v l_env) (VarMap.add r_i v r_env) l_t r_t
     | `App (_, l_f, l_x), `App (_, r_f, r_x) ->
       compare l_env r_env l_x r_x <>? fun () -> compare l_env r_env l_f r_f
-    | `ForAll (_, l), `ForAll (_, r) | `Exists (_, l), `Exists (_, r) ->
-      compare l_env r_env l r
+    | `For (_, l_q, l_t), `For (_, r_q, r_t) ->
+      Stdlib.compare l_q r_q <>? fun () -> compare l_env r_env l_t r_t
     | `Arrow (_, l_d, l_c), `Arrow (_, r_d, r_c) ->
       compare l_env r_env l_d r_d <>? fun () -> compare l_env r_env l_c r_c
     | `Row (_, l_m, l_ls), `Row (_, r_m, r_ls) ->

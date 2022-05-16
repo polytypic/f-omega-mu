@@ -31,27 +31,13 @@ module Typ : sig
   val pp :
     ?hr:bool ->
     ?pp_annot:(FomAST.Kind.t -> document) ->
-    ([< ('t, FomAST.Kind.t) FomAST.Typ.f > `App
-     `Const
-     `Exists
-     `ForAll
-     `Lam
-     `Mu
-     `Row
-     `Var ]
+    ([< ('t, FomAST.Kind.t) FomAST.Typ.f > `App `Const `For `Lam `Mu `Row `Var]
      as
      't) ->
     document
 
   val to_string :
-    ([< ('t, FomAST.Kind.t) FomAST.Typ.f > `App
-     `Const
-     `Exists
-     `ForAll
-     `Lam
-     `Mu
-     `Row
-     `Var ]
+    ([< ('t, FomAST.Kind.t) FomAST.Typ.f > `App `Const `For `Lam `Mu `Row `Var]
      as
      't) ->
     string

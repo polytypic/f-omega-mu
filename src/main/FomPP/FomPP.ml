@@ -86,12 +86,13 @@ module Typ = struct
   }
 
   let rec hanging = function
-    | `Lam _ | `Mu (_, `Lam _) | `ForAll (_, `Lam _) | `Exists (_, `Lam _) ->
-      some_spaces
+    | `Lam _ | `Mu (_, `Lam _) | `For (_, _, `Lam _) -> some_spaces
     | `Row (_, `Product, _) -> some_spaces
     | `App _ as t -> (
       match FomAST.Typ.unapp t with `Var _, [x] -> hanging x | _ -> None)
     | _ -> None
+
+  let symbol_of = function `All -> for_all | `Unk -> exists | `Mu -> mu_lower
 
   let binding config prec_outer head i k t =
     (group (head ^^ Var.pp i ^^ config.pp_annot k ^^ dot |> nest 2)
@@ -101,10 +102,11 @@ module Typ = struct
     | None -> gnest 2 (break_0 ^^ group (config.pp config prec_min t)))
     |> if prec_min < prec_outer then egyptian parens 2 else id
 
-  let quantifier config prec_outer symbol typ =
+  let quantifier config prec_outer q typ =
     match typ with
-    | `Lam (_, id, kind, body) -> binding config prec_outer symbol id kind body
-    | _ -> symbol ^^ egyptian parens 2 (config.pp config prec_min typ)
+    | `Lam (_, id, kind, body) ->
+      binding config prec_outer (symbol_of q) id kind body
+    | _ -> symbol_of q ^^ egyptian parens 2 (config.pp config prec_min typ)
 
   let labeled config labels =
     labels
@@ -162,9 +164,8 @@ module Typ = struct
     | `Var (_, id) -> Var.pp ~hr:config.hr id
     | `Lam (_, id, kind, body) ->
       binding config prec_outer lambda_lower id kind body
-    | `Mu (_, typ) -> quantifier config prec_outer mu_lower typ
-    | `ForAll (_, typ) -> quantifier config prec_outer FomPPrint.for_all typ
-    | `Exists (_, typ) -> quantifier config prec_outer FomPPrint.exists typ
+    | `Mu (_, typ) -> quantifier config prec_outer `Mu typ
+    | `For (_, q, typ) -> quantifier config prec_outer q typ
     | `Arrow (_, dom, cod) ->
       config.pp config (prec_arrow + 1) dom
       ^^ (match hanging cod with

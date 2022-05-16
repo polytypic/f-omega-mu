@@ -62,7 +62,7 @@ module Typ = struct
 
   let check_for_all at typ =
     match Core.unfold_of_norm typ with
-    | `ForAll (_, f_con) -> (
+    | `For (_, `All, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
       | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
@@ -71,7 +71,7 @@ module Typ = struct
 
   let check_exists at typ =
     match Core.unfold_of_norm typ with
-    | `Exists (_, f_con) -> (
+    | `For (_, `Unk, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
       | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
@@ -84,7 +84,7 @@ let cannot_be_for_all = function
   | `Product _ ->
     true
   | `Const (at', c) -> (
-    match Const.type_of at' c with `ForAll _ -> false | _ -> true)
+    match Const.type_of at' c with `For (_, `All, _) -> false | _ -> true)
   | _ -> false
 
 let rec infer = function
@@ -134,7 +134,7 @@ let rec infer = function
     let* r, r_typ = infer r |> Typ.VarMap.adding d @@ `Kind d_kind in
     let+ d_kind = Kind.resolve d_kind >>- Kind.ground in
     ( `Gen (at', d, d_kind, r),
-      `ForAll (at', Typ.Core.lam_of_norm at' d d_kind r_typ) )
+      `For (at', `All, Typ.Core.lam_of_norm at' d d_kind r_typ) )
   | `Inst (at', f, x_typ) ->
     let* f, f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
@@ -228,7 +228,7 @@ let rec infer = function
 
 and check a e =
   match Typ.Core.unfold_of_norm a with
-  | `ForAll _ when cannot_be_for_all e ->
+  | `For (_, `All, _) when cannot_be_for_all e ->
     let at' = at e in
     check a
     @@ `Gen (at', fst (Typ.Var.fresh_from (a :> Typ.t)), Kind.fresh at', e)
