@@ -302,10 +302,9 @@ and classify t =
   | `Const (_, c), _ -> return @@ Some (`Const c)
   | `Lam _, _ -> return @@ Some `Lam
   | `Arrow _, _ -> return @@ Some `Arrow
-  | `For (_, q, _), _ ->
-    return @@ Some (match q with `All -> `All | `Unk -> `Unk)
+  | `For (_, q, _), _ -> return @@ Some (q : [`All | `Unk] :> [> `All | `Unk])
   | `Row (_, m, _), _ ->
-    return @@ Some (match m with `Product -> `Product | `Sum -> `Sum)
+    return @@ Some (m : [`Product | `Sum] :> [> `Product | `Sum])
   | `Bop (_, _, l, r), _ -> (
     classify l >>= function None -> classify r | some -> return some)
   | `App _, _ -> failwith "classify"
