@@ -14,7 +14,7 @@ module Env : sig
     ?typ_includes:TypIncludes.t ->
     unit ->
     (< 'r Annot.f
-     ; 'r Exp.VarMap.f
+     ; 'r Exp.VarEnv.f
      ; 'r ExpImports.f
      ; 'r Fetch.f
      ; 'r ImportChain.f
@@ -22,7 +22,7 @@ module Env : sig
      ; 'r ModInJs.f
      ; 'r ModSimplified.f
      ; 'r Parameters.f
-     ; ('t, 'r) Typ.VarMap.f
+     ; ('t, 'r) Typ.VarEnv.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; 'r Typ.Solved.f >

@@ -230,7 +230,7 @@ end
 module Elab = struct
   let modularly op =
     op
-    |> Typ.VarMap.resetting_to Typ.initial_env
+    |> Typ.VarEnv.resetting_to Typ.initial_env
     |> Kind.UnkEnv.resetting |> Parameters.resetting
     |> map_error @@ fun (#Error.t as e) -> e
 end
@@ -239,7 +239,7 @@ end
 
 let to_avoid_capture i =
   let+ exists =
-    Typ.VarMap.existing (fun _ -> function
+    Typ.VarEnv.existing (fun _ -> function
       | `Typ t' -> Typ.is_free i t' | _ -> false)
   in
   if exists then
@@ -257,7 +257,7 @@ let rec to_avoid_captures = function
 let avoid i inn =
   let* i, avoiding = to_avoid_capture i in
   inn i
-  |> Typ.VarMap.merging (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+  |> Typ.VarEnv.merging (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 (* *)
 
@@ -319,9 +319,9 @@ let rec elaborate_typ_def = function
              let at' = Typ.Var.at i in
              let+ t = elaborate_typ t in
              (i, `Mu (at', `Lam (at', i, k, t))))
-      |> Typ.VarMap.merging
+      |> Typ.VarEnv.merging
            (bs |> List.map (fun (i, k, _) -> (i, `Kind k)) |> Typ.VarMap.of_list)
-      |> Typ.VarMap.merging (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+      |> Typ.VarEnv.merging (avoiding :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
     in
     assoc
     |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
@@ -348,15 +348,15 @@ and elaborate_typ_defs accum = function
   | `In (_, d, ds) ->
     let* d = elaborate_typ_def d in
     elaborate_typ_defs (Typ.VarMap.merge Map.prefer_rhs accum d) ds
-    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+    |> Typ.VarEnv.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `LocalIn (_, d, ds) ->
     let* d = elaborate_typ_def d in
     elaborate_typ_defs accum ds
-    |> Typ.VarMap.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+    |> Typ.VarEnv.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 and elaborate_typ = function
   | `Var (at', i) as inn -> (
-    let* t_opt = Typ.VarMap.find_opt i in
+    let* t_opt = Typ.VarEnv.find_opt i in
     match t_opt with
     | Some (`Typ t) ->
       let t = Typ.freshen t in
@@ -366,12 +366,12 @@ and elaborate_typ = function
   | `Lam (at', i, k, t) ->
     avoid i @@ fun i ->
     let k = Kind.set_at (Typ.Var.at i) k in
-    Annot.Typ.def i k >> elaborate_typ t |> Typ.VarMap.adding i @@ `Kind k
+    Annot.Typ.def i k >> elaborate_typ t |> Typ.VarEnv.adding i @@ `Kind k
     >>- fun t -> `Lam (at', i, k, t)
   | `Let (_, def, e) ->
     let* typ_aliases = elaborate_typ_def def in
     elaborate_typ e
-    |> Typ.VarMap.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
+    |> Typ.VarEnv.merging (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
   | `Annot (at', t, k) ->
     elaborate_typ t
     >>- annot at' (Typ.Var.of_string at' "_Annot" |> Typ.Var.freshen) k
@@ -398,7 +398,7 @@ let rec elaborate = function
   | `Gen (at, i, k, e) ->
     avoid i @@ fun i ->
     let k = Kind.set_at (Typ.Var.at i) k in
-    Annot.Typ.def i k >> elaborate e |> Typ.VarMap.adding i @@ `Kind k
+    Annot.Typ.def i k >> elaborate e |> Typ.VarEnv.adding i @@ `Kind k
     >>- fun e -> `Gen (at, i, k, e)
   | `Inst (at, e, t) ->
     elaborate e <*> elaborate_typ t >>- fun (e, t) -> `Inst (at, e, t)
@@ -412,7 +412,7 @@ let rec elaborate = function
     | #FomCST.Typ.Def.f as def ->
       let* typ_aliases = elaborate_typ_def def in
       elaborate e
-      |> Typ.VarMap.merging
+      |> Typ.VarEnv.merging
            (typ_aliases :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
     | `PatPar [(p, v)] -> (
       let* v = elaborate v in
@@ -420,7 +420,7 @@ let rec elaborate = function
       | `Var (_, i) -> elaborate e >>- fun e -> `App (at, `LamImp (at, i, e), v)
       | `Pack (_, `Var (_, ei), ti, k) ->
         avoid ti @@ fun ti ->
-        Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
+        Annot.Typ.def ti k >> elaborate e |> Typ.VarEnv.adding ti @@ `Kind k
         >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
       | p ->
         let* t_opt =
@@ -459,7 +459,7 @@ let rec elaborate = function
     let* v = elaborate v in
     avoid ti @@ fun ti ->
     let k = Kind.set_at (Typ.Var.at ti) k in
-    Annot.Typ.def ti k >> elaborate e |> Typ.VarMap.adding ti @@ `Kind k
+    Annot.Typ.def ti k >> elaborate e |> Typ.VarEnv.adding ti @@ `Kind k
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LamPat (at, p, e) ->
     let* t_opt =

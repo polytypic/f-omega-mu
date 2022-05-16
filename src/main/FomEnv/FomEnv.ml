@@ -11,7 +11,7 @@ module Env = struct
       ?(typ_includes = TypIncludes.create ()) () =
     object
       inherit Annot.con annot
-      inherit Exp.VarMap.con
+      inherit Exp.VarEnv.con
       inherit ExpImports.con exp_imports
       inherit Fetch.con fetch
       inherit ImportChain.con
@@ -20,7 +20,7 @@ module Env = struct
       inherit ModSimplified.con mod_simplified
       inherit Parameters.con
       inherit Typ.Solved.con
-      inherit [_] Typ.VarMap.con
+      inherit [_] Typ.VarEnv.con
       inherit TypImports.con typ_imports
       inherit TypIncludes.con typ_includes
     end

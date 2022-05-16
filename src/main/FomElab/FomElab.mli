@@ -112,7 +112,7 @@ val elaborate_typ :
      ; 'r ImportChain.f
      ; 'r Kind.UnkEnv.f
      ; 'r Parameters.f
-     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarMap.f
+     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarEnv.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; 'r Typ.Solved.f
@@ -126,13 +126,13 @@ val elaborate_typ :
 val elaborate :
   FomCST.Exp.t ->
   ( (< 'r Annot.f
-     ; 'r Exp.VarMap.f
+     ; 'r Exp.VarEnv.f
      ; 'r ExpImports.f
      ; 'r Fetch.f
      ; 'r ImportChain.f
      ; 'r Kind.UnkEnv.f
      ; 'r Parameters.f
-     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarMap.f
+     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarEnv.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; 'r Typ.Solved.f

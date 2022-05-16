@@ -7,21 +7,19 @@ include FomAST.Typ
 
 (* *)
 
-module VarMap = struct
-  include VarMap
-
-  type ('t, 'r) m = ('t t, 'r) Field.t
+module VarEnv = struct
+  type ('t, 'r) m = ('t VarMap.t, 'r) Field.t
 
   let field r = r#typ_env
-  let find_opt i = get_as field @@ find_opt i
-  let existing pr = get_as field @@ exists pr
+  let find_opt i = get_as field @@ VarMap.find_opt i
+  let existing pr = get_as field @@ VarMap.exists pr
   let resetting_to initial op = setting field initial op
-  let adding i v = mapping field @@ add i v
-  let merging env = mapping field (merge Map.prefer_lhs env)
+  let adding i v = mapping field @@ VarMap.add i v
+  let merging env = mapping field (VarMap.merge Map.prefer_lhs env)
 
   class ['t] con =
     object
-      val typ_env = empty
+      val typ_env = VarMap.empty
       method typ_env : ('t, _) m = Field.make typ_env (fun v -> {<typ_env = v>})
     end
 
@@ -34,11 +32,11 @@ let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> (
-    VarMap.find_opt i >>- function
+    VarEnv.find_opt i >>- function
     | Some (`Kind i_kind) -> i_kind
     | _ -> failwithf "kind_of %s" @@ Var.to_string i)
   | `Lam (at', i, d, t) ->
-    kind_of t |> VarMap.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
+    kind_of t |> VarEnv.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
   | `App (_, f, _) -> kind_of_cod f
   | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
     return @@ `Star at'
@@ -204,7 +202,7 @@ let make_sub_and_eq at =
             (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
         in
         Kind.unify at lk rk
-        >> VarMap.adding v (`Kind lk) (sub l_env r_env lt rt)
+        >> VarEnv.adding v (`Kind lk) (sub l_env r_env lt rt)
       | _ -> (
         match (unapp l, unapp r) with
         | ((`Mu (la, lf) as lmu), lxs), _ ->
@@ -213,7 +211,7 @@ let make_sub_and_eq at =
           sub l_env r_env l (Core.unfold ra rf rmu rxs)
         | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
           when Var.equal lf rf && List.length lxs = List.length rxs -> (
-          let* k_opt = VarMap.find_opt lf in
+          let* k_opt = VarEnv.find_opt lf in
           match k_opt with
           | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
           | _ -> fail @@ `Error_typ_var_unbound (at, lf))
@@ -223,7 +221,7 @@ let make_sub_and_eq at =
           let r = Core.app_of_norm at rf @@ var i in
           kind_of rf
           >>= Kind.unify at @@ `Arrow (at, k, `Star at)
-          >> VarMap.adding i (`Kind k) (sub l_env r_env l r)
+          >> VarEnv.adding i (`Kind k) (sub l_env r_env l r)
         | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
     else unit
   and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
@@ -297,7 +295,7 @@ and classify t =
   | (`Mu (at', f) as mu), xs ->
     let mu', _ = Var.fresh_from f in
     let* k = kind_of mu in
-    unfold at' f (var mu') xs >>= classify |> VarMap.adding mu' @@ `Kind k
+    unfold at' f (var mu') xs >>= classify |> VarEnv.adding mu' @@ `Kind k
   | `Var _, _ -> return None
   | `Const (_, c), _ -> return @@ Some (`Const c)
   | `Lam _, _ -> return @@ Some `Lam
@@ -346,7 +344,7 @@ and bop_of_norm o at' l r =
           (i, lt, rt)
       in
       Kind.unify at' lk rk >> bop_of_norm o at' lt rt
-      |> VarMap.adding i @@ `Kind lk
+      |> VarEnv.adding i @@ `Kind lk
       >>- fun t -> `Lam (at', i, lk, t)
     | `For (_, q, lt), `For (_, q', rt) when q = q' ->
       bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
@@ -369,7 +367,7 @@ and subst_of_norm env t =
   let+ t' =
     match t with
     | `Var (_, i) as inn ->
-      FomAST.Typ.VarMap.find_opt i env |> Option.value ~default:inn |> return
+      VarMap.find_opt i env |> Option.value ~default:inn |> return
     | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
@@ -380,7 +378,7 @@ and subst_of_norm env t =
         let+ t' = subst_of_norm (VarMap.add i v' env) t in
         lam_of_norm at i' k t'
       else
-        subst_of_norm env t |> VarMap.adding i @@ `Kind k >>- lam_of_norm at i k
+        subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>- lam_of_norm at i k
     | `App (at, f, x) ->
       subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
       app_of_norm at f x
@@ -477,11 +475,11 @@ let rec infer = function
        >> (mu_of_norm at' f <*> return kind)
   | `Const (at', c) as t -> return @@ (t, Const.kind_of at' c)
   | `Var (at', i) as t -> (
-    VarMap.find_opt i >>= function
+    VarEnv.find_opt i >>= function
     | Some (`Kind i_kind) -> return (t, i_kind)
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
-    let+ r, r_kind = infer r |> VarMap.adding d @@ `Kind d_kind
+    let+ r, r_kind = infer r |> VarEnv.adding d @@ `Kind d_kind
     and+ d_kind = Kind.resolve d_kind in
     (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
   | `App (at', f, x) ->
