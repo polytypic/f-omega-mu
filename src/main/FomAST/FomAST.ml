@@ -268,29 +268,24 @@ module Typ = struct
       | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
       | f' -> `App (at, f', x')
 
-    and subst_of_norm env t =
-      let subst_of_norm' subst_of_norm env = function
-        | `Var (_, i) as inn -> (
-          match VarMap.find_opt i env with None -> inn | Some t -> t)
-        | `Mu (at, t) -> mu_of_norm at (subst_of_norm env t)
-        | `Lam (at, i, k, t) as inn ->
-          let env = VarMap.remove i env in
-          if VarMap.is_empty env then inn
-          else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env
-          then
-            let i' = Var.freshen i in
-            let v' = `Var (at, i') in
-            let t' = subst_of_norm (VarMap.add i v' env) t in
-            lam_of_norm at i' k t'
-          else lam_of_norm at i k (subst_of_norm env t)
-        | `App (at, f, x) ->
-          app_of_norm at (subst_of_norm env f) (subst_of_norm env x)
-        | t -> map_eq (subst_of_norm env) t
-      in
-      let rec subst_of_norm env =
-        keep_phys_eq @@ subst_of_norm' subst_of_norm env
-      in
-      if VarMap.is_empty env then t else subst_of_norm env t
+    and subst_of_norm env =
+      keep_phys_eq @@ function
+      | `Var (_, i) as inn -> (
+        match VarMap.find_opt i env with None -> inn | Some t -> t)
+      | `Mu (at, t) -> mu_of_norm at (subst_of_norm env t)
+      | `Lam (at, i, k, t) as inn ->
+        let env = VarMap.remove i env in
+        if VarMap.is_empty env then inn
+        else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env
+        then
+          let i' = Var.freshen i in
+          let v' = `Var (at, i') in
+          let t' = subst_of_norm (VarMap.add i v' env) t in
+          lam_of_norm at i' k t'
+        else lam_of_norm at i k (subst_of_norm env t)
+      | `App (at, f, x) ->
+        app_of_norm at (subst_of_norm env f) (subst_of_norm env x)
+      | t -> map_eq (subst_of_norm env) t
 
     let apps_of_norm at = List.fold_left @@ app_of_norm at
   end
