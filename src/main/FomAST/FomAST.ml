@@ -81,6 +81,7 @@ module Kind = struct
 
   let keep_phys_eq' k k' = if k == k' || eq k k' then k else k'
   let keep_phys_eq fn k = keep_phys_eq' k (fn k)
+  let keep_phys_eq_fr fn k = fn k >>- keep_phys_eq' k
 
   (* *)
 
@@ -245,6 +246,7 @@ module Typ = struct
 
     let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
     let keep_phys_eq fn t = keep_phys_eq' t (fn t)
+    let keep_phys_eq_fr fn t = fn t >>- keep_phys_eq' t
 
     (* *)
 
@@ -365,6 +367,7 @@ module Typ = struct
 
   let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
   let keep_phys_eq fn t = keep_phys_eq' t (fn t)
+  let keep_phys_eq_fr fn t = fn t >>- keep_phys_eq' t
 
   (* *)
 

@@ -52,6 +52,7 @@ module Kind : sig
 
   val keep_phys_eq' : t -> t -> t
   val keep_phys_eq : (t -> t) -> t -> t
+  val keep_phys_eq_fr : (t -> ('f, 'F, t) Functor.fr) uop
 end
 
 module Label : sig
@@ -154,6 +155,9 @@ module Typ : sig
     val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
     val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
 
+    val keep_phys_eq_fr :
+      (([> ('t, 'k) f] as 't) -> ('f, 'F, 't) Functor.fr) uop
+
     (* *)
 
     val is_free : Var.t -> t -> bool
@@ -235,6 +239,7 @@ module Typ : sig
 
   val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
   val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
+  val keep_phys_eq_fr : (([> ('t, 'k) f] as 't) -> ('f, 'F, 't) Functor.fr) uop
 
   (* *)
 

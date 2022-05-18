@@ -4,21 +4,19 @@ open FomBasis
 include FomAST.Kind
 
 let rec resolve k =
-  let+ k' =
-    match k with
-    | `Star _ as k -> return k
-    | `Arrow (at', d, c) ->
-      let+ d' = resolve d and+ c' = resolve c in
-      `Arrow (at', d', c')
-    | `Unk (_, v) as k -> (
-      let* k_opt = UnkEnv.find_opt v in
-      match k_opt with
-      | None -> return k
-      | Some k ->
-        let* k' = resolve k in
-        if k == k' then return k else UnkEnv.add v k' >> return k')
-  in
-  keep_phys_eq' k k'
+  k
+  |> keep_phys_eq_fr @@ function
+     | `Star _ as k -> return k
+     | `Arrow (at', d, c) ->
+       let+ d' = resolve d and+ c' = resolve c in
+       `Arrow (at', d', c')
+     | `Unk (_, v) as k -> (
+       let* k_opt = UnkEnv.find_opt v in
+       match k_opt with
+       | None -> return k
+       | Some k ->
+         let* k' = resolve k in
+         if k == k' then return k else UnkEnv.add v k' >> return k')
 
 let rec ground k =
   k

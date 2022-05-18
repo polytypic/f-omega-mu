@@ -102,13 +102,11 @@ module Core = struct
   (* *)
 
   let rec resolve t =
-    let+ t' =
-      match t with
-      | `Lam (at', d, k, t) ->
-        Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
-      | t -> map_eq_fr resolve t
-    in
-    keep_phys_eq' t t'
+    t
+    |> keep_phys_eq_fr @@ function
+       | `Lam (at', d, k, t) ->
+         Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
+       | t -> map_eq_fr resolve t
 end
 
 module GoalSet = Set.Make (struct
@@ -251,24 +249,23 @@ let rec mu_of_norm at = function
     if compare f f' = 0 then return @@ `Mu (at, f) else mu_of_norm at f'
   | f -> return @@ `Mu (at, f)
 
-and unfold_at_jms x f = function
+and unfold_at_jms x f =
+  keep_phys_eq_fr @@ function
   | #Core.f as t -> map_eq_fr (unfold_at_jms x f) t
-  | `Bop (at', o, l, r) as t ->
+  | `Bop (at', o, l, r) as t -> (
     let* l = unfold_at_jms x f l and* r = unfold_at_jms x f r in
     let op = bop_of_norm o at' in
-    let+ t' =
-      match (unapp l, unapp r) with
-      | (`Var (_, lf), lxs), _ when Var.equal lf x ->
-        apps_of_norm at' f lxs >>= fun l ->
-        op l r >>= unfold_at_jms x f |> memoing t
-      | _, (`Var (_, rf), rxs) when Var.equal rf x ->
-        apps_of_norm at' f rxs >>= fun r ->
-        op l r >>= unfold_at_jms x f |> memoing t
-      | _ -> op l r
-    in
-    keep_phys_eq' t t'
+    match (unapp l, unapp r) with
+    | (`Var (_, lf), lxs), _ when Var.equal lf x ->
+      apps_of_norm at' f lxs >>= fun l ->
+      op l r >>= unfold_at_jms x f |> memoing t
+    | _, (`Var (_, rf), rxs) when Var.equal rf x ->
+      apps_of_norm at' f rxs >>= fun r ->
+      op l r >>= unfold_at_jms x f |> memoing t
+    | _ -> op l r)
 
-and drop_legs x = function
+and drop_legs x =
+  keep_phys_eq_fr @@ function
   | `Bop (at', o, l, r) ->
     let* r = drop_legs x r in
     if compare x l = 0 then return r
@@ -363,31 +360,28 @@ and bop_of_norm o at' l r =
         | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
         | _ -> return problem))
 
-and subst_of_norm env t =
-  let+ t' =
-    match t with
-    | `Var (_, i) as inn ->
-      VarMap.find_opt i env |> Option.value ~default:inn |> return
-    | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
-    | `Lam (at, i, k, t) as inn ->
-      let env = VarMap.remove i env in
-      if VarMap.is_empty env then return inn
-      else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
-        let i' = Var.freshen i in
-        let v' = `Var (at, i') in
-        let+ t' = subst_of_norm (VarMap.add i v' env) t in
-        lam_of_norm at i' k t'
-      else
-        subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>- lam_of_norm at i k
-    | `App (at, f, x) ->
-      subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
-      app_of_norm at f x
-    | `Bop (at', o, l, r) ->
-      subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
-      bop_of_norm o at' l r
-    | t -> map_eq_fr (subst_of_norm env) t
-  in
-  keep_phys_eq' t t'
+and subst_of_norm env =
+  keep_phys_eq_fr @@ function
+  | `Var (_, i) as inn ->
+    VarMap.find_opt i env |> Option.value ~default:inn |> return
+  | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
+  | `Lam (at, i, k, t) as inn ->
+    let env = VarMap.remove i env in
+    if VarMap.is_empty env then return inn
+    else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
+      let i' = Var.freshen i in
+      let v' = `Var (at, i') in
+      let+ t' = subst_of_norm (VarMap.add i v' env) t in
+      lam_of_norm at i' k t'
+    else
+      subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>- lam_of_norm at i k
+  | `App (at, f, x) ->
+    subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
+    app_of_norm at f x
+  | `Bop (at', o, l, r) ->
+    subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
+    bop_of_norm o at' l r
+  | t -> map_eq_fr (subst_of_norm env) t
 
 (* *)
 
@@ -448,13 +442,11 @@ let find_opt_non_contractive_mu at f arity =
 (* *)
 
 let rec resolve t =
-  let+ t' =
-    match t with
-    | `Lam (at', d, k, t) ->
-      Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
-    | t -> map_eq_fr resolve t
-  in
-  keep_phys_eq' t t'
+  t
+  |> keep_phys_eq_fr @@ function
+     | `Lam (at', d, k, t) ->
+       Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
+     | t -> map_eq_fr resolve t
 
 (* *)
 
