@@ -18,6 +18,7 @@ module Kind = struct
 
   module UnkEnv = struct
     type 'r m = (t UnkMap.t MVar.t, 'r) Field.t
+    type 'r f = < kind_env : 'r m >
 
     let empty () = MVar.create UnkMap.empty
     let field r : _ m = r#kind_env
@@ -31,8 +32,6 @@ module Kind = struct
         val kind_env = empty ()
         method kind_env : _ m = Field.make kind_env (fun v -> {<kind_env = v>})
       end
-
-    type 'r f = < kind_env : 'r m >
   end
 
   let map_at_fr fn = function

@@ -76,6 +76,7 @@ end
 module Fetch = struct
   type e = [Error.file_doesnt_exist | Error.io_error]
   type 'r m = Loc.t -> string -> ('r, e, string) rea
+  type 'r f = < fetch : 'r m >
 
   let dummy at path = fail @@ `Error_file_doesnt_exist (at, path)
   let field r : _ m = r#fetch
@@ -84,8 +85,6 @@ module Fetch = struct
     object (_ : 'r)
       method fetch : 'r m = fetch
     end
-
-  type 'r f = < fetch : 'r m >
 
   let fetch at path =
     invoke (fun r -> field r at path) |> map_error (fun (#e as x) -> x)
@@ -96,6 +95,7 @@ module PathSet = Set.Make (String)
 
 module ImportChain = struct
   type 'r m = (Loc.t PathMap.t, 'r) Field.t
+  type 'r f = < import_chain : 'r m >
 
   let field r : _ m = r#import_chain
 
@@ -113,8 +113,6 @@ module ImportChain = struct
       method import_chain : _ m =
         Field.make import_chain (fun v -> {<import_chain = v>})
     end
-
-  type 'r f = < import_chain : 'r m >
 end
 
 module PathTable = struct
@@ -191,6 +189,7 @@ module Parameters = struct
   include PathSet
 
   type 'r m = (t MVar.t, 'r) Field.t
+  type 'r f = < parameters : 'r m >
 
   let empty () = MVar.create empty
   let field r : _ m = r#parameters
@@ -223,8 +222,6 @@ module Parameters = struct
       method parameters : _ m =
         Field.make parameters (fun v -> {<parameters = v>})
     end
-
-  type 'r f = < parameters : 'r m >
 end
 
 module Elab = struct

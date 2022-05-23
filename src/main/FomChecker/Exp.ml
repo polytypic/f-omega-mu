@@ -10,6 +10,7 @@ include FomAST.Exp
 
 module VarEnv = struct
   type 'r m = ((Var.t * Typ.Core.t) VarMap.t, 'r) Field.t
+  type 'r f = < exp_env : 'r m >
 
   let field r : _ m = r#exp_env
   let adding v t = mapping field @@ VarMap.add v (v, t)
@@ -20,8 +21,6 @@ module VarEnv = struct
       val exp_env = VarMap.empty
       method exp_env : _ m = Field.make exp_env (fun v -> {<exp_env = v>})
     end
-
-  type 'r f = < exp_env : 'r m >
 end
 
 (* *)

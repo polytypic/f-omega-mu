@@ -19,6 +19,7 @@ module Annot = struct
 
   type t = map MVar.t
   type 'r m = (t, 'r) Field.t
+  type 'r f = < annotations : 'r m >
 
   let field r : _ m = r#annotations
   let empty () = MVar.create LocMap.empty
@@ -31,8 +32,6 @@ module Annot = struct
       method annotations : _ m =
         Field.make annotations (fun v -> {<annotations = v>})
     end
-
-  type 'r f = < annotations : 'r m >
 
   let make def uses annot =
     object

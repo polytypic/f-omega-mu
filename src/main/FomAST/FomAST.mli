@@ -17,13 +17,12 @@ module Kind : sig
 
   module UnkEnv : sig
     type 'r m
+    type 'r f = < kind_env : 'r m >
 
     class con :
       object ('r)
         method kind_env : 'r m
       end
-
-    type 'r f = < kind_env : 'r m >
 
     val resetting : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
     val find_opt : Unk.t -> ((< 'r f ; .. > as 'r), 'e, t option) rea
