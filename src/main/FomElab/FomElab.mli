@@ -112,6 +112,7 @@ val elaborate_typ :
      ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarEnv.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
+     ; 'r Typ.Goals.f
      ; 'r Typ.Solved.f
      ; .. >
      as
@@ -132,6 +133,7 @@ val elaborate :
      ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarEnv.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
+     ; 'r Typ.Goals.f
      ; 'r Typ.Solved.f
      ; .. >
      as

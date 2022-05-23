@@ -19,6 +19,7 @@ module Env = struct
       inherit ModInJs.con mod_in_js
       inherit ModSimplified.con mod_simplified
       inherit Parameters.con
+      inherit Typ.Goals.con
       inherit Typ.Solved.con
       inherit [_] Typ.VarEnv.con
       inherit TypImports.con typ_imports

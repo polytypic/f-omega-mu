@@ -116,6 +116,29 @@ module GoalSet = Set.Make (struct
     Core.compare_in_env r_env1 r_env2 r1 r2
 end)
 
+module Goals = struct
+  type 'r m = (GoalSet.t MVar.t, 'r) Field.t
+  type 'r f = < goals : 'r m >
+
+  let empty () = MVar.create GoalSet.empty
+  let field r = r#goals
+  let resetting op = setting field (empty ()) op
+
+  let adding g op =
+    let* added =
+      try_modify field @@ fun gs ->
+      let gs' = GoalSet.add g gs in
+      return (gs', gs != gs')
+    in
+    if added then op () else unit
+
+  class con =
+    object
+      val goals = empty ()
+      method goals : _ m = Field.make goals (fun v -> {<goals = v>})
+    end
+end
+
 (* *)
 
 module Solved = struct
@@ -165,66 +188,68 @@ let inv = function `Join -> `Meet | `Meet -> `Join
 
 (* *)
 
-let make_sub_and_eq at =
-  let goals = ref GoalSet.empty in
-  let rec subset l_env r_env l r flip ls ms =
-    match (ls, ms) with
-    | [], _ -> unit
-    | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at, ll, l, r)
-    | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
-      let c = Label.compare ll ml in
-      if c = 0 then
-        flip (sub l_env r_env) mt lt >> subset l_env r_env l r flip ls ms
-      else if 0 < c then subset l_env r_env l r flip lls ms
-      else fail @@ `Error_label_missing (at, ll, l, r)
-  and sub l_env r_env (l : Core.t) (r : Core.t) =
-    let g = (l_env, r_env, l, r) in
-    if 0 <> Core.compare_in_env l_env r_env l r && not (GoalSet.mem g !goals)
-    then (
-      goals := GoalSet.add g !goals;
-      match (l, r) with
-      | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-        sub r_env l_env rd ld >> sub l_env r_env lc rc
-      | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
-        let flip = match m with `Product -> id | `Sum -> Fun.flip in
-        flip (flip (subset l_env r_env) r l flip) rls lls
-      | `For (_, l_q, l), `For (_, r_q, r) when l_q = r_q -> sub l_env r_env l r
-      | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-        let v, l_env, r_env =
-          if Var.equal li ri then
-            (li, l_env |> VarMap.remove li, r_env |> VarMap.remove ri)
-          else
-            let v = Var.fresh Loc.dummy in
-            (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
-        in
-        Kind.unify at lk rk
-        >> VarEnv.adding v (`Kind lk) (sub l_env r_env lt rt)
-      | _ -> (
-        match (unapp l, unapp r) with
-        | ((`Mu (la, lf) as lmu), lxs), _ ->
-          sub l_env r_env (Core.unfold la lf lmu lxs) r
-        | _, ((`Mu (ra, rf) as rmu), rxs) ->
-          sub l_env r_env l (Core.unfold ra rf rmu rxs)
-        | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
-          when Var.equal lf rf && List.length lxs = List.length rxs -> (
-          let* k_opt = VarEnv.find_opt lf in
-          match k_opt with
-          | Some (`Kind _) -> List.iter2_fr (eq l_env r_env) lxs rxs
-          | _ -> fail @@ `Error_typ_var_unbound (at, lf))
-        | _, (`For (at, `All, rf), _) ->
-          let i, _ = Var.fresh_from (rf :> t) in
-          let k = Kind.fresh at in
-          let r = Core.app_of_norm at rf @@ var i in
-          kind_of rf
-          >>= Kind.unify at @@ `Arrow (at, k, `Star at)
-          >> VarEnv.adding i (`Kind k) (sub l_env r_env l r)
-        | _ -> fail @@ `Error_typ_mismatch (at, (r :> t), (l :> t))))
-    else unit
-  and eq l_env r_env l r = sub l_env r_env l r >> sub r_env l_env r l in
-  (sub, eq)
+let rec subset at' l_env r_env l r flip ls ms =
+  match (ls, ms) with
+  | [], _ -> unit
+  | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
+  | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
+    let c = Label.compare ll ml in
+    if c = 0 then
+      flip (sub at' l_env r_env) mt lt >> subset at' l_env r_env l r flip ls ms
+    else if 0 < c then subset at' l_env r_env l r flip lls ms
+    else fail @@ `Error_label_missing (at', ll, l, r)
 
-let check_sub_of_norm at = fst (make_sub_and_eq at) VarMap.empty VarMap.empty
-let check_equal_of_norm at = snd (make_sub_and_eq at) VarMap.empty VarMap.empty
+and eq at' l_env r_env l r = sub at' l_env r_env l r >> sub at' r_env l_env r l
+
+and sub at' l_env r_env (l : Core.t) (r : Core.t) =
+  let g = (l_env, r_env, l, r) in
+  if Core.compare_in_env l_env r_env l r = 0 then unit
+  else
+    Goals.adding g @@ fun () ->
+    match (l, r) with
+    | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+      sub at' r_env l_env rd ld >> sub at' l_env r_env lc rc
+    | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+      let flip = match m with `Product -> id | `Sum -> Fun.flip in
+      flip (flip (subset at' l_env r_env) r l flip) rls lls
+    | `For (_, l_q, l), `For (_, r_q, r) when l_q = r_q ->
+      sub at' l_env r_env l r
+    | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+      let v, l_env, r_env =
+        if Var.equal li ri then
+          (li, l_env |> VarMap.remove li, r_env |> VarMap.remove ri)
+        else
+          let v = Var.fresh Loc.dummy in
+          (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
+      in
+      Kind.unify at' lk rk
+      >> VarEnv.adding v (`Kind lk) (sub at' l_env r_env lt rt)
+    | _ -> (
+      match (unapp l, unapp r) with
+      | ((`Mu (la, lf) as lmu), lxs), _ ->
+        sub at' l_env r_env (Core.unfold la lf lmu lxs) r
+      | _, ((`Mu (ra, rf) as rmu), rxs) ->
+        sub at' l_env r_env l (Core.unfold ra rf rmu rxs)
+      | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
+        when Var.equal lf rf && List.length lxs = List.length rxs -> (
+        let* k_opt = VarEnv.find_opt lf in
+        match k_opt with
+        | Some (`Kind _) -> List.iter2_fr (eq at' l_env r_env) lxs rxs
+        | _ -> fail @@ `Error_typ_var_unbound (at', lf))
+      | _, (`For (_, `All, rf), _) ->
+        let i, _ = Var.fresh_from (rf :> t) in
+        let k = Kind.fresh at' in
+        let r = Core.app_of_norm at' rf @@ var i in
+        kind_of rf
+        >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
+        >> VarEnv.adding i (`Kind k) (sub at' l_env r_env l r)
+      | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t)))
+
+let check_sub_of_norm at' l r =
+  sub at' VarMap.empty VarMap.empty l r |> Goals.resetting
+
+let check_equal_of_norm at' l r =
+  eq at' VarMap.empty VarMap.empty l r |> Goals.resetting
 
 let rec mu_of_norm at = function
   | `Lam (_, i, _, t) when not (is_free i t) -> return t

@@ -22,10 +22,11 @@ module Env : sig
      ; 'r ModInJs.f
      ; 'r ModSimplified.f
      ; 'r Parameters.f
-     ; ('t, 'r) Typ.VarEnv.f
+     ; 'r Typ.Goals.f
+     ; 'r Typ.Solved.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
-     ; 'r Typ.Solved.f >
+     ; ('t, 'r) Typ.VarEnv.f >
      as
      'r)
 end
