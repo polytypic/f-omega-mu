@@ -79,4 +79,9 @@ module Syntax : sig
     ('r -> ('v MVar.t, 'r) Field.t) ->
     ('v -> ('r, 'e, 'v) rea) ->
     ('r, 'e, unit) rea
+
+  val try_modify :
+    ('r -> ('v MVar.t, 'r) Field.t) ->
+    ('v -> ('r, 'e, 'v * 'a) rea) ->
+    ('r, 'e, 'a) rea
 end

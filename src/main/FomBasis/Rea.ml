@@ -310,4 +310,5 @@ module Syntax = struct
   let read v = get v >>= MVar.read
   let mutate v fn = get v >>= MVar.mutate fn
   let try_mutate v fn = get v >>= MVar.try_mutate fn
+  let try_modify v fn = get v >>= MVar.try_modify fn
 end
