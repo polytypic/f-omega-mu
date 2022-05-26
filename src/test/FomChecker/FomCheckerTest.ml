@@ -355,6 +355,8 @@ let () =
 
     ()
     |};
+  testInfersAs "alpha equivalence" "∃F.∀t.F (∀f.f t)"
+    "μx: ∃F.∀t.F (∀f.f t).x: ∃G.∀u.G (∀g.g u)";
   ()
 
 let testErrors name exp =

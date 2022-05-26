@@ -216,6 +216,7 @@ and sub at' l_env r_env l r =
   if Core.compare_in_env l_env r_env l r = 0 then unit
   else
     Goals.adding g @@ fun () ->
+    let find i env = VarMap.find_opt i env |> Option.value ~default:i in
     match (unapp l, unapp r) with
     | (`Arrow (_, ld, lc), _), (`Arrow (_, rd, rc), _) ->
       sub at' r_env l_env rd ld >> sub at' l_env r_env lc rc
@@ -233,7 +234,8 @@ and sub at' l_env r_env l r =
       Kind.unify at' lk rk
       >> VarEnv.adding v (`Kind lk) (sub at' l_env r_env lt rt)
     | (`Var (_, l), (_ :: _ as lxs)), (`Var (_, r), (_ :: _ as rxs))
-      when Var.equal l r && List.length lxs = List.length rxs ->
+      when Var.equal (find l l_env) (find r r_env)
+           && List.length lxs = List.length rxs ->
       List.iter2_fr (eq at' l_env r_env) lxs rxs
     | ((`Mu (la, lf) as lmu), lxs), _ ->
       Core.unfold la lf lmu lxs >>= fun l -> sub at' l_env r_env l r
