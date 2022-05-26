@@ -227,6 +227,7 @@ module Typ = struct
     let map_eq_fr fn = map_fr' return Row.map_phys_eq_fr fn
     let map_eq fn = Traverse.to_map map_eq_fr fn
     let exists fn = Traverse.to_exists map_fr fn
+    let exists_fr fn = Traverse.to_exists_fr map_fr fn
     let find_map fn = Traverse.to_find_map map_fr fn
 
     (* *)
@@ -250,43 +251,49 @@ module Typ = struct
     (* *)
 
     let rec is_free i = function
-      | `Var (_, i') -> Var.equal i i'
-      | `Lam (_, i', _, body) -> (not (Var.equal i i')) && is_free i body
-      | t -> exists (is_free i) t
+      | `Var (_, i') -> return @@ Var.equal i i'
+      | `Lam (_, i', _, body) ->
+        if Var.equal i i' then return false else is_free i body
+      | t -> exists_fr (is_free i) t
 
     let mu_of_norm at = function
-      | `Lam (_, i, _, t) when not (is_free i t) -> t
-      | t' -> `Mu (at, t')
+      | `Lam (_, i, _, t) as t' -> (
+        is_free i t >>- function false -> t | true -> `Mu (at, t'))
+      | t' -> return @@ `Mu (at, t')
 
     let lam_of_norm at i k = function
-      | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
-      | t' -> `Lam (at, i, k, t')
+      | `App (_, f, `Var (_, i')) as t' when Var.equal i i' -> (
+        is_free i f >>- function true -> `Lam (at, i, k, t') | false -> f)
+      | t' -> return @@ `Lam (at, i, k, t')
 
     let rec app_of_norm at f' x' =
       match f' with
       | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
-      | f' -> `App (at, f', x')
+      | f' -> return @@ `App (at, f', x')
 
     and subst_of_norm env =
-      keep_phys_eq @@ function
-      | `Var (_, i) as inn -> (
-        match VarMap.find_opt i env with None -> inn | Some t -> t)
-      | `Mu (at, t) -> mu_of_norm at (subst_of_norm env t)
-      | `Lam (at, i, k, t) as inn ->
+      keep_phys_eq_fr @@ function
+      | `Var (_, i) as inn ->
+        return (match VarMap.find_opt i env with None -> inn | Some t -> t)
+      | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
+      | `Lam (at, i, k, t) as inn -> (
         let env = VarMap.remove i env in
-        if VarMap.is_empty env then inn
-        else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env
-        then
-          let i' = Var.freshen i in
-          let v' = `Var (at, i') in
-          let t' = subst_of_norm (VarMap.add i v' env) t in
-          lam_of_norm at i' k t'
-        else lam_of_norm at i k (subst_of_norm env t)
+        if VarMap.is_empty env then return inn
+        else
+          VarMap.exists_fr (fun i' t' -> is_free i t' &&& is_free i' t) env
+          >>= function
+          | true ->
+            let i' = Var.freshen i in
+            let v' = `Var (at, i') in
+            let* t' = subst_of_norm (VarMap.add i v' env) t in
+            lam_of_norm at i' k t'
+          | false -> subst_of_norm env t >>= lam_of_norm at i k)
       | `App (at, f, x) ->
-        app_of_norm at (subst_of_norm env f) (subst_of_norm env x)
-      | t -> map_eq (subst_of_norm env) t
+        subst_of_norm env f <*> subst_of_norm env x
+        >>= uncurry @@ app_of_norm at
+      | t -> map_eq_fr (subst_of_norm env) t
 
-    let apps_of_norm at = List.fold_left @@ app_of_norm at
+    let apps_of_norm at = List.fold_left_fr @@ app_of_norm at
   end
 
   type ('t, 'k) f = [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet] * 't * 't]
@@ -352,7 +359,9 @@ module Typ = struct
   let map_eq fn = Traverse.to_map map_eq_fr fn
   let map_reduce plus = Traverse.to_map_reduce map_fr plus
   let exists fn = Traverse.to_exists map_fr fn
+  let exists_fr fn = Traverse.to_exists_fr map_fr fn
   let find_map fn = Traverse.to_find_map map_fr fn
+  let find_map_fr fn = Traverse.to_find_map_fr map_fr fn
 
   (* *)
 
@@ -395,12 +404,11 @@ module Typ = struct
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
-  let rec is_free id = function
-    | `Var (_, id') -> Var.equal id id'
-    | `Lam (_, id', _, body) -> (not (Var.equal id id')) && is_free id body
-    | t -> exists (is_free id) t
-
-  let is_free = Profiling.Counter.wrap'2 "is_free" is_free
+  let rec is_free i = function
+    | `Var (_, i') -> return @@ Var.equal i i'
+    | `Lam (_, i', _, body) ->
+      if Var.equal i i' then return false else is_free i body
+    | t -> exists_fr (is_free i) t
 
   (* Freshening *)
 

@@ -236,8 +236,8 @@ end
 
 let to_avoid_capture i =
   let+ exists =
-    Typ.VarEnv.existing (fun _ -> function
-      | `Typ t' -> Typ.is_free i t' | _ -> false)
+    Typ.VarEnv.existing_fr (fun _ -> function
+      | `Typ t' -> Typ.is_free i t' | _ -> return false)
   in
   if exists then
     let i' = Typ.Var.freshen i in

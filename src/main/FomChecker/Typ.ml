@@ -14,6 +14,7 @@ module VarEnv = struct
   let field r = r#typ_env
   let find_opt i = get_as field @@ VarMap.find_opt i
   let existing pr = get_as field @@ VarMap.exists pr
+  let existing_fr pr = get field >>= VarMap.exists_fr pr
   let resetting_to initial op = setting field initial op
   let adding i v = mapping field @@ VarMap.add i v
   let merging env = mapping field (VarMap.merge Map.prefer_lhs env)
@@ -83,12 +84,13 @@ module Core = struct
 
   (* *)
 
-  let unfold at f mu xs = apps_of_norm at (app_of_norm at f mu) xs
+  let unfold at f mu xs =
+    app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
 
   let rec unfold_of_norm typ =
     match unapp typ with
-    | (`Mu (at', f) as mu), xs -> unfold_of_norm (unfold at' f mu xs)
-    | _ -> typ
+    | (`Mu (at', f) as mu), xs -> unfold at' f mu xs >>= unfold_of_norm
+    | _ -> return typ
 
   (* *)
 
@@ -227,9 +229,9 @@ and sub at' l_env r_env (l : Core.t) (r : Core.t) =
     | _ -> (
       match (unapp l, unapp r) with
       | ((`Mu (la, lf) as lmu), lxs), _ ->
-        sub at' l_env r_env (Core.unfold la lf lmu lxs) r
+        Core.unfold la lf lmu lxs >>= fun l -> sub at' l_env r_env l r
       | _, ((`Mu (ra, rf) as rmu), rxs) ->
-        sub at' l_env r_env l (Core.unfold ra rf rmu rxs)
+        Core.unfold ra rf rmu rxs >>= fun r -> sub at' l_env r_env l r
       | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
         when Var.equal lf rf && List.length lxs = List.length rxs -> (
         let* k_opt = VarEnv.find_opt lf in
@@ -239,7 +241,7 @@ and sub at' l_env r_env (l : Core.t) (r : Core.t) =
       | _, (`For (_, `All, rf), _) ->
         let i, _ = Var.fresh_from (rf :> t) in
         let k = Kind.fresh at' in
-        let r = Core.app_of_norm at' rf @@ var i in
+        let* r = Core.app_of_norm at' rf @@ var i in
         kind_of rf
         >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
         >> VarEnv.adding i (`Kind k) (sub at' l_env r_env l r)
@@ -252,24 +254,30 @@ let check_equal_of_norm at' l r =
   eq at' VarMap.empty VarMap.empty l r |> Goals.resetting
 
 let rec mu_of_norm at = function
-  | `Lam (_, i, _, t) when not (is_free i t) -> return t
-  | `Lam (_, i, _, `Mu (at1, `Lam (at2, j, k, t))) ->
-    let+ t = subst_of_norm (VarMap.singleton i @@ var j) t in
-    `Mu (at1, `Lam (at2, j, k, t))
-  | `Lam (at', i, k, t) as f ->
-    let t', iks = unlam t in
-    let* f' =
-      match t' with
-      | `Bop _ ->
-        let mu' =
-          List.fold_right (fun (i, _) f -> `App (at, f, var i)) iks (var i)
+  | `Lam (at', i, k, t) as f -> (
+    is_free i t >>= function
+    | false -> return t
+    | true -> (
+      match t with
+      | `Mu (at1, `Lam (at2, j, k, t)) ->
+        let+ t = subst_of_norm (VarMap.singleton i @@ var j) t in
+        `Mu (at1, `Lam (at2, j, k, t))
+      | _ ->
+        let t', iks = unlam t in
+        let* f' =
+          match t' with
+          | `Bop _ ->
+            let mu' =
+              List.fold_right (fun (i, _) f -> `App (at, f, var i)) iks (var i)
+            in
+            let+ t' = drop_legs mu' t' in
+            let t' =
+              List.fold_left (fun t (i, k) -> `Lam (at, i, k, t)) t' iks
+            in
+            `Lam (at', i, k, t')
+          | _ -> unfold_at_jms i t t >>- fun t' -> `Lam (at', i, k, t')
         in
-        let+ t' = drop_legs mu' t' in
-        let t' = List.fold_left (fun t (i, k) -> `Lam (at, i, k, t)) t' iks in
-        `Lam (at', i, k, t')
-      | _ -> unfold_at_jms i t t >>- fun t' -> `Lam (at', i, k, t')
-    in
-    if compare f f' = 0 then return @@ `Mu (at, f) else mu_of_norm at f'
+        if compare f f' = 0 then return @@ `Mu (at, f) else mu_of_norm at f'))
   | f -> return @@ `Mu (at, f)
 
 and unfold_at_jms x f =
@@ -297,8 +305,9 @@ and drop_legs x =
   | t -> return t
 
 and lam_of_norm at i k = function
-  | `App (_, f, `Var (_, i')) when Var.equal i i' && not (is_free i f) -> f
-  | t' -> `Lam (at, i, k, t')
+  | `App (_, f, `Var (_, i')) as t' when Var.equal i i' -> (
+    is_free i f >>- function false -> f | true -> `Lam (at, i, k, t'))
+  | t' -> return @@ `Lam (at, i, k, t')
 
 and app_of_norm at f' x' =
   match f' with
@@ -336,7 +345,7 @@ and memoing t op =
     let i, _ = Var.fresh_from t in
     let v = var i in
     let* t' = op |> mapping Solved.field (Solved.add t v) in
-    kind_of t >>= fun k -> mu_of_norm at' (lam_of_norm at' i k t')
+    kind_of t >>= fun k -> lam_of_norm at' i k t' >>= mu_of_norm at'
 
 and bop_of_norm o at' l r =
   if compare l r = 0 then return l
@@ -350,18 +359,22 @@ and bop_of_norm o at' l r =
     | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
       let* i, lt, rt =
         if Var.equal li ri then return (li, lt, rt)
-        else if not (is_free li rt) then
-          subst_of_norm (VarMap.singleton ri (var li)) rt >>- fun rt ->
-          (li, lt, rt)
-        else if not (is_free ri lt) then
-          subst_of_norm (VarMap.singleton li (var ri)) lt >>- fun lt ->
-          (ri, lt, rt)
         else
-          let i = Var.freshen li in
-          let v = var i in
-          let+ lt = subst_of_norm (VarMap.singleton li v) lt
-          and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
-          (i, lt, rt)
+          is_free li rt >>= function
+          | false ->
+            subst_of_norm (VarMap.singleton ri (var li)) rt >>- fun rt ->
+            (li, lt, rt)
+          | true -> (
+            is_free ri lt >>= function
+            | false ->
+              subst_of_norm (VarMap.singleton li (var ri)) lt >>- fun lt ->
+              (ri, lt, rt)
+            | true ->
+              let i = Var.freshen li in
+              let v = var i in
+              let+ lt = subst_of_norm (VarMap.singleton li v) lt
+              and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
+              (i, lt, rt))
       in
       Kind.unify at' lk rk >> bop_of_norm o at' lt rt
       |> VarEnv.adding i @@ `Kind lk
@@ -388,16 +401,21 @@ and subst_of_norm env =
   | `Var (_, i) as inn ->
     VarMap.find_opt i env |> Option.value ~default:inn |> return
   | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
-  | `Lam (at, i, k, t) as inn ->
+  | `Lam (at, i, k, t) as inn -> (
     let env = VarMap.remove i env in
     if VarMap.is_empty env then return inn
-    else if VarMap.exists (fun i' t' -> is_free i t' && is_free i' t) env then
-      let i' = Var.freshen i in
-      let v' = `Var (at, i') in
-      let+ t' = subst_of_norm (VarMap.add i v' env) t in
-      lam_of_norm at i' k t'
     else
-      subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>- lam_of_norm at i k
+      VarMap.exists_fr (fun i' t' -> is_free i t' &&& is_free i' t) env
+      >>= function
+      | true ->
+        let i' = Var.freshen i in
+        let v' = `Var (at, i') in
+        subst_of_norm (VarMap.add i v' env) t
+        |> VarEnv.adding i' @@ `Kind k
+        >>= lam_of_norm at i' k
+      | false ->
+        subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>= lam_of_norm at i k
+    )
   | `App (at, f, x) ->
     subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
     app_of_norm at f x
@@ -410,20 +428,20 @@ and subst_of_norm env =
 
 let rec find_map_from_all_apps_of i' p = function
   | `Lam (_, i, _, t) ->
-    if Var.equal i i' then None else find_map_from_all_apps_of i' p t
+    if Var.equal i i' then return None else find_map_from_all_apps_of i' p t
   | (`App _ | `Var _) as t -> (
     match unapp t with
     | (`Var (_, i) as f), xs ->
       if Var.equal i i' then
-        match p t f xs with
-        | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
-        | some -> some
-      else xs |> List.find_map (find_map_from_all_apps_of i' p)
+        p t f xs >>= function
+        | None -> xs |> List.find_map_fr (find_map_from_all_apps_of i' p)
+        | some -> return some
+      else xs |> List.find_map_fr (find_map_from_all_apps_of i' p)
     | f, xs -> (
-      match find_map_from_all_apps_of i' p f with
-      | None -> xs |> List.find_map (find_map_from_all_apps_of i' p)
-      | some -> some))
-  | t -> find_map (find_map_from_all_apps_of i' p) t
+      find_map_from_all_apps_of i' p f >>= function
+      | None -> xs |> List.find_map_fr (find_map_from_all_apps_of i' p)
+      | some -> return some))
+  | t -> find_map_fr (find_map_from_all_apps_of i' p) t
 
 let find_opt_nested_arg_mu at f arity =
   if arity <= 0 then return None
@@ -434,13 +452,14 @@ let find_opt_nested_arg_mu at f arity =
     let vs = is |> List.map var in
     app_of_norm at f v >>= fun fv ->
     apps_of_norm at fv vs
-    >>- find_map_from_all_apps_of i @@ fun _ _ xs ->
+    >>= find_map_from_all_apps_of i @@ fun _ _ xs ->
         xs
-        |> List.find_map @@ function
-           | `Var _ -> None
-           | t ->
+        |> List.find_map_fr @@ function
+           | `Var _ -> return None
+           | t -> (
              is
-             |> List.find_map @@ fun i -> if is_free i t then Some t else None
+             |> List.find_map_fr @@ fun i ->
+                is_free i t >>- function true -> Some t | false -> None)
 
 (* *)
 
@@ -494,9 +513,9 @@ let rec infer = function
     | Some (`Kind i_kind) -> return (t, i_kind)
     | _ -> fail @@ `Error_typ_var_unbound (at', i))
   | `Lam (at', d, d_kind, r) ->
-    let+ r, r_kind = infer r |> VarEnv.adding d @@ `Kind d_kind
-    and+ d_kind = Kind.resolve d_kind in
-    (lam_of_norm at' d d_kind r, `Arrow (at', d_kind, r_kind))
+    let* r, r_kind = infer r |> VarEnv.adding d @@ `Kind d_kind
+    and* d_kind = Kind.resolve d_kind in
+    lam_of_norm at' d d_kind r <*> return @@ `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) ->
     let* f, f_kind = infer f and* x, d_kind = infer x in
     let c_kind = Kind.fresh at' in

@@ -31,22 +31,22 @@ module Typ = struct
   let check_and_norm typ = check_and_resolve (`Star (at typ)) typ
 
   let check_arrow at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Arrow (_, dom, cod) -> return (dom, cod)
     | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
 
   let check_product at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Row (_, `Product, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
   let check_sum at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Row (_, `Sum, ls) -> return ls
     | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
   let check_unit at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `Const (_, `Unit) -> unit
     | _ -> fail @@ `Error_typ_unexpected (at, "()", typ)
 
@@ -58,7 +58,7 @@ module Typ = struct
       ls |> List.iter_fr (snd >>> check_unit at) >> return (List.map fst ls)
 
   let check_for_all at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `For (_, `All, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
@@ -67,7 +67,7 @@ module Typ = struct
     | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
   let check_exists at typ =
-    match Core.unfold_of_norm typ with
+    Core.unfold_of_norm typ >>= function
     | `For (_, `Unk, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
@@ -129,15 +129,15 @@ let rec infer = function
     (`Case (at', cs), `Arrow (at', d_typ, c_typ))
   | `Gen (at', d, d_kind, r) ->
     let* r, r_typ = infer r |> Typ.VarEnv.adding d @@ `Kind d_kind in
-    let+ d_kind = Kind.resolve d_kind >>- Kind.ground in
-    ( `Gen (at', d, d_kind, r),
-      `For (at', `All, Typ.Core.lam_of_norm at' d d_kind r_typ) )
+    let* d_kind = Kind.resolve d_kind >>- Kind.ground in
+    let+ f = Typ.Core.lam_of_norm at' d d_kind r_typ in
+    (`Gen (at', d, d_kind, r), `For (at', `All, f))
   | `Inst (at', f, x_typ) ->
     let* f, f_typ = infer f in
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
     let* x_typ, x_kind = Typ.infer x_typ in
     Kind.unify at' d_kind x_kind
-    >> return (`Inst (at', f, x_typ), Typ.Core.app_of_norm at' f_con x_typ)
+    >> (return @@ `Inst (at', f, x_typ) <*> Typ.Core.app_of_norm at' f_con x_typ)
   | `Mu (at', f) -> (
     match f with
     | `Lam (at'', i, t, e) ->
@@ -183,21 +183,22 @@ let rec infer = function
   | `Pack (at', t, e, et) ->
     let* t, t_kind = Typ.infer t and* et = Typ.check_and_norm et in
     let* et_con, d_kind = Typ.check_exists at' et in
-    Kind.unify at' d_kind t_kind >> check (Typ.Core.app_of_norm at' et_con t) e
-    >>- fun e -> (`Pack (at', t, e, et), et)
+    Kind.unify at' d_kind t_kind >> Typ.Core.app_of_norm at' et_con t
+    >>= fun a ->
+    check a e >>- fun e -> (`Pack (at', t, e, et), et)
   | `PackImp (at', _, _) -> fail @@ `Error_exp_lacks_annot at'
-  | `UnpackIn (at', tid, k, id, v, e) ->
+  | `UnpackIn (at', tid, k, id, v, e) -> (
     let* v, v_typ = infer v in
     let* v_con, d_kind = Typ.check_exists at' v_typ in
-    let id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
+    let* id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
     let* e, e_typ =
       Kind.unify at' k d_kind >> Annot.Exp.def id id_typ >> infer e
       |> VarEnv.adding id id_typ
       |> Typ.VarEnv.adding tid @@ `Kind d_kind
     in
-    if Typ.Core.is_free tid e_typ then
-      fail @@ `Error_typ_var_escapes (at', tid, e_typ)
-    else return (`UnpackIn (at', tid, k, id, v, e), e_typ)
+    Typ.Core.is_free tid e_typ >>= function
+    | true -> fail @@ `Error_typ_var_escapes (at', tid, e_typ)
+    | false -> return (`UnpackIn (at', tid, k, id, v, e), e_typ))
   | `Merge (at', l, r) ->
     let select e l = `Select (Loc.dummy, e, atom (Label.set_at Loc.dummy l)) in
     let binding v t e =
@@ -224,7 +225,7 @@ let rec infer = function
     >>= fun e -> infer (e : Core.t :> t)
 
 and check a e =
-  match Typ.Core.unfold_of_norm a with
+  Typ.Core.unfold_of_norm a >>= function
   | `For (_, `All, _) when cannot_be_for_all e ->
     let at' = at e in
     check a
@@ -257,7 +258,7 @@ and check a e =
         check (`Arrow (at', x_typ, a)) f >>- fun f -> `App (at', f, x))
     | `Gen (at', d, d_kind, r) ->
       let* a_con, d_kind' = Typ.check_for_all at' a in
-      let r_typ = Typ.Core.app_of_norm at' a_con (Typ.var d) in
+      let* r_typ = Typ.Core.app_of_norm at' a_con (Typ.var d) in
       Kind.unify at' d_kind d_kind'
       >> Typ.VarEnv.adding d (`Kind d_kind) (check r_typ r)
       >>- fun r -> `Gen (at', d, d_kind', r)
@@ -290,7 +291,7 @@ and check a e =
     | `UnpackIn (at', tid, k, id, v, e) ->
       let* v, v_typ = infer v in
       let* v_con, d_kind = Typ.check_exists at' v_typ in
-      let id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
+      let* id_typ = Typ.Core.app_of_norm at' v_con @@ `Var (at', tid) in
       Kind.unify at' k d_kind >> Annot.Exp.def id id_typ >> check a e
       |> VarEnv.adding id id_typ
       |> Typ.VarEnv.adding tid @@ `Kind d_kind

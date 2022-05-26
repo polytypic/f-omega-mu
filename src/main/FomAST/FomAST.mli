@@ -159,12 +159,12 @@ module Typ : sig
 
     (* *)
 
-    val is_free : Var.t -> t -> bool
-    val subst_of_norm : (('t, 'k) f as 't) VarMap.t -> 't uop
-    val mu_of_norm : Loc.t -> (('t, 'k) f as 't) -> 't
-    val lam_of_norm : Loc.t -> Var.t -> 'k -> (('t, 'k) f as 't) -> 't
-    val app_of_norm : Loc.t -> (('t, 'k) f as 't) bop
-    val apps_of_norm : Loc.t -> (('t, 'k) f as 't) -> 't list -> 't
+    val is_free : Var.t -> t -> ('r, 'e, bool) rea
+    val subst_of_norm : t VarMap.t -> t -> ('r, 'e, t) rea
+    val mu_of_norm : Loc.t -> t -> ('r, 'e, t) rea
+    val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t -> ('r, 'e, t) rea
+    val app_of_norm : Loc.t -> t -> t -> ('r, 'e, t) rea
+    val apps_of_norm : Loc.t -> t -> t list -> ('r, 'e, t) rea
   end
 
   type ('t, 'k) f = [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet] * 't * 't]
@@ -232,6 +232,10 @@ module Typ : sig
   val map_reduce : 'u bop -> 'u -> ('t -> 'u) -> ('t, 'k) f -> 'u
   val exists : ('t -> bool) -> ('t, 'k) f -> bool
   val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
+
+  val find_map_fr :
+    ('t -> (('f, 'F, 'a option) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
+
   val eq : ('t, 'k) f bpr
 
   (* *)
@@ -251,7 +255,7 @@ module Typ : sig
 
   (* *)
 
-  val is_free : Var.t -> t -> bool
+  val is_free : Var.t -> t -> ('r, 'e, bool) rea
 
   (* Freshening *)
 

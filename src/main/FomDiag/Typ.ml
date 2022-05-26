@@ -13,7 +13,7 @@ module TypSet = Set.Make (Core)
 
 let rec contract t =
   let* s, t = contract_base t in
-  let+ t_opt = s |> TypSet.elements |> List.find_opt_fr (is_equal_of_norm t) in
+  let* t_opt = s |> TypSet.elements |> List.find_opt_fr (is_equal_of_norm t) in
   let s, u =
     match t_opt with
     | Some t -> (s, t)
@@ -21,8 +21,8 @@ let rec contract t =
       match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
   in
   match t with
-  | `Lam (_, i, _, _) -> (s |> TypSet.filter (not <<< is_free i), u)
-  | _ -> (s, u)
+  | `Lam (_, i, _, _) -> TypSet.filter_fr (is_free i >-> not) s <*> return u
+  | _ -> return (s, u)
 
 and contract_base t =
   let+ s, t' =
