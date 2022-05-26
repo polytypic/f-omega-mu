@@ -3,6 +3,7 @@ open FomBasis
 
 (* *)
 
+include FomPP.Typ
 include FomAST.Typ
 
 (* *)
