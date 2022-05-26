@@ -12,7 +12,17 @@ module VarEnv = struct
   type ('t, 'r) f = < typ_env : ('t, 'r) m >
 
   let field r = r#typ_env
-  let find_opt i = get_as field @@ VarMap.find_opt i
+
+  let find i =
+    get_as field @@ VarMap.find_opt i >>= function
+    | Some t -> return t
+    | None -> fail @@ `Error_typ_var_unbound (Var.at i, i)
+
+  let kind_of i =
+    get_as field @@ VarMap.find_opt i >>= function
+    | Some (`Kind k) -> return k
+    | _ -> fail @@ `Error_typ_var_unbound (Var.at i, i)
+
   let existing pr = get_as field @@ VarMap.exists pr
   let existing_fr pr = get field >>= VarMap.exists_fr pr
   let resetting_to initial op = setting field initial op
@@ -31,10 +41,7 @@ end
 let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
-  | `Var (_, i) -> (
-    VarEnv.find_opt i >>- function
-    | Some (`Kind i_kind) -> i_kind
-    | _ -> failwithf "kind_of %s" @@ Var.to_string i)
+  | `Var (_, i) -> VarEnv.kind_of i
   | `Lam (at', i, d, t) ->
     kind_of t |> VarEnv.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
   | `App (_, f, _) -> kind_of_cod f
@@ -233,11 +240,9 @@ and sub at' l_env r_env (l : Core.t) (r : Core.t) =
       | _, ((`Mu (ra, rf) as rmu), rxs) ->
         Core.unfold ra rf rmu rxs >>= fun r -> sub at' l_env r_env l r
       | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
-        when Var.equal lf rf && List.length lxs = List.length rxs -> (
-        let* k_opt = VarEnv.find_opt lf in
-        match k_opt with
-        | Some (`Kind _) -> List.iter2_fr (eq at' l_env r_env) lxs rxs
-        | _ -> fail @@ `Error_typ_var_unbound (at', lf))
+        when Var.equal lf rf && List.length lxs = List.length rxs ->
+        VarEnv.kind_of lf >>= fun _ ->
+        List.iter2_fr (eq at' l_env r_env) lxs rxs
       | _, (`For (_, `All, rf), _) ->
         let i, _ = Var.fresh_from (rf :> t) in
         let k = Kind.fresh at' in
@@ -508,10 +513,7 @@ let rec infer = function
                   fail @@ `Error_mu_non_contractive (at', typ, typ')))
        >> (mu_of_norm at' f <*> return kind)
   | `Const (at', c) as t -> return @@ (t, Const.kind_of at' c)
-  | `Var (at', i) as t -> (
-    VarEnv.find_opt i >>= function
-    | Some (`Kind i_kind) -> return (t, i_kind)
-    | _ -> fail @@ `Error_typ_var_unbound (at', i))
+  | `Var (_, i) as t -> return t <*> VarEnv.kind_of i
   | `Lam (at', d, d_kind, r) ->
     let* r, r_kind = infer r |> VarEnv.adding d @@ `Kind d_kind
     and* d_kind = Kind.resolve d_kind in

@@ -352,14 +352,12 @@ and elaborate_typ_defs accum = function
     |> Typ.VarEnv.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
 and elaborate_typ = function
-  | `Var (at', i) as inn -> (
-    let* t_opt = Typ.VarEnv.find_opt i in
-    match t_opt with
-    | Some (`Typ t) ->
+  | `Var (_, i) as inn -> (
+    Typ.VarEnv.find i >>= function
+    | `Typ t ->
       let t = Typ.freshen t in
       Annot.Typ.use i (Typ.at t) >> return t
-    | Some (`Kind k) -> Annot.Typ.use i (Kind.at k) >> return inn
-    | _ -> fail @@ `Error_typ_var_unbound (at', i))
+    | `Kind k -> Annot.Typ.use i (Kind.at k) >> return inn)
   | `Lam (at', i, k, t) ->
     avoid i @@ fun i ->
     let k = Kind.set_at (Typ.Var.at i) k in
