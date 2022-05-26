@@ -210,47 +210,44 @@ let rec subset at' l_env r_env l r flip ls ms =
 
 and eq at' l_env r_env l r = sub at' l_env r_env l r >> sub at' r_env l_env r l
 
-and sub at' l_env r_env (l : Core.t) (r : Core.t) =
+and sub at' l_env r_env l r =
   let g = (l_env, r_env, l, r) in
   if Core.compare_in_env l_env r_env l r = 0 then unit
   else
     Goals.adding g @@ fun () ->
-    match (l, r) with
-    | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+    match (unapp l, unapp r) with
+    | (`Arrow (_, ld, lc), _), (`Arrow (_, rd, rc), _) ->
       sub at' r_env l_env rd ld >> sub at' l_env r_env lc rc
-    | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+    | (`Row (_, m, lls), _), (`Row (_, m', rls), _) when m = m' ->
       let flip = match m with `Product -> id | `Sum -> Fun.flip in
       flip (flip (subset at' l_env r_env) r l flip) rls lls
-    | `For (_, l_q, l), `For (_, r_q, r) when l_q = r_q ->
-      sub at' l_env r_env l r
-    | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+    | (`Lam (_, li, lk, lt), _), (`Lam (_, ri, rk, rt), _) ->
       let v, l_env, r_env =
         if Var.equal li ri then
-          (li, l_env |> VarMap.remove li, r_env |> VarMap.remove ri)
+          (li, VarMap.remove li l_env, VarMap.remove ri r_env)
         else
           let v = Var.fresh Loc.dummy in
-          (v, l_env |> VarMap.add li v, r_env |> VarMap.add ri v)
+          (v, VarMap.add li v l_env, VarMap.add ri v r_env)
       in
       Kind.unify at' lk rk
       >> VarEnv.adding v (`Kind lk) (sub at' l_env r_env lt rt)
-    | _ -> (
-      match (unapp l, unapp r) with
-      | ((`Mu (la, lf) as lmu), lxs), _ ->
-        Core.unfold la lf lmu lxs >>= fun l -> sub at' l_env r_env l r
-      | _, ((`Mu (ra, rf) as rmu), rxs) ->
-        Core.unfold ra rf rmu rxs >>= fun r -> sub at' l_env r_env l r
-      | (`Var (_, lf), (_ :: _ as lxs)), (`Var (_, rf), (_ :: _ as rxs))
-        when Var.equal lf rf && List.length lxs = List.length rxs ->
-        VarEnv.kind_of lf >>= fun _ ->
-        List.iter2_fr (eq at' l_env r_env) lxs rxs
-      | _, (`For (_, `All, rf), _) ->
-        let i, _ = Var.fresh_from (rf :> t) in
-        let k = Kind.fresh at' in
-        let* r = Core.app_of_norm at' rf @@ var i in
-        kind_of rf
-        >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
-        >> VarEnv.adding i (`Kind k) (sub at' l_env r_env l r)
-      | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t)))
+    | (`Var (_, l), (_ :: _ as lxs)), (`Var (_, r), (_ :: _ as rxs))
+      when Var.equal l r && List.length lxs = List.length rxs ->
+      List.iter2_fr (eq at' l_env r_env) lxs rxs
+    | ((`Mu (la, lf) as lmu), lxs), _ ->
+      Core.unfold la lf lmu lxs >>= fun l -> sub at' l_env r_env l r
+    | _, ((`Mu (ra, rf) as rmu), rxs) ->
+      Core.unfold ra rf rmu rxs >>= fun r -> sub at' l_env r_env l r
+    | (`For (_, l_q, l), _), (`For (_, r_q, r), _) when l_q = r_q ->
+      sub at' l_env r_env l r
+    | _, (`For (_, `All, rf), _) ->
+      let i, _ = Var.fresh_from (rf :> t) in
+      let k = Kind.fresh at' in
+      let* r = Core.app_of_norm at' rf @@ var i in
+      kind_of rf
+      >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
+      >> VarEnv.adding i (`Kind k) (sub at' l_env r_env l r)
+    | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))
 
 let check_sub_of_norm at' l r =
   sub at' VarMap.empty VarMap.empty l r |> Goals.resetting
