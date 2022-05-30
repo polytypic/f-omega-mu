@@ -42,9 +42,7 @@ js_examples() {
 }
 
 js_and_eval_examples() {
-  js_examples &
-  eval_examples &
-  wait
+  parallel js_examples eval_examples
 }
 
 error_foms=(examples/errors/*.fom)
@@ -70,16 +68,16 @@ build_and_test() {
     opam exec -- dune build "${OPTS[@]}"
 
   folded "Testing" \
-    opam exec -- dune test "${OPTS[@]}"
+    timeout 10 opam exec -- dune test "${OPTS[@]}"
 
   folded "Typing examples" \
-    type_examples
+    timeout 10 type_examples
 
   folded "Running error examples" \
-    run_error_examples
+    timeout 10 run_error_examples
 
   folded "Compiling and Evaluating examples" \
-    js_and_eval_examples
+    timeout 10 js_and_eval_examples
 }
 
 if [ "$CI" = true ]; then

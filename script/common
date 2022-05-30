@@ -3,3 +3,33 @@
 set -eo pipefail
 
 export FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
+
+timeout() {
+  local TIMEOUT="$1"
+  shift
+  "$@" & local PID=$!
+  (sleep "$TIMEOUT"; kill $PID 2>/dev/null || true) & local WAITER=$!
+  local EXIT_CODE=0
+  wait $PID 2>/dev/null || EXIT_CODE=$?
+  if ! kill $WAITER 2>/dev/null; then
+    echo TIMEOUT: "$@" 2>&1
+    return "$TIMEOUT"
+  fi
+  return $EXIT_CODE
+}
+
+parallel() {
+  local PIDS=()
+  while [ $# != 0 ]; do
+    $1 & PIDS+=($!)
+    shift
+  done
+  for PID in "${PIDS[@]}"; do
+    local EXIT_CODE=0
+    wait "$PID" 2>/dev/null || EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+      kill "${PIDS[@]}" 2>/dev/null || true
+      return $EXIT_CODE
+    fi
+  done
+}
