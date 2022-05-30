@@ -3,12 +3,11 @@
 # shellcheck source=common
 . "${BASH_SOURCE%/*}/common"
 
-export TIMEFORMAT="CPU: %Us, Real: %Es"
-
 folded() {
   echo
   echo "JOB: $1"
   shift
+  local TIMEFORMAT="CPU: %Us, Real: %Es"
   time "$@"
 }
 
