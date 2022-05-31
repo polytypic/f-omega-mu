@@ -31,13 +31,13 @@ let classify indent tok and_then =
   let column = left_of tok in
   if column < indent then and_then `Dedent
   else if column = indent && not (is_bop tok) then
-    let* last_tok and* new_line = new_line tok in
+    let* last_tok = last_tok and* new_line = new_line tok in
     if new_line && not (is_continued last_tok) then and_then `Indent
     else and_then `Inside
   else and_then `Inside
 
 let ns tok tok_ns =
-  let* last_tok in
+  let* last_tok = last_tok in
   match tok_of last_tok with
   | (Id _ | BraceRhs | BracketRhs | DoubleAngleQuoteRhs | ParenRhs)
     when right_of last_tok = left_of tok ->
@@ -132,7 +132,7 @@ and binding tok =
   | _ -> pattern `Par tok
 
 and insert_semis ?(commas = false) ?(dedent = false) on_exit indent tok =
-  let* is_typ in
+  let* is_typ = is_typ in
   match tok_of tok with
   | Comma when commas -> (
     classify indent tok @@ function

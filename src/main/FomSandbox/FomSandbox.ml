@@ -161,7 +161,7 @@ let js_codemirror_mode =
            (fun (ast, typ, deps) ->
              Profiling.Counter.dump_all ();
              let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
-             let* typ = pp_typ typ and* def_uses in
+             let* typ = pp_typ typ and* def_uses = def_uses in
              Cb.invoke on_pass @@ Js.Unsafe.inject
              @@ object%js
                   val typ = utf8string "type:" ^^ typ |> to_js_string ~max_width
