@@ -357,6 +357,8 @@ let () =
     |};
   testInfersAs "alpha equivalence" "∃F.∀t.F (∀f.f t)"
     "μx: ∃F.∀t.F (∀f.f t).x: ∃G.∀u.G (∀g.g u)";
+  testInfersAs "also alpha equivalence" "(μf.λa.∀u.∀t.(t, u, a) → f t) ()"
+    "μx: (μf.λa.∀u.∀t.(t, u, a) → f t) ().x: (μg.λb.∀t.∀u.(u, t, b) → g u) ()";
   ()
 
 let testErrors name exp =

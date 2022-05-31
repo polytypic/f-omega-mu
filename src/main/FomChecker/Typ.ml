@@ -39,6 +39,12 @@ end
 
 (* *)
 
+let to_apps = function
+  | (`Arrow _ | `Const _ | `For _ | `Lam _ | `Row _) as t -> t
+  | t -> `Apps (unapp t)
+
+(* *)
+
 let rec kind_of = function
   | `Mu (_, f) -> kind_of_cod f
   | `Const (at', c) -> return @@ Const.kind_of at' c
@@ -96,8 +102,8 @@ module Core = struct
     app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
 
   let rec unfold_of_norm typ =
-    match unapp typ with
-    | (`Mu (at', f) as mu), xs -> unfold at' f mu xs >>= unfold_of_norm
+    match to_apps typ with
+    | `Apps ((`Mu (at', f) as mu), xs) -> unfold at' f mu xs >>= unfold_of_norm
     | _ -> return typ
 
   (* *)
@@ -118,13 +124,7 @@ module Core = struct
        | t -> map_eq_fr resolve t
 end
 
-module GoalSet = Set.Make (struct
-  type nonrec t = Var.t VarMap.t * Var.t VarMap.t * Core.t * Core.t
-
-  let compare (l_env1, r_env1, l1, r1) (l_env2, r_env2, l2, r2) =
-    Core.compare_in_env l_env1 l_env2 l1 l2 <>? fun () ->
-    Core.compare_in_env r_env1 r_env2 r1 r2
-end)
+module GoalSet = Set.Make (Compare.Tuple'2 (Core) (Core))
 
 module Goals = struct
   type 'r m = (GoalSet.t MVar.t, 'r) Field.t
@@ -170,6 +170,12 @@ end
 
 (* *)
 
+let rec solve_of_norm = function
+  | #Core.f as t -> Core.map_fr solve_of_norm t
+  | `Bop (at', _, l, r) -> fail @@ `Error_typ_unrelated (at', l, r)
+
+(* *)
+
 let union op (ls, rs) =
   Row.union_fr (const return) (const return) (const op) ls rs
 
@@ -198,65 +204,63 @@ let inv = function `Join -> `Meet | `Meet -> `Join
 
 (* *)
 
-let rec subset at' l_env r_env l r flip ls ms =
+let rec subset at' l r flip ls ms =
   match (ls, ms) with
   | [], _ -> unit
   | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
   | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
     let c = Label.compare ll ml in
-    if c = 0 then
-      flip (sub at' l_env r_env) mt lt >> subset at' l_env r_env l r flip ls ms
-    else if 0 < c then subset at' l_env r_env l r flip lls ms
+    if c = 0 then flip (sub at') mt lt >> subset at' l r flip ls ms
+    else if 0 < c then subset at' l r flip lls ms
     else fail @@ `Error_label_missing (at', ll, l, r)
 
-and eq at' l_env r_env l r = sub at' l_env r_env l r >> sub at' r_env l_env r l
+and eq at' l r = sub at' l r >> sub at' r l
 
-and sub at' l_env r_env l r =
-  let g = (l_env, r_env, l, r) in
-  if Core.compare_in_env l_env r_env l r = 0 then unit
-  else
-    Goals.adding g @@ fun () ->
-    let find i env = VarMap.find_opt i env |> Option.value ~default:i in
-    match (unapp l, unapp r) with
-    | (`Arrow (_, ld, lc), _), (`Arrow (_, rd, rc), _) ->
-      sub at' r_env l_env rd ld >> sub at' l_env r_env lc rc
-    | (`Row (_, m, lls), _), (`Row (_, m', rls), _) when m = m' ->
-      let flip = match m with `Product -> id | `Sum -> Fun.flip in
-      flip (flip (subset at' l_env r_env) r l flip) rls lls
-    | (`Lam (_, li, lk, lt), _), (`Lam (_, ri, rk, rt), _) ->
-      let v, l_env, r_env =
-        if Var.equal li ri then
-          (li, VarMap.remove li l_env, VarMap.remove ri r_env)
-        else
-          let v = Var.fresh Loc.dummy in
-          (v, VarMap.add li v l_env, VarMap.add ri v r_env)
-      in
-      Kind.unify at' lk rk
-      >> VarEnv.adding v (`Kind lk) (sub at' l_env r_env lt rt)
-    | (`Var (_, l), (_ :: _ as lxs)), (`Var (_, r), (_ :: _ as rxs))
-      when Var.equal (find l l_env) (find r r_env)
-           && List.length lxs = List.length rxs ->
-      List.iter2_fr (eq at' l_env r_env) lxs rxs
-    | ((`Mu (la, lf) as lmu), lxs), _ ->
-      Core.unfold la lf lmu lxs >>= fun l -> sub at' l_env r_env l r
-    | _, ((`Mu (ra, rf) as rmu), rxs) ->
-      Core.unfold ra rf rmu rxs >>= fun r -> sub at' l_env r_env l r
-    | (`For (_, l_q, l), _), (`For (_, r_q, r), _) when l_q = r_q ->
-      sub at' l_env r_env l r
-    | _, (`For (_, `All, rf), _) ->
-      let i, _ = Var.fresh_from (rf :> t) in
-      let k = Kind.fresh at' in
-      let* r = Core.app_of_norm at' rf @@ var i in
-      kind_of rf
-      >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
-      >> VarEnv.adding i (`Kind k) (sub at' l_env r_env l r)
-    | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))
+and sub at' l r =
+  match (to_apps l, to_apps r) with
+  | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
+    Goals.adding (l, r) @@ fun () ->
+    Core.unfold la lf lmu lxs >>= fun l -> sub at' l r
+  | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
+    Goals.adding (l, r) @@ fun () ->
+    Core.unfold ra rf rmu rxs >>= fun r -> sub at' l r
+  | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
+    when Var.equal li ri && List.length lxs = List.length rxs ->
+    List.iter2_fr (eq at') lxs rxs
+  | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub at' rd ld >> sub at' lc rc
+  | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> unit
+  | `For (_, lq, l), `For (_, rq, r) when lq = rq -> sub at' l r
+  | _, `For (_, `All, rf) ->
+    let i, _ = Var.fresh_from (rf :> t) in
+    let k = Kind.fresh at' in
+    let* r = Core.app_of_norm at' rf @@ var i in
+    kind_of rf
+    >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
+    >> VarEnv.adding i (`Kind k) (sub at' l r)
+  | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+    let* i, lt, rt =
+      if Var.equal li ri then return (li, lt, rt)
+      else
+        let rec loop i =
+          let v = Var.Unsafe.set_counter i li in
+          Core.is_free v lt ||| Core.is_free v rt >>= function
+          | false ->
+            let i = var v in
+            let+ lt = Core.subst_of_norm (VarMap.singleton li i) lt
+            and+ rt = Core.subst_of_norm (VarMap.singleton ri i) rt in
+            (v, lt, rt)
+          | true -> loop (i + 1)
+        in
+        loop 0
+    in
+    Kind.unify at' lk rk >> sub at' lt rt |> VarEnv.adding i @@ `Kind lk
+  | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+    let flip = match m with `Product -> id | `Sum -> Fun.flip in
+    flip (flip (subset at') r l flip) rls lls
+  | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))
 
-let check_sub_of_norm at' l r =
-  sub at' VarMap.empty VarMap.empty l r |> Goals.resetting
-
-let check_equal_of_norm at' l r =
-  eq at' VarMap.empty VarMap.empty l r |> Goals.resetting
+let check_sub_of_norm at' l r = sub at' l r |> Goals.resetting
+let check_equal_of_norm at' l r = eq at' l r |> Goals.resetting
 
 let rec mu_of_norm at = function
   | `Lam (at', i, k, t) as f -> (
@@ -293,11 +297,11 @@ and unfold_at_jms x f =
     let op = bop_of_norm o at' in
     match (unapp l, unapp r) with
     | (`Var (_, lf), lxs), _ when Var.equal lf x ->
-      apps_of_norm at' f lxs >>= fun l ->
-      op l r >>= unfold_at_jms x f |> memoing t
+      memoing t @@ fun () ->
+      apps_of_norm at' f lxs >>= fun l -> op l r >>= unfold_at_jms x f
     | _, (`Var (_, rf), rxs) when Var.equal rf x ->
-      apps_of_norm at' f rxs >>= fun r ->
-      op l r >>= unfold_at_jms x f |> memoing t
+      memoing t @@ fun () ->
+      apps_of_norm at' f rxs >>= fun r -> op l r >>= unfold_at_jms x f
     | _ -> op l r)
 
 and drop_legs x =
@@ -325,81 +329,78 @@ and unfold at f mu xs =
   app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
 
 and classify t =
-  match unapp t with
-  | (`Mu (at', f) as mu), xs ->
+  match to_apps t with
+  | `Apps ((`Mu (at', f) as mu), xs) ->
     let mu', _ = Var.fresh_from f in
     let* k = kind_of mu in
     unfold at' f (var mu') xs >>= classify |> VarEnv.adding mu' @@ `Kind k
-  | `Var _, _ -> return None
-  | `Const (_, c), _ -> return @@ Some (`Const c)
-  | `Lam _, _ -> return @@ Some `Lam
-  | `Arrow _, _ -> return @@ Some `Arrow
-  | `For (_, q, _), _ -> return @@ Some (q : [`All | `Unk] :> [> `All | `Unk])
-  | `Row (_, m, _), _ ->
-    return @@ Some (m : [`Product | `Sum] :> [> `Product | `Sum])
-  | `Bop (_, _, l, r), _ -> (
+  | `Apps (`Var _, _) -> return None
+  | `Apps (`Bop (_, _, l, r), _) -> (
     classify l >>= function None -> classify r | some -> return some)
-  | `App _, _ -> failwith "classify"
+  | `Arrow _ -> return @@ Some `Arrow
+  | `Const (_, c) -> return @@ Some (`Const c)
+  | `For (_, q, _) -> return @@ Some (q : [`All | `Unk] :> [> `All | `Unk])
+  | `Lam _ -> return @@ Some `Lam
+  | `Row (_, m, _) ->
+    return @@ Some (m : [`Product | `Sum] :> [> `Product | `Sum])
+  | _ -> failwith "classify"
 
 and memoing t op =
-  let* m = get Solved.field in
-  match Solved.find_opt t m with
+  get Solved.field >>- Solved.find_opt t >>= function
   | Some t -> return t
   | None ->
     let at' = at t in
     let i, _ = Var.fresh_from t in
     let v = var i in
-    let* t' = op |> mapping Solved.field (Solved.add t v) in
+    let* t' = op () |> mapping Solved.field (Solved.add t v) in
     kind_of t >>= fun k -> lam_of_norm at' i k t' >>= mu_of_norm at'
 
 and bop_of_norm o at' l r =
-  if compare l r = 0 then return l
-  else
-    match (l, r) with
-    | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
-      bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc
-      >>- fun (d, c) -> `Arrow (at', d, c)
-    | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
-      rop o m (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', m, ls)
-    | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-      let* i, lt, rt =
-        if Var.equal li ri then return (li, lt, rt)
-        else
-          is_free li rt >>= function
+  match (to_apps l, to_apps r) with
+  | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
+    memoing (bop o (at', l, r)) @@ fun () ->
+    unfold la lf lmu lxs >>= fun l -> bop_of_norm o at' l r
+  | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
+    memoing (bop o (at', l, r)) @@ fun () ->
+    unfold ra rf rmu rxs >>= fun r -> bop_of_norm o at' l r
+  | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
+    when Var.equal li ri && List.length lxs = List.length rxs ->
+    List.map_fr solve_of_norm lxs
+    <*> List.map_fr solve_of_norm rxs
+    >>= uncurry @@ List.iter2_fr @@ check_equal_of_norm at'
+    >> return l
+  | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
+    bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc >>- fun (d, c) ->
+    `Arrow (at', d, c)
+  | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> return l
+  | `For (_, q, lt), `For (_, q', rt) when q = q' ->
+    bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
+  | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+    let* i, lt, rt =
+      if Var.equal li ri then return (li, lt, rt)
+      else
+        let rec loop i =
+          let v = Var.Unsafe.set_counter i li in
+          is_free v lt ||| is_free v rt >>= function
           | false ->
-            subst_of_norm (VarMap.singleton ri (var li)) rt >>- fun rt ->
-            (li, lt, rt)
-          | true -> (
-            is_free ri lt >>= function
-            | false ->
-              subst_of_norm (VarMap.singleton li (var ri)) lt >>- fun lt ->
-              (ri, lt, rt)
-            | true ->
-              let i = Var.freshen li in
-              let v = var i in
-              let+ lt = subst_of_norm (VarMap.singleton li v) lt
-              and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
-              (i, lt, rt))
-      in
-      Kind.unify at' lk rk >> bop_of_norm o at' lt rt
-      |> VarEnv.adding i @@ `Kind lk
-      >>- fun t -> `Lam (at', i, lk, t)
-    | `For (_, q, lt), `For (_, q', rt) when q = q' ->
-      bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
-    | _ -> (
-      let problem = bop o (at', l, r) in
-      match (unapp l, unapp r) with
-      | ((`Mu (la, lf) as lmu), lxs), _ ->
-        unfold la lf lmu lxs >>= fun l ->
-        bop_of_norm o at' l r |> memoing problem
-      | _, ((`Mu (ra, rf) as rmu), rxs) ->
-        unfold ra rf rmu rxs >>= fun r ->
-        bop_of_norm o at' l r |> memoing problem
-      | _ -> (
-        classify l <*> classify r >>= fun (l', r') ->
-        match Option.both ( = ) l' r' with
-        | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
-        | _ -> return problem))
+            let i = var v in
+            let+ lt = subst_of_norm (VarMap.singleton li i) lt
+            and+ rt = subst_of_norm (VarMap.singleton ri i) rt in
+            (v, lt, rt)
+          | true -> loop (i + 1)
+        in
+        loop 0
+    in
+    Kind.unify at' lk rk >> bop_of_norm o at' lt rt
+    |> VarEnv.adding i @@ `Kind lk
+    >>- fun t -> `Lam (at', i, lk, t)
+  | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+    rop o m (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', m, ls)
+  | _ -> (
+    classify l <*> classify r >>= fun (l', r') ->
+    match Option.both ( = ) l' r' with
+    | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
+    | _ -> return @@ bop o (at', l, r))
 
 and subst_of_norm env =
   keep_phys_eq_fr @@ function
@@ -544,10 +545,6 @@ and check expected t =
   Kind.unify (at t) expected actual >> return t
 
 (* *)
-
-let rec solve_of_norm = function
-  | #Core.f as t -> Core.map_fr solve_of_norm t
-  | `Bop (at', _, l, r) -> fail @@ `Error_typ_unrelated (at', l, r)
 
 let join_of_norm at' (l : Core.t) (r : Core.t) =
   bop_of_norm `Join at' (l :> t) (r :> t) >>= solve_of_norm
