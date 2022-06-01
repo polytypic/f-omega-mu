@@ -402,8 +402,7 @@ and bop_of_norm o at' l r =
   | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
     rop o m (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', m, ls)
   | _ -> (
-    classify l <*> classify r >>= fun (l', r') ->
-    match Option.both ( = ) l' r' with
+    classify l <*> classify r >>- uncurry (Option.both ( = )) >>= function
     | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
     | _ -> return @@ bop o (at', l, r))
 
