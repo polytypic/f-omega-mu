@@ -352,8 +352,13 @@ and memoing t op =
     let at' = at t in
     let i, _ = Var.fresh_from t in
     let v = var i in
-    let* t' = op () |> mapping Solved.field (Solved.add t v) in
-    kind_of t >>= fun k -> lam_of_norm at' i k t' >>= mu_of_norm at'
+    let* k = kind_of t in
+    let* t' =
+      op ()
+      |> VarEnv.adding i @@ `Kind k
+      |> mapping Solved.field @@ Solved.add t v
+    in
+    lam_of_norm at' i k t' >>= mu_of_norm at'
 
 and bop_of_norm o at' l r =
   match (to_apps l, to_apps r) with
