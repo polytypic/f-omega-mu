@@ -69,15 +69,17 @@ let kind_of t = kind_of t >>= Kind.resolve
 module Var = struct
   include Var
 
-  let rec fresh_from = function
+  let rec from = function
     | `Bop (_, _, ((`Mu _ | `Lam _) as t), _)
     | `Bop (_, _, _, ((`Mu _ | `Lam _) as t))
     | `For (_, _, t)
     | `App (_, t, _)
     | `Mu (_, t) ->
-      fresh_from t
-    | `Lam (_, i, _, t) -> (Var.freshen i, t)
-    | t -> (Var.fresh (FomAST.Typ.at t), t)
+      from t
+    | `Lam (_, i, _, t) -> (i, t)
+    | t -> (Var.of_string (FomAST.Typ.at t) "Var.from", t)
+
+  let fresh_from = from >>> Pair.map Var.freshen id
 
   let rec fresh_from_n n t =
     if n <= 0 then []
