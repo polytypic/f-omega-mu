@@ -46,21 +46,17 @@ let to_apps = function
 (* *)
 
 let rec kind_of = function
-  | `Mu (_, f) -> kind_of_cod f
+  | `Mu (_, f) | `App (_, f, _) -> (
+    kind_of f >>= Kind.resolve >>- function
+    | `Star _ | `Unk (_, _) -> failwith "kind_of cod"
+    | `Arrow (_, _, c) -> c)
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> VarEnv.kind_of i
   | `Lam (at', i, d, t) ->
     kind_of t |> VarEnv.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
-  | `App (_, f, _) -> kind_of_cod f
   | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
     return @@ `Star at'
   | `Bop (_, _, l, _) -> kind_of l
-
-and kind_of_cod checked_typ =
-  let+ f_kind = kind_of checked_typ >>= Kind.resolve in
-  match f_kind with
-  | `Star _ | `Unk (_, _) -> failwith "kind_of_cod"
-  | `Arrow (_, _, c_kind) -> c_kind
 
 let kind_of t = kind_of t >>= Kind.resolve
 
