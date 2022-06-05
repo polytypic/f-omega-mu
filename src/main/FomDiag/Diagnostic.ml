@@ -189,9 +189,9 @@ let of_error = function
 let pp = function
   | (loc, overview), [] -> overview ^^ Loc.pp loc ^^ dot
   | (loc, overview), details ->
-    overview ^^ Loc.pp loc ^^ dot ^^ break_0_0
+    overview ^^ Loc.pp loc ^^ dot ^^ break_1_0
     ^^ (details
        |> List.map (fun (loc, msg) ->
               text "Also" ^^ softbreak_1 ^^ Loc.pp loc
               ^^ gnest 2 (colon_break_1 ^^ msg ^^ dot))
-       |> separate break_0_0)
+       |> separate break_1_0)
