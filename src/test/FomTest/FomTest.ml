@@ -32,7 +32,13 @@ let () =
                 unit)
               (fun exn ->
                 inc n_failures;
-                Printf.printf "[FAIL] %s: %s\n" name (Printexc.to_string exn);
+                (match exn with
+                | Failure msg -> msg
+                | exn -> Printexc.to_string exn)
+                |> String.split_on_char '\n'
+                |> List.map (fun line -> "    " ^ line)
+                |> String.concat "\n"
+                |> Printf.printf "[FAIL] %s:\n\n%s\n\n" name;
                 unit))
   >>- (fun () ->
         if !n_failures = 0 then
