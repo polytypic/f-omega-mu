@@ -408,8 +408,7 @@ and subst_of_norm env =
       >>= function
       | true ->
         let i' = Var.freshen i in
-        let v' = `Var (at, i') in
-        subst_of_norm (VarMap.add i v' env) t
+        subst_of_norm (VarMap.add i (var i') env) t
         |> VarEnv.adding i' @@ `Kind k
         >>= lam_of_norm at i' k
       | false ->
@@ -442,15 +441,13 @@ let rec find_map_from_all_apps_of i' p = function
       | some -> return some))
   | t -> find_map_fr (find_map_from_all_apps_of i' p) t
 
-let find_opt_nested_arg_mu at f arity =
+let find_opt_nested_arg_mu at' f arity =
   if arity <= 0 then return None
   else
-    let i = Var.fresh at in
-    let v = var i in
-    let is = List.init arity @@ fun _ -> Var.fresh at in
-    let vs = is |> List.map var in
-    app_of_norm at f v >>= fun fv ->
-    apps_of_norm at fv vs
+    let i = Var.fresh at' in
+    let is = List.init arity @@ fun _ -> Var.fresh at' in
+    app_of_norm at' f (var i) >>= fun fv ->
+    apps_of_norm at' fv (List.map var is)
     >>= find_map_from_all_apps_of i @@ fun _ _ xs ->
         xs
         |> List.find_map_fr @@ function
@@ -462,22 +459,22 @@ let find_opt_nested_arg_mu at f arity =
 
 (* *)
 
-let rec find_opt_non_contractive ids typ =
-  match unapp typ with
-  | `Mu (_, `Lam (_, id, _, f)), xs -> (
+let rec find_opt_non_contractive is t =
+  match unapp t with
+  | `Mu (_, `Lam (_, i, _, f)), xs -> (
     apps_of_norm Loc.dummy f xs >>- unapp >>= function
-    | (`Var (_, id') as mu), _ when Var.equal id' id || VarSet.mem id' ids ->
+    | (`Var (_, i') as mu), _ when Var.equal i' i || VarSet.mem i' is ->
       return @@ Some mu
-    | typ, _ -> find_opt_non_contractive (VarSet.add id ids) typ)
+    | t, _ -> find_opt_non_contractive (VarSet.add i is) t)
   | _ -> return None
 
-let find_opt_non_contractive_mu at f arity =
+let find_opt_non_contractive_mu at' f arity =
   match f with
-  | `Lam (_, id, _, f) -> (
-    let xs = List.init arity @@ fun _ -> var @@ Var.fresh at in
+  | `Lam (_, i, _, f) -> (
+    let xs = List.init arity @@ fun _ -> var @@ Var.fresh at' in
     apps_of_norm Loc.dummy f xs >>- unapp >>= function
-    | (`Var (_, id') as mu), _ when Var.equal id' id -> return @@ Some mu
-    | typ, _ -> find_opt_non_contractive (VarSet.singleton id) typ)
+    | (`Var (_, i') as mu), _ when Var.equal i' i -> return @@ Some mu
+    | t, _ -> find_opt_non_contractive (VarSet.singleton i) t)
   | _ -> return None
 
 (* *)
