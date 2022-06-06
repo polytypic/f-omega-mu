@@ -101,6 +101,7 @@ module type S = sig
 
   module Unsafe : sig
     val set_counter : int -> t -> t
+    val smallest : (t -> ('f, 'F, bool) Monad.fr) -> t -> ('f, 'F, t) Monad.fr
   end
 end
 
@@ -166,5 +167,12 @@ module Make () : S = struct
 
   module Unsafe = struct
     let set_counter n t = {t with n}
+
+    let smallest is_free i =
+      let rec loop c =
+        let u = set_counter c i in
+        is_free u >>= function false -> return u | true -> loop (c + 1)
+      in
+      loop 0
   end
 end

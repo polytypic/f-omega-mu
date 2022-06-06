@@ -58,6 +58,7 @@ module type S = sig
 
   module Unsafe : sig
     val set_counter : int -> t -> t
+    val smallest : (t -> ('f, 'F, bool) Monad.fr) -> t -> ('f, 'F, t) Monad.fr
   end
 end
 

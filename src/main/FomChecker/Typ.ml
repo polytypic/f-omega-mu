@@ -239,17 +239,15 @@ and sub at' l r =
     let* i, lt, rt =
       if Var.equal li ri then return (li, lt, rt)
       else
-        let rec loop i =
-          let v = Var.Unsafe.set_counter i li in
-          Core.is_free v lt ||| Core.is_free v rt >>= function
-          | false ->
-            let i = var v in
-            let+ lt = Core.subst_of_norm (VarMap.singleton li i) lt
-            and+ rt = Core.subst_of_norm (VarMap.singleton ri i) rt in
-            (v, lt, rt)
-          | true -> loop (i + 1)
+        let* i =
+          li
+          |> Var.Unsafe.smallest @@ fun i ->
+             Core.is_free i lt ||| Core.is_free i rt
         in
-        loop 0
+        let v = var i in
+        let+ lt = Core.subst_of_norm (VarMap.singleton li v) lt
+        and+ rt = Core.subst_of_norm (VarMap.singleton ri v) rt in
+        (i, lt, rt)
     in
     Kind.unify at' lk rk >> sub at' lt rt |> VarEnv.adding i @@ `Kind lk
   | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
@@ -379,17 +377,13 @@ and bop_of_norm o at' l r =
     let* i, lt, rt =
       if Var.equal li ri then return (li, lt, rt)
       else
-        let rec loop i =
-          let v = Var.Unsafe.set_counter i li in
-          is_free v lt ||| is_free v rt >>= function
-          | false ->
-            let i = var v in
-            let+ lt = subst_of_norm (VarMap.singleton li i) lt
-            and+ rt = subst_of_norm (VarMap.singleton ri i) rt in
-            (v, lt, rt)
-          | true -> loop (i + 1)
+        let* i =
+          li |> Var.Unsafe.smallest @@ fun i -> is_free i lt ||| is_free i rt
         in
-        loop 0
+        let v = var i in
+        let+ lt = subst_of_norm (VarMap.singleton li v) lt
+        and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
+        (i, lt, rt)
     in
     Kind.unify at' lk rk >> bop_of_norm o at' lt rt
     |> VarEnv.adding i @@ `Kind lk
