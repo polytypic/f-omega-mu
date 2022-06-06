@@ -78,7 +78,7 @@ let () =
   test_equal_typs "∀x.x→x" "∀y.y→y";
   test_equal_typs "λf:*→*.f" "λf.λy.(λx.f x) y";
   test_equal_typs "μx.{x}" "μx.μy.{x:y}";
-  test_not_equal_typs "∀x.∀y.x→y" "∀y.∀x.x→y";
+  test_equal_typs "∀x.∀y.x→y" "∀y.∀x.x→y";
   test_not_equal_typs "∀x.x→x" "∀y.y→y→y";
   test_not_equal_typs "λx.μxs.x→xs" "λy.y→y";
   test_not_equal_typs "∀f.f()→()" "∃f.f()→()";
@@ -263,10 +263,10 @@ let () =
       }
     ) →
     (
-      ∀t.{
+      ∀t.∀u.{
         map: ∀x.∀y.(x → y) → t x → t y
-        return: ∀x.x → t x
-        apply: ∀x.∀y.t (x → y) → t x → t y
+        return: ∀x.x → u x
+        apply: ∀x.∀y.u (x → y) → u x → u y
       }
     ) → ∃t.{}
     |}
@@ -376,6 +376,9 @@ let () =
       Λα.Λβ.λaIb.λtb.'Iso «α, «β, (Eq.refl«α», aIb, tb)»»
     ()
     |};
+  testInfersAs "co and contravariance"
+    "(∀t.t → t) → {x: 'A, y: 'B} → {x: 'A | 'B}"
+    "λx: ∀t.t → t.x: {x: 'A, y: 'B} → {x: 'A | 'B}";
   ()
 
 let testErrors name exp =
@@ -442,4 +445,5 @@ let () =
     |};
   testErrors "higher-order unification" "λx: int → int.x: ∃f.f int → f int";
   testErrors "kind mismatch" "λx: ∀t: * → _.∀u.t u.x: ∀t: (_ → _) → _.∀u.t u";
+  testErrors "invariant unknown" "λx: ∀t.t → t.x: {x: int} → {y: int}";
   ()

@@ -65,6 +65,7 @@ module Typ = struct
   end
 
   module Var = FomAST.Typ.Var
+  module Unk = FomAST.Typ.Unk
 
   (* *)
 
@@ -207,6 +208,7 @@ module Typ = struct
       config.pp config prec l ^^ space ^^ op_of o ^^ space
       ^^ config.pp config prec r
       |> if prec < prec_outer then egyptian parens 2 else id
+    | `Unk (_, i) -> backtick ^^ Unk.pp ~hr:config.hr i ^^ backtick
 
   let pp ?(hr = true)
       ?(pp_annot = Kind.pp_annot ~numbering:(Kind.Numbering.create ())) typ =

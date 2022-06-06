@@ -1,0 +1,41 @@
+let is = Λα.λx: α → α.x
+[
+  #
+  is«∀α.α → α»
+    λx: (int → int) ∧ (∀α.α → α).x
+  is«∀α.α → α»
+    λx: (∀α.α → α) ∧ (int → int).x
+  is«int → int»
+    λx: (int → int) ∨ (∀α.α → α).x
+  is«int → int»
+    λx: (∀α.α → α) ∨ (int → int).x
+  #
+  is«int → int»
+    λx: (int → int) ∧ (∃α.α → α).x
+  is«int → int»
+    λx: (∃α.α → α) ∧ (int → int).x
+  is«∃α.α → α»
+    λx: (int → int) ∨ (∃α.α → α).x
+  is«∃α.α → α»
+    λx: (∃α.α → α) ∨ (int → int).x
+  #
+  is«∀α.{b: α, a: int, c: string}»
+    λx: (∀α.{a: int, b: α}) ∧ ({a: int, c: string}).x
+  is«∀α.{b: α, a: int, c: string}»
+    λx: ({a: int, c: string}) ∧ (∀α.{a: int, b: α}).x
+  is«∀α.∀β.{a: α, b: β}»
+    λx: (∀α.{a: α}) ∧ (∀β.{b: β}).x
+  is«∀α.{a: α, b: α}»
+    λx: (∀α.{a: α}) ∧ (∀α.{a: α, b: α}).x
+  is«∀α.{a: α, b: α}»
+    λx: (∀α.{a: α, b: α}) ∧ (∀α.{a: α}).x
+  is«∃α.{empty: α, concat: int → int → int}»
+    λx: (∃α.{empty: α}) ∧ {concat: int → int → int}.x
+  is«∃α.{empty: α, concat: α → α → α}»
+    λx: (∃α.{empty: α, concat: α → α → α}) ∧ (∃α.{empty: α}).x
+  #
+  type μτ = (int, τ) in is«{x: τ, y: τ}»
+    λx:(∃α1.∃β1.{x: (α1, β1), y: β1}) ∧ {x: (int, τ), y: τ}.x
+  is«∃α.{x: μω.(α, ω), y: μω.(α, ω)}»
+    λx: (∃α1.∃β1.{x: (α1, β1), y: β1}) ∧ (∃α2.{x: α2, y: α2}).x
+]

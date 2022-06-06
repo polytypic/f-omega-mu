@@ -24,6 +24,7 @@ module Env : sig
      ; 'r Parameters.f
      ; 'r Typ.Goals.f
      ; 'r Typ.Solved.f
+     ; 'r Typ.UnkEnv.f
      ; 'r TypImports.f
      ; 'r TypIncludes.f
      ; ('t, 'r) Typ.VarEnv.f >

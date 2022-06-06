@@ -22,6 +22,7 @@ module Env = struct
       inherit Typ.Goals.con
       inherit Typ.Solved.con
       inherit [_] Typ.VarEnv.con
+      inherit Typ.UnkEnv.con
       inherit TypImports.con typ_imports
       inherit TypIncludes.con typ_includes
     end

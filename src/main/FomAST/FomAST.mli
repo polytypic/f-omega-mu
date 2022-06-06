@@ -1,6 +1,14 @@
 open FomBasis
 open FomSource
 
+module Variance : sig
+  type t = [`None | `Pos | `Neg | `Zero]
+
+  val neg : t uop
+  val join : t bop
+  val to_string : t -> string
+end
+
 module Kind : sig
   module Unk : Id.S
 
@@ -115,18 +123,57 @@ module Typ : sig
 
   module VarSet : Set.S with type elt = Var.t
   module VarMap : Map.S with type key = Var.t
+  module Unk : Id.S
 
-  module Core : sig
+  module CoreTyp : sig
     type ('t, 'k) f =
       [ `Mu of Loc.t * 't
       | `Const of Loc.t * Const.t
       | `Var of Loc.t * Var.t
+      | `Unk of Loc.t * Unk.t
       | `Lam of Loc.t * Var.t * 'k * 't
       | `App of Loc.t * 't * 't
       | `Arrow of Loc.t * 't * 't
       | `For of Loc.t * [`All | `Unk] * 't
       | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
 
+    type t = (t, Kind.t) f
+  end
+
+  module UnkMap : Map.S with type key = Unk.t
+
+  module UnkEnv : sig
+    module Rank : sig
+      type t = int
+    end
+
+    type v = CoreTyp.t Option.t * (Kind.t * Rank.t) * Variance.t
+    type 'r m
+    type 'r f = < typ_unk_env : 'r m >
+
+    class con :
+      object ('r)
+        method typ_unk_env : 'r m
+      end
+
+    val resetting : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
+    val cloning : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
+
+    val adding :
+      Unk.t -> Kind.t -> ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
+
+    val set_variance :
+      Unk.t -> Variance.t -> ((< 'r f ; .. > as 'r), 'e, unit) rea
+
+    val set :
+      Unk.t -> CoreTyp.t Option.t -> ((< 'r f ; .. > as 'r), 'e, unit) rea
+
+    val find : Unk.t -> ((< 'r f ; .. > as 'r), 'e, v) rea
+    val deref : Unk.t -> ((< 'r f ; .. > as 'r), 'e, Unk.t * v) rea
+  end
+
+  module Core : sig
+    type ('t, 'k) f = ('t, 'k) CoreTyp.f
     type t = (t, Kind.t) f
 
     val set_at : Loc.t -> [< ('t, 'k) f] -> ('t, 'k) f
@@ -165,12 +212,22 @@ module Typ : sig
 
     (* *)
 
-    val is_free : Var.t -> t -> ('r, 'e, bool) rea
-    val subst_of_norm : Var.t -> t -> t -> ('r, 'e, t) rea
-    val mu_of_norm : Loc.t -> t -> ('r, 'e, t) rea
-    val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t -> ('r, 'e, t) rea
-    val app_of_norm : Loc.t -> t -> t -> ('r, 'e, t) rea
-    val apps_of_norm : Loc.t -> t -> t list -> ('r, 'e, t) rea
+    val has_unk : Unk.t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, bool) rea
+    val is_free : Var.t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, bool) rea
+
+    val subst_of_norm :
+      Var.t -> t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, t) rea
+
+    val mu_of_norm : Loc.t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, t) rea
+
+    val lam_of_norm :
+      Loc.t -> Var.t -> Kind.t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, t) rea
+
+    val app_of_norm :
+      Loc.t -> t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, t) rea
+
+    val apps_of_norm :
+      Loc.t -> t -> t list -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, t) rea
   end
 
   type ('t, 'k) f =
@@ -184,6 +241,7 @@ module Typ : sig
   (* Macros *)
 
   val var : Var.t -> [> `Var of Loc.t * Var.t]
+  val unk : Unk.t -> [> `Unk of Loc.t * Unk.t]
   val product : Loc.t -> 't Row.t -> [> `Row of Loc.t * [> `Product] * 't Row.t]
   val sum : Loc.t -> 't Row.t -> [> `Row of Loc.t * [> `Sum] * 't Row.t]
   val zero : Loc.t -> [> `Row of Loc.t * [> `Sum] * 't Row.t]
@@ -266,7 +324,8 @@ module Typ : sig
 
   (* *)
 
-  val is_free : Var.t -> t -> ('r, 'e, bool) rea
+  val has_unk : Unk.t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, bool) rea
+  val is_free : Var.t -> t -> ((< 'r UnkEnv.f ; .. > as 'r), 'e, bool) rea
 
   (* Freshening *)
 

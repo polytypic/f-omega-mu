@@ -378,6 +378,7 @@ and elaborate_typ = function
     |> TypImports.get_or_put at' sig_path
     |> Elab.modularly
     >>- fun t -> (t : Typ.Core.t :> Typ.t)
+  | `Unk _ -> failwith "elaborate_typ `Unk"
   | #Typ.f as t -> Typ.map_fr elaborate_typ t
 
 let rec elaborate = function

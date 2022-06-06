@@ -8,6 +8,17 @@ include FomAST.Typ
 
 (* *)
 
+module Unk = struct
+  include Unk
+
+  let from_var v = of_name (Var.at v) (Var.name v)
+
+  let rec from = function
+    | `Lam (_, i, _, _) -> from_var i
+    | `Mu (_, t) -> from t
+    | t -> of_string (FomAST.Typ.at t) "u"
+end
+
 module VarEnv = struct
   type ('t, 'r) m = ('t VarMap.t, 'r) Field.t
   type ('t, 'r) f = < typ_env : ('t, 'r) m >
@@ -54,16 +65,25 @@ let rec kind_of = function
   | `Var (_, i) -> VarEnv.kind_of i
   | `Lam (at', i, d, t) ->
     kind_of t |> VarEnv.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
+  | `Unk (_, x) -> UnkEnv.find x >>- fun (_, (k, _), _) -> k
   | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
     return @@ `Star at'
   | `Bop (_, _, l, _) -> kind_of l
 
 let kind_of t = kind_of t >>= Kind.resolve
 
+let kind_of_dom f =
+  kind_of f >>- function
+  | `Star _ -> failwith "kind_of_dom *"
+  | `Unk _ -> failwith "kind_of_dom ?"
+  | `Arrow (_, d, _) -> d
+
 (* *)
 
 module Var = struct
   include Var
+
+  let from_unk u = Var.of_name (Unk.at u) (Unk.name u)
 
   let rec from = function
     | `Bop (_, _, ((`Mu _ | `Lam _) as t), _)
@@ -114,6 +134,40 @@ module Core = struct
        | `Lam (at', d, k, t) ->
          Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
        | t -> map_eq_fr resolve t
+
+  (* *)
+
+  let rec variance_of x' = function
+    | `Unk (_, x) when Unk.equal x x' -> `Pos
+    | `Arrow (_, d, c) ->
+      Variance.join (Variance.neg (variance_of x' d)) (variance_of x' c)
+    | t -> map_reduce Variance.join `None (variance_of x') t
+
+  (* *)
+
+  let rec replace_of_norm x' t' t =
+    t
+    |> keep_phys_eq_fr @@ function
+       | `Unk (_, x) as inn -> (
+         if Unk.equal x x' then return t'
+         else
+           UnkEnv.find x >>= function
+           | Some t, _, _ ->
+             let* t = UnkEnv.set x None >> replace_of_norm x' t' t in
+             UnkEnv.set x (Some t) >> return inn
+           | _ -> return inn)
+       | t -> map_eq_fr (replace_of_norm x' t') t
+
+  let rec update_unks_of_norm x' t' = function
+    | `Unk (_, x) -> (
+      if Unk.equal x x' then unit
+      else
+        UnkEnv.find x >>= function
+        | Some t, _, _ ->
+          let* t = UnkEnv.set x None >> replace_of_norm x' t' t in
+          UnkEnv.set x (Some t)
+        | _ -> unit)
+    | t -> iter_fr (update_unks_of_norm x' t') t
 end
 
 module GoalSet = Set.Make (Compare.Tuple'2 (Core) (Core))
@@ -125,6 +179,7 @@ module Goals = struct
   let empty () = MVar.create GoalSet.empty
   let field r = r#goals
   let resetting op = setting field (empty ()) op
+  let cloning op = read field >>= fun v -> setting field (MVar.create v) op
 
   let adding g op =
     let* added =
@@ -162,8 +217,46 @@ end
 
 (* *)
 
+let rec variance_of x' = function
+  | `Unk (_, x) when Unk.equal x x' -> `Pos
+  | `Arrow (_, d, c) ->
+    Variance.join (Variance.neg (variance_of x' d)) (variance_of x' c)
+  | t -> map_reduce Variance.join `None (variance_of x') t
+
+let rec replace_of_norm x' (t' : Core.t) t =
+  t
+  |> keep_phys_eq_fr @@ function
+     | `Unk (_, x) as inn -> (
+       if Unk.equal x x' then return (t' :> t)
+       else
+         UnkEnv.find x >>= function
+         | Some t, _, _ ->
+           let* t = UnkEnv.set x None >> Core.replace_of_norm x' t' t in
+           UnkEnv.set x (Some t) >> return inn
+         | _ -> return inn)
+     | t -> map_eq_fr (replace_of_norm x' t') t
+
 let rec solve_of_norm = function
+  | `Unk (at', x) -> (
+    UnkEnv.deref x >>= function
+    | x, (Some t, (k, _), _) ->
+      let i = Var.from_unk x |> Var.freshen in
+      let v = var i in
+      UnkEnv.set x (Some v)
+      >> solve_of_norm (t :> t)
+      |> VarEnv.adding i @@ `Kind k
+      >>= Core.lam_of_norm at' i k >>= Core.mu_of_norm at'
+      >>= fun t -> UnkEnv.set x (Some t) >> return t
+    | _, (None, _, _) -> failwithf "solve_of_norm %s" (Unk.to_string x))
   | #Core.f as t -> Core.map_fr solve_of_norm t
+  | `Bop (at', _, l, r) -> fail @@ `Error_typ_unrelated (at', l, r)
+
+let rec presolve_of_norm = function
+  | `Unk (_, x) as t -> (
+    UnkEnv.deref x >>- function
+    | _, (Some ((`Var _ | `Const _) as t), _, _) -> t
+    | x', _ -> if Unk.equal x x' then t else unk x')
+  | #Core.f as t -> Core.map_fr presolve_of_norm t
   | `Bop (at', _, l, r) -> fail @@ `Error_typ_unrelated (at', l, r)
 
 (* *)
@@ -207,6 +300,8 @@ let bop o = function
   | at', l, r -> `Bop (at', o, l, r)
 
 let inv = function `Join -> `Meet | `Meet -> `Join | `Eq -> `Eq
+let dual = function `Unk -> `All | `All -> `Unk
+let bop_of = function `All -> `Join | `Unk -> `Meet
 
 (* *)
 
@@ -284,6 +379,7 @@ and classify t =
     let mu' = Var.from f |> Var.freshen in
     let* k = kind_of mu in
     unfold at' f (var mu') xs >>= classify |> VarEnv.adding mu' @@ `Kind k
+  | `Apps (`Unk _, _) -> return None
   | `Apps (`Var _, _) -> return None
   | `Apps (`Bop (_, _, l, r), _) -> (
     classify l >>= function None -> classify r | some -> return some)
@@ -310,9 +406,59 @@ and memoing t op =
 and bop_of_norm o at' l r =
   memoing (bop o (at', l, r)) @@ fun () ->
   Profiling.Counter.inc bop_counter;
+  let for_as q f n =
+    let* k = kind_of_dom f
+    and* x =
+      Unk.from f |> Unk.Unsafe.smallest @@ fun x -> has_unk x n ||| has_unk x f
+    in
+    UnkEnv.adding x k
+    @@ let* f_x = app_of_norm at' f (unk x) in
+       let* t =
+         variance_of x f_x |> UnkEnv.set_variance x >> bop_of_norm o at' n f_x
+       in
+       let* x', (t_opt, (k, _), _) = UnkEnv.deref x in
+       let gen () =
+         let* v = Var.from f |> Var.Unsafe.smallest @@ fun v -> is_free v t in
+         replace_of_norm x (var v) t >>- fun t ->
+         `For (at', q, `Lam (at', v, k, t))
+       in
+       match t_opt with
+       | Some t' ->
+         if o = bop_of q then
+           let* t' =
+             let* i =
+               Var.from_unk x'
+               |> Var.Unsafe.smallest @@ fun i -> Core.is_free i t'
+             in
+             Core.replace_of_norm x (var i) t'
+             >>= Core.lam_of_norm at' i k >>= Core.mu_of_norm at'
+           in
+           replace_of_norm x t' t
+         else gen ()
+       | None -> if Unk.equal x x' then gen () else replace_of_norm x (unk x') t
+  in
+  let unk_as x n =
+    let* x, (t_opt, (k, r), v) = UnkEnv.deref x in
+    kind_of n >>= Kind.unify at' k
+    >>
+    let u = unk x in
+    (match t_opt with
+    | None -> return n
+    | Some t -> bop_of_norm (if v = `Zero then `Eq else o) at' n (t :> t))
+    >>= presolve_of_norm
+    >>= function
+    | `Unk (_, x') as u' -> (
+      UnkEnv.find x' >>= function
+      | _, (_, r'), _ ->
+        if r < r' then UnkEnv.set x' (Some u) >> return u
+        else if r' < r then UnkEnv.set x (Some u') >> return u'
+        else return u)
+    | t -> UnkEnv.set x (Some t) >> return u
+  in
   let head l r =
     match (l, r) with
     | `Var (_, l'), `Var (_, r') when Var.equal l' r' -> return l
+    | n, `Unk (_, x) | `Unk (_, x), n -> unk_as x n
     | _ -> fail @@ `Error_typ_unrelated (at', (l :> t), (r :> t))
   in
   match (to_apps l, to_apps r) with
@@ -320,6 +466,8 @@ and bop_of_norm o at' l r =
     unfold la lf lmu lxs >>= fun l -> bop_of_norm o at' l r
   | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
     unfold ra rf rmu rxs >>= fun r -> bop_of_norm o at' l r
+  | _, `Apps (`Unk (_, x), []) -> unk_as x l
+  | `Apps (`Unk (_, x), []), _ -> unk_as x r
   | `Apps (lf, lxs), `Apps (rf, rxs) when List.length lxs = List.length rxs ->
     head lf rf <*> List.map2_fr (bop_of_norm `Eq at') lxs rxs >>= fun (f, xs) ->
     apps_of_norm at' f xs
@@ -327,8 +475,8 @@ and bop_of_norm o at' l r =
     bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc >>- fun (d, c) ->
     `Arrow (at', d, c)
   | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> return l
-  | `For (_, q, lt), `For (_, q', rt) when q = q' ->
-    bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
+  | `For (_, q, f), _ -> for_as q f r
+  | _, `For (_, q, f) -> for_as q f l
   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
     let* i =
       li |> Var.Unsafe.smallest @@ fun i -> is_free i l ||| is_free i r
@@ -351,6 +499,8 @@ and subst_of_norm i v t =
     keep_phys_eq_fr @@ function
     | `Var (_, i) as inn ->
       VarMap.find_opt i env |> Option.value ~default:inn |> return
+    | `Unk _ as t ->
+      is_free i t >>- fun b -> if b then failwith "subst_of_norm" else t
     | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
@@ -381,6 +531,40 @@ and subst_of_norm i v t =
 
 let sub_counter = Profiling.Counter.register "sub"
 
+let for_as at' (f : Core.t) o op = function
+  | `All ->
+    let* k = kind_of_dom f
+    and* fi =
+      Var.from (f :> t)
+      |> Var.Unsafe.smallest @@ fun fi ->
+         Core.is_free fi o ||| Core.is_free fi f
+    in
+    Core.app_of_norm at' f @@ var fi >>= op |> VarEnv.adding fi @@ `Kind k
+  | `Unk ->
+    let* k = kind_of_dom f
+    and* x =
+      Unk.from f
+      |> Unk.Unsafe.smallest @@ fun u -> Core.has_unk u o ||| Core.has_unk u f
+    in
+    UnkEnv.adding x k
+    @@ let* t = Core.app_of_norm at' f (unk x) in
+       let* _, (t_opt, _, _) =
+         Core.variance_of x t |> UnkEnv.set_variance x >> op t >> UnkEnv.deref x
+       in
+       let* t' =
+         match t_opt with
+         | None ->
+           let i = Var.from_unk x |> Var.freshen in
+           return (var i)
+         | Some t' ->
+           let* i =
+             Var.from_unk x |> Var.Unsafe.smallest @@ fun i -> Core.is_free i t'
+           in
+           Core.replace_of_norm x (var i) t'
+           >>= Core.lam_of_norm at' i k >>= Core.mu_of_norm at'
+       in
+       Core.update_unks_of_norm x t' t >> Core.update_unks_of_norm x t' o
+
 let rec subset at' (l : t) (r : t) flip ls ms =
   match (ls, ms) with
   | [], _ -> unit
@@ -404,16 +588,12 @@ and sub at' l r =
   | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
     when Var.equal li ri && List.length lxs = List.length rxs ->
     List.iter2_fr (eq at') lxs rxs
+  | _, `Apps (`Unk _, _) | `Apps (`Unk _, _), _ ->
+    bop_of_norm `Join at' (l :> t) (r :> t) >>= presolve_of_norm >>- ignore
   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub at' rd ld >> sub at' lc rc
   | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> unit
-  | `For (_, lq, l), `For (_, rq, r) when lq = rq -> sub at' l r
-  | _, `For (_, `All, rf) ->
-    let i = Var.from (rf :> t) |> Var.freshen in
-    let k = Kind.fresh at' in
-    let* r = Core.app_of_norm at' rf @@ var i in
-    kind_of rf
-    >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
-    >> VarEnv.adding i (`Kind k) (sub at' l r)
+  | `For (at', q, f), _ -> for_as at' f r (fun l -> sub at' l r) (dual q)
+  | _, `For (at', q, f) -> for_as at' f l (fun r -> sub at' l r) q
   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
     let* i =
       li
@@ -537,6 +717,7 @@ let rec infer = function
   | `Bop (at', o, l, r) ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
     Kind.unify at' lk rk >> (bop_of_norm o at' l r <*> return lk)
+  | `Unk (_, x) as t -> UnkEnv.find x >>- fun (_, (k, _), _) -> (t, k)
 
 and check expected t =
   let* t, actual = infer t in
@@ -562,7 +743,7 @@ let check_and_resolve k = check k >=> Core.resolve
 let as_predicate check l r =
   check Loc.dummy l r
   |> try_in (const @@ return true) (const @@ return false)
-  |> Kind.UnkEnv.cloning
+  |> Kind.UnkEnv.cloning |> UnkEnv.cloning
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r
 let is_equal_of_norm l r = as_predicate check_equal_of_norm l r

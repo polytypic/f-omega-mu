@@ -114,6 +114,7 @@ val elaborate_typ :
      ; 'r TypIncludes.f
      ; 'r Typ.Goals.f
      ; 'r Typ.Solved.f
+     ; 'r Typ.UnkEnv.f
      ; .. >
      as
      'r),
@@ -135,6 +136,7 @@ val elaborate :
      ; 'r TypIncludes.f
      ; 'r Typ.Goals.f
      ; 'r Typ.Solved.f
+     ; 'r Typ.UnkEnv.f
      ; .. >
      as
      'r),

@@ -1,6 +1,26 @@
 open FomBasis
 open FomSource
 
+module Variance = struct
+  type t = [`None | `Pos | `Neg | `Zero]
+
+  let neg = function `Pos -> `Neg | `Neg -> `Pos | (`None | `Zero) as v -> v
+
+  let join (l : t) (r : t) =
+    match (l, r) with
+    | `None, o | o, `None -> o
+    | `Zero, _ | _, `Zero -> `Zero
+    | `Pos, `Pos -> `Pos
+    | `Neg, `Neg -> `Neg
+    | `Pos, `Neg | `Neg, `Pos -> `Zero
+
+  let to_string = function
+    | `None -> "?"
+    | `Pos -> "+"
+    | `Neg -> "-"
+    | `Zero -> "*"
+end
+
 module Kind = struct
   module Unk = Id.Make ()
   module UnkMap = Map.Make (Unk)
@@ -196,10 +216,98 @@ module Typ = struct
 
   module VarSet = Set.Make (Var)
   module VarMap = Map.Make (Var)
+  module Unk = Id.Make ()
+
+  module UnkMap = struct
+    include Map.Make (Unk)
+
+    let consume u e =
+      match find_opt u !e with
+      | None -> failwithf "UnkMap.consume %s" (Unk.to_string u)
+      | Some (None, _, _) -> None
+      | Some (some, k_r, v) ->
+        e := add u (None, k_r, v) !e;
+        some
+  end
+
+  module CoreTyp = struct
+    type ('t, 'k) f =
+      [ `Mu of Loc.t * 't
+      | `Const of Loc.t * Const.t
+      | `Var of Loc.t * Var.t
+      | `Unk of Loc.t * Unk.t
+      | `Lam of Loc.t * Var.t * 'k * 't
+      | `App of Loc.t * 't * 't
+      | `Arrow of Loc.t * 't * 't
+      | `For of Loc.t * [`All | `Unk] * 't
+      | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
+
+    type t = (t, Kind.t) f
+  end
+
+  module UnkEnv = struct
+    module Rank = Int
+
+    type v = CoreTyp.t Option.t * (Kind.t * Rank.t) * Variance.t
+    type 'r m = ((Rank.t * v UnkMap.t) MVar.t, 'r) Field.t
+    type 'r f = < typ_unk_env : 'r m >
+
+    let empty () = MVar.create (0, UnkMap.empty)
+    let field r = r#typ_unk_env
+    let resetting op = setting field (empty ()) op
+    let cloning op = read field >>= fun v -> setting field (MVar.create v) op
+
+    let adding x k op =
+      modify field (fun (r, e) ->
+          ((r + 1, UnkMap.add x (None, (k, r), `None) e), UnkMap.find_opt x e))
+      >>= fun was ->
+      op >>= fun result ->
+      mutate field
+      @@ Pair.map (( + ) (-1))
+           (match was with None -> UnkMap.remove x | Some v -> UnkMap.add x v)
+      >> return result
+
+    let set_variance x v =
+      mutate field @@ Pair.map id @@ UnkMap.update x
+      @@ function
+      | None -> failwithf "UnkEnv.set %s" (Unk.to_string x)
+      | Some (t_opt, k_r, _) -> Some (t_opt, k_r, v)
+
+    let set x t_opt =
+      mutate field @@ Pair.map id @@ UnkMap.update x
+      @@ function
+      | None -> failwithf "UnkEnv.set %s" (Unk.to_string x)
+      | Some (_, k_r, v) -> Some (t_opt, k_r, v)
+
+    let find x =
+      read field >>= fun (_, e) ->
+      UnkMap.find_opt x e |> function
+      | None -> failwithf "UnkEnv.find %s" (Unk.to_string x)
+      | Some v -> return v
+
+    let deref x =
+      read field >>- fun (_, e) ->
+      let rec loop x =
+        match UnkMap.find_opt x e with
+        | None -> failwithf "UnkEnv.deref %s" (Unk.to_string x)
+        | Some (Some (`Unk (_, x)), _, _) -> loop x
+        | Some v -> (x, v)
+      in
+      loop x
+
+    class con =
+      object
+        val typ_unk_env = empty ()
+
+        method typ_unk_env : _ m =
+          Field.make typ_unk_env (fun v -> {<typ_unk_env = v>})
+      end
+  end
 
   (* Macros *)
 
   let var i = `Var (Var.at i, i)
+  let unk x = `Unk (Unk.at x, x)
   let sort labels = List.sort (Compare.the fst Label.compare) labels
   let row at m fs = `Row (at, m, sort fs)
   let product at = row at `Product
@@ -214,22 +322,13 @@ module Typ = struct
     | ts -> product at (Tuple.labels at ts)
 
   module Core = struct
-    type ('t, 'k) f =
-      [ `Mu of Loc.t * 't
-      | `Const of Loc.t * Const.t
-      | `Var of Loc.t * Var.t
-      | `Lam of Loc.t * Var.t * 'k * 't
-      | `App of Loc.t * 't * 't
-      | `Arrow of Loc.t * 't * 't
-      | `For of Loc.t * [`All | `Unk] * 't
-      | `Row of Loc.t * [`Product | `Sum] * 't Row.t ]
-
-    type t = (t, Kind.t) f
+    include CoreTyp
 
     let map_fr' fl row ft = function
       | `Mu (l, t) -> fl l <*> ft t >>- fun x -> `Mu x
       | `Const (l, c) -> fl l >>- fun l -> `Const (l, c)
       | `Var (l, i) -> fl l >>- fun l -> `Var (l, i)
+      | `Unk (l, x) -> fl l >>- fun l -> `Unk (l, x)
       | `Lam (l, i, k, t) -> fl l <*> ft t >>- fun (l, t) -> `Lam (l, i, k, t)
       | `App (l, f, x) -> tuple'3 (fl l) (ft f) (ft x) >>- fun x -> `App x
       | `For (l, q, t) -> fl l <*> ft t >>- fun (l, t) -> `For (l, q, t)
@@ -255,6 +354,7 @@ module Typ = struct
       | `Mu l, `Mu r -> eq'2 l r
       | `Const l, `Const r -> eq'2 l r
       | `Var l, `Var r -> eq'2 l r
+      | `Unk l, `Unk r -> eq'2 l r
       | `Lam l, `Lam r -> eq'4 l r
       | `App l, `App r -> eq'3 l r
       | `Arrow l, `Arrow r -> eq'3 l r
@@ -268,11 +368,28 @@ module Typ = struct
 
     (* *)
 
-    let rec is_free i = function
-      | `Var (_, i') -> return @@ Var.equal i i'
-      | `Lam (_, i', _, body) ->
-        if Var.equal i i' then return false else is_free i body
-      | t -> exists_fr (is_free i) t
+    let rec has_unk_in e x = function
+      | `Unk (_, x') ->
+        Unk.equal x x' || UnkMap.consume x' e |> Option.exists (has_unk_in e x)
+      | t -> exists (has_unk_in e x) t
+
+    let has_unk_in =
+      Profiling.Counter.wrap'3 "Core.has_unk_in" (has_unk_in : _ -> _ -> t -> _)
+
+    let has_unk x t =
+      read UnkEnv.field >>- fun (_, e) ->
+      UnkMap.mem x e && has_unk_in (ref e) x t
+
+    let rec is_free_in e i = function
+      | `Var (_, i') -> Var.equal i i'
+      | `Lam (_, i', _, body) -> (not (Var.equal i i')) && is_free_in e i body
+      | `Unk (_, x') -> UnkMap.consume x' e |> Option.exists (is_free_in e i)
+      | t -> exists (is_free_in e i) t
+
+    let is_free_in =
+      Profiling.Counter.wrap'3 "Core.is_free_in" (is_free_in : _ -> _ -> t -> _)
+
+    let is_free i t = read UnkEnv.field >>- fun (_, e) -> is_free_in (ref e) i t
 
     let mu_of_norm at = function
       | `Lam (_, i, _, t) as t' -> (
@@ -294,6 +411,12 @@ module Typ = struct
         keep_phys_eq_fr @@ function
         | `Var (_, i) as inn ->
           return (match VarMap.find_opt i env with None -> inn | Some t -> t)
+        | `Unk (_, x) as inn -> (
+          UnkEnv.deref x >>= function
+          | x, (Some t, _, _) ->
+            let* t = UnkEnv.set x None >> subst_of_norm env t in
+            UnkEnv.set x (Some t) >> return inn
+          | _ -> return inn)
         | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
         | `Lam (at, i, k, t) as inn ->
           let env = VarMap.remove i env in
@@ -417,11 +540,28 @@ module Typ = struct
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
-  let rec is_free i = function
-    | `Var (_, i') -> return @@ Var.equal i i'
-    | `Lam (_, i', _, body) ->
-      if Var.equal i i' then return false else is_free i body
-    | t -> exists_fr (is_free i) t
+  let rec has_unk_in e u = function
+    | `Unk (_, u') ->
+      Unk.equal u u'
+      || UnkMap.consume u' e |> Option.exists (Core.has_unk_in e u)
+    | t -> exists (has_unk_in e u) t
+
+  let has_unk_in =
+    Profiling.Counter.wrap'3 "has_unk_in" (has_unk_in : _ -> _ -> t -> _)
+
+  let has_unk u t =
+    read UnkEnv.field >>- fun (_, e) -> UnkMap.mem u e && has_unk_in (ref e) u t
+
+  let rec is_free_in e i = function
+    | `Var (_, i') -> Var.equal i i'
+    | `Lam (_, i', _, body) -> (not (Var.equal i i')) && is_free_in e i body
+    | `Unk (_, x) -> UnkMap.consume x e |> Option.exists (Core.is_free_in e i)
+    | t -> exists (is_free_in e i) t
+
+  let is_free_in =
+    Profiling.Counter.wrap'3 "is_free_in" (is_free_in : _ -> _ -> t -> _)
+
+  let is_free i t = read UnkEnv.field >>- fun (_, e) -> is_free_in (ref e) i t
 
   (* Freshening *)
 
@@ -443,6 +583,7 @@ module Typ = struct
     | `Mu _ -> `Mu
     | `Const _ -> `Const
     | `Var _ -> `Var
+    | `Unk _ -> `Unk
     | `Lam _ -> `Lam
     | `App _ -> `App
     | `For _ -> `For
@@ -458,6 +599,7 @@ module Typ = struct
       let l = VarMap.find_opt l l_env |> Option.value ~default:l in
       let r = VarMap.find_opt r r_env |> Option.value ~default:r in
       Var.compare l r
+    | `Unk (_, l_x), `Unk (_, r_x) -> Unk.compare l_x r_x
     | `Lam (_, l_i, l_k, l_t), `Lam (_, r_i, r_k, r_t) ->
       Kind.compare l_k r_k <>? fun () ->
       if Var.equal l_i r_i then

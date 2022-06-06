@@ -1,0 +1,13 @@
+type μlist = λα.[] ∨ [α, …list α]
+
+let xs = [
+  λx: ∀α.α → α.x: int → int
+  λx: int.x: ∀_.int
+  λx: (int, int → int).x: ∃α.(α, α → α)
+  λx: ∃_.int.x: int
+  λx: ∀α.α.x: ∃α.α
+  λx: ∃α.α → α. x: ∃α.α
+  λx: ∀α.∀β.α → β.x: ∀α.∀β.β → α
+]
+
+xs : list ∃α.α

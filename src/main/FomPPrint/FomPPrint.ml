@@ -4,6 +4,7 @@ include PPrint
 (* Constants *)
 
 let arrow_right = utf8string "→"
+let backtick = utf8string "`"
 let double_angle_quote_lhs = utf8string "«"
 let double_angle_quote_rhs = utf8string "»"
 let exists = utf8string "∃"

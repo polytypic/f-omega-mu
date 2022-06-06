@@ -11,6 +11,7 @@ val of_error :
   ( (< 'r Kind.UnkEnv.f
      ; ([> `Kind of Kind.t], 'r) Typ.VarEnv.f
      ; 'r Typ.Goals.f
+     ; 'r Typ.UnkEnv.f
      ; 'r Typ.Solved.f
      ; .. >
      as
