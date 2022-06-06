@@ -216,62 +216,6 @@ let inv = function `Join -> `Meet | `Meet -> `Join | `Eq -> `Eq
 
 (* *)
 
-let rec subset at' (l : t) (r : t) flip ls ms =
-  match (ls, ms) with
-  | [], _ -> unit
-  | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
-  | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
-    let c = Label.compare ll ml in
-    if c = 0 then flip (sub at') mt lt >> subset at' l r flip ls ms
-    else if 0 < c then subset at' l r flip lls ms
-    else fail @@ `Error_label_missing (at', ll, l, r)
-
-and eq at' l r = sub at' l r >> sub at' r l
-
-and sub at' l r =
-  match (to_apps l, to_apps r) with
-  | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
-    Goals.adding (l, r) @@ fun () ->
-    Core.unfold la lf lmu lxs >>= fun l -> sub at' l r
-  | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
-    Goals.adding (l, r) @@ fun () ->
-    Core.unfold ra rf rmu rxs >>= fun r -> sub at' l r
-  | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
-    when Var.equal li ri && List.length lxs = List.length rxs ->
-    List.iter2_fr (eq at') lxs rxs
-  | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub at' rd ld >> sub at' lc rc
-  | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> unit
-  | `For (_, lq, l), `For (_, rq, r) when lq = rq -> sub at' l r
-  | _, `For (_, `All, rf) ->
-    let i, _ = Var.fresh_from (rf :> t) in
-    let k = Kind.fresh at' in
-    let* r = Core.app_of_norm at' rf @@ var i in
-    kind_of rf
-    >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
-    >> VarEnv.adding i (`Kind k) (sub at' l r)
-  | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-    let* i, lt, rt =
-      if Var.equal li ri then return (li, lt, rt)
-      else
-        let* i =
-          li
-          |> Var.Unsafe.smallest @@ fun i ->
-             Core.is_free i lt ||| Core.is_free i rt
-        in
-        let v = var i in
-        let+ lt = Core.subst_of_norm (VarMap.singleton li v) lt
-        and+ rt = Core.subst_of_norm (VarMap.singleton ri v) rt in
-        (i, lt, rt)
-    in
-    Kind.unify at' lk rk >> sub at' lt rt |> VarEnv.adding i @@ `Kind lk
-  | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
-    let flip = match m with `Product -> id | `Sum -> Fun.flip in
-    flip (flip (subset at') (r :> t) (l :> t) flip) rls lls
-  | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))
-
-let check_sub_of_norm at' l r = sub at' l r |> Goals.resetting
-let check_equal_of_norm at' l r = eq at' l r |> Goals.resetting
-
 let rec mu_of_norm at = function
   | `Lam (at', i, k, t) as f -> (
     is_free i t >>= function
@@ -438,6 +382,64 @@ and subst_of_norm env =
     subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
     bop_of_norm o at' l r
   | t -> map_eq_fr (subst_of_norm env) t
+
+(* *)
+
+let rec subset at' (l : t) (r : t) flip ls ms =
+  match (ls, ms) with
+  | [], _ -> unit
+  | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
+  | ((ll, lt) :: ls as lls), (ml, mt) :: ms ->
+    let c = Label.compare ll ml in
+    if c = 0 then flip (sub at') mt lt >> subset at' l r flip ls ms
+    else if 0 < c then subset at' l r flip lls ms
+    else fail @@ `Error_label_missing (at', ll, l, r)
+
+and eq at' l r = sub at' l r >> sub at' r l
+
+and sub at' l r =
+  match (to_apps l, to_apps r) with
+  | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
+    Goals.adding (l, r) @@ fun () ->
+    Core.unfold la lf lmu lxs >>= fun l -> sub at' l r
+  | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
+    Goals.adding (l, r) @@ fun () ->
+    Core.unfold ra rf rmu rxs >>= fun r -> sub at' l r
+  | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
+    when Var.equal li ri && List.length lxs = List.length rxs ->
+    List.iter2_fr (eq at') lxs rxs
+  | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub at' rd ld >> sub at' lc rc
+  | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> unit
+  | `For (_, lq, l), `For (_, rq, r) when lq = rq -> sub at' l r
+  | _, `For (_, `All, rf) ->
+    let i, _ = Var.fresh_from (rf :> t) in
+    let k = Kind.fresh at' in
+    let* r = Core.app_of_norm at' rf @@ var i in
+    kind_of rf
+    >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
+    >> VarEnv.adding i (`Kind k) (sub at' l r)
+  | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
+    let* i, lt, rt =
+      if Var.equal li ri then return (li, lt, rt)
+      else
+        let* i =
+          li
+          |> Var.Unsafe.smallest @@ fun i ->
+             Core.is_free i lt ||| Core.is_free i rt
+        in
+        let v = var i in
+        let+ lt = Core.subst_of_norm (VarMap.singleton li v) lt
+        and+ rt = Core.subst_of_norm (VarMap.singleton ri v) rt in
+        (i, lt, rt)
+    in
+    Kind.unify at' lk rk >> sub at' lt rt |> VarEnv.adding i @@ `Kind lk
+  | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
+    let flip = match m with `Product -> id | `Sum -> Fun.flip in
+    flip (flip (subset at') (r :> t) (l :> t) flip) rls lls
+  | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))
+
+let check_sub_of_norm at' l r = sub at' l r |> Goals.resetting
+let check_equal_of_norm at' l r = eq at' l r |> Goals.resetting
 
 (* *)
 
