@@ -376,11 +376,9 @@ and subst_of_norm env =
         subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>= lam_of_norm at i k
     )
   | `App (at, f, x) ->
-    subst_of_norm env f <*> subst_of_norm env x >>= fun (f, x) ->
-    app_of_norm at f x
+    subst_of_norm env f <*> subst_of_norm env x >>= uncurry @@ app_of_norm at
   | `Bop (at', o, l, r) ->
-    subst_of_norm env l <*> subst_of_norm env r >>= fun (l, r) ->
-    bop_of_norm o at' l r
+    subst_of_norm env l <*> subst_of_norm env r >>= uncurry @@ bop_of_norm o at'
   | t -> map_eq_fr (subst_of_norm env) t
 
 (* *)
