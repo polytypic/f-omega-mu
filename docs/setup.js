@@ -177,7 +177,8 @@ fomCM.on('keyup', (_, {key}) => {
 
 const currentDeps = []
 
-let result = {typ: '...', defUses: [], diagnostics: [], dependencies: []}
+const resultEmpty = {typ: '...', defUses: [], diagnostics: [], dependencies: []}
+let result = resultEmpty
 
 //
 
@@ -210,11 +211,35 @@ const unusedAnnot = {
   title: 'Unused binding',
 }
 
-const prepareDefUses = () => {
+const prepareDefUses = newResult => {
   clearMarkers(unusedMarkers)
   for (const file in duMap) {
     delete duMap[file]
   }
+
+  result = newResult
+
+  if (result.diagnostics.length) {
+    resultCM.setValue('')
+    jsCM.setValue('')
+
+    result.diagnostics.forEach(diagnostic => {
+      const cm = cmOf(diagnostic.file)
+      if (cm) {
+        const css = diagnosticMarkers.length
+          ? 'text-shadow: 0px 0px 10px orange'
+          : 'text-shadow: 0px 0px 10px red'
+        addMarker(diagnosticMarkers, cm, diagnostic, {
+          className: 'marker',
+          css,
+          title: diagnostic.message,
+        })
+      }
+    })
+  } else {
+    updateDeps()
+  }
+
   result.defUses.forEach(du => du.uses.forEach(use => insertDU(use, du)))
   result.defUses.forEach(du => {
     insertDU(du.def, du)
@@ -439,31 +464,8 @@ const build = throttled(
         jsCM.setValue(data)
         run(data)
       } else {
-        result = data
-
-        if (result.diagnostics.length) {
-          resultCM.setValue('')
-          jsCM.setValue('')
-
-          result.diagnostics.forEach(diagnostic => {
-            const cm = cmOf(diagnostic.file)
-            if (cm) {
-              const css = diagnosticMarkers.length
-                ? 'text-shadow: 0px 0px 10px orange'
-                : 'text-shadow: 0px 0px 10px red'
-              addMarker(diagnosticMarkers, cm, diagnostic, {
-                className: 'marker',
-                css,
-                title: diagnostic.message,
-              })
-            }
-          })
-        }
-
-        prepareDefUses()
+        prepareDefUses(data)
         updateDefUses(fomCM)
-
-        if (!result.diagnostics.length) updateDeps()
       }
     },
   })
@@ -567,6 +569,9 @@ const load = path => {
     xhr.onload = () => {
       if (200 <= xhr.status && xhr.status < 300) {
         fomCM.off('change', exampleReset)
+        prepareDefUses(resultEmpty)
+        resultCM.setValue('')
+        jsCM.setValue('')
         fomCM.setValue(xhr.responseText.trim())
         fomCM.on('change', exampleReset)
       } else {
