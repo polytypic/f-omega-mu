@@ -149,15 +149,15 @@ let of_error = function
         ^^ nested (Typ.pp typ) ),
       [(at, text "Sum lacks label")] )
   | `Error_label_missing (at, label, l_typ, m_typ) ->
-    let+ l_typ = Typ.contract l_typ and+ m_typ = Typ.contract m_typ in
-    ( ( at,
-        text "Label"
-        ^^ nested (Label.pp label)
-        ^^ text "missing from type"
-        ^^ nested (Typ.pp m_typ)
-        ^^ text "to match the type"
-        ^^ nested (Typ.pp l_typ) ),
-      [(Typ.at m_typ, text "Label missing")] )
+    return
+      ( ( at,
+          text "Label"
+          ^^ nested (Label.pp label)
+          ^^ text "missing from type"
+          ^^ nested (Typ.pp m_typ)
+          ^^ text "to match the type"
+          ^^ nested (Typ.pp l_typ) ),
+        [(Typ.at m_typ, text "Label missing")] )
   | `Error_typ_var_escapes (at, i, t) ->
     let+ t = Typ.contract t in
     ( ( at,

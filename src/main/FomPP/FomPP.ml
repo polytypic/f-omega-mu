@@ -70,10 +70,11 @@ module Typ = struct
 
   let prec_min = 0
   let prec_arrow = 1
-  let prec_join = 2
-  let prec_meet = 3
-  let prec_app = 4
-  let prec_max = 5
+  let prec_eq = 2
+  let prec_join = 3
+  let prec_meet = 4
+  let prec_app = 5
+  let prec_max = 6
 
   (* *)
 
@@ -93,8 +94,16 @@ module Typ = struct
     | _ -> None
 
   let symbol_of = function `All -> for_all | `Unk -> exists | `Mu -> mu_lower
-  let op_of = function `Join -> logical_or | `Meet -> logical_and
-  let prec_of = function `Join -> prec_join | `Meet -> prec_meet
+
+  let op_of = function
+    | `Join -> logical_or
+    | `Meet -> logical_and
+    | `Eq -> equals
+
+  let prec_of = function
+    | `Join -> prec_join
+    | `Meet -> prec_meet
+    | `Eq -> prec_eq
 
   let binding config prec_outer head i k t =
     (group (head ^^ Var.pp i ^^ config.pp_annot k ^^ dot |> nest 2)

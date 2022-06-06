@@ -167,7 +167,9 @@ module Typ : sig
     val apps_of_norm : Loc.t -> t -> t list -> ('r, 'e, t) rea
   end
 
-  type ('t, 'k) f = [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet] * 't * 't]
+  type ('t, 'k) f =
+    [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet | `Eq] * 't * 't]
+
   type t = (t, Kind.t) f
 
   val at : [< ('t, 'k) f] -> Loc.t

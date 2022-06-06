@@ -46,10 +46,7 @@ type typ_unrelated = [`Error_typ_unrelated of Loc.t * Typ.t * Typ.t]
 type typ_unexpected = [`Error_typ_unexpected of Loc.t * string * Typ.Core.t]
 type product_lacks = [`Error_product_lacks of Loc.t * Typ.Core.t * Label.t]
 type sum_lacks = [`Error_sum_lacks of Loc.t * Typ.Core.t * Label.t]
-
-type label_missing =
-  [`Error_label_missing of Loc.t * Label.t * Typ.Core.t * Typ.Core.t]
-
+type label_missing = [`Error_label_missing of Loc.t * Label.t * Typ.t * Typ.t]
 type typ_var_escapes = [`Error_typ_var_escapes of Loc.t * Typ.Var.t * Typ.Core.t]
 
 type non_disjoint_merge =

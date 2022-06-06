@@ -174,10 +174,10 @@ let rec solve_of_norm = function
 
 (* *)
 
-let union op (ls, rs) =
+let union _ _ _ op (ls, rs) =
   Row.union_fr (const return) (const return) (const op) ls rs
 
-let intersection op =
+let intersection _ _ _ op =
   let rec loop os = function
     | ((ll, lt) :: lls as llls), ((rl, rt) :: rls as rlls) ->
       let c = Label.compare ll rl in
@@ -188,21 +188,35 @@ let intersection op =
   in
   loop []
 
+let matching at' l r op =
+  let rec loop os = function
+    | (ll, lt) :: lls, (rl, rt) :: rls ->
+      let c = Label.compare ll rl in
+      if c < 0 then fail @@ `Error_label_missing (at', ll, l, r)
+      else if 0 < c then fail @@ `Error_label_missing (at', rl, r, l)
+      else op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
+    | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
+    | [], (rl, _) :: _ -> fail @@ `Error_label_missing (at', rl, r, l)
+    | [], [] -> return @@ List.rev os
+  in
+  loop []
+
 let rop o m =
   match (o, m) with
   | `Join, `Product | `Meet, `Sum -> intersection
   | `Join, `Sum | `Meet, `Product -> union
+  | `Eq, (`Product | `Sum) -> matching
 
 let bop o = function
   | at1, `Bop (at2, o', a, b), c when o = o' ->
     `Bop (at1, o, a, `Bop (at2, o, b, c))
   | at', l, r -> `Bop (at', o, l, r)
 
-let inv = function `Join -> `Meet | `Meet -> `Join
+let inv = function `Join -> `Meet | `Meet -> `Join | `Eq -> `Eq
 
 (* *)
 
-let rec subset at' l r flip ls ms =
+let rec subset at' (l : t) (r : t) flip ls ms =
   match (ls, ms) with
   | [], _ -> unit
   | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
@@ -252,7 +266,7 @@ and sub at' l r =
     Kind.unify at' lk rk >> sub at' lt rt |> VarEnv.adding i @@ `Kind lk
   | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
     let flip = match m with `Product -> id | `Sum -> Fun.flip in
-    flip (flip (subset at') r l flip) rls lls
+    flip (flip (subset at') (r :> t) (l :> t) flip) rls lls
   | _ -> fail @@ `Error_typ_mismatch (at', (r :> t), (l :> t))
 
 let check_sub_of_norm at' l r = sub at' l r |> Goals.resetting
@@ -354,6 +368,11 @@ and memoing t op =
     >>= lam_of_norm at' i k >>= mu_of_norm at'
 
 and bop_of_norm o at' l r =
+  let head l r =
+    match (l, r) with
+    | `Var (_, l'), `Var (_, r') when Var.equal l' r' -> return l
+    | _ -> fail @@ `Error_typ_unrelated (at', (l :> t), (r :> t))
+  in
   match (to_apps l, to_apps r) with
   | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
     memoing (bop o (at', l, r)) @@ fun () ->
@@ -361,12 +380,9 @@ and bop_of_norm o at' l r =
   | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
     memoing (bop o (at', l, r)) @@ fun () ->
     unfold ra rf rmu rxs >>= fun r -> bop_of_norm o at' l r
-  | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
-    when Var.equal li ri && List.length lxs = List.length rxs ->
-    List.map_fr solve_of_norm lxs
-    <*> List.map_fr solve_of_norm rxs
-    >>= uncurry @@ List.iter2_fr @@ check_equal_of_norm at'
-    >> return l
+  | `Apps (lf, lxs), `Apps (rf, rxs) when List.length lxs = List.length rxs ->
+    head lf rf <*> List.map2_fr (bop_of_norm `Eq at') lxs rxs >>= fun (f, xs) ->
+    apps_of_norm at' f xs
   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
     bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc >>- fun (d, c) ->
     `Arrow (at', d, c)
@@ -389,7 +405,8 @@ and bop_of_norm o at' l r =
     |> VarEnv.adding i @@ `Kind lk
     >>- fun t -> `Lam (at', i, lk, t)
   | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
-    rop o m (bop_of_norm o at') (lls, rls) >>- fun ls -> `Row (at', m, ls)
+    rop o m at' l r (bop_of_norm o at') (lls, rls) >>- fun ls ->
+    `Row (at', m, ls)
   | _ -> (
     classify l <*> classify r >>- uncurry (Option.both ( = )) >>= function
     | Some false -> fail @@ `Error_typ_unrelated (at', l, r)

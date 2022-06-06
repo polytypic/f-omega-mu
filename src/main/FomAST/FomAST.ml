@@ -296,7 +296,9 @@ module Typ = struct
     let apps_of_norm at = List.fold_left_fr @@ app_of_norm at
   end
 
-  type ('t, 'k) f = [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet] * 't * 't]
+  type ('t, 'k) f =
+    [('t, 'k) Core.f | `Bop of Loc.t * [`Join | `Meet | `Eq] * 't * 't]
+
   type t = (t, Kind.t) f
 
   let map_fr' fl row ft = function
