@@ -66,6 +66,7 @@ module Syntax : sig
     val create : 'v -> 'v t
     val read : 'v t -> ('r, 'e, 'v) rea
     val mutate : ('v -> 'v) -> 'v t -> ('r, 'e, unit) rea
+    val modify : ('v -> 'v * 'a) -> 'v t -> ('r, 'e, 'a) rea
     val try_mutate : ('v -> ('r, 'e, 'v) rea) -> 'v t -> ('r, 'e, unit) rea
     val try_modify : ('v -> ('r, 'e, 'v * 'a) rea) -> 'v t -> ('r, 'e, 'a) rea
   end
@@ -74,6 +75,9 @@ module Syntax : sig
 
   val mutate :
     ('r -> ('v MVar.t, 'r) Field.t) -> ('v -> 'v) -> ('r, 'e, unit) rea
+
+  val modify :
+    ('r -> ('v MVar.t, 'r) Field.t) -> ('v -> 'v * 'a) -> ('r, 'e, 'a) rea
 
   val try_mutate :
     ('r -> ('v MVar.t, 'r) Field.t) ->

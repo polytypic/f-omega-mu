@@ -276,6 +276,16 @@ module Syntax = struct
                fill var (fn v);
                Return () )
 
+    let modify fn (var : _ t) : (_, _, _) rea =
+     fun _ ->
+      inj
+      @@ Bind
+           ( take var,
+             fun v ->
+               let v, a = fn v in
+               fill var v;
+               Return a )
+
     let try_mutate fn (var : _ t) : (_, _, _) rea =
      fun _ ->
       inj
@@ -309,6 +319,7 @@ module Syntax = struct
 
   let read v = get v >>= MVar.read
   let mutate v fn = get v >>= MVar.mutate fn
+  let modify v fn = get v >>= MVar.modify fn
   let try_mutate v fn = get v >>= MVar.try_mutate fn
   let try_modify v fn = get v >>= MVar.try_modify fn
 end
