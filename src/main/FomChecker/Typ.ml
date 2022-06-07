@@ -314,6 +314,7 @@ and memoing t op =
     >>= lam_of_norm at' i k >>= mu_of_norm at'
 
 and bop_of_norm o at' l r =
+  memoing (bop o (at', l, r)) @@ fun () ->
   Profiling.Counter.inc bop_counter;
   let head l r =
     match (l, r) with
@@ -322,10 +323,8 @@ and bop_of_norm o at' l r =
   in
   match (to_apps l, to_apps r) with
   | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
-    memoing (bop o (at', l, r)) @@ fun () ->
     unfold la lf lmu lxs >>= fun l -> bop_of_norm o at' l r
   | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
-    memoing (bop o (at', l, r)) @@ fun () ->
     unfold ra rf rmu rxs >>= fun r -> bop_of_norm o at' l r
   | `Apps (lf, lxs), `Apps (rf, rxs) when List.length lxs = List.length rxs ->
     head lf rf <*> List.map2_fr (bop_of_norm `Eq at') lxs rxs >>= fun (f, xs) ->
@@ -401,13 +400,12 @@ let rec subset at' (l : t) (r : t) flip ls ms =
 and eq at' l r = sub at' l r >> sub at' r l
 
 and sub at' l r =
+  Goals.adding (l, r) @@ fun () ->
   Profiling.Counter.inc sub_counter;
   match (to_apps l, to_apps r) with
   | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
-    Goals.adding (l, r) @@ fun () ->
     Core.unfold la lf lmu lxs >>= fun l -> sub at' l r
   | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
-    Goals.adding (l, r) @@ fun () ->
     Core.unfold ra rf rmu rxs >>= fun r -> sub at' l r
   | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
     when Var.equal li ri && List.length lxs = List.length rxs ->
