@@ -216,6 +216,8 @@ let inv = function `Join -> `Meet | `Meet -> `Join | `Eq -> `Eq
 
 (* *)
 
+let bop_counter = Profiling.Counter.register "bop"
+
 let rec mu_of_norm at = function
   | `Lam (at', i, k, t) as f -> (
     is_free i t >>= function
@@ -312,6 +314,7 @@ and memoing t op =
     >>= lam_of_norm at' i k >>= mu_of_norm at'
 
 and bop_of_norm o at' l r =
+  Profiling.Counter.inc bop_counter;
   let head l r =
     match (l, r) with
     | `Var (_, l'), `Var (_, r') when Var.equal l' r' -> return l
@@ -383,6 +386,8 @@ and subst_of_norm env =
 
 (* *)
 
+let sub_counter = Profiling.Counter.register "sub"
+
 let rec subset at' (l : t) (r : t) flip ls ms =
   match (ls, ms) with
   | [], _ -> unit
@@ -396,6 +401,7 @@ let rec subset at' (l : t) (r : t) flip ls ms =
 and eq at' l r = sub at' l r >> sub at' r l
 
 and sub at' l r =
+  Profiling.Counter.inc sub_counter;
   match (to_apps l, to_apps r) with
   | `Apps ((`Mu (la, lf) as lmu), lxs), _ ->
     Goals.adding (l, r) @@ fun () ->
