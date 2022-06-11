@@ -48,7 +48,7 @@ let to_apps = function
 let rec kind_of = function
   | `Mu (_, f) | `App (_, f, _) -> (
     kind_of f >>= Kind.resolve >>- function
-    | `Star _ | `Unk (_, _) -> failwith "kind_of cod"
+    | `Star _ | `Unk _ -> failwith "kind_of cod"
     | `Arrow (_, _, c) -> c)
   | `Const (at', c) -> return @@ Const.kind_of at' c
   | `Var (_, i) -> VarEnv.kind_of i

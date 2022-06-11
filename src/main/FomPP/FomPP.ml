@@ -195,7 +195,7 @@ module Typ = struct
         | `Row (_, `Sum, labels) ->
           ticked config labels
           |> if prec_arrow < prec_outer then egyptian parens 2 else id))
-    | `App (_, _, _) -> (
+    | `App _ -> (
       match FomAST.Typ.unapp typ with
       | f, xs ->
         config.pp config prec_app f

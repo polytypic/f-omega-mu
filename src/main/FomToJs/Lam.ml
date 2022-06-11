@@ -153,7 +153,7 @@ let rec is_total e =
             |> List.for_all_fr (fun (_, f) ->
                    is_total (apps f (dummy_var :: xs))))
       | `Case e, [] -> is_total e
-      | (`Mu _ | `App (_, _) | `Select _ | `Case _), _ -> return false))
+      | (`Mu _ | `App _ | `Select _ | `Case _), _ -> return false))
 
 (* *)
 
