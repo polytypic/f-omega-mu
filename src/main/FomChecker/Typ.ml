@@ -73,7 +73,7 @@ module Var = struct
     | `Mu (_, t) ->
       from t
     | `Lam (_, i, _, t) -> (i, t)
-    | t -> (Var.of_string (FomAST.Typ.at t) "Var.from", t)
+    | t -> (of_string (FomAST.Typ.at t) "v", t)
 
   let fresh_from = from >>> Pair.map Var.freshen id
 
