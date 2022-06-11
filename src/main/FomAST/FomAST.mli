@@ -146,6 +146,7 @@ module Typ : sig
     val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
     val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
     val exists : ('t -> bool) -> ('t, 'k) f -> bool
+    val exists_fr : ('t -> (('f, 'F, bool) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
     val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
     val eq : ('t, 'k) f bpr
 
@@ -233,6 +234,7 @@ module Typ : sig
   val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
   val map_reduce : 'u bop -> 'u -> ('t -> 'u) -> ('t, 'k) f -> 'u
   val exists : ('t -> bool) -> ('t, 'k) f -> bool
+  val exists_fr : ('t -> (('f, 'F, bool) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
   val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
 
   val find_map_fr :
