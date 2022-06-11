@@ -30,3 +30,4 @@ val cat_m : 'a Cat.t f'1 Applicative.t
 val or_lm : bool Lazy.t f'1 Applicative.t
 val option_lm : 'a Option.t Lazy.t f'1 Applicative.t
 val option_m : 'a Option.t f'1 Applicative.t
+val unit_fr_m : ('f, 'F, unit) Monad.fr f'1 Applicative.t

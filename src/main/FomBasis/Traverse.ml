@@ -28,3 +28,6 @@ let to_map_reduce map_fr plus zero =
 
 let to_exists_fr map_fr pr = to_collect map_fr >>> List.exists_fr pr
 let to_find_map_fr map_fr pr = to_collect map_fr >>> List.find_map_fr pr
+
+let to_iter_fr map_fr ef =
+  map_fr (ef >>> Constant.from) >>> Constant.run Constant.unit_fr_m

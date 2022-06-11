@@ -1,4 +1,6 @@
 open Higher.Syntax
+open Applicative.Syntax
+open Monad.Syntax
 
 type ('c, 'a) t
 
@@ -84,4 +86,13 @@ let option_m =
     method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
     method return : 'a. ('a, _) Applicative.return = from identity
     method pair : 'a 'b. ('a, 'b, _) Applicative.pair = pair combine
+  end
+
+let unit_fr_m =
+  object
+    method map : 'a 'b. ('a, 'b, _) Functor.map = ( let+ )
+    method return : 'a. ('a, _) Applicative.return = from unit
+
+    method pair : 'a 'b. ('a, 'b, _) Applicative.pair =
+      pair (fun l r -> if r == unit then l else if l == unit then r else l >> r)
   end

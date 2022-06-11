@@ -149,6 +149,7 @@ module Typ : sig
     val exists_fr : ('t -> (('f, 'F, bool) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
     val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
     val eq : ('t, 'k) f bpr
+    val iter_fr : ('t -> (('f, 'F, unit) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
 
     (* *)
 
