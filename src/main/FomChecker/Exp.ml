@@ -229,7 +229,7 @@ and check a e =
   | `For (_, `All, _) when cannot_be_for_all e ->
     let at' = at e in
     check a
-    @@ `Gen (at', fst (Typ.Var.fresh_from (a :> Typ.t)), Kind.fresh at', e)
+    @@ `Gen (at', Typ.Var.freshen (Typ.Var.from (a :> Typ.t)), Kind.fresh at', e)
   | _ -> (
     match e with
     | `Lam (at', i, u, e) ->

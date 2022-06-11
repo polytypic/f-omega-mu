@@ -72,14 +72,8 @@ module Var = struct
     | `App (_, t, _)
     | `Mu (_, t) ->
       from t
-    | `Lam (_, i, _, t) -> (i, t)
-    | t -> (of_string (FomAST.Typ.at t) "v", t)
-
-  let fresh_from = from >>> Pair.map Var.freshen id
-
-  let rec fresh_from_n n t =
-    if n <= 0 then []
-    else fresh_from t |> fun (i, t) -> i :: fresh_from_n (n - 1) t
+    | `Lam (_, i, _, _) -> i
+    | t -> of_string (FomAST.Typ.at t) "v"
 end
 
 (* *)
@@ -287,7 +281,7 @@ and unfold at f mu xs =
 and classify t =
   match to_apps t with
   | `Apps ((`Mu (at', f) as mu), xs) ->
-    let mu', _ = Var.fresh_from f in
+    let mu' = Var.from f |> Var.freshen in
     let* k = kind_of mu in
     unfold at' f (var mu') xs >>= classify |> VarEnv.adding mu' @@ `Kind k
   | `Apps (`Var _, _) -> return None
@@ -306,7 +300,7 @@ and memoing t op =
   | Some t -> return t
   | None ->
     let at' = at t in
-    let i, _ = Var.fresh_from t in
+    let i = Var.from t |> Var.freshen in
     let* k = kind_of t in
     op ()
     |> VarEnv.adding i @@ `Kind k
@@ -414,7 +408,7 @@ and sub at' l r =
   | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> unit
   | `For (_, lq, l), `For (_, rq, r) when lq = rq -> sub at' l r
   | _, `For (_, `All, rf) ->
-    let i, _ = Var.fresh_from (rf :> t) in
+    let i = Var.from (rf :> t) |> Var.freshen in
     let k = Kind.fresh at' in
     let* r = Core.app_of_norm at' rf @@ var i in
     kind_of rf
