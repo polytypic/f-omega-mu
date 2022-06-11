@@ -359,6 +359,23 @@ let () =
     "μx: ∃F.∀t.F (∀f.f t).x: ∃G.∀u.G (∀g.g u)";
   testInfersAs "also alpha equivalence" "(μf.λa.∀u.∀t.(t, u, a) → f t) ()"
     "μx: (μf.λa.∀u.∀t.(t, u, a) → f t) ().x: (μg.λb.∀t.∀u.(u, t, b) → g u) ()";
+  testInfersAs "Higher kinded annotation" "∀α.∀φ.(∀γ.φ γ γ) → φ α α"
+    "(Λα.λf.f«α»): ∀α.∀φ.(∀γ.φ γ γ) → φ α α";
+  testInfersAs "unknown type scoping" "()"
+    {|
+    type iso = λα.λβ.(α → β, β → α)
+    let «eq, Eq»: ∃eq.{refl: ∀α.eq α α} = «λα.λβ.α → β, {refl = Λα.λx: α. x}»
+    type μType = λτ.
+      | 'Pair ∃α.∃β.Pair τ α β
+      | 'Iso ∃α.∃β.Iso τ α β
+    and μPair = λτ.λα.λβ.(eq (α, β) τ, Type α, Type β)
+    and μIso = λτ.λα.λβ.(eq α τ, iso α β, Type β)
+    let pair: ∀α.∀β.Type α → Type β → Type (α, β) =
+      Λα.Λβ.λta.λtb.'Pair «α, «β, (Eq.refl«(α, β)», ta, tb)»»
+    let iso: ∀α.∀β.iso α β → Type β → Type α =
+      Λα.Λβ.λaIb.λtb.'Iso «α, «β, (Eq.refl«α», aIb, tb)»»
+    ()
+    |};
   ()
 
 let testErrors name exp =
@@ -423,4 +440,6 @@ let () =
     is«{x: int, y: int}»
       λx: {x: int}.x
     |};
+  testErrors "higher-order unification" "λx: int → int.x: ∃f.f int → f int";
+  testErrors "kind mismatch" "λx: ∀t: * → _.∀u.t u.x: ∀t: (_ → _) → _.∀u.t u";
   ()
