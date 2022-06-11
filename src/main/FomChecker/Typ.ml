@@ -99,10 +99,10 @@ module Core = struct
   let unfold at f mu xs =
     app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
 
-  let rec unfold_of_norm typ =
-    match to_apps typ with
+  let rec unfold_of_norm t =
+    match to_apps t with
     | `Apps ((`Mu (at', f) as mu), xs) -> unfold at' f mu xs >>= unfold_of_norm
-    | _ -> return typ
+    | _ -> return t
 
   (* *)
 
