@@ -199,7 +199,7 @@ module Typ = struct
 
   (* Macros *)
 
-  let var v = `Var (Var.at v, v)
+  let var i = `Var (Var.at i, i)
   let sort labels = List.sort (Compare.the fst Label.compare) labels
   let row at m fs = `Row (at, m, sort fs)
   let product at = row at `Product
