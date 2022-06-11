@@ -197,6 +197,22 @@ module Typ = struct
   module VarSet = Set.Make (Var)
   module VarMap = Map.Make (Var)
 
+  (* Macros *)
+
+  let var v = `Var (Var.at v, v)
+  let sort labels = List.sort (Compare.the fst Label.compare) labels
+  let row at m fs = `Row (at, m, sort fs)
+  let product at = row at `Product
+  let sum at = row at `Sum
+  let unit at = `Const (at, `Unit)
+  let atom l = Label.at l |> fun at -> sum at [(l, unit at)]
+  let zero at = sum at []
+
+  let tuple at = function
+    | [] -> unit at
+    | [t] -> t
+    | ts -> product at (Tuple.labels at ts)
+
   module Core = struct
     type ('t, 'k) f =
       [ `Mu of Loc.t * 't
@@ -269,30 +285,39 @@ module Typ = struct
 
     let rec app_of_norm at f' x' =
       match f' with
-      | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
+      | `Lam (_, i, _, t) -> subst_of_norm i x' t
       | f' -> return @@ `App (at, f', x')
 
-    and subst_of_norm env =
-      keep_phys_eq_fr @@ function
-      | `Var (_, i) as inn ->
-        return (match VarMap.find_opt i env with None -> inn | Some t -> t)
-      | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
-      | `Lam (at, i, k, t) as inn -> (
-        let env = VarMap.remove i env in
-        if VarMap.is_empty env then return inn
-        else
-          VarMap.exists_fr (fun i' t' -> is_free i t' &&& is_free i' t) env
-          >>= function
-          | true ->
-            let i' = Var.freshen i in
-            let v' = `Var (at, i') in
-            let* t' = subst_of_norm (VarMap.add i v' env) t in
-            lam_of_norm at i' k t'
-          | false -> subst_of_norm env t >>= lam_of_norm at i k)
-      | `App (at, f, x) ->
-        subst_of_norm env f <*> subst_of_norm env x
-        >>= uncurry @@ app_of_norm at
-      | t -> map_eq_fr (subst_of_norm env) t
+    and subst_of_norm i v t =
+      let rec subst_of_norm env =
+        keep_phys_eq_fr @@ function
+        | `Var (_, i) as inn ->
+          return (match VarMap.find_opt i env with None -> inn | Some t -> t)
+        | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
+        | `Lam (at, i, k, t) as inn ->
+          let env = VarMap.remove i env in
+          if VarMap.is_empty env then return inn
+          else
+            let* i' =
+              i
+              |> Var.Unsafe.smallest @@ fun i ->
+                 is_free i inn
+                 ||| VarMap.exists_fr
+                       (fun i' t' -> is_free i t' &&& is_free i' inn)
+                       env
+            in
+            if Var.equal i i' then subst_of_norm env t >>= lam_of_norm at i k
+            else
+              subst_of_norm (VarMap.add i (var i') env) t
+              >>= lam_of_norm at i' k
+        | `App (at, f, x) ->
+          subst_of_norm env f <*> subst_of_norm env x
+          >>= uncurry @@ app_of_norm at
+        | t -> map_eq_fr (subst_of_norm env) t
+      in
+      match v with
+      | `Var (_, i') when Var.equal i i' -> return t
+      | v -> subst_of_norm (VarMap.singleton i v) t
 
     let apps_of_norm at = List.fold_left_fr @@ app_of_norm at
   end
@@ -310,22 +335,6 @@ module Typ = struct
   let map_at_fr fl = map_fr' fl (const return) return
   let at t = Traverse.to_get_opt map_at_fr t |> Option.get
   let set_at at = Traverse.to_set map_at_fr at
-
-  (* Macros *)
-
-  let var v = `Var (Var.at v, v)
-  let sort labels = List.sort (Compare.the fst Label.compare) labels
-  let row at m fs = `Row (at, m, sort fs)
-  let product at = row at `Product
-  let sum at = row at `Sum
-  let unit at = `Const (at, `Unit)
-  let atom l = Label.at l |> fun at -> sum at [(l, unit at)]
-  let zero at = sum at []
-
-  let tuple at = function
-    | [] -> unit at
-    | [t] -> t
-    | ts -> product at (Tuple.labels at ts)
 
   (* Type predicates *)
 

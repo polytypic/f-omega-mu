@@ -219,7 +219,7 @@ let rec mu_of_norm at = function
     | true -> (
       match t with
       | `Mu (at1, `Lam (at2, j, k, t)) ->
-        let+ t = subst_of_norm (VarMap.singleton i @@ var j) t in
+        let+ t = subst_of_norm i (var j) t in
         `Mu (at1, `Lam (at2, j, k, t))
       | _ ->
         let t', iks = unlam t in
@@ -270,7 +270,7 @@ and lam_of_norm at i k = function
 
 and app_of_norm at f' x' =
   match f' with
-  | `Lam (_, i, _, t) -> subst_of_norm (VarMap.singleton i x') t
+  | `Lam (_, i, _, t) -> subst_of_norm i x' t
   | f' -> return @@ `App (at, f', x')
 
 and apps_of_norm at' = List.fold_left_fr (app_of_norm at')
@@ -330,17 +330,11 @@ and bop_of_norm o at' l r =
   | `For (_, q, lt), `For (_, q', rt) when q = q' ->
     bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-    let* i, lt, rt =
-      if Var.equal li ri then return (li, lt, rt)
-      else
-        let* i =
-          li |> Var.Unsafe.smallest @@ fun i -> is_free i lt ||| is_free i rt
-        in
-        let v = var i in
-        let+ lt = subst_of_norm (VarMap.singleton li v) lt
-        and+ rt = subst_of_norm (VarMap.singleton ri v) rt in
-        (i, lt, rt)
+    let* i =
+      li |> Var.Unsafe.smallest @@ fun i -> is_free i l ||| is_free i r
     in
+    let v = var i in
+    let* lt = subst_of_norm li v lt and* rt = subst_of_norm ri v rt in
     Kind.unify at' lk rk >> bop_of_norm o at' lt rt
     |> VarEnv.adding i @@ `Kind lk
     >>- fun t -> `Lam (at', i, lk, t)
@@ -352,30 +346,36 @@ and bop_of_norm o at' l r =
     | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
     | _ -> return @@ bop o (at', l, r))
 
-and subst_of_norm env =
-  keep_phys_eq_fr @@ function
-  | `Var (_, i) as inn ->
-    VarMap.find_opt i env |> Option.value ~default:inn |> return
-  | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
-  | `Lam (at, i, k, t) as inn -> (
-    let env = VarMap.remove i env in
-    if VarMap.is_empty env then return inn
-    else
-      VarMap.exists_fr (fun i' t' -> is_free i t' &&& is_free i' t) env
-      >>= function
-      | true ->
-        let i' = Var.freshen i in
-        subst_of_norm (VarMap.add i (var i') env) t
-        |> VarEnv.adding i' @@ `Kind k
-        >>= lam_of_norm at i' k
-      | false ->
-        subst_of_norm env t |> VarEnv.adding i @@ `Kind k >>= lam_of_norm at i k
-    )
-  | `App (at, f, x) ->
-    subst_of_norm env f <*> subst_of_norm env x >>= uncurry @@ app_of_norm at
-  | `Bop (at', o, l, r) ->
-    subst_of_norm env l <*> subst_of_norm env r >>= uncurry @@ bop_of_norm o at'
-  | t -> map_eq_fr (subst_of_norm env) t
+and subst_of_norm i v t =
+  let rec subst_of_norm env =
+    keep_phys_eq_fr @@ function
+    | `Var (_, i) as inn ->
+      VarMap.find_opt i env |> Option.value ~default:inn |> return
+    | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
+    | `Lam (at, i, k, t) as inn ->
+      let env = VarMap.remove i env in
+      if VarMap.is_empty env then return inn
+      else
+        let* i' =
+          i
+          |> Var.Unsafe.smallest @@ fun i ->
+             is_free i inn
+             ||| VarMap.exists_fr
+                   (fun i' t' -> is_free i t' &&& is_free i' inn)
+                   env
+        in
+        if Var.equal i i' then subst_of_norm env t >>= lam_of_norm at i k
+        else subst_of_norm (VarMap.add i (var i') env) t >>= lam_of_norm at i' k
+    | `App (at, f, x) ->
+      subst_of_norm env f <*> subst_of_norm env x >>= uncurry @@ app_of_norm at
+    | `Bop (at', o, l, r) ->
+      subst_of_norm env l <*> subst_of_norm env r
+      >>= uncurry @@ bop_of_norm o at'
+    | t -> map_eq_fr (subst_of_norm env) t
+  in
+  match v with
+  | `Var (_, i') when Var.equal i i' -> return t
+  | v -> subst_of_norm (VarMap.singleton i v) t
 
 (* *)
 
@@ -415,19 +415,12 @@ and sub at' l r =
     >>= Kind.unify at' @@ `Arrow (at', k, `Star at')
     >> VarEnv.adding i (`Kind k) (sub at' l r)
   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
-    let* i, lt, rt =
-      if Var.equal li ri then return (li, lt, rt)
-      else
-        let* i =
-          li
-          |> Var.Unsafe.smallest @@ fun i ->
-             Core.is_free i lt ||| Core.is_free i rt
-        in
-        let v = var i in
-        let+ lt = Core.subst_of_norm (VarMap.singleton li v) lt
-        and+ rt = Core.subst_of_norm (VarMap.singleton ri v) rt in
-        (i, lt, rt)
+    let* i =
+      li
+      |> Var.Unsafe.smallest @@ fun i -> Core.is_free i l ||| Core.is_free i r
     in
+    let v = var i in
+    let* lt = Core.subst_of_norm li v lt and* rt = Core.subst_of_norm ri v rt in
     Kind.unify at' lk rk >> sub at' lt rt |> VarEnv.adding i @@ `Kind lk
   | `Row (_, m, lls), `Row (_, m', rls) when m = m' ->
     let flip = match m with `Product -> id | `Sum -> Fun.flip in

@@ -162,7 +162,7 @@ module Typ : sig
     (* *)
 
     val is_free : Var.t -> t -> ('r, 'e, bool) rea
-    val subst_of_norm : t VarMap.t -> t -> ('r, 'e, t) rea
+    val subst_of_norm : Var.t -> t -> t -> ('r, 'e, t) rea
     val mu_of_norm : Loc.t -> t -> ('r, 'e, t) rea
     val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t -> ('r, 'e, t) rea
     val app_of_norm : Loc.t -> t -> t -> ('r, 'e, t) rea
