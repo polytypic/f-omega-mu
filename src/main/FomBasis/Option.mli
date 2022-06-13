@@ -9,6 +9,7 @@ val iter_fr :
 
 (* *)
 
+val exists : ('a -> bool) -> 'a t -> bool
 val or_else : (unit -> 'a t) -> 'a t -> 'a t
 val both : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 
