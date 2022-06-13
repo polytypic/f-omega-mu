@@ -246,6 +246,7 @@ module Typ = struct
     let exists_fr fn = Traverse.to_exists_fr map_fr fn
     let find_map fn = Traverse.to_find_map map_fr fn
     let iter_fr fn = Traverse.to_iter_fr map_fr fn
+    let map_reduce fn = Traverse.to_map_reduce map_fr fn
 
     (* *)
 

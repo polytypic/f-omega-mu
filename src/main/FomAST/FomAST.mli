@@ -145,6 +145,7 @@ module Typ : sig
 
     val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
     val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
+    val map_reduce : 'a bop -> 'a -> ('t -> 'a) -> ('t, 'k) f -> 'a
     val exists : ('t -> bool) -> ('t, 'k) f -> bool
     val exists_fr : ('t -> (('f, 'F, bool) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
     val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
