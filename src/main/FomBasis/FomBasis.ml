@@ -25,6 +25,7 @@ module Rea = Rea
 module Res = Res
 module Seq = Seq
 module Set = Set
+module Sq = Sq
 module String = String
 module Traverse = Traverse
 module UTF = UTF
