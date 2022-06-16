@@ -71,13 +71,13 @@ build_and_test() {
     timeout 10 opam exec -- dune test "${OPTS[@]}"
 
   folded "Typing examples" \
-    timeout 10 type_examples
+    timeout 20 type_examples
 
   folded "Running error examples" \
     timeout 10 run_error_examples
 
   folded "Compiling and Evaluating examples" \
-    timeout 10 js_and_eval_examples
+    timeout 20 js_and_eval_examples
 }
 
 if [ "$CI" = true ]; then
