@@ -150,7 +150,7 @@ and to_js_stmts_renumbered finish ids exp =
         in
         match v with
         | `Mu (`Lam (f, (`Product fs as b)))
-          when fs |> List.for_all (snd >>> is_lam_or_case)
+          when (not (is_immediately_evaluated f b))
                && always_selected f b
                && (Var.equal i f || always_selected f e) ->
           let is =
