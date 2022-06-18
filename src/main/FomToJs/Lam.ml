@@ -176,14 +176,14 @@ let rec called_at_tail n f' e =
 let rec always_selected i' = function
   | `Const _ -> true
   | `Var i -> not (Var.equal i i')
-  | `Lam (i, e) -> (not (Var.equal i' i)) || always_selected i' e
+  | `Lam (i, e) -> Var.equal i' i || always_selected i' e
   | `App (f, x) -> always_selected i' f && always_selected i' x
   | `IfElse (c, t, e) ->
-    always_selected i' c || always_selected i' t || always_selected i' e
+    always_selected i' c && always_selected i' t && always_selected i' e
   | `Product fs -> fs |> List.for_all (snd >>> always_selected i')
   | `Mu e | `Inject (_, e) | `Case e -> always_selected i' e
   | `Select (`Var i, l) when Var.equal i i' -> always_selected i' l
-  | `Select (e, l) -> always_selected i' e || always_selected i' l
+  | `Select (e, l) -> always_selected i' e && always_selected i' l
 
 let rec is_immediately_evaluated i' e =
   match unapp e with
