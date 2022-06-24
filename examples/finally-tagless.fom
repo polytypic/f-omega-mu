@@ -69,7 +69,7 @@ type LamExp = λσ.{
 
 let LamExp: Σ LamExp = {
   eval = {
-    Lam = λf.λ().λx.f (λ().x) (),
+    Lam = λf.λ().λx.f (λ().x) ()
     App = λf.λx.λ().f() x()
   }
   size = {
