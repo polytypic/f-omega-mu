@@ -1,5 +1,8 @@
 open Misc.Syntax
 
+val set_fst : 'a * 'b -> 'c -> 'c * 'b
+val set_snd : 'a * 'b -> 'c -> 'a * 'c
+
 val swap : 'a * 'b -> 'b * 'a
 (** Swap elements of a pair. *)
 

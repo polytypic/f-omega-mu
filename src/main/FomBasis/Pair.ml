@@ -1,6 +1,8 @@
 open Functor.Syntax
 open Applicative.Syntax
 
+let set_fst (_, y) x = (x, y)
+let set_snd (x, _) y = (x, y)
 let swap (x, y) = (y, x)
 let map f g (x, y) = (f x, g y)
 
