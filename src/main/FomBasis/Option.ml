@@ -7,6 +7,10 @@ let map_fr xyF = function
   | None -> return None
   | Some x -> xyF x >>- fun y -> Some y
 
+let map_eq_fr xxF = function
+  | None -> return None
+  | Some x as some -> xxF x >>- fun x' -> if x == x' then some else Some x'
+
 let iter_fr xuF = function None -> unit | Some x -> xuF x
 
 (* *)

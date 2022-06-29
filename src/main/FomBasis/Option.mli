@@ -4,6 +4,9 @@ include module type of Stdlib.Option
 val map_fr :
   ('a -> ('f, 'F, 'b) Applicative.fr) -> 'a t -> ('f, 'F, 'b t) Applicative.fr
 
+val map_eq_fr :
+  ('a -> ('f, 'F, 'a) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr
+
 val iter_fr :
   ('a -> ('f, 'F, unit) Applicative.fr) -> 'a t -> ('f, 'F, unit) Applicative.fr
 
