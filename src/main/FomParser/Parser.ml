@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 open FomSource
 
 exception Exn_lexeme of Loc.t * string

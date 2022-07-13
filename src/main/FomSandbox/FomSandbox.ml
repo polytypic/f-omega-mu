@@ -1,5 +1,5 @@
 open Js_of_ocaml
-open FomBasis
+open StdlibPlus
 open FomPPrint
 open FomSource
 open FomAnnot

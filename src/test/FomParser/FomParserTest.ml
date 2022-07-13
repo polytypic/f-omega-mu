@@ -1,6 +1,6 @@
-open FomBasis
+open StdlibPlus
+open MuTest
 open FomAST
-open FomTest
 open FomParser
 
 let test_parses_as name source check =

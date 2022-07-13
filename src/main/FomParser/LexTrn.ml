@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 open FomSource
 
 type 't t = 't * Pos.t * Pos.t

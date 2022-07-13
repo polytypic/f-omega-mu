@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 
 val is_identity : JsonString.t -> bool
 

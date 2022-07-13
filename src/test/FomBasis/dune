@@ -1,3 +1,0 @@
-(test
- (name FomBasisTest)
- (libraries FomBasis FomTest))

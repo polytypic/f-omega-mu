@@ -1,6 +1,6 @@
-open FomBasis
+open StdlibPlus
+open MuTest
 open FomSource
-open FomTest
 
 let () =
   test "Path.coalesce" @@ fun () ->

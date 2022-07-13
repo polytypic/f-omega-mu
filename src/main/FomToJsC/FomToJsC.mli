@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 open FomAST
 open FomError
 open FomElab

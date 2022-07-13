@@ -1,7 +1,7 @@
-open FomBasis
+open StdlibPlus
+open MuTest
 open FomPPrint
 open FomParser
-open FomTest
 
 let parse_typ utf_8 =
   Buffer.from_utf_8 utf_8 |> Parser.parse Grammar.sigs Lexer.offside

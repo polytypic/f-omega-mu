@@ -1,5 +1,5 @@
+open StdlibPlus
 open FomPPrint
-open FomBasis
 
 module Name : sig
   type t = int

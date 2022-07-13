@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 open FomPPrint
 
 type t = Pos.t * Pos.t

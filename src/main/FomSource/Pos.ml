@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 
 type t = Lexing.position
 

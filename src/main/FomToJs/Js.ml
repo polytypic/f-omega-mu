@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 open FomParser
 
 let is_identity = ( = ) (JsonString.of_utf8 "x => x") (* TODO *)

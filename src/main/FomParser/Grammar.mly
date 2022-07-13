@@ -4,7 +4,7 @@
 
 %token TstrOpenRaw
 %token <string> TstrOpen
-%token <FomBasis.JsonString.t> TstrStr
+%token <StdlibPlus.JsonString.t> TstrStr
 %token <string> TstrEsc
 %token TstrClose
 
@@ -93,7 +93,7 @@
 %start <Typ.t> sigs
 %start <Typ.t Typ.Defs.f> incs
 
-%{ open FomBasis open FomCST %}
+%{ open StdlibPlus open FomCST %}
 
 %%
 

@@ -1,5 +1,5 @@
+open StdlibPlus
 open FomSource
-open FomBasis
 
 (* *)
 

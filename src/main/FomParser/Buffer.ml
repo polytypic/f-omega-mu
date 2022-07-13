@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 
 type state = [`Initial | `Open | `TstrStr | `TstrEsc | `TstrExp] list
 type t = {mutable state : state; lexbuf : Sedlexing.lexbuf}

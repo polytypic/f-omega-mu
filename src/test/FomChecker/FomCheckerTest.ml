@@ -1,6 +1,6 @@
-open FomBasis
+open StdlibPlus
+open MuTest
 open FomPPrint
-open FomTest
 open FomParser
 open FomElab
 open FomEnv

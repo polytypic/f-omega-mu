@@ -1,4 +1,4 @@
-open FomBasis
+open StdlibPlus
 open FomSource
 open FomParser
 open FomAST
