@@ -1,6 +1,5 @@
 open StdlibPlus
 open FomPPrint
-open FomSource
 open FomParser
 
 module Kind = struct
