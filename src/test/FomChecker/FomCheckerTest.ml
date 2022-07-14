@@ -9,7 +9,7 @@ open FomDiag
 let fail_diag e =
   let* d =
     Diagnostic.of_error e
-    |> with_env (ignore >>> FomEnv.Env.empty)
+    |> map_env (ignore >>> FomEnv.Env.empty)
     >>- Diagnostic.pp
   in
   to_string ~max_width:80 d |> failuref "%s"
@@ -18,7 +18,7 @@ let parse_typ source and_then =
   source
   |> Parser.parse_utf_8 Grammar.sigs Lexer.offside
   >>= elaborate_typ
-  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> map_env (ignore >>> FomEnv.Env.empty)
   |> try_in and_then fail_diag
 
 (* *)
@@ -30,14 +30,14 @@ let () =
   test_typ_parses_as "find_opt_non_contractive >> is_none" "μxs.int→xs"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
-  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> map_env (ignore >>> FomEnv.Env.empty)
   |> try_in (Option.is_none >>> verify) fail_diag
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [A]" "μxs.xs"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
-  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> map_env (ignore >>> FomEnv.Env.empty)
   |> try_in (Option.is_some >>> verify) fail_diag
 
 let () =
@@ -45,14 +45,14 @@ let () =
     "(μf.λx.λy.f y x) int string"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
-  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> map_env (ignore >>> FomEnv.Env.empty)
   |> try_in (Option.is_some >>> verify) fail_diag
 
 (* *)
 
 let norm typ =
   Typ.infer typ >>- fst
-  |> with_env (ignore >>> Env.empty)
+  |> map_env (ignore >>> Env.empty)
   |> try_in return fail_diag
 
 let test_typs_parse_as name s1 s2 check =
@@ -62,13 +62,13 @@ let test_typs_parse_as name s1 s2 check =
 let test_equal_typs s1 s2 =
   test_typs_parse_as "Typ.is_equal_of_norm" s1 s2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
-  Typ.is_equal_of_norm typ1 typ2 |> with_env (ignore >>> Env.empty) >>= verify
+  Typ.is_equal_of_norm typ1 typ2 |> map_env (ignore >>> Env.empty) >>= verify
 
 let test_not_equal_typs s1 s2 =
   test_typs_parse_as "not Typ.is_equal_of_norm" s1 s2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
   Typ.is_equal_of_norm typ1 typ2
-  |> with_env (ignore >>> Env.empty)
+  |> map_env (ignore >>> Env.empty)
   >>- not >>= verify
 
 let () =
@@ -91,7 +91,7 @@ let parse_exp source and_then =
   source
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   >>= elaborate
-  |> with_env (ignore >>> Env.empty)
+  |> map_env (ignore >>> Env.empty)
   |> try_in and_then fail_diag
 
 let testInfersAs name typ exp =
@@ -99,7 +99,7 @@ let testInfersAs name typ exp =
   parse_typ typ @@ fun expected ->
   let* expected = norm expected in
   parse_exp exp @@ fun (_, actual, _) ->
-  Typ.is_equal_of_norm expected actual |> with_env (ignore >>> Env.empty)
+  Typ.is_equal_of_norm expected actual |> map_env (ignore >>> Env.empty)
   >>= fun are_equal ->
   if not are_equal then
     utf8string "Types not equal"
@@ -384,7 +384,7 @@ let testErrors name exp =
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   |> try_in
        (elaborate
-       >>> with_env (ignore >>> FomEnv.Env.empty)
+       >>> map_env (ignore >>> FomEnv.Env.empty)
        >>> try_in
              (fun (_, unexpected, _) ->
                utf8string "Expected type checking to fail, but got type"

@@ -10,7 +10,7 @@ let () =
   test "Typ.to_string" @@ fun () ->
   let original = "∀x:*.μxs:*.(x→(x→x))→xs" in
   parse_typ original >>= FomElab.elaborate_typ
-  |> with_env (ignore >>> FomEnv.Env.empty)
+  |> map_env (ignore >>> FomEnv.Env.empty)
   >>- FomPP.Typ.pp >>- to_string
   |> try_in
        (fun formatted -> verify (formatted = "∀x.μxs.(x → x → x) → xs"))

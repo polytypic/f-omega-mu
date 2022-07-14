@@ -8,7 +8,7 @@ module Lam = struct
 end
 
 let in_env () =
-  with_env @@ fun _ ->
+  map_env @@ fun _ ->
   object
     inherit Lam.Env.con
     inherit Lam.Limit.con
