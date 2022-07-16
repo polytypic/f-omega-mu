@@ -13,8 +13,6 @@ module ModSimplified : sig
     -> object
          method mod_simplified : t
        end
-
-  type 'r f = con
 end
 
 module ModInJs : sig
@@ -27,8 +25,6 @@ module ModInJs : sig
     -> object
          method mod_in_js : t
        end
-
-  type 'r f = con
 end
 
 val to_js :
@@ -36,7 +32,7 @@ val to_js :
   top:[`Top | `Body] ->
   Exp.Core.t ->
   string List.t ->
-  ( (< 'r ExpImports.f ; 'r ModSimplified.f ; 'r ModInJs.f ; .. > as 'r),
+  ( < ExpImports.con ; ModSimplified.con ; ModInJs.con ; .. >,
     [> Error.t],
     string )
   rea

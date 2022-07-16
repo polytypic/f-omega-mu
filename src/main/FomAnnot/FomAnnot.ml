@@ -18,19 +18,16 @@ module Annot = struct
     LocMap.t
 
   type t = map MVar.t
-  type 'r m = (t, 'r) Field.t
-  type 'r f = < annotations : 'r m >
+  type m = t Oo.Prop.t
 
-  let field r : _ m = r#annotations
+  let field r : m = r#annot
   let empty () = MVar.create LocMap.empty
   let scoping op = setting field (empty ()) op
 
-  class con annotations =
+  class con annot =
     object
-      val annotations = annotations
-
-      method annotations : _ m =
-        Field.make annotations (fun v -> {<annotations = v>})
+      val mutable annot = annot
+      method annot : m = prop (fun () -> annot) (fun x -> annot <- x)
     end
 
   let make def uses annot =

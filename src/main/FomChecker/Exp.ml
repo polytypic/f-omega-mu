@@ -9,17 +9,16 @@ include FomAST.Exp
 (* *)
 
 module VarEnv = struct
-  type 'r m = ((Var.t * Typ.Core.t) VarMap.t, 'r) Field.t
-  type 'r f = < exp_env : 'r m >
+  type m = (Var.t * Typ.Core.t) VarMap.t Oo.Prop.t
 
-  let field r : _ m = r#exp_env
+  let field r : m = r#exp_env
   let adding v t = mapping field @@ VarMap.add v (v, t)
   let find_opt i = get_as field @@ VarMap.find_opt i
 
   class con =
     object
-      val exp_env = VarMap.empty
-      method exp_env : _ m = Field.make exp_env (fun v -> {<exp_env = v>})
+      val mutable exp_env = VarMap.empty
+      method exp_env : m = prop (fun () -> exp_env) (fun x -> exp_env <- x)
     end
 end
 

@@ -17,11 +17,10 @@ module Kind = struct
   type t = t f
 
   module UnkEnv = struct
-    type 'r m = (t UnkMap.t MVar.t, 'r) Field.t
-    type 'r f = < kind_env : 'r m >
+    type m = t UnkMap.t MVar.t Oo.Prop.t
 
     let empty () = MVar.create UnkMap.empty
-    let field r : _ m = r#kind_env
+    let field r : m = r#kind_env
     let resetting op = setting field (empty ()) op
     let find_opt i = read field >>- UnkMap.find_opt i
     let add i k = mutate field @@ UnkMap.add i k
@@ -29,8 +28,8 @@ module Kind = struct
 
     class con =
       object
-        val kind_env = empty ()
-        method kind_env : _ m = Field.make kind_env (fun v -> {<kind_env = v>})
+        val mutable kind_env = empty ()
+        method kind_env : m = prop (fun () -> kind_env) (fun x -> kind_env <- x)
       end
   end
 

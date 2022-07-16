@@ -7,26 +7,24 @@ module Env : sig
   val empty :
     ?annot:Annot.t ->
     ?exp_imports:ExpImports.t ->
-    ?fetch:'r Fetch.m ->
+    ?fetch:Fetch.t ->
     ?mod_in_js:ModInJs.t ->
     ?mod_simplified:ModSimplified.t ->
     ?typ_imports:TypImports.t ->
     ?typ_includes:TypIncludes.t ->
     unit ->
-    (< 'r Annot.f
-     ; 'r Exp.VarEnv.f
-     ; 'r ExpImports.f
-     ; 'r Fetch.f
-     ; 'r ImportChain.f
-     ; 'r Kind.UnkEnv.f
-     ; 'r ModInJs.f
-     ; 'r ModSimplified.f
-     ; 'r Parameters.f
-     ; 'r Typ.Goals.f
-     ; 'r Typ.Solved.f
-     ; 'r TypImports.f
-     ; 'r TypIncludes.f
-     ; ('t, 'r) Typ.VarEnv.f >
-     as
-     'r)
+    < Annot.con
+    ; Exp.VarEnv.con
+    ; ExpImports.con
+    ; Fetch.con
+    ; ImportChain.con
+    ; Kind.UnkEnv.con
+    ; ModInJs.con
+    ; ModSimplified.con
+    ; Parameters.con
+    ; Typ.Goals.con
+    ; Typ.Solved.con
+    ; TypImports.con
+    ; TypIncludes.con
+    ; 't Typ.VarEnv.con >
 end

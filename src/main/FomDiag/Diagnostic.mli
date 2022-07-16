@@ -8,13 +8,11 @@ type t = Loc.t * document
 
 val of_error :
   [< Error.t] ->
-  ( (< 'r Kind.UnkEnv.f
-     ; ([> `Kind of Kind.t], 'r) Typ.VarEnv.f
-     ; 'r Typ.Goals.f
-     ; 'r Typ.Solved.f
-     ; .. >
-     as
-     'r),
+  ( < Kind.UnkEnv.con
+    ; [> `Kind of Kind.t] Typ.VarEnv.con
+    ; Typ.Goals.con
+    ; Typ.Solved.con
+    ; .. >,
     'e,
     t * t list )
   rea

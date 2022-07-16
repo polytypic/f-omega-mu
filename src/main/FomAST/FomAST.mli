@@ -16,18 +16,17 @@ module Kind : sig
   module UnkMap : Map.S with type key = Unk.t
 
   module UnkEnv : sig
-    type 'r m
-    type 'r f = < kind_env : 'r m >
+    type m
 
     class con :
-      object ('r)
-        method kind_env : 'r m
+      object
+        method kind_env : m
       end
 
-    val resetting : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
-    val find_opt : Unk.t -> ((< 'r f ; .. > as 'r), 'e, t option) rea
-    val add : Unk.t -> t -> ((< 'r f ; .. > as 'r), 'e, unit) rea
-    val cloning : ((< 'r f ; .. > as 'r), 'e, 'a) rea -> ('r, 'e, 'a) rea
+    val resetting : ('r, 'e, 'a) rea -> ((< con ; .. > as 'r), 'e, 'a) rea
+    val find_opt : Unk.t -> ((< con ; .. > as 'r), 'e, t option) rea
+    val add : Unk.t -> t -> ((< con ; .. > as 'r), 'e, unit) rea
+    val cloning : ('r, 'e, 'a) rea -> ((< con ; .. > as 'r), 'e, 'a) rea
   end
 
   (* *)

@@ -9,8 +9,7 @@ include FomAST.Typ
 (* *)
 
 module VarEnv = struct
-  type ('t, 'r) m = ('t VarMap.t, 'r) Field.t
-  type ('t, 'r) f = < typ_env : ('t, 'r) m >
+  type 't m = 't VarMap.t Oo.Prop.t
 
   let field r = r#typ_env
 
@@ -32,8 +31,8 @@ module VarEnv = struct
 
   class ['t] con =
     object
-      val typ_env = VarMap.empty
-      method typ_env : ('t, _) m = Field.make typ_env (fun v -> {<typ_env = v>})
+      val mutable typ_env = VarMap.empty
+      method typ_env : 't m = prop (fun () -> typ_env) (fun x -> typ_env <- x)
     end
 end
 
@@ -119,11 +118,10 @@ end
 module GoalSet = Set.Make (Compare.Tuple'2 (Core) (Core))
 
 module Goals = struct
-  type 'r m = (GoalSet.t MVar.t, 'r) Field.t
-  type 'r f = < goals : 'r m >
+  type m = GoalSet.t MVar.t Oo.Prop.t
 
   let empty () = MVar.create GoalSet.empty
-  let field r = r#goals
+  let field r : m = r#goals
   let resetting op = setting field (empty ()) op
 
   let adding g op =
@@ -136,8 +134,8 @@ module Goals = struct
 
   class con =
     object
-      val goals = empty ()
-      method goals : _ m = Field.make goals (fun v -> {<goals = v>})
+      val mutable goals = empty ()
+      method goals : m = prop (fun () -> goals) (fun x -> goals <- x)
     end
 end
 
@@ -146,17 +144,14 @@ end
 module Solved = struct
   include Map.Make (FomAST.Typ)
 
-  type 'r m = (FomAST.Typ.t t, 'r) Field.t
-  type 'r f = < typ_solved : 'r m >
+  type m = FomAST.Typ.t t Oo.Prop.t
 
-  let field r : _ m = r#typ_solved
+  let field r : m = r#solved
 
   class con =
     object
-      val typ_solved = empty
-
-      method typ_solved : _ m =
-        Field.make typ_solved (fun v -> {<typ_solved = v>})
+      val mutable solved = empty
+      method solved : m = prop (fun () -> solved) (fun x -> solved <- x)
     end
 end
 

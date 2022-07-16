@@ -21,25 +21,23 @@ end
 
 module Fetch : sig
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type 'r m = Loc.t -> string -> ('r, e, string) rea
-  type 'r f = < fetch : 'r m >
+  type t = Loc.t -> string -> (unit, e, string) rea
 
-  val dummy : 'r m
+  val dummy : t
 
   class con :
-    'r m
-    -> object ('r)
-         method fetch : 'r m
+    t
+    -> object
+         method fetch : t
        end
 end
 
 module Parameters : sig
-  type 'r m
-  type 'r f = < parameters : 'r m >
+  type m
 
   class con :
-    object ('r)
-      method parameters : 'r m
+    object
+      method parameters : m
     end
 end
 
@@ -53,8 +51,6 @@ module TypIncludes : sig
     -> object
          method typ_includes : t
        end
-
-  type 'r f = con
 end
 
 module TypImports : sig
@@ -67,21 +63,10 @@ module TypImports : sig
     -> object
          method typ_imports : t
        end
-
-  type 'r f = con
 end
 
 module ExpImports : sig
   type t
-
-  val create : unit -> t
-
-  val get :
-    string ->
-    ( < exp_imports : t ; .. >,
-      [> Error.t],
-      (Exp.Var.t * Exp.Core.t * Typ.Core.t * string list) * Annot.map )
-    rea
 
   class con :
     t
@@ -89,55 +74,57 @@ module ExpImports : sig
          method exp_imports : t
        end
 
-  type 'r f = con
+  val create : unit -> t
+
+  val get :
+    string ->
+    ( < con ; .. >,
+      [> Error.t],
+      (Exp.Var.t * Exp.Core.t * Typ.Core.t * string list) * Annot.map )
+    rea
 end
 
 module ImportChain : sig
-  type 'r m
-  type 'r f = < import_chain : 'r m >
+  type m
 
   class con :
-    object ('r)
-      method import_chain : 'r m
+    object
+      method chain : m
     end
 end
 
 val elaborate_typ :
   FomCST.Typ.t ->
-  ( (< 'r Annot.f
-     ; 'r Fetch.f
-     ; 'r ImportChain.f
-     ; 'r Kind.UnkEnv.f
-     ; 'r Parameters.f
-     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarEnv.f
-     ; 'r TypImports.f
-     ; 'r TypIncludes.f
-     ; 'r Typ.Goals.f
-     ; 'r Typ.Solved.f
-     ; .. >
-     as
-     'r),
+  ( < Annot.con
+    ; Fetch.con
+    ; ImportChain.con
+    ; Kind.UnkEnv.con
+    ; Parameters.con
+    ; [`Kind of Kind.t | `Typ of Typ.t] Typ.VarEnv.con
+    ; TypImports.con
+    ; TypIncludes.con
+    ; Typ.Goals.con
+    ; Typ.Solved.con
+    ; .. >,
     [> Error.t],
     Typ.t )
   rea
 
 val elaborate :
   FomCST.Exp.t ->
-  ( (< 'r Annot.f
-     ; 'r Exp.VarEnv.f
-     ; 'r ExpImports.f
-     ; 'r Fetch.f
-     ; 'r ImportChain.f
-     ; 'r Kind.UnkEnv.f
-     ; 'r Parameters.f
-     ; ([`Kind of Kind.t | `Typ of Typ.t], 'r) Typ.VarEnv.f
-     ; 'r TypImports.f
-     ; 'r TypIncludes.f
-     ; 'r Typ.Goals.f
-     ; 'r Typ.Solved.f
-     ; .. >
-     as
-     'r),
+  ( < Annot.con
+    ; Exp.VarEnv.con
+    ; ExpImports.con
+    ; Fetch.con
+    ; ImportChain.con
+    ; Kind.UnkEnv.con
+    ; Parameters.con
+    ; [`Kind of Kind.t | `Typ of Typ.t] Typ.VarEnv.con
+    ; TypImports.con
+    ; TypIncludes.con
+    ; Typ.Goals.con
+    ; Typ.Solved.con
+    ; .. >,
     [> Error.t],
     Exp.Core.t * Typ.Core.t * string list )
   rea
