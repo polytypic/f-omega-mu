@@ -16,7 +16,7 @@ include
     end)
     ()
 
-type ('t, 'a) fr = ('t, f) app'1 Monad.t -> ('t, 'a, f) app'2
+type ('t, 'a) mr = 't f'1 Monad.t -> ('t, 'a) f'2
 
 let unit' _ _ state = (Return (), state)
 
@@ -32,18 +32,18 @@ let methods =
   in
 
   object
-    method map : 'a 'b. ('a, 'b, _) Functor.map =
+    method map : 'a 'b. (_, 'a, 'b) Functor.map =
       fun xy xF -> inj (prj xF >>= (xy >>> return))
 
-    method return : 'a. ('a, _) Applicative.return = return >>> inj
+    method return : 'a. (_, 'a) Applicative.return = return >>> inj
 
-    method pair : 'a 'b. ('a, 'b, _) Applicative.pair =
+    method pair : 'a 'b. (_, 'a, 'b) Applicative.pair =
       fun xF yF ->
         inj
           ( prj xF >>= fun x ->
             prj yF >>= fun y -> return (x, y) )
 
-    method bind : 'a 'b. ('a, 'b, _) Monad.bind =
+    method bind : 'a 'b. (_, 'a, 'b) Monad.bind =
       fun xyF xF -> inj (prj xF >>= (xyF >>> prj))
   end
 

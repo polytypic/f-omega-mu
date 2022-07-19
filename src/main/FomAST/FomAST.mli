@@ -50,7 +50,7 @@ module Kind : sig
 
   val keep_phys_eq' : t -> t -> t
   val keep_phys_eq : (t -> t) -> t -> t
-  val keep_phys_eq_fr : (t -> ('f, 'F, t) Functor.fr) uop
+  val keep_phys_eq_fr : (t -> ('f, t, 'D) Functor.r) uop
 end
 
 module Label : sig
@@ -74,18 +74,18 @@ module Row : sig
   (* *)
 
   val union_fr :
-    (Label.t -> 'a -> ('f, 'F, 'c) Applicative.fr) ->
-    (Label.t -> 'b -> ('f, 'F, 'c) Applicative.fr) ->
-    (Label.t -> 'a -> 'b -> ('f, 'F, 'c) Applicative.fr) ->
+    (Label.t -> 'a -> ('f, 'c, 'D) Applicative.r) ->
+    (Label.t -> 'b -> ('f, 'c, 'D) Applicative.r) ->
+    (Label.t -> 'a -> 'b -> ('f, 'c, 'D) Applicative.r) ->
     'a t ->
     'b t ->
-    ('f, 'F, 'c t) Applicative.fr
+    ('f, 'c t, 'D) Applicative.r
 
   val map_fr :
-    ('a -> ('f, 'F, 'b) Applicative.fr) -> 'a t -> ('f, 'F, 'b t) Applicative.fr
+    ('a -> ('f, 'b, 'D) Applicative.r) -> 'a t -> ('f, 'b t, 'D) Applicative.r
 
   val map_phys_eq_fr :
-    ('a -> ('f, 'F, 'a) Applicative.fr) -> 'a t -> ('f, 'F, 'a t) Applicative.fr
+    ('a -> ('f, 'a, 'D) Applicative.r) -> 'a t -> ('f, 'a t, 'D) Applicative.r
 end
 
 module Tuple : sig
@@ -133,22 +133,22 @@ module Typ : sig
     (* *)
 
     val map_fr :
-      ('t -> ('f, 'F, 'u) Applicative.fr) ->
+      ('t -> ('f, 'u, 'D) Applicative.r) ->
       ('t, 'k) f ->
-      ('f, 'F, ('u, 'k) f) Applicative.fr
+      ('f, ('u, 'k) f, 'D) Applicative.r
 
     val map_eq_fr :
-      ('t -> ('f, 'F, 't) Applicative.fr) ->
+      ('t -> ('f, 't, 'D) Applicative.r) ->
       ('t, 'k) f ->
-      ('f, 'F, ('t, 'k) f) Applicative.fr
+      ('f, ('t, 'k) f, 'D) Applicative.r
 
     val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
     val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
     val map_reduce : 'a bop -> 'a -> ('t -> 'a) -> ('t, 'k) f -> 'a
     val exists : ('t -> bool) -> ('t, 'k) f -> bool
-    val exists_fr : ('t -> (('f, 'F, bool) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
+    val exists_fr : ('t -> (('f, bool, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
     val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
-    val iter_fr : ('t -> (('f, 'F, unit) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
+    val iter_fr : ('t -> (('f, unit, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
 
     (* *)
 
@@ -158,9 +158,7 @@ module Typ : sig
 
     val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
     val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
-
-    val keep_phys_eq_fr :
-      (([> ('t, 'k) f] as 't) -> ('f, 'F, 't) Functor.fr) uop
+    val keep_phys_eq_fr : (([> ('t, 'k) f] as 't) -> ('f, 't, 'D) Functor.r) uop
 
     (* *)
 
@@ -225,24 +223,24 @@ module Typ : sig
   (* *)
 
   val map_fr :
-    ('t -> ('f, 'F, 'u) Applicative.fr) ->
+    ('t -> ('f, 'u, 'D) Applicative.r) ->
     ('t, 'k) f ->
-    ('f, 'F, ('u, 'k) f) Applicative.fr
+    ('f, ('u, 'k) f, 'D) Applicative.r
 
   val map_eq_fr :
-    ('t -> ('f, 'F, 't) Applicative.fr) ->
+    ('t -> ('f, 't, 'D) Applicative.r) ->
     ('t, 'k) f ->
-    ('f, 'F, ('t, 'k) f) Applicative.fr
+    ('f, ('t, 'k) f, 'D) Applicative.r
 
   val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
   val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
   val map_reduce : 'u bop -> 'u -> ('t -> 'u) -> ('t, 'k) f -> 'u
   val exists : ('t -> bool) -> ('t, 'k) f -> bool
-  val exists_fr : ('t -> (('f, 'F, bool) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
+  val exists_fr : ('t -> (('f, bool, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
   val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
 
   val find_map_fr :
-    ('t -> (('f, 'F, 'a option) Monad.fr as 'R)) -> ('t, 'k) f -> 'R
+    ('t -> (('f, 'a option, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
 
   (* *)
 
@@ -252,7 +250,7 @@ module Typ : sig
 
   val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
   val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
-  val keep_phys_eq_fr : (([> ('t, 'k) f] as 't) -> ('f, 'F, 't) Functor.fr) uop
+  val keep_phys_eq_fr : (([> ('t, 'k) f] as 't) -> ('f, 't, 'D) Functor.r) uop
 
   (* *)
 
@@ -306,9 +304,9 @@ module Exp : sig
     (* Substitution *)
 
     val map_typ_fr :
-      ('t -> ('f, 'F, 'u) Applicative.fr) ->
+      ('t -> ('f, 'u, 'D) Applicative.r) ->
       ('nat, 't) t ->
-      ('f, 'F, ('nat, 'u) t) Applicative.fr
+      ('f, ('nat, 'u) t, 'D) Applicative.r
 
     (* Comparison *)
 
