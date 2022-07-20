@@ -30,20 +30,19 @@ let methods =
       let yM = xyM x in
       yM env last_pos state
   in
-
   object
-    method map : 'a 'b. (_, 'a, 'b) Functor.map =
+    method map : 'a 'b. (_, 'a, 'b) Method.map =
       fun xy xF -> inj (prj xF >>= (xy >>> return))
 
-    method return : 'a. (_, 'a) Applicative.return = return >>> inj
+    method return : 'a. (_, 'a) Method.return = return >>> inj
 
-    method pair : 'a 'b. (_, 'a, 'b) Applicative.pair =
+    method pair : 'a 'b. (_, 'a, 'b) Method.pair =
       fun xF yF ->
         inj
           ( prj xF >>= fun x ->
             prj yF >>= fun y -> return (x, y) )
 
-    method bind : 'a 'b. (_, 'a, 'b) Monad.bind =
+    method bind : 'a 'b. (_, 'a, 'b) Method.bind =
       fun xyF xF -> inj (prj xF >>= (xyF >>> prj))
   end
 
