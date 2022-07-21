@@ -20,9 +20,7 @@ type ('t, 'a) mr = 't f'1 Monad.t -> ('t, 'a) f'2
 
 let unit' _ _ state = (Return (), state)
 
-let methods =
-  let return value _ _ state = (Return value, state) in
-
+class ['f] methods =
   let rec ( >>= ) xM xyM env last_pos state =
     match xM env last_pos state with
     | Emit (tok, xM), state -> (Emit (tok, xM >>= xyM), state)
@@ -31,19 +29,9 @@ let methods =
       yM env last_pos state
   in
   object
-    method map : 'a 'b. (_, 'a, 'b) Method.map =
-      fun xy xF -> inj (prj xF >>= (xy >>> return))
-
-    method return : 'a. (_, 'a) Method.return = return >>> inj
-
-    method pair : 'a 'b. (_, 'a, 'b) Method.pair =
-      fun xF yF ->
-        inj
-          ( prj xF >>= fun x ->
-            prj yF >>= fun y -> return (x, y) )
-
-    method bind : 'a 'b. (_, 'a, 'b) Method.bind =
-      fun xyF xF -> inj (prj xF >>= (xyF >>> prj))
+    inherit ['f] Monad.t
+    method return value = inj @@ fun _ _ state -> (Return value, state)
+    method bind xyF xF = inj (prj xF >>= (xyF >>> prj))
   end
 
 (* *)
@@ -103,7 +91,7 @@ let with_indent rule m =
 let init token start buffer =
   let tok = token buffer in
   let env = (token, buffer)
-  and continue' = ref (start methods |> prj)
+  and continue' = ref @@ prj @@ start @@ new methods
   and last_tok' = ref tok
   and state' = ref (false, Some tok) in
   fun () ->
