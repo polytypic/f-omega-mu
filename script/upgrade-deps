@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -eo pipefail
+
+cd dep
+
+for dep in *; do
+  echo "$dep"
+  cd "$dep"
+  git pull -r
+  cd ..
+done
