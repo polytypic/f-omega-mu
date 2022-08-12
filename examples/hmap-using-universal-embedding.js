@@ -1,7 +1,7 @@
 'use strict'
 const ᐟNone = ['None']
-const ᐟNil = ['Nil']
 const ᐥ42ᐥ = '42'
+const ᐟNil = ['Nil']
 const target_𛰙ꓱrefꓽᕯ_𐙤_ᕯꓸref_α𛰚_ = r => x => {
   r[0] = x
 }

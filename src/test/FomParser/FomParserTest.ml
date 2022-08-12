@@ -1,4 +1,4 @@
-open StdlibPlus
+open Rea
 open MuTest
 open FomAST
 open FomParser
@@ -7,7 +7,7 @@ let test_parses_as name source check =
   test name @@ fun () ->
   source
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
-  |> try_in check @@ fun _ -> verify false
+  |> tryin (fun _ -> verify false) check
 
 let () =
   test_parses_as "location info" "Λα:*.\n  λx:α.x" @@ function

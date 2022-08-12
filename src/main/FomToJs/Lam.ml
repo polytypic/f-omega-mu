@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 
@@ -8,7 +9,7 @@ include LamCore
 module Env = struct
   include VarMap
 
-  type m = LamCore.t t Oo.Prop.t
+  type m = LamCore.t t Prop.t
 
   let field r : m = r#env
   let find_opt i = get_as field (find_opt i)
@@ -22,7 +23,7 @@ module Env = struct
 end
 
 module Limit = struct
-  type m = int Oo.Prop.t
+  type m = int Prop.t
 
   let field r : m = r#limit
 
@@ -36,7 +37,7 @@ end
 module Seen = struct
   include Set.Make (Compare.Tuple'2 (Int) (LamCore))
 
-  type m = t Oo.Prop.t
+  type m = t Prop.t
 
   let field r : m = r#seen
 
@@ -56,7 +57,7 @@ end
 module Renumbering = struct
   include Map.Make (Id.Name)
 
-  type m = int t Oo.Prop.t
+  type m = int t Prop.t
 
   let field r : m = r#renumbering
 
@@ -132,7 +133,7 @@ let rec is_total e =
       | (`Const _ | `Var _ | `Lam _), [] -> return true
       | `IfElse (c, t, e), xs ->
         is_total c &&& is_total (apps t xs) &&& is_total (apps e xs)
-      | `Product fs, _ -> fs |> List.for_all_fr (fun (_, e) -> is_total e)
+      | `Product fs, _ -> fs |> List.for_all_er (fun (_, e) -> is_total e)
       | `Mu (`Lam (i, e)), xs -> is_total (apps e xs) |> Env.adding i e
       | `Select (e, l), [] -> is_total e &&& is_total l
       | `Inject (_, e), _ -> is_total e
@@ -144,11 +145,11 @@ let rec is_total e =
         &&& (is_total e |> Env.adding i x)
         &&& (is_total (apps e xs) |> Env.adding i x)
       | `Const c, xs ->
-        return (Const.is_total c) &&& (xs |> List.for_all_fr is_total)
+        return (Const.is_total c) &&& (xs |> List.for_all_er is_total)
       | `Case (`Product fs), x :: xs ->
         is_total x
         &&& (fs
-            |> List.for_all_fr (fun (_, f) ->
+            |> List.for_all_er (fun (_, f) ->
                    is_total (apps f (dummy_var :: xs))))
       | `Case e, [] -> is_total e
       | (`Mu _ | `App _ | `Select _ | `Case _), _ -> return false))

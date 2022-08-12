@@ -4,27 +4,28 @@ open FomElab
 open FomToJsC
 
 module Env : sig
-  val empty :
-    ?annot:Annot.t ->
-    ?exp_imports:ExpImports.t ->
-    ?fetch:Fetch.t ->
-    ?mod_in_js:ModInJs.t ->
-    ?mod_simplified:ModSimplified.t ->
-    ?typ_imports:TypImports.t ->
-    ?typ_includes:TypIncludes.t ->
-    unit ->
-    < Annot.con
-    ; Exp.VarEnv.con
-    ; ExpImports.con
-    ; Fetch.con
-    ; ImportChain.con
-    ; Kind.UnkEnv.con
-    ; ModInJs.con
-    ; ModSimplified.con
-    ; Parameters.con
-    ; Typ.Goals.con
-    ; Typ.Solved.con
-    ; TypImports.con
-    ; TypIncludes.con
-    ; 't Typ.VarEnv.con >
+  class ['R, 'D, 't] empty :
+    ?annot:Annot.t
+    -> ?exp_imports:'R ExpImports.t
+    -> ?mod_in_js:'R ModInJs.t
+    -> ?mod_simplified:'R ModSimplified.t
+    -> ?typ_imports:'R TypImports.t
+    -> ?typ_includes:'R TypIncludes.t
+    -> unit
+    -> object
+         inherit Annot.con
+         inherit Exp.VarEnv.con
+         inherit ['R] ExpImports.con
+         inherit ['R, 'D] Fetch.con
+         inherit ImportChain.con
+         inherit Kind.UnkEnv.con
+         inherit ['R] ModInJs.con
+         inherit ['R] ModSimplified.con
+         inherit Parameters.con
+         inherit Typ.Goals.con
+         inherit Typ.Solved.con
+         inherit ['R] TypImports.con
+         inherit ['R] TypIncludes.con
+         inherit ['t] Typ.VarEnv.con
+       end
 end

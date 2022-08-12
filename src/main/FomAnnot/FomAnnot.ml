@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 open FomAST
@@ -17,11 +18,11 @@ module Annot = struct
     ; uses : LocSet.t >
     LocMap.t
 
-  type t = map MVar.t
-  type m = t Oo.Prop.t
+  type t = map Mut.t
+  type m = t Prop.t
 
   let field r : m = r#annot
-  let empty () = MVar.create LocMap.empty
+  let empty () = Mut.create LocMap.empty
   let scoping op = setting field (empty ()) op
 
   class con annot =
@@ -81,7 +82,7 @@ module Annot = struct
     let resolve resolve_kind =
       try_mutate field
         (LocMap.bindings
-        >>> List.map_m (fun (at, v) ->
+        >>> List.map_er (fun (at, v) ->
                 match v#annot with
                 | `TypId (id, kind) ->
                   let+ kind = resolve_kind kind in

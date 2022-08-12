@@ -1,3 +1,4 @@
+open Rea
 open Js_of_ocaml
 open StdlibPlus
 open FomPPrint
@@ -113,7 +114,7 @@ let format max_width (value : unit Js.t) =
     check_fuel fuel @@ fun fuel ->
     match JsHashtbl.find_opt known value with
     | None -> (
-      match as_aggr ~fuel value |> Option.run with
+      match as_aggr ~fuel value |> run Option.monad_plus |> Option.of_rea with
       | Some xs ->
         xs
         |> List.map (format ~atomize:false ~fuel)

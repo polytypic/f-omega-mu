@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomChecker
 
@@ -13,7 +14,7 @@ module TypSet = Set.Make (Core)
 
 let rec contract t =
   let* s, t = contract_base t in
-  let* t_opt = s |> TypSet.elements |> List.find_opt_fr (is_equal_of_norm t) in
+  let* t_opt = s |> TypSet.to_seq |> Seq.find_opt_er (is_equal_of_norm t) in
   let s, u =
     match t_opt with
     | Some t -> (s, t)
@@ -21,7 +22,7 @@ let rec contract t =
       match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
   in
   match t with
-  | `Lam (_, i, _, _) -> TypSet.filter_fr (is_free i >-> not) s <*> return u
+  | `Lam (_, i, _, _) -> TypSet.filter_er (is_free i >-> not) s <*> return u
   | _ -> return (s, u)
 
 and contract_base t =
@@ -41,13 +42,13 @@ and contract_base t =
     | `Row (at', m, ls) ->
       contract_labels ls >>- fun (s, ls') -> (s, `Row (at', m, ls'))
   in
-  (s, keep_phys_eq' t t')
+  (s, keep_eq' t t')
 
 and contract_labels ls =
-  let+ sls' = ls |> Row.map_fr contract in
+  let+ sls' = ls |> Row.map_er contract in
   let ls' =
     sls' |> Row.map snd
-    |> List.share_phys_eq (Pair.share_phys_eq (fun _ x -> x) (fun _ x -> x)) ls
+    |> List.share_eq (Pair.share_eq (fun _ x -> x) (fun _ x -> x)) ls
   in
   let s =
     sls'
@@ -90,7 +91,7 @@ let rec collect_mus_closed bvs t mus =
          (mus, VarSet.empty)
 
 let rec replace_closed_mus m =
-  keep_phys_eq @@ function
+  keep_eq @@ function
   | `Mu (at'', `Lam (at', i, k, e)) as t ->
     if TypSet.mem t m then `Var (at', i)
     else `Mu (at'', `Lam (at', i, k, replace_closed_mus m e))

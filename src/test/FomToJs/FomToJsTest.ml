@@ -1,4 +1,4 @@
-open StdlibPlus
+open Rea
 open MuTest
 open FomParser
 open FomElab
@@ -7,8 +7,12 @@ let parse_exp source and_then =
   source
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
   >>= elaborate
-  |> map_env (ignore >>> FomEnv.Env.empty)
-  |> try_in and_then @@ fun _ -> verify false
+  |> tryin (fun _ -> verify false) and_then
+  |> mapping_env @@ fun o ->
+     object
+       inherit [_, _, _] async'of o
+       inherit [_, _, _] FomEnv.Env.empty ()
+     end
 
 let testCompiles name exp =
   test name @@ fun () ->

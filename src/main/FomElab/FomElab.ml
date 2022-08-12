@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 open FomParser
@@ -26,7 +27,7 @@ module Annot = struct
   let setup op =
     let open FomAST in
     Typ.initial_env |> Typ.VarMap.bindings
-    |> List.iter_fr (function
+    |> List.iter_er (function
          | i, `Kind k -> Annot.Typ.def i k
          | i, `Typ _ -> Annot.Typ.def i (`Star (Typ.Var.at i)))
     >> op
@@ -75,33 +76,32 @@ end
 
 module Fetch = struct
   type e = [Error.file_doesnt_exist | Error.io_error]
-  type t = Loc.t -> string -> (unit, e, string) rea
 
-  let dummy at path = fail @@ `Error_file_doesnt_exist (at, path)
-  let field r : t = r#fetch
-
-  class con fetch =
+  class ['R, 'D] con =
     object
-      method fetch : t = fetch
+      method fetch
+          : 'E.
+            Loc.t ->
+            string ->
+            ('R, ([> e] as 'E), string, (('R, 'D) #fail' as 'D)) er =
+        fun at path -> fail @@ `Error_file_doesnt_exist (at, path)
     end
 
-  let fetch at path =
-    invoke (fun r -> field r at path |> set_env ())
-    |> map_error (fun (#e as x) -> x)
+  let fetch at path (d : (_, _) #con) = d#fetch at path d
 end
 
 module PathMap = Map.Make (String)
 module PathSet = Set.Make (String)
 
 module ImportChain = struct
-  type m = Loc.t PathMap.t Oo.Prop.t
+  type m = Loc.t PathMap.t Prop.t
 
   let field r : m = r#chain
 
   let with_path at path compute =
     let* include_chain = get field in
     PathMap.find_opt path include_chain
-    |> Option.iter_fr (fun previously_at ->
+    |> Option.iter_er (fun previously_at ->
            fail @@ `Error_cyclic_includes (at, path, previously_at))
     >> compute
 
@@ -113,18 +113,18 @@ module ImportChain = struct
 end
 
 module PathTable = struct
-  type 'a t = (string, (Error.t, 'a * Annot.map) LVar.t) Hashtbl.t
+  type ('R, 'a) t = (string, ('R, Error.t, 'a * Annot.map) Memo.t) Hashtbl.t
 
   let get_or_put field at path compute =
     (let* result, inner =
        Annot.scoping
-         (let* (hashtbl : _ t) = env_as field in
+         (let* (hashtbl : (_, _) t) = env_as field in
           match Hashtbl.find_opt hashtbl path with
           | None ->
-            let* var = LVar.create (Annot.setup compute <*> read Annot.field) in
+            let* var = Memo.create (Annot.setup compute <*> read Annot.field) in
             Hashtbl.replace hashtbl path var;
-            LVar.eval var
-          | Some var -> LVar.eval var)
+            Memo.eval var
+          | Some var -> Memo.eval var)
      in
      mutate Annot.field (Annot.merge inner) >> return result)
     |> ImportChain.with_path at path
@@ -133,44 +133,45 @@ module PathTable = struct
     let* hashtbl = env_as field in
     match Hashtbl.find_opt hashtbl key with
     | None -> fail @@ `Error_file_doesnt_exist (Loc.dummy, key)
-    | Some var -> LVar.eval var |> map_error @@ fun (#Error.t as e) -> e
+    | Some var -> Memo.eval var |> map_error @@ fun (#Error.t as e) -> e
 end
 
 module TypIncludes = struct
-  type t = [`Typ of Typ.t] Typ.VarMap.t PathTable.t
+  type 'R t = ('R, [`Typ of Typ.t] Typ.VarMap.t) PathTable.t
 
   let create () = Hashtbl.create 100
-  let field r : t = r#typ_includes
+  let field r : _ t = r#typ_includes
   let get_or_put at = PathTable.get_or_put field at
 
-  class con (typ_includes : t) =
+  class ['R] con (typ_includes : 'R t) =
     object
       method typ_includes = typ_includes
     end
 end
 
 module TypImports = struct
-  type t = Typ.Core.t PathTable.t
+  type 'R t = ('R, Typ.Core.t) PathTable.t
 
   let create () = Hashtbl.create 100
-  let field r : t = r#typ_imports
+  let field r : _ t = r#typ_imports
   let get_or_put at = PathTable.get_or_put field at
 
-  class con (typ_imports : t) =
+  class ['R] con (typ_imports : 'R t) =
     object
       method typ_imports = typ_imports
     end
 end
 
 module ExpImports = struct
-  type t = (Exp.Var.t * Exp.Core.t * Typ.Core.t * string list) PathTable.t
+  type 'R t =
+    ('R, Exp.Var.t * Exp.Core.t * Typ.Core.t * string list) PathTable.t
 
   let create () = Hashtbl.create 100
-  let field r : t = r#exp_imports
+  let field r : _ t = r#exp_imports
   let get_or_put at = PathTable.get_or_put field at
   let get path = PathTable.get field path
 
-  class con (exp_imports : t) =
+  class ['R] con (exp_imports : 'R t) =
     object
       method exp_imports = exp_imports
     end
@@ -179,9 +180,9 @@ end
 module Parameters = struct
   include PathSet
 
-  type m = t MVar.t Oo.Prop.t
+  type m = t Mut.t Prop.t
 
-  let empty () = MVar.create empty
+  let empty () = Mut.create empty
   let field r : m = r#parameters
   let resetting op = setting field (empty ()) op
   let add filename = mutate field (add filename)
@@ -190,9 +191,9 @@ module Parameters = struct
   let taking_in ast =
     let* imports = env_as ExpImports.field in
     get
-    >>= List.fold_left_fr
+    >>= List.fold_left_er
           (fun ast filename ->
-            let+ (i, _, t, _), _ = Hashtbl.find imports filename |> LVar.eval in
+            let+ (i, _, t, _), _ = Hashtbl.find imports filename |> Memo.eval in
             `Lam (Exp.Var.at i, i, (t :> Typ.t), ast))
           ast
 
@@ -224,7 +225,7 @@ end
 
 let to_avoid_capture i =
   let+ exists =
-    Typ.VarEnv.existing_fr (fun _ -> function
+    Typ.VarEnv.existing_er (fun _ -> function
       | `Typ t' -> Typ.is_free i t' | _ -> return false)
   in
   if exists then
@@ -256,7 +257,7 @@ let lam at i t_opt e =
 let rec type_of_pat_lam = function
   | `Annot (_, _, t) -> return t
   | `Const (_, `Unit) as t -> return t
-  | `Product (at, fs) -> Row.map_fr type_of_pat_lam fs >>- Typ.product at
+  | `Product (at, fs) -> Row.map_er type_of_pat_lam fs >>- Typ.product at
   | `Var _ | `Pack _ -> zero
 
 let rec pat_to_exp p' e' = function
@@ -281,7 +282,7 @@ let rec pat_to_exp p' e' = function
 let rec elaborate_typ_def = function
   | `TypPar ikts ->
     ikts
-    |> List.map_fr (fun (i, k, t) ->
+    |> List.map_er (fun (i, k, t) ->
            let at = Typ.Var.at i in
            let+ t = elaborate_typ (annot at i k t) >>= Typ.infer_and_resolve in
            (i, `Typ (Typ.Core.set_at at t :> Typ.t)))
@@ -297,10 +298,10 @@ let rec elaborate_typ_def = function
     let bs =
       List.map2 (fun i (_, k, t) -> (i, Kind.set_at (Typ.Var.at i) k, t)) i's bs
     in
-    let* () = bs |> List.iter_fr (fun (i, k, _) -> Annot.Typ.def i k) in
+    let* () = bs |> List.iter_er (fun (i, k, _) -> Annot.Typ.def i k) in
     let* assoc =
       bs
-      |> List.map_fr (fun (i, k, t) ->
+      |> List.map_er (fun (i, k, t) ->
              let at' = Typ.Var.at i in
              let+ t = elaborate_typ t in
              (i, `Mu (at', `Lam (at', i, k, t))))
@@ -310,7 +311,7 @@ let rec elaborate_typ_def = function
     in
     assoc
     |> List.map (snd >>> Typ.subst_rec (Typ.VarMap.of_list assoc))
-    |> List.map_fr Typ.infer_and_resolve
+    |> List.map_er Typ.infer_and_resolve
     >>- (List.map2
            (fun i (t : Typ.Core.t) ->
              (i, `Typ (Typ.set_at (Typ.Var.at i) (t :> Typ.t))))
@@ -366,11 +367,11 @@ and elaborate_typ = function
     |> TypImports.get_or_put at' sig_path
     |> Elab.modularly
     >>- fun t -> (t : Typ.Core.t :> Typ.t)
-  | #Typ.f as t -> Typ.map_fr elaborate_typ t
+  | #Typ.f as t -> Typ.map_er elaborate_typ t
 
 let rec elaborate = function
   | `Const (at, c) ->
-    Exp.Const.map_typ_fr elaborate_typ c >>- fun c -> `Const (at, c)
+    Exp.Const.map_typ_er elaborate_typ c >>- fun c -> `Const (at, c)
   | `Var _ as ast -> return ast
   | `LamImp (at, i, e) | `LamPat (at, `Var (_, i), e) ->
     elaborate e >>- fun e -> `LamImp (at, i, e)
@@ -407,7 +408,8 @@ let rec elaborate = function
         >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
       | p ->
         let* t_opt =
-          type_of_pat_lam p |> Option.run |> Option.map_fr elaborate_typ
+          type_of_pat_lam p |> run Option.monad_plus |> Option.of_rea
+          |> Option.map_er elaborate_typ
         in
         let i = Pat.id_for p in
         let+ e = elaborate_pat (`Var (at, i)) e p in
@@ -428,7 +430,7 @@ let rec elaborate = function
   | `IfElse (at, c, t, e) ->
     let+ c = elaborate c and* t = elaborate t and+ e = elaborate e in
     `IfElse (at, c, t, e)
-  | `Product (at, fs) -> Row.map_fr elaborate fs >>- fun fs -> `Product (at, fs)
+  | `Product (at, fs) -> Row.map_er elaborate fs >>- fun fs -> `Product (at, fs)
   | `Select (at, e, l) ->
     elaborate e <*> elaborate l >>- fun (e, l) -> `Select (at, e, l)
   | `Inject (at, l, e) -> elaborate e >>- fun e -> `Inject (at, l, e)
@@ -446,7 +448,8 @@ let rec elaborate = function
     >>- fun e -> `UnpackIn (at, ti, k, ei, v, e)
   | `LamPat (at, p, e) ->
     let* t_opt =
-      type_of_pat_lam p |> Option.run |> Option.map_fr elaborate_typ
+      type_of_pat_lam p |> run Option.monad_plus |> Option.of_rea
+      |> Option.map_er elaborate_typ
     in
     let i = Pat.id_for p in
     let+ e = elaborate_pat (`Var (at, i)) e p in
@@ -468,7 +471,7 @@ let rec elaborate = function
     let app f x = `App (Exp.at f, f, x) in
     let app2 f x y = app (app f x) y in
     fragments
-    |> List.fold_left_fr
+    |> List.fold_left_er
          (fun e -> function
            | `Str s ->
              return @@ app2 (select Label.text') (`Const (at', `String s)) e
@@ -484,10 +487,12 @@ let rec elaborate = function
       >>= elaborate_typ >>= Typ.infer_and_resolve >>- Typ.Core.ground
       |> TypImports.get_or_put at' sig_path
       |> Elab.modularly
-      |> try_in (fun contents -> return @@ Some contents) @@ function
-         | `Error_file_doesnt_exist (_, path) when path = sig_path ->
-           return None
-         | e -> fail e
+      |> tryin
+           (function
+             | `Error_file_doesnt_exist (_, path) when path = sig_path ->
+               return None
+             | e -> fail e)
+           (Option.some >>> pure)
     in
     let* id, _, _, _ =
       (let* e =

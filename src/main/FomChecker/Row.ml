@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 include FomAST.Row
 

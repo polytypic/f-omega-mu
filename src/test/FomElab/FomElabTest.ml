@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open MuTest
 open FomSource
@@ -13,7 +14,7 @@ let () =
     ("https://host:80/foo/bar.fom", "/baz", "https://host:80/baz");
     ("https://host:80/foo/bar.fom", "baz", "https://host:80/foo/baz");
   ]
-  |> List.iter_fr @@ fun (loc, path, expected) ->
+  |> List.iter_er @@ fun (loc, path, expected) ->
      let actual =
        FomElab.Path.coalesce (Loc.of_path loc) (JsonString.of_utf8 path)
      in

@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomPPrint
 open FomParser
@@ -57,7 +58,7 @@ type t =
 
 (* *)
 
-let map_fr' row fn = function
+let map_er' row fn = function
   | `App (f, x) -> fn f <*> fn x >>- fun f_x -> `App f_x
   | `Case e -> fn e >>- fun e -> `Case e
   | `Const _ as inn -> return inn
@@ -69,14 +70,14 @@ let map_fr' row fn = function
   | `Select (e, l) -> fn e <*> fn l >>- fun e_l -> `Select e_l
   | `Var _ as inn -> return inn
 
-let map_fr fn = map_fr' Row.map_fr fn
-let map_eq_fr fn = map_fr' Row.map_phys_eq_fr fn
-let map fn = Traverse.to_map map_fr fn
-let map_eq fn = Traverse.to_map map_eq_fr fn
-let map_constant m = Traverse.to_map_constant map_fr m
-let exists fn = Traverse.to_exists map_fr fn
-let find_map fn = Traverse.to_find_map map_fr fn
-let map_reduce plus = Traverse.to_map_reduce map_fr plus
+let map_er fn = map_er' Row.map_er fn
+let map_eq_er fn = map_er' Row.map_eq_er fn
+let map fn = Traverse.to_map map_er fn
+let map_eq fn = Traverse.to_map map_eq_er fn
+let map_constant m = Traverse.to_map_constant map_er m
+let exists fn = Traverse.to_exists map_er fn
+let find_map fn = Traverse.to_find_map map_er fn
+let map_reduce plus = Traverse.to_map_reduce map_er plus
 
 (* *)
 
@@ -159,7 +160,7 @@ let subst i = function
 
 (* *)
 
-let rec size t = map_reduce ( + ) 0 size t + 1
+let rec size t = map_reduce (fun l r -> l () + r ()) 0 size t + 1
 
 (* *)
 
@@ -205,7 +206,7 @@ let rec compare (l : t) (r : t) =
 (* *)
 
 let rec hash t =
-  map_reduce (fun l r -> (l * 3) + r) 0 hash t + (tag t |> Hashtbl.hash)
+  map_reduce (fun l r -> (l () * 3) + r ()) 0 hash t + (tag t |> Hashtbl.hash)
 
 (* *)
 

@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomPPrint
 open FomAST
@@ -78,13 +79,13 @@ module Exp = struct
       let check_ts =
         ts
         |> List.find_dup_opt Typ.Var.compare
-        |> Option.iter_fr @@ fun (i2, i1) ->
+        |> Option.iter_er @@ fun (i2, i1) ->
            fail @@ `Error_duplicated_typ_bind (Typ.Var.at i2, i1)
       in
       let check_is =
         is
         |> List.find_dup_opt Var.compare
-        |> Option.iter_fr @@ fun (i2, i1) ->
+        |> Option.iter_er @@ fun (i2, i1) ->
            fail @@ `Error_duplicated_bind (Var.at i2, i1)
       in
       check_ts >> check_is

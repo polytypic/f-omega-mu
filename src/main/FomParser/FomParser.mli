@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomCST
 open FomError
@@ -83,7 +84,11 @@ module Parser : sig
     type t = [Error.lexeme | Error.grammar]
   end
 
-  val parse : 'a Grammar.t -> Lexer.t -> Buffer.t -> ('r, [> Error.t], 'a) rea
+  val parse :
+    'a Grammar.t ->
+    Lexer.t ->
+    Buffer.t ->
+    ('R, [> Error.t], 'a, (('R, 'D) #sync' as 'D)) er
   (** Parse from buffer using given grammar and lexical syntax. *)
 
   val parse_utf_8 :
@@ -91,6 +96,6 @@ module Parser : sig
     Lexer.t ->
     ?path:string ->
     string ->
-    ('r, [> Error.t], 'a) rea
+    ('R, [> Error.t], 'a, (('R, 'D) #sync' as 'D)) er
   (** Parse from UTF-8 string using given grammar and lexical syntax. *)
 end

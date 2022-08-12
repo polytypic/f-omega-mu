@@ -1,3 +1,4 @@
+open Rea
 open Js_of_ocaml
 open StdlibPlus
 open FomPPrint
@@ -14,10 +15,11 @@ let () = Hashtbl.randomize ()
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
-  of_async @@ fun on_error on_ok ->
+  suspend @@ fun resume ->
   match try Ok (op ()) with e -> Error e with
-  | Ok p -> Lwt.on_any p on_ok on_error
-  | Error e -> on_error e
+  | Ok p ->
+    Lwt.on_any p (fun x -> resume @@ `Ok x) (fun e -> resume @@ `Error e)
+  | Error e -> resume @@ `Error e
 
 let fetch at filename =
   of_lwt (fun () ->
@@ -128,18 +130,21 @@ let js_use_def ?(max_width = 60) (def, o) =
 module Cb : sig
   type t
 
-  val invoke : t -> Js.Unsafe.any -> ('r, 'e, unit) rea
+  val invoke : t -> Js.Unsafe.any -> ('R, 'e, unit, (('R, 'D) #pure' as 'D)) er
 end = struct
   type t = unit
 
-  let invoke fn x =
-    delay @@ fun () ->
-    Js.Unsafe.fun_call fn [|x|] |> ignore;
-    unit
+  let invoke fn x = pure'0 @@ fun () -> Js.Unsafe.fun_call fn [|x|] |> ignore
 end
 
+let async =
+  object
+    inherit [_] Tailrec.async
+    inherit [_, _, _] FomEnv.Env.empty ()
+    method! fetch at path = fetch at path
+  end
+
 let js_codemirror_mode =
-  let env = FomEnv.Env.empty ~fetch () in
   object%js
     method offset16 input i = Tokenizer.offset_as_utf_16 (Js.to_string input) i
     method offset32 input i = Tokenizer.offset_as_utf_32 (Js.to_string input) i
@@ -150,31 +155,13 @@ let js_codemirror_mode =
       let path = Js.to_string path in
       let def_uses =
         read Annot.field >>- Annot.LocMap.bindings
-        >>= List.map_m (js_use_def ~max_width)
+        >>= List.map_er (js_use_def ~max_width)
         >>- (Array.of_list >>> Js.array)
       in
       input |> Js.to_string
       |> Parser.parse_utf_8 Grammar.mods Lexer.offside ~path
       >>= FomElab.elaborate
-      |> try_in
-           (fun (ast, typ, deps) ->
-             Profiling.Counter.dump_all ();
-             let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
-             let* typ = pp_typ typ and* def_uses = def_uses in
-             Cb.invoke on_pass @@ Js.Unsafe.inject
-             @@ object%js
-                  val typ = utf8string "type:" ^^ typ |> to_js_string ~max_width
-                  val defUses = def_uses
-
-                  val dependencies =
-                    deps |> Array.of_list |> Array.map Js.string |> Js.array
-
-                  val diagnostics = Js.array [||]
-                end
-             >> FomToJsC.to_js ~whole ~top:`Top ast deps
-             |> try_in
-                  (Js.string >>> Js.Unsafe.inject >>> Cb.invoke on_js)
-                  (fun _ -> Cb.invoke on_js @@ Js.Unsafe.inject @@ Js.string ""))
+      |> tryin
            (fun error ->
              Profiling.Counter.dump_all ();
              let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
@@ -199,7 +186,25 @@ let js_codemirror_mode =
                              end)
                       |> Js.array
                 end)
-      |> Annot.scoping |> start env
+           (fun (ast, typ, deps) ->
+             Profiling.Counter.dump_all ();
+             let* () = Cb.invoke on_elab @@ Js.Unsafe.inject () in
+             let* typ = pp_typ typ and* def_uses = def_uses in
+             Cb.invoke on_pass @@ Js.Unsafe.inject
+             @@ object%js
+                  val typ = utf8string "type:" ^^ typ |> to_js_string ~max_width
+                  val defUses = def_uses
+
+                  val dependencies =
+                    deps |> Array.of_list |> Array.map Js.string |> Js.array
+
+                  val diagnostics = Js.array [||]
+                end
+             >> FomToJsC.to_js ~whole ~top:`Top ast deps
+             |> tryin
+                  (fun _ -> Cb.invoke on_js @@ Js.Unsafe.inject @@ Js.string "")
+                  (Js.string >>> Js.Unsafe.inject >>> Cb.invoke on_js))
+      |> Annot.scoping |> Tailrec.spawn async
 
     method synonyms =
       Tokenizer.synonyms |> Array.of_list

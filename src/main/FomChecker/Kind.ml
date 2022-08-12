@@ -1,11 +1,11 @@
-open StdlibPlus
+open Rea
 
 (* *)
 include FomAST.Kind
 
 let rec resolve k =
   k
-  |> keep_phys_eq_fr @@ function
+  |> keep_eq_er @@ function
      | `Star _ as k -> return k
      | `Arrow (at', d, c) ->
        let+ d' = resolve d and+ c' = resolve c in
@@ -20,7 +20,7 @@ let rec resolve k =
 
 let rec ground k =
   k
-  |> keep_phys_eq @@ function
+  |> keep_eq @@ function
      | `Star _ as k -> k
      | `Arrow (at', d, c) -> `Arrow (at', ground d, ground c)
      | `Unk (at', _) -> `Star at'

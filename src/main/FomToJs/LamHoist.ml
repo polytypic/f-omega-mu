@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 open FomParser
@@ -79,7 +80,7 @@ let constants_to_top inn =
       let* vs, cs = analyze ~skip:false cs in
       `Case cs |> consider vs
   and analyze_product ~skip fs =
-    let+ fs = fs |> Row.map_fr (analyze ~skip) in
+    let+ fs = fs |> Row.map_er (analyze ~skip) in
     ( fs |> List.fold_left (fun s (_, (vs, _)) -> VarSet.union s vs) VarSet.empty,
       fs |> Row.map snd )
   in

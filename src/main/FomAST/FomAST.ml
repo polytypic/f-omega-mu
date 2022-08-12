@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 
@@ -8,7 +9,8 @@ module Kind = struct
   module Core = struct
     type 'k f = [`Star of Loc.t | `Arrow of Loc.t * 'k * 'k]
 
-    let map_at_fr fn = function
+    let map_at_er fn =
+      eta'1 @@ function
       | `Star at -> fn at >>- fun at -> `Star at
       | `Arrow (at, d, c) -> fn at >>- fun at -> `Arrow (at, d, c)
   end
@@ -17,14 +19,14 @@ module Kind = struct
   type t = t f
 
   module UnkEnv = struct
-    type m = t UnkMap.t MVar.t Oo.Prop.t
+    type m = t UnkMap.t Mut.t Prop.t
 
-    let empty () = MVar.create UnkMap.empty
+    let empty () = Mut.create UnkMap.empty
     let field r : m = r#kind_env
     let resetting op = setting field (empty ()) op
     let find_opt i = read field >>- UnkMap.find_opt i
     let add i k = mutate field @@ UnkMap.add i k
-    let cloning op = read field >>= fun v -> setting field (MVar.create v) op
+    let cloning op = cloning field op
 
     class con =
       object
@@ -33,12 +35,13 @@ module Kind = struct
       end
   end
 
-  let map_at_fr fn = function
-    | #Core.f as t -> Core.map_at_fr fn t
+  let map_at_er fn =
+    eta'1 @@ function
+    | #Core.f as t -> Core.map_at_er fn t
     | `Unk (at, i) -> fn at >>- fun at -> `Unk (at, i)
 
-  let at t = Traverse.to_get map_at_fr t
-  let set_at at = Traverse.to_set map_at_fr at
+  let at t = Traverse.to_get map_at_er t
+  let set_at at = Traverse.to_set map_at_er at
 
   (* *)
 
@@ -77,14 +80,14 @@ module Kind = struct
 
   (* *)
 
-  let keep_phys_eq' k k' = if k == k' || eq k k' then k else k'
-  let keep_phys_eq fn k = keep_phys_eq' k (fn k)
-  let keep_phys_eq_fr fn k = fn k >>- keep_phys_eq' k
+  let keep_eq' k k' = if k == k' || eq k k' then k else k'
+  let keep_eq fn k = keep_eq' k (fn k)
+  let keep_eq_er fn k = fn k >>- keep_eq' k
 
   (* *)
 
   let rec freshen env =
-    keep_phys_eq @@ function
+    keep_eq @@ function
     | `Star _ as inn -> inn
     | `Arrow (at', d, c) -> `Arrow (at', freshen env d, freshen env c)
     | `Unk (at', i) -> (
@@ -126,29 +129,29 @@ module Row = struct
        |> List.for_alli @@ fun i (l, _) ->
           Label.to_string l = Int.to_string (i + 1)
 
-  let rec union_fr lhs rhs both ls rs =
+  let rec union_er lhs rhs both ls rs =
     match (ls, rs) with
     | (l, lx) :: ls', (r, rx) :: rs' ->
       let c = Label.compare l r in
       if c < 0 then
-        lhs l lx <*> union_fr lhs rhs both ls' rs >>- fun (y, ys) ->
+        lhs l lx <*> union_er lhs rhs both ls' rs >>- fun (y, ys) ->
         (l, y) :: ys
       else if c > 0 then
-        rhs r rx <*> union_fr lhs rhs both ls rs' >>- fun (y, ys) ->
+        rhs r rx <*> union_er lhs rhs both ls rs' >>- fun (y, ys) ->
         (r, y) :: ys
       else
-        both l lx rx <*> union_fr lhs rhs both ls' rs' >>- fun (y, ys) ->
+        both l lx rx <*> union_er lhs rhs both ls' rs' >>- fun (y, ys) ->
         (l, y) :: ys
     | (l, lx) :: ls, [] ->
-      lhs l lx <*> union_fr lhs rhs both ls rs >>- fun (y, ys) -> (l, y) :: ys
+      lhs l lx <*> union_er lhs rhs both ls rs >>- fun (y, ys) -> (l, y) :: ys
     | [], (r, rx) :: rs ->
-      rhs r rx <*> union_fr lhs rhs both ls rs >>- fun (y, ys) -> (r, y) :: ys
-    | [], [] -> return []
+      rhs r rx <*> union_er lhs rhs both ls rs >>- fun (y, ys) -> (r, y) :: ys
+    | [], [] -> pure []
 
   let map fn = List.map (Pair.map id fn)
-  let map_phys_eq fn = List.map_phys_eq (Pair.map_phys_eq id fn)
-  let map_fr fn = List.map_fr @@ Pair.map_fr return fn
-  let map_phys_eq_fr fn = List.map_phys_eq_fr @@ Pair.map_phys_eq_fr return fn
+  let map_eq fn = List.map_eq (Pair.map_eq id fn)
+  let map_er fn = List.map_er @@ map_er'2 pure fn
+  let map_eq_er fn = List.map_eq_er @@ map_eq_er'2 pure fn
 end
 
 module Tuple = struct
@@ -225,27 +228,28 @@ module Typ = struct
 
     type t = (t, Kind.t) f
 
-    let map_fr' fl row ft = function
-      | `Mu (l, t) -> fl l <*> ft t >>- fun x -> `Mu x
+    let map_er' fl row ft =
+      eta'1 @@ function
+      | `Mu x -> map_er'2 fl ft x >>- fun x -> `Mu x
       | `Const (l, c) -> fl l >>- fun l -> `Const (l, c)
       | `Var (l, i) -> fl l >>- fun l -> `Var (l, i)
       | `Lam (l, i, k, t) -> fl l <*> ft t >>- fun (l, t) -> `Lam (l, i, k, t)
-      | `App (l, f, x) -> tuple'3 (fl l) (ft f) (ft x) >>- fun x -> `App x
+      | `App x -> map_er'3 fl ft ft x >>- fun x -> `App x
       | `For (l, q, t) -> fl l <*> ft t >>- fun (l, t) -> `For (l, q, t)
-      | `Arrow (l, d, c) -> tuple'3 (fl l) (ft d) (ft c) >>- fun x -> `Arrow x
+      | `Arrow x -> map_er'3 fl ft ft x >>- fun x -> `Arrow x
       | `Row (l, m, ls) -> fl l <*> row ft ls >>- fun (l, ls) -> `Row (l, m, ls)
 
-    let map_at_fr fl = map_fr' fl (const return) return
-    let set_at at = Traverse.to_set map_at_fr at
-    let map_fr fn = map_fr' return Row.map_fr fn
-    let map fn = Traverse.to_map map_fr fn
-    let map_eq_fr fn = map_fr' return Row.map_phys_eq_fr fn
-    let map_eq fn = Traverse.to_map map_eq_fr fn
-    let exists fn = Traverse.to_exists map_fr fn
-    let exists_fr fn = Traverse.to_exists_fr map_fr fn
-    let find_map fn = Traverse.to_find_map map_fr fn
-    let iter_fr fn = Traverse.to_iter_fr map_fr fn
-    let map_reduce fn = Traverse.to_map_reduce map_fr fn
+    let map_at_er fl = map_er' fl (const pure) pure
+    let set_at at = Traverse.to_set map_at_er at
+    let map_er fn = map_er' pure Row.map_er fn
+    let map fn = Traverse.to_map map_er fn
+    let map_eq_er fn = map_er' pure Row.map_eq_er fn
+    let map_eq fn = Traverse.to_map map_eq_er fn
+    let exists fn = Traverse.to_exists map_er fn
+    let exists_er fn = Traverse.to_exists_er map_er fn
+    let find_map fn = Traverse.to_find_map map_er fn
+    let iter_er fn = Traverse.to_iter_er map_er fn
+    let map_reduce fn = Traverse.to_map_reduce map_er fn
 
     (* *)
 
@@ -261,48 +265,48 @@ module Typ = struct
       | `Row l, `Row r -> eq'3 l r
       | _ -> false
 
-    let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
-    let keep_phys_eq fn t = keep_phys_eq' t (fn t)
-    let keep_phys_eq_fr fn t = fn t >>- keep_phys_eq' t
+    let keep_eq' t t' = if t == t' || eq t t' then t else t'
+    let keep_eq fn t = keep_eq' t (fn t)
+    let keep_eq_er fn t = fn t >>- keep_eq' t
 
     (* *)
 
     let rec is_free i = function
-      | `Var (_, i') -> return @@ Var.equal i i'
+      | `Var (_, i') -> pure @@ Var.equal i i'
       | `Lam (_, i', _, body) ->
-        if Var.equal i i' then return false else is_free i body
-      | t -> exists_fr (is_free i) t
+        if Var.equal i i' then pure false else is_free i body
+      | t -> exists_er (is_free i) t
 
     let mu_of_norm at = function
       | `Lam (_, i, _, t) as t' -> (
         is_free i t >>- function false -> t | true -> `Mu (at, t'))
-      | t' -> return @@ `Mu (at, t')
+      | t' -> pure @@ `Mu (at, t')
 
     let lam_of_norm at i k = function
       | `App (_, f, `Var (_, i')) as t' when Var.equal i i' -> (
         is_free i f >>- function true -> `Lam (at, i, k, t') | false -> f)
-      | t' -> return @@ `Lam (at, i, k, t')
+      | t' -> pure @@ `Lam (at, i, k, t')
 
     let rec app_of_norm at f' x' =
       match f' with
       | `Lam (_, i, _, t) -> subst_of_norm i x' t
-      | f' -> return @@ `App (at, f', x')
+      | f' -> pure @@ `App (at, f', x')
 
     and subst_of_norm i v t =
       let rec subst_of_norm env =
-        keep_phys_eq_fr @@ function
+        keep_eq_er @@ function
         | `Var (_, i) as inn ->
-          return (match VarMap.find_opt i env with None -> inn | Some t -> t)
+          pure (match VarMap.find_opt i env with None -> inn | Some t -> t)
         | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
         | `Lam (at, i, k, t) as inn ->
           let env = VarMap.remove i env in
-          if VarMap.is_empty env then return inn
+          if VarMap.is_empty env then pure inn
           else
             let* i' =
               i
               |> Var.Unsafe.smallest @@ fun i ->
                  is_free i inn
-                 ||| VarMap.exists_fr
+                 ||| VarMap.exists_er
                        (fun i' t' -> is_free i t' &&& is_free i' inn)
                        env
             in
@@ -313,13 +317,13 @@ module Typ = struct
         | `App (at, f, x) ->
           subst_of_norm env f <*> subst_of_norm env x
           >>= uncurry @@ app_of_norm at
-        | t -> map_eq_fr (subst_of_norm env) t
+        | t -> map_eq_er (subst_of_norm env) t
       in
       match v with
-      | `Var (_, i') when Var.equal i i' -> return t
+      | `Var (_, i') when Var.equal i i' -> pure t
       | v -> subst_of_norm (VarMap.singleton i v) t
 
-    let apps_of_norm at = List.fold_left_fr @@ app_of_norm at
+    let apps_of_norm at = List.fold_left_er @@ app_of_norm at
   end
 
   type ('t, 'k) f =
@@ -327,14 +331,14 @@ module Typ = struct
 
   type t = (t, Kind.t) f
 
-  let map_fr' fl row ft = function
-    | #Core.f as t -> Core.map_fr' fl row ft t
+  let map_er' fl row ft = function
+    | #Core.f as t -> Core.map_er' fl row ft t
     | `Bop (l, o, x, y) ->
       tuple'3 (fl l) (ft x) (ft y) >>- fun (l, x, y) -> `Bop (l, o, x, y)
 
-  let map_at_fr fl = map_fr' fl (const return) return
-  let at t = Traverse.to_get_opt map_at_fr t |> Option.get
-  let set_at at = Traverse.to_set map_at_fr at
+  let map_at_er fl = map_er' fl (const pure) pure
+  let at t = Traverse.to_get_opt map_at_er t |> Option.get
+  let set_at at = Traverse.to_set map_at_er at
 
   (* Type predicates *)
 
@@ -365,24 +369,24 @@ module Typ = struct
 
   (* *)
 
-  let map_fr fn = map_fr' return Row.map_fr fn
-  let map fn = Traverse.to_map map_fr fn
-  let map_eq_fr fn = map_fr' return Row.map_phys_eq_fr fn
-  let map_eq fn = Traverse.to_map map_eq_fr fn
-  let map_reduce plus = Traverse.to_map_reduce map_fr plus
-  let exists fn = Traverse.to_exists map_fr fn
-  let exists_fr fn = Traverse.to_exists_fr map_fr fn
-  let find_map fn = Traverse.to_find_map map_fr fn
-  let find_map_fr fn = Traverse.to_find_map_fr map_fr fn
+  let map_er fn = map_er' pure Row.map_er fn
+  let map fn = Traverse.to_map map_er fn
+  let map_eq_er fn = map_er' pure Row.map_eq_er fn
+  let map_eq fn = Traverse.to_map map_eq_er fn
+  let map_reduce plus = Traverse.to_map_reduce map_er plus
+  let exists fn = Traverse.to_exists map_er fn
+  let exists_er fn = Traverse.to_exists_er map_er fn
+  let find_map fn = Traverse.to_find_map map_er fn
+  let find_map_er fn = Traverse.to_find_map_er map_er fn
 
   (* *)
 
   let eq l r =
     match (l, r) with `Bop l, `Bop r -> eq'4 l r | l, r -> Core.eq l r
 
-  let keep_phys_eq' t t' = if t == t' || eq t t' then t else t'
-  let keep_phys_eq fn t = keep_phys_eq' t (fn t)
-  let keep_phys_eq_fr fn t = fn t >>- keep_phys_eq' t
+  let keep_eq' t t' = if t == t' || eq t t' then t else t'
+  let keep_eq fn t = keep_eq' t (fn t)
+  let keep_eq_er fn t = fn t >>- keep_eq' t
 
   (* *)
 
@@ -406,7 +410,7 @@ module Typ = struct
   (* *)
 
   let rec subst_rec env =
-    keep_phys_eq @@ function
+    keep_eq @@ function
     | `Var (_, i) as inn -> (
       match VarMap.find_opt i env with None -> inn | Some t -> subst_rec env t)
     | `Lam (at, i, k, t) as inn ->
@@ -417,10 +421,10 @@ module Typ = struct
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
   let rec is_free i = function
-    | `Var (_, i') -> return @@ Var.equal i i'
+    | `Var (_, i') -> pure @@ Var.equal i i'
     | `Lam (_, i', _, body) ->
-      if Var.equal i i' then return false else is_free i body
-    | t -> exists_fr (is_free i) t
+      if Var.equal i i' then pure false else is_free i body
+    | t -> exists_er (is_free i) t
 
   (* Freshening *)
 
@@ -428,7 +432,7 @@ module Typ = struct
     let env = ref Kind.UnkMap.empty in
     let rec freshen t =
       t
-      |> keep_phys_eq @@ function
+      |> keep_eq @@ function
          | `Lam (at, i, k, t) -> `Lam (at, i, Kind.freshen env k, freshen t)
          | t -> map_eq freshen t
     in
@@ -545,12 +549,12 @@ module Exp = struct
 
     (* Substitution *)
 
-    let map_typ_fr tuM = function
+    let map_typ_er tuM = function
       | ( `Bool _ | `Nat _ | `String _ | `Unit | `OpArithAdd | `OpArithDiv
         | `OpArithMinus | `OpArithMul | `OpArithPlus | `OpArithRem | `OpArithSub
         | `OpCmpGt | `OpCmpGtEq | `OpCmpLt | `OpCmpLtEq | `OpLogicalAnd
         | `OpLogicalNot | `OpLogicalOr | `OpStringCat ) as c ->
-        return c
+        pure c
       | `OpEq t -> tuM t >>- fun t -> `OpEq t
       | `OpEqNot t -> tuM t >>- fun t -> `OpEqNot t
       | `Keep t -> tuM t >>- fun t -> `Keep t

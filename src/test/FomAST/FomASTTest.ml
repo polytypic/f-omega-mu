@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open MuTest
 open FomPPrint
@@ -10,11 +11,15 @@ let () =
   test "Typ.to_string" @@ fun () ->
   let original = "∀x:*.μxs:*.(x→(x→x))→xs" in
   parse_typ original >>= FomElab.elaborate_typ
-  |> map_env (ignore >>> FomEnv.Env.empty)
+  |> mapping_env (fun o ->
+         object
+           inherit [_, _, _] async'of o
+           inherit [_, _, _] FomEnv.Env.empty ()
+         end)
   >>- FomPP.Typ.pp >>- to_string
-  |> try_in
-       (fun formatted -> verify (formatted = "∀x.μxs.(x → x → x) → xs"))
+  |> tryin
        (fun _ -> verify false)
+       (fun formatted -> verify (formatted = "∀x.μxs.(x → x → x) → xs"))
 
 let () =
   let open JsonString in

@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomPPrint
 open FomSource
@@ -20,10 +21,11 @@ end
 exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
-  of_async @@ fun on_error on_ok ->
+  suspend @@ fun resume ->
   match try Ok (op ()) with e -> Error e with
-  | Ok p -> Lwt.on_any p on_ok on_error
-  | Error e -> on_error e
+  | Ok p ->
+    Lwt.on_any p (fun x -> resume @@ `Ok x) (fun e -> resume @@ `Error e)
+  | Error e -> resume @@ `Error e
 
 let error_io at exn = fail @@ `Error_io (at, exn)
 
@@ -56,29 +58,25 @@ let fetch at uri =
 let with_process_write at cmd args op =
   let* out =
     of_lwt (fun () -> Lwt_process.open_process_out (cmd, args) |> Lwt.return)
-    |> try_in return (error_io at)
+    |> handle (error_io at)
   in
   let write s =
-    of_lwt (fun () -> Lwt_io.write out#stdin s) |> try_in return (error_io at)
+    of_lwt (fun () -> Lwt_io.write out#stdin s) |> handle (error_io at)
   and flush =
-    of_lwt (fun () -> Lwt_io.flush out#stdin) |> try_in return (error_io at)
+    of_lwt (fun () -> Lwt_io.flush out#stdin) |> handle (error_io at)
   in
   op write flush
-  >> (of_lwt (fun () -> Lwt_io.close out#stdin) |> try_in return (error_io at))
+  >> (of_lwt (fun () -> Lwt_io.close out#stdin) |> handle (error_io at))
   >> (of_lwt (fun () -> out#status)
-     |> try_in
-          (function
-            | Unix.WEXITED 0 -> unit
-            | Unix.WEXITED c ->
-              error_io at
-              @@ Failure ("Process exited with code " ^ Int.to_string c)
-            | Unix.WSIGNALED s ->
-              error_io at
-              @@ Failure ("Process killed by signal " ^ Int.to_string s)
-            | Unix.WSTOPPED s ->
-              error_io at
-              @@ Failure ("Process stopped by signal " ^ Int.to_string s))
-          (error_io at))
+     |> tryin (error_io at) @@ function
+        | Unix.WEXITED 0 -> unit
+        | Unix.WEXITED c ->
+          error_io at @@ Failure ("Process exited with code " ^ Int.to_string c)
+        | Unix.WSIGNALED s ->
+          error_io at @@ Failure ("Process killed by signal " ^ Int.to_string s)
+        | Unix.WSTOPPED s ->
+          error_io at @@ Failure ("Process stopped by signal " ^ Int.to_string s)
+     )
 
 let doc msg default = "    (default: " ^ default ^ ")\n\n    " ^ msg ^ "\n"
 
@@ -122,13 +120,13 @@ let () =
   let elab uri = FomElab.elaborate @@ `Import (at, JsonString.of_utf8 uri) in
   (match stop with
   | `Typ ->
-    List.iter_fr
+    List.iter_er
       (fun uri ->
         let+ _, typ, _ = elab uri in
         typ |> FomPP.Typ.pp |> to_string ~max_width |> Printf.printf "%s\n")
       files
   | `Js ->
-    List.iter_fr
+    List.iter_er
       (fun uri ->
         let* ast, _, paths = elab uri in
         FomToJsC.to_js ~whole ~top:`Top ast paths >>- Printf.printf "%s\n")
@@ -137,7 +135,7 @@ let () =
     with_process_write at "node" [|"-"|] @@ fun write flush ->
     write repl_js
     >> (fetch at "docs/prelude.js" >>= write)
-    >> List.iter_fr
+    >> List.iter_er
          (fun uri ->
            let* ast, _, paths = elab uri in
            let* js = FomToJsC.to_js ~whole ~top:`Body ast paths in
@@ -148,7 +146,7 @@ let () =
     write repl_js
     >> (fetch at "docs/FomToJsRT.js" >>= write)
     >> (fetch at "docs/prelude.js" >>= write)
-    >> List.iter_fr
+    >> List.iter_er
          (fun uri ->
            let* ast, _, paths = elab uri in
            let* js = FomToJsC.to_js ~whole ~top:`Body ast paths in
@@ -156,11 +154,16 @@ let () =
            >> write @@ Int.to_string max_width
            >> write ", (() => " >> write js >> write ")()))\n" >> flush)
          files)
-  |> try_in return (fun error ->
+  |> handle (fun error ->
          let+ diagnostic = Diagnostic.of_error error in
          diagnostic |> Diagnostic.pp |> to_string ~max_width
          |> Printf.eprintf "%s\n";
          exit 1)
   >>- Lwt.wakeup r
-  |> start (FomEnv.Env.empty ~fetch ());
+  |> Tailrec.spawn
+       (object
+          inherit [_] Tailrec.async
+          inherit [_, _, _] FomEnv.Env.empty ()
+          method! fetch at path = fetch at path
+       end);
   Lwt_main.run p

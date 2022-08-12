@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 
@@ -23,10 +24,19 @@ module Kind : sig
         method kind_env : m
       end
 
-    val resetting : ('r, 'e, 'a) rea -> ((< con ; .. > as 'r), 'e, 'a) rea
-    val find_opt : Unk.t -> ((< con ; .. > as 'r), 'e, t option) rea
-    val add : Unk.t -> t -> ((< con ; .. > as 'r), 'e, unit) rea
-    val cloning : ('r, 'e, 'a) rea -> ((< con ; .. > as 'r), 'e, 'a) rea
+    val resetting :
+      ('R, 'e, 'a, (< ('R, 'D) monad' ; con ; .. > as 'D)) er ->
+      ('R, 'e, 'a, 'D) er
+
+    val find_opt :
+      Unk.t -> ('R, 'e, t option, (< ('R, 'D) async' ; con ; .. > as 'D)) er
+
+    val add :
+      Unk.t -> t -> ('R, 'e, unit, (< ('R, 'D) async' ; con ; .. > as 'D)) er
+
+    val cloning :
+      ('R, 'e, 'a, (< ('R, 'D) async' ; con ; .. > as 'D)) er ->
+      ('R, 'e, 'a, 'D) er
   end
 
   (* *)
@@ -48,9 +58,9 @@ module Kind : sig
 
   (* *)
 
-  val keep_phys_eq' : t -> t -> t
-  val keep_phys_eq : (t -> t) -> t -> t
-  val keep_phys_eq_fr : (t -> ('f, t, 'D) Functor.r) uop
+  val keep_eq' : t -> t -> t
+  val keep_eq : (t -> t) -> t -> t
+  val keep_eq_er : (t -> ('R, 'e, t, (('R, 'D) #map' as 'D)) er) uop
 end
 
 module Label : sig
@@ -69,23 +79,27 @@ module Row : sig
 
   val is_tuple : 'a t -> bool
   val map : ('t -> 'u) -> 't t -> 'u t
-  val map_phys_eq : 't uop -> 't t -> 't t
+  val map_eq : 't uop -> 't t -> 't t
 
   (* *)
 
-  val union_fr :
-    (Label.t -> 'a -> ('f, 'c, 'D) Applicative.r) ->
-    (Label.t -> 'b -> ('f, 'c, 'D) Applicative.r) ->
-    (Label.t -> 'a -> 'b -> ('f, 'c, 'D) Applicative.r) ->
+  val union_er :
+    (Label.t -> 'a -> ('R, 'e, 'c, (('R, 'D) #applicative' as 'D)) er) ->
+    (Label.t -> 'b -> ('R, 'e, 'c, 'D) er) ->
+    (Label.t -> 'a -> 'b -> ('R, 'e, 'c, 'D) er) ->
     'a t ->
     'b t ->
-    ('f, 'c t, 'D) Applicative.r
+    ('R, 'e, 'c t, 'D) er
 
-  val map_fr :
-    ('a -> ('f, 'b, 'D) Applicative.r) -> 'a t -> ('f, 'b t, 'D) Applicative.r
+  val map_er :
+    ('a -> ('R, 'e, 'b, (('R, 'D) #applicative' as 'D)) er) ->
+    'a t ->
+    ('R, 'e, 'b t, 'D) er
 
-  val map_phys_eq_fr :
-    ('a -> ('f, 'a, 'D) Applicative.r) -> 'a t -> ('f, 'a t, 'D) Applicative.r
+  val map_eq_er :
+    ('a -> ('R, 'e, 'a, (('R, 'D) #applicative' as 'D)) er) ->
+    'a t ->
+    ('R, 'e, 'a t, 'D) er
 end
 
 module Tuple : sig
@@ -132,23 +146,32 @@ module Typ : sig
 
     (* *)
 
-    val map_fr :
-      ('t -> ('f, 'u, 'D) Applicative.r) ->
+    val map_er :
+      ('t -> ('R, 'e, 'u, (('R, 'D) #applicative' as 'D)) er) ->
       ('t, 'k) f ->
-      ('f, ('u, 'k) f, 'D) Applicative.r
+      ('R, 'e, ('u, 'k) f, 'D) er
 
-    val map_eq_fr :
-      ('t -> ('f, 't, 'D) Applicative.r) ->
+    val map_eq_er :
+      ('t -> ('R, 'e, 't, (('R, 'D) #applicative' as 'D)) er) ->
       ('t, 'k) f ->
-      ('f, ('t, 'k) f, 'D) Applicative.r
+      ('R, 'e, ('t, 'k) f, 'D) er
 
     val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
     val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
-    val map_reduce : 'a bop -> 'a -> ('t -> 'a) -> ('t, 'k) f -> 'a
+    val map_reduce : 'a lazy_op'2 -> 'a -> ('t -> 'a) -> ('t, 'k) f -> 'a
     val exists : ('t -> bool) -> ('t, 'k) f -> bool
-    val exists_fr : ('t -> (('f, bool, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
+
+    val exists_er :
+      ('t -> (('R, 'e, bool, (('R, 'D) #monad' as 'D)) er as 'E)) ->
+      ('t, 'k) f ->
+      'E
+
     val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
-    val iter_fr : ('t -> (('f, unit, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
+
+    val iter_er :
+      ('t -> (('R, 'e, unit, (('R, 'D) #monad' as 'D)) er as 'E)) ->
+      ('t, 'k) f ->
+      'E
 
     (* *)
 
@@ -156,18 +179,29 @@ module Typ : sig
 
     (* *)
 
-    val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
-    val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
-    val keep_phys_eq_fr : (([> ('t, 'k) f] as 't) -> ('f, 't, 'D) Functor.r) uop
+    val keep_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
+    val keep_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
+
+    val keep_eq_er :
+      (([> ('t, 'k) f] as 't) -> ('R, 'e, 't, (('R, 'D) #map' as 'D)) er) uop
 
     (* *)
 
-    val is_free : Var.t -> t -> ('r, 'e, bool) rea
-    val subst_of_norm : Var.t -> t -> t -> ('r, 'e, t) rea
-    val mu_of_norm : Loc.t -> t -> ('r, 'e, t) rea
-    val lam_of_norm : Loc.t -> Var.t -> Kind.t -> t -> ('r, 'e, t) rea
-    val app_of_norm : Loc.t -> t -> t -> ('r, 'e, t) rea
-    val apps_of_norm : Loc.t -> t -> t list -> ('r, 'e, t) rea
+    val is_free : Var.t -> t -> ('R, 'e, bool, (('R, 'D) #monad' as 'D)) er
+
+    val subst_of_norm :
+      Var.t -> t -> t -> ('R, 'e, t, (('R, 'D) #monad' as 'D)) er
+
+    val mu_of_norm : Loc.t -> t -> ('R, 'e, t, (('R, 'D) #monad' as 'D)) er
+
+    val lam_of_norm :
+      Loc.t -> Var.t -> Kind.t -> t -> ('R, 'e, t, (('R, 'D) #monad' as 'D)) er
+
+    val app_of_norm :
+      Loc.t -> t -> t -> ('R, 'e, t, (('R, 'D) #monad' as 'D)) er
+
+    val apps_of_norm :
+      Loc.t -> t -> t list -> ('R, 'e, t, (('R, 'D) #monad' as 'D)) er
   end
 
   type ('t, 'k) f =
@@ -222,25 +256,32 @@ module Typ : sig
 
   (* *)
 
-  val map_fr :
-    ('t -> ('f, 'u, 'D) Applicative.r) ->
+  val map_er :
+    ('t -> ('R, 'e, 'u, (('R, 'D) #applicative' as 'D)) er) ->
     ('t, 'k) f ->
-    ('f, ('u, 'k) f, 'D) Applicative.r
+    ('R, 'e, ('u, 'k) f, 'D) er
 
-  val map_eq_fr :
-    ('t -> ('f, 't, 'D) Applicative.r) ->
+  val map_eq_er :
+    ('t -> ('R, 'e, 't, (('R, 'D) #applicative' as 'D)) er) ->
     ('t, 'k) f ->
-    ('f, ('t, 'k) f, 'D) Applicative.r
+    ('R, 'e, ('t, 'k) f, 'D) er
 
   val map : ('t -> 'u) -> ('t, 'k) f -> ('u, 'k) f
   val map_eq : ('t -> 't) -> ('t, 'k) f -> ('t, 'k) f
-  val map_reduce : 'u bop -> 'u -> ('t -> 'u) -> ('t, 'k) f -> 'u
+  val map_reduce : 'u lazy_op'2 -> 'u -> ('t -> 'u) -> ('t, 'k) f -> 'u
   val exists : ('t -> bool) -> ('t, 'k) f -> bool
-  val exists_fr : ('t -> (('f, bool, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
+
+  val exists_er :
+    ('t -> (('R, 'e, bool, (('R, 'D) #monad' as 'D)) er as 'E)) ->
+    ('t, 'k) f ->
+    'E
+
   val find_map : ('t -> 'a option) -> ('t, 'k) f -> 'a option
 
-  val find_map_fr :
-    ('t -> (('f, 'a option, 'D) Monad.r as 'R)) -> ('t, 'k) f -> 'R
+  val find_map_er :
+    ('t -> (('R, 'e, 'a option, (('R, 'D) #monad' as 'D)) er as 'E)) ->
+    ('t, 'k) f ->
+    'E
 
   (* *)
 
@@ -248,9 +289,11 @@ module Typ : sig
 
   (* *)
 
-  val keep_phys_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
-  val keep_phys_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
-  val keep_phys_eq_fr : (([> ('t, 'k) f] as 't) -> ('f, 't, 'D) Functor.r) uop
+  val keep_eq' : ([> ('t, 'k) f] as 't) -> 't -> 't
+  val keep_eq : (([> ('t, 'k) f] as 't) -> 't) -> 't -> 't
+
+  val keep_eq_er :
+    (([> ('t, 'k) f] as 't) -> ('R, 'e, 't, (('R, 'D) #map' as 'D)) er) uop
 
   (* *)
 
@@ -263,7 +306,7 @@ module Typ : sig
 
   (* *)
 
-  val is_free : Var.t -> t -> ('r, 'e, bool) rea
+  val is_free : Var.t -> t -> ('R, 'e, bool, (('R, 'D) #monad' as 'D)) er
 
   (* Freshening *)
 
@@ -303,10 +346,10 @@ module Exp : sig
 
     (* Substitution *)
 
-    val map_typ_fr :
-      ('t -> ('f, 'u, 'D) Applicative.r) ->
+    val map_typ_er :
+      ('t -> ('R, 'e, 'u, (('R, 'D) #applicative' as 'D)) er) ->
       ('nat, 't) t ->
-      ('f, ('nat, 'u) t, 'D) Applicative.r
+      ('R, 'e, ('nat, 'u) t, 'D) er
 
     (* Comparison *)
 

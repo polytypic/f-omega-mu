@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 open FomAST
@@ -146,8 +147,8 @@ and occurs_in_total_position_of_list ~once i' = function
   | [] -> return false
   | x :: xs ->
     occurs_in_total_position ~once i' x
-    &&& thunk (fun () -> (not once) || List.for_all (is_free i' >>> not) xs)
-    ||| (thunk (fun () -> (not once) || not (is_free i' x))
+    &&& pure'0 (fun () -> (not once) || List.for_all (is_free i' >>> not) xs)
+    ||| (pure'0 (fun () -> (not once) || not (is_free i' x))
         &&& is_total x
         &&& occurs_in_total_position_of_list ~once i' xs)
 
@@ -249,19 +250,19 @@ and simplify_base = function
       in
       let* may_subst =
         is_total x
-        &&& thunk (fun () -> tag x <> `Mu || not (is_free i e))
+        &&& pure'0 (fun () -> tag x <> `Mu || not (is_free i e))
         ||| occurs_in_total_position ~once:true i e
       in
       if may_subst then
         apply ()
-        |> try_in
+        |> tryin
+             (fun (`Limit | `Seen) -> return defaulted)
              (fun applied ->
                if
                  size applied * 3 < size defaulted * 4
                  && Lam.compare applied defaulted <> 0
                then return applied
                else return defaulted)
-             (fun (`Limit | `Seen) -> return defaulted)
       else return defaulted
     | `App (`Lam (x', `Lam (y', e)), x), y ->
       let x'' = Var.freshen x' in
@@ -347,24 +348,24 @@ and simplify_base = function
           | false -> default ()
         else default ()))
   | `Product fs ->
-    let bs = MVar.create [] in
+    let bs = Mut.create [] in
     let* fs =
       fs
-      |> List.map_phys_eq_fr (fun ((l, _) as le) ->
+      |> List.map_eq_er (fun ((l, _) as le) ->
              le
-             |> Pair.map_phys_eq_fr return @@ fun e ->
+             |> Pair.map_eq_er return @@ fun e ->
                 let* e = simplify e in
                 let* e_is_total = is_total e in
                 if e_is_total then
                   match e with
                   | `App (`Lam (i, e), v) ->
-                    MVar.mutate (fun bs -> (i, v) :: bs) bs >> return e
+                    Mut.mutate (fun bs -> (i, v) :: bs) bs >> return e
                   | e -> return e
                 else
                   let i = Var.of_label l in
-                  MVar.mutate (fun bs -> (i, e) :: bs) bs >> return @@ `Var i)
+                  Mut.mutate (fun bs -> (i, e) :: bs) bs >> return @@ `Var i)
     in
-    MVar.read bs
+    Mut.read bs
     >>- List.fold_left (fun e (i, v) -> `App (`Lam (i, e), v)) (`Product fs)
   | `Select (e, l) -> (
     let* e = simplify e and* l = simplify l in
@@ -374,7 +375,7 @@ and simplify_base = function
       let* fs_are_total =
         fs
         |> List.filter (fst >>> Label.equal l >>> not)
-        |> List.for_all_fr (snd >>> is_total)
+        |> List.for_all_er (snd >>> is_total)
       in
       if fs_are_total then
         fs |> List.find (fst >>> Label.equal l) |> snd |> return
@@ -386,7 +387,7 @@ and simplify_base = function
     | `App (`Lam (i, b), v) -> `App (`Lam (i, `Inject (l, b)), v)
     | e -> `Inject (l, e))
 
-let once e = simplify e |> try_in return @@ fun (`Limit | `Seen) -> return e
+let once e = simplify e |> tryin (fun (`Limit | `Seen) -> return e) return
 
 let rec to_fixed_point e =
   let* limit = get Limit.field in

@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomAST
 
@@ -23,7 +24,7 @@ val erase : Exp.Core.t -> Lam.t
 (** Erase (most) types from given Fωμ expression.  Note that this does not type
     check the expression. *)
 
-val simplify : Lam.t -> ('r, 'e, Lam.t) rea
+val simplify : Lam.t -> ('R, 'e, Lam.t, (('R, 'D) #async' as 'D)) er
 (** Simplify erased expression. *)
 
 val to_js :
@@ -34,5 +35,5 @@ val to_js :
     | `Tail of Exp.Var.t * Exp.Var.t list * Exp.Var.t list * [`Exit | `Case]
     | `Top ] ->
   Lam.t ->
-  ('r, 'e, Cats.t) rea
+  ('R, 'e, Cats.t, (('R, 'D) #async' as 'D)) er
 (** Transpile erased expression to JavaScript. *)

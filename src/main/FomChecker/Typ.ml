@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 
@@ -9,7 +10,7 @@ include FomAST.Typ
 (* *)
 
 module VarEnv = struct
-  type 't m = 't VarMap.t Oo.Prop.t
+  type 't m = 't VarMap.t Prop.t
 
   let field r = r#typ_env
 
@@ -24,7 +25,7 @@ module VarEnv = struct
     | _ -> fail @@ `Error_typ_var_unbound (Var.at i, i)
 
   let existing pr = get_as field @@ VarMap.exists pr
-  let existing_fr pr = get field >>= VarMap.exists_fr pr
+  let existing_er pr = get field >>= VarMap.exists_er pr
   let resetting_to initial op = setting field initial op
   let adding i v = mapping field @@ VarMap.add i v
   let merging env = mapping field (VarMap.merge Map.prefer_lhs env)
@@ -101,7 +102,7 @@ module Core = struct
 
   let rec ground t =
     t
-    |> keep_phys_eq @@ function
+    |> keep_eq @@ function
        | `Lam (at', i, k, t) -> `Lam (at', i, Kind.ground k, ground t)
        | t -> map_eq ground t
 
@@ -109,18 +110,18 @@ module Core = struct
 
   let rec resolve t =
     t
-    |> keep_phys_eq_fr @@ function
+    |> keep_eq_er @@ function
        | `Lam (at', d, k, t) ->
          Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
-       | t -> map_eq_fr resolve t
+       | t -> map_eq_er resolve t
 end
 
 module GoalSet = Set.Make (Compare.Tuple'2 (Core) (Core))
 
 module Goals = struct
-  type m = GoalSet.t MVar.t Oo.Prop.t
+  type m = GoalSet.t Mut.t Prop.t
 
-  let empty () = MVar.create GoalSet.empty
+  let empty () = Mut.create GoalSet.empty
   let field r : m = r#goals
   let resetting op = setting field (empty ()) op
 
@@ -144,7 +145,7 @@ end
 module Solved = struct
   include Map.Make (FomAST.Typ)
 
-  type m = FomAST.Typ.t t Oo.Prop.t
+  type m = FomAST.Typ.t t Prop.t
 
   let field r : m = r#solved
 
@@ -158,13 +159,13 @@ end
 (* *)
 
 let rec solve_of_norm = function
-  | #Core.f as t -> Core.map_fr solve_of_norm t
+  | #Core.f as t -> Core.map_er solve_of_norm t
   | `Bop (at', _, l, r) -> fail @@ `Error_typ_unrelated (at', l, r)
 
 (* *)
 
 let union _ _ _ op (ls, rs) =
-  Row.union_fr (const return) (const return) (const op) ls rs
+  Row.union_er (const return) (const return) (const op) ls rs
 
 let intersection _ _ _ op =
   let rec loop os = function
@@ -235,8 +236,8 @@ let rec mu_of_norm at = function
   | f -> return @@ `Mu (at, f)
 
 and unfold_at_jms x f =
-  keep_phys_eq_fr @@ function
-  | #Core.f as t -> map_eq_fr (unfold_at_jms x f) t
+  keep_eq_er @@ function
+  | #Core.f as t -> map_eq_er (unfold_at_jms x f) t
   | `Bop (at', o, l, r) as t -> (
     let* l = unfold_at_jms x f l and* r = unfold_at_jms x f r in
     let op = bop_of_norm o at' in
@@ -250,7 +251,7 @@ and unfold_at_jms x f =
     | _ -> op l r)
 
 and drop_legs x =
-  keep_phys_eq_fr @@ function
+  keep_eq_er @@ function
   | `Bop (at', o, l, r) ->
     let* r = drop_legs x r in
     if compare x l = 0 then return r
@@ -268,7 +269,7 @@ and app_of_norm at f' x' =
   | `Lam (_, i, _, t) -> subst_of_norm i x' t
   | f' -> return @@ `App (at, f', x')
 
-and apps_of_norm at' = List.fold_left_fr (app_of_norm at')
+and apps_of_norm at' = List.fold_left_er (app_of_norm at')
 
 and unfold at f mu xs =
   app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
@@ -316,8 +317,8 @@ and bop_of_norm o at' l r =
   | _, `Apps ((`Mu (ra, rf) as rmu), rxs) ->
     unfold ra rf rmu rxs >>= fun r -> bop_of_norm o at' l r
   | `Apps (lf, lxs), `Apps (rf, rxs) when List.length lxs = List.length rxs ->
-    head lf rf <*> List.map2_fr (bop_of_norm `Eq at') lxs rxs >>= fun (f, xs) ->
-    apps_of_norm at' f xs
+    head lf rf <*> List.map_er'2 (bop_of_norm `Eq at') lxs rxs
+    >>= fun (f, xs) -> apps_of_norm at' f xs
   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
     bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc >>- fun (d, c) ->
     `Arrow (at', d, c)
@@ -343,7 +344,7 @@ and bop_of_norm o at' l r =
 
 and subst_of_norm i v t =
   let rec subst_of_norm env =
-    keep_phys_eq_fr @@ function
+    keep_eq_er @@ function
     | `Var (_, i) as inn ->
       VarMap.find_opt i env |> Option.value ~default:inn |> return
     | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
@@ -355,7 +356,7 @@ and subst_of_norm i v t =
           i
           |> Var.Unsafe.smallest @@ fun i ->
              is_free i inn
-             ||| VarMap.exists_fr
+             ||| VarMap.exists_er
                    (fun i' t' -> is_free i t' &&& is_free i' inn)
                    env
         in
@@ -366,7 +367,7 @@ and subst_of_norm i v t =
     | `Bop (at', o, l, r) ->
       subst_of_norm env l <*> subst_of_norm env r
       >>= uncurry @@ bop_of_norm o at'
-    | t -> map_eq_fr (subst_of_norm env) t
+    | t -> map_eq_er (subst_of_norm env) t
   in
   match v with
   | `Var (_, i') when Var.equal i i' -> return t
@@ -398,7 +399,7 @@ and sub at' l r =
     Core.unfold ra rf rmu rxs >>= fun r -> sub at' l r
   | `Apps (`Var (_, li), lxs), `Apps (`Var (_, ri), rxs)
     when Var.equal li ri && List.length lxs = List.length rxs ->
-    List.iter2_fr (eq at') lxs rxs
+    List.iter_er'2 (eq at') lxs rxs
   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) -> sub at' rd ld >> sub at' lc rc
   | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> unit
   | `For (_, lq, l), `For (_, rq, r) when lq = rq -> sub at' l r
@@ -435,14 +436,14 @@ let rec find_map_from_all_apps_of i' p = function
     | (`Var (_, i) as f), xs ->
       if Var.equal i i' then
         p t f xs >>= function
-        | None -> xs |> List.find_map_fr (find_map_from_all_apps_of i' p)
+        | None -> xs |> List.find_map_er (find_map_from_all_apps_of i' p)
         | some -> return some
-      else xs |> List.find_map_fr (find_map_from_all_apps_of i' p)
+      else xs |> List.find_map_er (find_map_from_all_apps_of i' p)
     | f, xs -> (
       find_map_from_all_apps_of i' p f >>= function
-      | None -> xs |> List.find_map_fr (find_map_from_all_apps_of i' p)
+      | None -> xs |> List.find_map_er (find_map_from_all_apps_of i' p)
       | some -> return some))
-  | t -> find_map_fr (find_map_from_all_apps_of i' p) t
+  | t -> find_map_er (find_map_from_all_apps_of i' p) t
 
 let find_opt_nested_arg_mu at' f arity =
   if arity <= 0 then return None
@@ -453,11 +454,11 @@ let find_opt_nested_arg_mu at' f arity =
     apps_of_norm at' fv (List.map var is)
     >>= find_map_from_all_apps_of i @@ fun _ _ xs ->
         xs
-        |> List.find_map_fr @@ function
+        |> List.find_map_er @@ function
            | `Var _ -> return None
            | t -> (
              is
-             |> List.find_map_fr @@ fun i ->
+             |> List.find_map_er @@ fun i ->
                 is_free i t >>- function true -> Some t | false -> None)
 
 (* *)
@@ -484,10 +485,10 @@ let find_opt_non_contractive_mu at' f arity =
 
 let rec resolve t =
   t
-  |> keep_phys_eq_fr @@ function
+  |> keep_eq_er @@ function
      | `Lam (at', d, k, t) ->
        Kind.resolve k <*> resolve t >>- fun (k, t) -> `Lam (at', d, k, t)
-     | t -> map_eq_fr resolve t
+     | t -> map_eq_er resolve t
 
 (* *)
 
@@ -498,11 +499,11 @@ let rec infer = function
     Kind.unify at' (`Arrow (at', kind, kind)) f_kind
     >> let* arity = Kind.resolve kind >>- Kind.min_arity in
        find_opt_nested_arg_mu at' f arity
-       >>= Option.iter_fr (fun typ' ->
+       >>= Option.iter_er (fun typ' ->
                let* typ = resolve typ and* typ' = resolve typ' in
                fail @@ `Error_mu_nested (at', typ, typ'))
        >> (find_opt_non_contractive_mu at' f arity
-          >>= Option.iter_fr (fun typ' ->
+          >>= Option.iter_er (fun typ' ->
                   let* typ = resolve typ and* typ' = resolve typ' in
                   fail @@ `Error_mu_non_contractive (at', typ, typ')))
        >> (mu_of_norm at' f <*> return kind)
@@ -527,7 +528,7 @@ let rec infer = function
     check star d <*> check star c >>- fun (d, c) -> (`Arrow (at', d, c), star)
   | `Row (at', m, ls) ->
     let star = `Star at' in
-    let+ ls = Row.check ls >> Row.map_fr (check star) ls in
+    let+ ls = Row.check ls >> Row.map_er (check star) ls in
     (`Row (at', m, ls), star)
   | `Bop (at', o, l, r) ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
@@ -544,7 +545,7 @@ let join_of_norm at' (l : Core.t) (r : Core.t) =
 
 (* *)
 
-let infer t = infer t >>= Pair.map_fr solve_of_norm return
+let infer t = infer t >>= Pair.map_er solve_of_norm return
 let check k = check k >=> solve_of_norm
 
 (* *)
@@ -556,7 +557,7 @@ let check_and_resolve k = check k >=> Core.resolve
 
 let as_predicate check l r =
   check Loc.dummy l r
-  |> try_in (const @@ return true) (const @@ return false)
+  |> tryin (const @@ return false) (const @@ return true)
   |> Kind.UnkEnv.cloning
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r

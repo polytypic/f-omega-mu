@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomPPrint
 open FomParser
@@ -183,7 +184,7 @@ module Typ = struct
       if Row.is_tuple labels then tupled config labels |> egyptian parens 2
       else labeled config labels |> egyptian braces 2
     | `Row (_, `Sum, _) as typ -> (
-      match as_aggr typ |> Option.run with
+      match as_aggr typ |> run Option.monad_plus |> Option.of_rea with
       | Some xs ->
         xs
         |> List.map (config.pp config prec_min >>> group)

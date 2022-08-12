@@ -6,8 +6,8 @@ const 𝛌csꓸcsꓸUnit_ᐟSome𛰙42𛰚 = cs => cs.Unit(ᐟSome𛰙42𛰚)
 const 𝛌csꓸ𛰙csꓸAlt_𛰙𝛌csꓸcsꓸUnit_ = cs =>
   cs.Alt(𝛌csꓸcsꓸUnit_ᐟSome𛰙101𛰚)(𝛌csꓸcsꓸUnit_ᐟSome𛰙42𛰚)
 const ᐟIn2 = ['In2']
-const ᐟNone = ['None']
 const 𝛌vꓸλ_𛰙𛰚ꓸv = v => _𛰙𛰚 => v
+const ᐟNone = ['None']
 const _lookup = t =>
   t({
     Unit: 𝛌vꓸλ_𛰙𛰚ꓸv,

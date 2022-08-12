@@ -1,4 +1,4 @@
-open StdlibPlus
+open Rea
 open FomSource
 
 exception Exn_lexeme of Loc.t * string
@@ -9,7 +9,7 @@ module Error = struct
   type t = [Error.lexeme | Error.grammar]
 end
 
-let parse grammar lexer buffer : (_, [> Error.t], _) rea =
+let parse grammar lexer buffer =
   try
     lexer buffer
     |> MenhirLib.Convert.Simplified.traditional2revised grammar

@@ -4,25 +4,25 @@ open FomElab
 open FomToJsC
 
 module Env = struct
-  let empty ?(annot = Annot.empty ()) ?(exp_imports = ExpImports.create ())
-      ?(fetch = Fetch.dummy) ?(mod_in_js = ModInJs.create ())
-      ?(mod_simplified = ModSimplified.create ())
-      ?(typ_imports = TypImports.create ())
-      ?(typ_includes = TypIncludes.create ()) () =
+  class ['R, 'D, 't] empty ?(annot = Annot.empty ())
+    ?(exp_imports = ExpImports.create ()) ?(mod_in_js = ModInJs.create ())
+    ?(mod_simplified = ModSimplified.create ())
+    ?(typ_imports = TypImports.create ())
+    ?(typ_includes = TypIncludes.create ()) () =
     object
       inherit Annot.con annot
       inherit Exp.VarEnv.con
-      inherit ExpImports.con exp_imports
-      inherit Fetch.con fetch
+      inherit ['R] ExpImports.con exp_imports
+      inherit ['R, 'D] Fetch.con
       inherit ImportChain.con
       inherit Kind.UnkEnv.con
-      inherit ModInJs.con mod_in_js
-      inherit ModSimplified.con mod_simplified
+      inherit ['R] ModInJs.con mod_in_js
+      inherit ['R] ModSimplified.con mod_simplified
       inherit Parameters.con
       inherit Typ.Goals.con
       inherit Typ.Solved.con
-      inherit [_] Typ.VarEnv.con
-      inherit TypImports.con typ_imports
-      inherit TypIncludes.con typ_includes
+      inherit ['t] Typ.VarEnv.con
+      inherit ['R] TypImports.con typ_imports
+      inherit ['R] TypIncludes.con typ_includes
     end
 end

@@ -1,25 +1,27 @@
+open Rea
 open StdlibPlus
 open MuTest
 open FomPPrint
 open FomParser
 open FomElab
-open FomEnv
 open FomDiag
 
+let in_env op =
+  op
+  |> mapping_env @@ fun o ->
+     object
+       inherit [_, _, _] async'of o
+       inherit [_, _, _] FomEnv.Env.empty ()
+     end
+
 let fail_diag e =
-  let* d =
-    Diagnostic.of_error e
-    |> map_env (ignore >>> FomEnv.Env.empty)
-    >>- Diagnostic.pp
-  in
+  let* d = Diagnostic.of_error e |> in_env >>- Diagnostic.pp in
   to_string ~max_width:80 d |> failuref "%s"
 
 let parse_typ source and_then =
   source
   |> Parser.parse_utf_8 Grammar.sigs Lexer.offside
-  >>= elaborate_typ
-  |> map_env (ignore >>> FomEnv.Env.empty)
-  |> try_in and_then fail_diag
+  >>= elaborate_typ |> in_env |> tryin fail_diag and_then
 
 (* *)
 
@@ -30,30 +32,27 @@ let () =
   test_typ_parses_as "find_opt_non_contractive >> is_none" "μxs.int→xs"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
-  |> map_env (ignore >>> FomEnv.Env.empty)
-  |> try_in (Option.is_none >>> verify) fail_diag
+  |> in_env
+  |> tryin fail_diag (Option.is_none >>> verify)
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [A]" "μxs.xs"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
-  |> map_env (ignore >>> FomEnv.Env.empty)
-  |> try_in (Option.is_some >>> verify) fail_diag
+  |> in_env
+  |> tryin fail_diag (Option.is_some >>> verify)
 
 let () =
   test_typ_parses_as "find_opt_non_contractive >> is_some [B]"
     "(μf.λx.λy.f y x) int string"
   @@ fun typ ->
   Typ.find_opt_non_contractive Typ.VarSet.empty typ
-  |> map_env (ignore >>> FomEnv.Env.empty)
-  |> try_in (Option.is_some >>> verify) fail_diag
+  |> in_env
+  |> tryin fail_diag (Option.is_some >>> verify)
 
 (* *)
 
-let norm typ =
-  Typ.infer typ >>- fst
-  |> map_env (ignore >>> Env.empty)
-  |> try_in return fail_diag
+let norm typ = Typ.infer typ >>- fst |> in_env |> handle fail_diag
 
 let test_typs_parse_as name s1 s2 check =
   test (Printf.sprintf "%s (%s) (%s)" name s1 s2) @@ fun () ->
@@ -62,14 +61,12 @@ let test_typs_parse_as name s1 s2 check =
 let test_equal_typs s1 s2 =
   test_typs_parse_as "Typ.is_equal_of_norm" s1 s2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
-  Typ.is_equal_of_norm typ1 typ2 |> map_env (ignore >>> Env.empty) >>= verify
+  Typ.is_equal_of_norm typ1 typ2 |> in_env >>= verify
 
 let test_not_equal_typs s1 s2 =
   test_typs_parse_as "not Typ.is_equal_of_norm" s1 s2 @@ fun typ1 typ2 ->
   let* typ1 = norm typ1 and* typ2 = norm typ2 in
-  Typ.is_equal_of_norm typ1 typ2
-  |> map_env (ignore >>> Env.empty)
-  >>- not >>= verify
+  Typ.is_equal_of_norm typ1 typ2 |> in_env >>- not >>= verify
 
 let () =
   test_equal_typs "λt.μl.'nil t | 'cons l" "μl.λt.'nil t | 'cons (l t)";
@@ -90,17 +87,14 @@ let () =
 let parse_exp source and_then =
   source
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
-  >>= elaborate
-  |> map_env (ignore >>> Env.empty)
-  |> try_in and_then fail_diag
+  >>= elaborate |> in_env |> tryin fail_diag and_then
 
 let testInfersAs name typ exp =
   test name @@ fun () ->
   parse_typ typ @@ fun expected ->
   let* expected = norm expected in
   parse_exp exp @@ fun (_, actual, _) ->
-  Typ.is_equal_of_norm expected actual |> map_env (ignore >>> Env.empty)
-  >>= fun are_equal ->
+  Typ.is_equal_of_norm expected actual |> in_env >>= fun are_equal ->
   if not are_equal then
     utf8string "Types not equal"
     ^^ nest 2 (break_1 ^^ Typ.pp expected)
@@ -382,16 +376,15 @@ let testErrors name exp =
   test name @@ fun () ->
   exp
   |> Parser.parse_utf_8 Grammar.mods Lexer.offside
-  |> try_in
-       (elaborate
-       >>> map_env (ignore >>> FomEnv.Env.empty)
-       >>> try_in
+  |> tryin
+       (fun _ -> failure "parsing failed")
+       (elaborate >>> in_env
+       >>> tryin
+             (fun _ -> unit)
              (fun (_, unexpected, _) ->
                utf8string "Expected type checking to fail, but got type"
                ^^ nest 2 (break_1 ^^ Typ.pp unexpected)
-               |> group |> to_string ~max_width:80 |> failuref "%s")
-             (fun _ -> unit))
-       (fun _ -> failure "parsing failed")
+               |> group |> to_string ~max_width:80 |> failuref "%s"))
 
 let () =
   testErrors "non contractive case"

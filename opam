@@ -17,6 +17,7 @@ depends: [
   "menhir"
   "ocaml"
   "pprint"
+  "rea"
   "sedlex"
   "uutf"
 ]

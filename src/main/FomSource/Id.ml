@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomPPrint
 
@@ -101,7 +102,11 @@ module type S = sig
 
   module Unsafe : sig
     val set_counter : int -> t -> t
-    val smallest : (t -> ('f, bool, 'D) Monad.r) -> t -> ('f, t, 'D) Monad.r
+
+    val smallest :
+      (t -> ('R, 'e, bool, (('R, 'D) #monad' as 'D)) er) ->
+      t ->
+      ('R, 'e, t, 'D) er
   end
 end
 

@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 
 (* *)
@@ -7,42 +8,42 @@ open Cats
 (* *)
 
 module ModSimplified = struct
-  type t = (string, (Zero.t, FomToJs.Lam.t) LVar.t) Hashtbl.t
+  type 'R t = (string, ('R, nothing, FomToJs.Lam.t) Memo.t) Hashtbl.t
 
   let create () = Hashtbl.create 100
   let field r = r#mod_simplified
 
   let get_or_put path compute =
-    let* (hashtbl : t) = env_as field in
+    let* (hashtbl : 'R t) = env_as field in
     match Hashtbl.find_opt hashtbl path with
     | None ->
-      let* var = LVar.create compute in
+      let* var = Memo.create compute in
       Hashtbl.replace hashtbl path var;
-      LVar.eval var |> generalize_error
-    | Some var -> LVar.eval var |> generalize_error
+      Memo.eval var |> gen_error
+    | Some var -> Memo.eval var |> gen_error
 
-  class con (mod_simplified : t) =
+  class ['R] con (mod_simplified : 'R t) =
     object
       method mod_simplified = mod_simplified
     end
 end
 
 module ModInJs = struct
-  type t = (string, (Zero.t, Cats.t) LVar.t) Hashtbl.t
+  type 'R t = (string, ('R, nothing, Cats.t) Memo.t) Hashtbl.t
 
   let create () = Hashtbl.create 100
   let field r = r#mod_in_js
 
   let get_or_put path compute =
-    let* (hashtbl : t) = env_as field in
+    let* (hashtbl : 'R t) = env_as field in
     match Hashtbl.find_opt hashtbl path with
     | None ->
-      let* var = LVar.create compute in
+      let* var = Memo.create compute in
       Hashtbl.replace hashtbl path var;
-      LVar.eval var |> generalize_error
-    | Some var -> LVar.eval var |> generalize_error
+      Memo.eval var |> gen_error
+    | Some var -> Memo.eval var |> gen_error
 
-  class con (mod_in_js : t) =
+  class ['R] con (mod_in_js : 'R t) =
     object
       method mod_in_js = mod_in_js
     end
@@ -55,20 +56,20 @@ let topological_deps paths =
     if Hashtbl.mem added path then unit
     else
       let* (_, _, _, paths), _ = FomElab.ExpImports.get path in
-      paths |> List.iter_fr loop >>- fun () ->
+      paths |> List.iter_er loop >>- fun () ->
       if not (Hashtbl.mem added path) then (
         Hashtbl.replace added path ();
         deps := path :: !deps)
   in
-  paths |> List.iter_fr loop >>- fun () -> !deps
+  paths |> List.iter_er loop >>- fun () -> !deps
 
 let erase_and_simplify_all paths =
   paths
-  |> List.map_fr @@ fun path ->
+  |> List.map_er @@ fun path ->
      let* (id, ast, _, _), _ = FomElab.ExpImports.get path in
      let+ erased =
        ModSimplified.get_or_put path
-         (delay @@ fun () -> ast |> FomToJs.erase |> FomToJs.simplify)
+         (eta'0 @@ fun () -> ast |> FomToJs.erase |> FomToJs.simplify)
      in
      (id, path, erased)
 
@@ -84,7 +85,7 @@ let whole_program_to_js ~top ast paths =
 
 let compile_to_js_all paths =
   paths |> erase_and_simplify_all
-  >>= List.map_fr @@ fun (id, path, erased) ->
+  >>= List.map_er @@ fun (id, path, erased) ->
       ModInJs.get_or_put path
         ( erased |> FomToJs.to_js ~top:`Body >>- fun js ->
           str "// " ^ str path ^ str "\n" ^ str "const "

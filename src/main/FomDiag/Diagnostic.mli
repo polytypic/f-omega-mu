@@ -1,4 +1,4 @@
-open StdlibPlus
+open Rea
 open FomSource
 open FomPPrint
 open FomError
@@ -8,13 +8,17 @@ type t = Loc.t * document
 
 val of_error :
   [< Error.t] ->
-  ( < Kind.UnkEnv.con
-    ; [> `Kind of Kind.t] Typ.VarEnv.con
-    ; Typ.Goals.con
-    ; Typ.Solved.con
-    ; .. >,
+  ( 'R,
     'e,
-    t * t list )
-  rea
+    t * t list,
+    (< ('R, 'D) async'
+     ; Kind.UnkEnv.con
+     ; Typ.Goals.con
+     ; Typ.Solved.con
+     ; [> `Kind of Kind.t] Typ.VarEnv.con
+     ; .. >
+     as
+     'D) )
+  er
 
 val pp : t * t list -> document

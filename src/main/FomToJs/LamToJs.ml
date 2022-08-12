@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 open FomParser
@@ -87,7 +88,7 @@ let as_case = function
 let as_return = function `Body -> `Return | other -> other
 
 let rec to_assignments is i's vs =
-  List.fold_left3_fr
+  List.fold_left_er'3
     (fun e i i' v ->
       match v with
       | `Var j' when Var.equal i j' -> return e
@@ -166,7 +167,7 @@ and to_js_stmts_renumbered finish ids exp =
                   (VarSet.union ids (VarSet.of_list is))
           in
           let+ bs =
-            List.fold_left2_fr
+            List.fold_left_er'2
               (fun b i (_, v) ->
                 let* v = LamSimplify.once (subst f fs' v) in
                 lam_bind_to_js_expr i v >>- fun v ->
@@ -246,7 +247,7 @@ and to_js_stmts_renumbered finish ids exp =
       | cs ->
         let+ fs =
           cs
-          |> List.map_fr @@ fun (e, ls) ->
+          |> List.map_er @@ fun (e, ls) ->
              let* e = LamSimplify.once @@ `App (e, v1) in
              let+ e = to_js_stmts (as_case finish) VarSet.empty e in
              let cs =
@@ -327,7 +328,7 @@ and to_js_expr_renumbered exp =
   | `Product fs ->
     let+ fs =
       fs
-      |> List.map_fr @@ function
+      |> List.map_er @@ function
          | l, `Var i
            when Label.to_string l = Var.to_string i
                 && not (Js.is_illegal_id (Var.to_string i)) ->

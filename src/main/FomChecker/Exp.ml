@@ -1,3 +1,4 @@
+open Rea
 open StdlibPlus
 open FomSource
 open FomAnnot
@@ -9,7 +10,7 @@ include FomAST.Exp
 (* *)
 
 module VarEnv = struct
-  type m = (Var.t * Typ.Core.t) VarMap.t Oo.Prop.t
+  type m = (Var.t * Typ.Core.t) VarMap.t Prop.t
 
   let field r : m = r#exp_env
   let adding v t = mapping field @@ VarMap.add v (v, t)
@@ -54,7 +55,7 @@ module Typ = struct
     match ls with
     | [] -> fail @@ `Error_typ_unexpected (at, "'_", typ)
     | ls ->
-      ls |> List.iter_fr (snd >>> check_unit at) >> return (List.map fst ls)
+      ls |> List.iter_er (snd >>> check_unit at) >> return (List.map fst ls)
 
   let check_for_all at typ =
     Core.unfold_of_norm typ >>= function
@@ -103,7 +104,7 @@ let rec infer = function
       let+ x = check d_typ x in
       (`App (at', f, x), c_typ))
   | `Const (at', c) ->
-    let+ c = Const.map_typ_fr Typ.check_and_norm c in
+    let+ c = Const.map_typ_er Typ.check_and_norm c in
     (`Const (at', c), Const.type_of at' c)
   | `Var (at', x) as e -> (
     let* x_typ_opt = VarEnv.find_opt x in
@@ -118,11 +119,11 @@ let rec infer = function
   | `Case (at', cs) ->
     let* cs, cs_typ = infer cs in
     let* cs_fs = Typ.check_product (at cs) cs_typ in
-    let* cs_arrows = Row.map_fr (Typ.check_arrow (at cs)) cs_fs in
+    let* cs_arrows = Row.map_er (Typ.check_arrow (at cs)) cs_fs in
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
       | [] -> return @@ Typ.zero (at cs)
-      | t :: ts -> ts |> List.fold_left_fr (Typ.join_of_norm (at cs)) t
+      | t :: ts -> ts |> List.fold_left_er (Typ.join_of_norm (at cs)) t
     in
     let d_typ = Typ.sum (at cs) (Row.map fst cs_arrows) in
     (`Case (at', cs), `Arrow (at', d_typ, c_typ))
@@ -152,7 +153,7 @@ let rec infer = function
     let* t, t_typ = infer t and* e, e_typ = infer e in
     return @@ `IfElse (at', c, t, e) <*> Typ.join_of_norm (at e) t_typ e_typ
   | `Product (at', fs) ->
-    Row.check fs >> Row.map_fr infer fs >>- fun fs ->
+    Row.check fs >> Row.map_er infer fs >>- fun fs ->
     ( `Product (at', List.map (fun (l, (e, _)) -> (l, e)) fs),
       Typ.product at' (List.map (fun (l, (_, t)) -> (l, t)) fs) )
   | `Select (at', p, i) ->
@@ -208,7 +209,7 @@ let rec infer = function
     let rec merge le re lt rt =
       match (lt, rt) with
       | `Row (_, `Product, ls), `Row (_, `Product, rs) ->
-        Row.union_fr
+        Row.union_er
           (select le >>> return >>> const)
           (select re >>> return >>> const)
           (fun l lt rt ->
@@ -271,7 +272,7 @@ and check a e =
       in
       let* leas =
         Row.check fs
-        >> List.map_fr
+        >> List.map_er
              (fun (l, e) ->
                match LabelMap.find_opt l las with
                | None -> infer e >>- fun (e, t) -> (l, e, t)
@@ -301,4 +302,5 @@ and check a e =
 
 let infer e =
   let* result = catch @@ infer e in
-  Annot.Typ.resolve Kind.resolve >> of_res result
+  Annot.Typ.resolve Kind.resolve
+  >> match result with `Ok v -> pure v | `Error e -> fail e
