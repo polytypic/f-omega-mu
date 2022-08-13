@@ -82,7 +82,7 @@ module Kind = struct
 
   let keep_eq' k k' = if k == k' || eq k k' then k else k'
   let keep_eq fn k = keep_eq' k (fn k)
-  let keep_eq_er fn k = fn k >>- keep_eq' k
+  let keep_eq_er fn k = eta'1 fn k >>- keep_eq' k
 
   (* *)
 
@@ -267,12 +267,12 @@ module Typ = struct
 
     let keep_eq' t t' = if t == t' || eq t t' then t else t'
     let keep_eq fn t = keep_eq' t (fn t)
-    let keep_eq_er fn t = fn t >>- keep_eq' t
+    let keep_eq_er fn t = eta'1 fn t >>- keep_eq' t
 
     (* *)
 
     let rec is_free i = function
-      | `Var (_, i') -> pure @@ Var.equal i i'
+      | `Var (_, i') -> pure'2 Var.equal i i'
       | `Lam (_, i', _, body) ->
         if Var.equal i i' then pure false else is_free i body
       | t -> exists_er (is_free i) t
@@ -386,7 +386,7 @@ module Typ = struct
 
   let keep_eq' t t' = if t == t' || eq t t' then t else t'
   let keep_eq fn t = keep_eq' t (fn t)
-  let keep_eq_er fn t = fn t >>- keep_eq' t
+  let keep_eq_er fn t = eta'1 fn t >>- keep_eq' t
 
   (* *)
 
@@ -421,7 +421,7 @@ module Typ = struct
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
   let rec is_free i = function
-    | `Var (_, i') -> pure @@ Var.equal i i'
+    | `Var (_, i') -> pure'2 Var.equal i i'
     | `Lam (_, i', _, body) ->
       if Var.equal i i' then pure false else is_free i body
     | t -> exists_er (is_free i) t

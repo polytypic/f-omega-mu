@@ -23,7 +23,7 @@ module Const = struct
 
   (* TODO: More comprehensive constant folding rules *)
   let simplify_bop =
-    let some x = return @@ Some x
+    let some x = pure @@ Some x
     and if_total e x =
       let+ e_total = Lam.is_total e in
       if e_total then Some x else None
@@ -111,7 +111,7 @@ module Const = struct
     | (`OpLogicalOr | `OpLogicalAnd), `Var x, `Var y when Var.equal x y ->
       some @@ `Var x
     (* *)
-    | _ -> return None
+    | _ -> pure None
 end
 
 let rec always_applied_to_inject i' e =
@@ -135,16 +135,18 @@ let rec always_applied_to_inject i' e =
     always_applied_to_inject i' e && always_applied_to_inject i' l
 
 let rec occurs_in_total_position ~once i' e =
+  eta'0 @@ fun () ->
   match unapp e with
-  | `Var i, [] -> return @@ Var.equal i' i
+  | `Var i, [] -> pure'2 Var.equal i' i
   | `Const c, xs when Const.is_total c ->
     occurs_in_total_position_of_list ~once i' xs
   | f, xs when is_lam_or_case f && ((not once) || not (is_free i' f)) ->
     occurs_in_total_position_of_list ~once i' xs
-  | _ -> return false
+  | _ -> pure false
 
-and occurs_in_total_position_of_list ~once i' = function
-  | [] -> return false
+and occurs_in_total_position_of_list ~once i' =
+  eta'1 @@ function
+  | [] -> pure false
   | x :: xs ->
     occurs_in_total_position ~once i' x
     &&& pure'0 (fun () -> (not once) || List.for_all (is_free i' >>> not) xs)
@@ -193,35 +195,35 @@ let rec simplify e =
   | `Old -> fail `Seen
   | `New ->
     let* limit = get Limit.field in
-    if limit < size e then fail `Limit else simplify_base e >>- keep_phys_eq' e
+    if limit < size e then fail `Limit else simplify_base e >>- keep_eq' e
 
 and simplify_base = function
   | `Const (`Target (_, l)) when Js.is_identity l ->
     let i = Var.of_string Loc.dummy "x" |> Var.freshen in
-    return @@ `Lam (i, `Var i)
-  | (`Const _ | `Var _) as e -> return e
+    pure @@ `Lam (i, `Var i)
+  | (`Const _ | `Var _) as e -> pure e
   | `Lam (i, `Lam (j, `App (`App (`Const c, `Var y), `Var x)))
     when Var.equal i x && Var.equal j y && Const.is_commutative c ->
-    return @@ `Const c
+    pure @@ `Const c
   | `Lam (i, e) -> (
     let* e = simplify e in
-    let default () = return @@ `Lam (i, e) in
+    let default = pure'0 @@ fun () -> `Lam (i, e) in
     match e with
     | `App (f, `Var i') when Var.equal i i' && not (is_free i f) ->
       let* f_is_total = is_total f in
-      if f_is_total then return f else default ()
-    | _ -> default ())
+      if f_is_total then pure f else default
+    | _ -> default)
   | `App (f, x) -> (
     let* x = simplify x in
     let* f =
       match f with
       | `Lam (i, e) ->
         let+ e = simplify e |> Env.adding i x in
-        keep_phys_eq' f @@ `Lam (i, e)
+        keep_eq' f @@ `Lam (i, e)
       | _ -> simplify f
     in
     let* f_is_total = is_total f in
-    let default () = return @@ `App (f, x) in
+    let default = pure'0 @@ fun () -> `App (f, x) in
     match (f, x) with
     | f, `App (`Lam (i, x), v) when f_is_total && is_strict f ->
       let i' = Var.freshen i in
@@ -231,39 +233,35 @@ and simplify_base = function
     | `Case (`Product _), s when f_is_total && may_inline_continuation s ->
       let+ inlined =
         simplify (inline_continuation s (lam @@ fun s -> `App (f, s)))
-      and+ defaulted = default () in
+      and+ defaulted = default in
       if size inlined * 3 < size defaulted * 4 then inlined else defaulted
     | `Case (`Product fs), `Inject (l, e) when f_is_total ->
       simplify @@ `App (List.find (fst >>> Label.equal l) fs |> snd, e)
     | `Const c, x when Const.is_uop c -> (
       match Const.simplify_uop (c, x) with
       | Some e -> simplify e
-      | None -> default ())
+      | None -> default)
     | `App (`Const c, x), y when Const.is_bop c -> (
       Const.simplify_bop (c, x, y) >>= function
       | Some e -> simplify e
-      | None -> default ())
+      | None -> default)
     | `Lam (i, e), x ->
-      let* defaulted = default () in
-      let apply () =
-        simplify (subst i x e) |> mapping Limit.field (fun v -> v / 16 * 15)
-      in
       let* may_subst =
         is_total x
         &&& pure'0 (fun () -> tag x <> `Mu || not (is_free i e))
         ||| occurs_in_total_position ~once:true i e
       in
       if may_subst then
-        apply ()
-        |> tryin
-             (fun (`Limit | `Seen) -> return defaulted)
-             (fun applied ->
-               if
-                 size applied * 3 < size defaulted * 4
-                 && Lam.compare applied defaulted <> 0
-               then return applied
-               else return defaulted)
-      else return defaulted
+        simplify (subst i x e)
+        |> mapping Limit.field (fun v -> v / 16 * 15)
+        |> tryin (fun (`Limit | `Seen) -> default) @@ fun applied ->
+           let* defaulted = default in
+           if
+             size applied * 3 < size defaulted * 4
+             && Lam.compare applied defaulted <> 0
+           then pure applied
+           else pure defaulted
+      else default
     | `App (`Lam (x', `Lam (y', e)), x), y ->
       let x'' = Var.freshen x' in
       simplify
@@ -273,7 +271,7 @@ and simplify_base = function
       if e_or_y_is_total then
         let x'' = Var.freshen x' in
         simplify @@ `App (`Lam (x'', `App (subst x' (`Var x'') e, y)), x)
-      else default ()
+      else default
     | `IfElse (c, `Lam (t', t), `Lam (e', e)), x ->
       let* c_is_total = is_total c in
       if c_is_total then
@@ -281,10 +279,10 @@ and simplify_base = function
         let xv = `Var x' in
         simplify
         @@ `App (`Lam (x', `IfElse (c, subst t' xv t, subst e' xv e)), x)
-      else default ()
+      else default
     | `Var _, c when may_inline_continuation c ->
       simplify @@ inline_continuation c f
-    | _ -> default ())
+    | _ -> default)
   | `Mu (`Lam (f, e) as lam) -> (
     match unlam e with
     | is, `Case (`Product fs)
@@ -310,7 +308,7 @@ and simplify_base = function
       |> simplify
     | _ ->
       let+ e = simplify e |> Env.adding f e in
-      if is_free f e then `Mu (keep_phys_eq' lam @@ `Lam (f, e)) else e)
+      if is_free f e then `Mu (keep_eq' lam @@ `Lam (f, e)) else e)
   | `Mu e -> (
     let+ e = simplify e in
     match e with `Lam (i, e) when not (is_free i e) -> e | e -> `Mu e)
@@ -331,9 +329,9 @@ and simplify_base = function
       | t, `Const (`Bool false) ->
         simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
       | `Const (`Bool false), `Const (`Bool true) ->
-        return @@ `App (`Const `OpLogicalNot, c)
+        pure @@ `App (`Const `OpLogicalNot, c)
       | t, e ->
-        let default () = return @@ `IfElse (c, t, e) in
+        let default = pure'0 @@ fun () -> `IfElse (c, t, e) in
         if Lam.compare t e = 0 then
           is_total c >>- function
           | true -> t
@@ -341,35 +339,35 @@ and simplify_base = function
         else if Lam.compare c t = 0 then
           is_total c >>= function
           | true -> simplify @@ `App (`App (`Const `OpLogicalOr, c), e)
-          | false -> default ()
+          | false -> default
         else if Lam.compare c e = 0 then
           is_total c >>= function
           | true -> simplify @@ `App (`App (`Const `OpLogicalAnd, c), t)
-          | false -> default ()
-        else default ()))
+          | false -> default
+        else default))
   | `Product fs ->
     let bs = Mut.create [] in
     let* fs =
       fs
-      |> List.map_eq_er (fun ((l, _) as le) ->
-             le
-             |> Pair.map_eq_er return @@ fun e ->
-                let* e = simplify e in
-                let* e_is_total = is_total e in
-                if e_is_total then
-                  match e with
-                  | `App (`Lam (i, e), v) ->
-                    Mut.mutate (fun bs -> (i, v) :: bs) bs >> return e
-                  | e -> return e
-                else
-                  let i = Var.of_label l in
-                  Mut.mutate (fun bs -> (i, e) :: bs) bs >> return @@ `Var i)
+      |> List.map_eq_er @@ fun ((l, _) as le) ->
+         le
+         |> Pair.map_eq_er pure @@ fun e ->
+            let* e = simplify e in
+            let* e_is_total = is_total e in
+            if e_is_total then
+              match e with
+              | `App (`Lam (i, e), v) ->
+                Mut.mutate (fun bs -> (i, v) :: bs) bs >> pure e
+              | e -> pure e
+            else
+              let i = Var.of_label l in
+              Mut.mutate (fun bs -> (i, e) :: bs) bs >> pure @@ `Var i
     in
     Mut.read bs
     >>- List.fold_left (fun e (i, v) -> `App (`Lam (i, e), v)) (`Product fs)
   | `Select (e, l) -> (
     let* e = simplify e and* l = simplify l in
-    let default () = return @@ `Select (e, l) in
+    let default = pure'0 @@ fun () -> `Select (e, l) in
     match (e, l) with
     | `Product fs, `Inject (l, _) ->
       let* fs_are_total =
@@ -378,23 +376,23 @@ and simplify_base = function
         |> List.for_all_er (snd >>> is_total)
       in
       if fs_are_total then
-        fs |> List.find (fst >>> Label.equal l) |> snd |> return
-      else default ()
-    | _ -> default ())
+        pure'0 @@ fun () -> fs |> List.find (fst >>> Label.equal l) |> snd
+      else default
+    | _ -> default)
   | `Case cs -> simplify cs >>- fun cs -> `Case cs
   | `Inject (l, e) -> (
     simplify e >>- function
     | `App (`Lam (i, b), v) -> `App (`Lam (i, `Inject (l, b)), v)
     | e -> `Inject (l, e))
 
-let once e = simplify e |> tryin (fun (`Limit | `Seen) -> return e) return
+let once e = simplify e |> handle @@ fun (`Limit | `Seen) -> pure e
 
 let rec to_fixed_point e =
   let* limit = get Limit.field in
-  if limit < size e then return e
+  if limit < size e then pure e
   else
     let* e' = once e in
-    if e == e' then return e'
+    if e == e' then pure e'
     else to_fixed_point e' |> mapping Limit.field (fun v -> v / 16 * 15)
 
 let to_fixed_point e = to_fixed_point e |> setting Limit.field (size e * 8)

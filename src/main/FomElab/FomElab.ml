@@ -126,7 +126,7 @@ module PathTable = struct
             Memo.eval var
           | Some var -> Memo.eval var)
      in
-     mutate Annot.field (Annot.merge inner) >> return result)
+     mutate Annot.field (Annot.merge inner) >> pure result)
     |> ImportChain.with_path at path
 
   let get field key =
@@ -226,7 +226,7 @@ end
 let to_avoid_capture i =
   let+ exists =
     Typ.VarEnv.existing_er (fun _ -> function
-      | `Typ t' -> Typ.is_free i t' | _ -> return false)
+      | `Typ t' -> Typ.is_free i t' | _ -> pure false)
   in
   if exists then
     let i' = Typ.Var.freshen i in
@@ -235,7 +235,7 @@ let to_avoid_capture i =
   else (i, Typ.VarMap.empty)
 
 let rec to_avoid_captures = function
-  | [] -> return ([], Typ.VarMap.empty)
+  | [] -> pure ([], Typ.VarMap.empty)
   | i :: is ->
     let+ i's, es = to_avoid_captures is and+ i', e = to_avoid_capture i in
     (i' :: i's, Typ.VarMap.merge Map.prefer_rhs e es)
@@ -255,8 +255,8 @@ let lam at i t_opt e =
 (* *)
 
 let rec type_of_pat_lam = function
-  | `Annot (_, _, t) -> return t
-  | `Const (_, `Unit) as t -> return t
+  | `Annot (_, _, t) -> pure t
+  | `Const (_, `Unit) as t -> pure t
   | `Product (at, fs) -> Row.map_er type_of_pat_lam fs >>- Typ.product at
   | `Var _ | `Pack _ -> zero
 
@@ -279,7 +279,9 @@ let rec pat_to_exp p' e' = function
     let i = Pat.id_for p in
     `UnpackIn (at, t, k, i, p', pat_to_exp (`Var (at, i)) e' p)
 
-let rec elaborate_typ_def = function
+let rec elaborate_typ_def d =
+  eta'0 @@ fun () ->
+  match d with
   | `TypPar ikts ->
     ikts
     |> List.map_er (fun (i, k, t) ->
@@ -324,11 +326,12 @@ let rec elaborate_typ_def = function
        >>= Parser.parse_utf_8 Grammar.incs Lexer.offside ~path:inc_path
        >>= elaborate_typ_defs Typ.VarMap.empty
      in
-     Annot.Typ.resolve Kind.resolve >> return env)
+     Annot.Typ.resolve Kind.resolve >> pure env)
     |> TypIncludes.get_or_put at' inc_path
     |> Elab.modularly
 
-and elaborate_typ_defs accum = function
+and elaborate_typ_defs accum =
+  eta'1 @@ function
   | #FomCST.Typ.Def.f as d ->
     elaborate_typ_def d >>- Typ.VarMap.merge Map.prefer_rhs accum
   | `In (_, d, ds) ->
@@ -340,13 +343,15 @@ and elaborate_typ_defs accum = function
     elaborate_typ_defs accum ds
     |> Typ.VarEnv.merging (d :> [`Typ of _ | `Kind of _] Typ.VarMap.t)
 
-and elaborate_typ = function
+and elaborate_typ t =
+  eta'0 @@ fun () ->
+  match t with
   | `Var (_, i) as inn -> (
     Typ.VarEnv.find i >>= function
     | `Typ t ->
       let t = Typ.freshen t in
-      Annot.Typ.use i (Typ.at t) >> return t
-    | `Kind k -> Annot.Typ.use i (Kind.at k) >> return inn)
+      Annot.Typ.use i (Typ.at t) >> pure t
+    | `Kind k -> Annot.Typ.use i (Kind.at k) >> pure inn)
   | `Lam (at', i, k, t) ->
     avoid i @@ fun i ->
     let k = Kind.set_at (Typ.Var.at i) k in
@@ -369,10 +374,12 @@ and elaborate_typ = function
     >>- fun t -> (t : Typ.Core.t :> Typ.t)
   | #Typ.f as t -> Typ.map_er elaborate_typ t
 
-let rec elaborate = function
+let rec elaborate e =
+  eta'0 @@ fun () ->
+  match e with
   | `Const (at, c) ->
     Exp.Const.map_typ_er elaborate_typ c >>- fun c -> `Const (at, c)
-  | `Var _ as ast -> return ast
+  | `Var _ as ast -> pure ast
   | `LamImp (at, i, e) | `LamPat (at, `Var (_, i), e) ->
     elaborate e >>- fun e -> `LamImp (at, i, e)
   | `Lam (at, i, t, e) | `LamPat (at, `Annot (_, `Var (_, i), t), e) ->
@@ -474,7 +481,7 @@ let rec elaborate = function
     |> List.fold_left_er
          (fun e -> function
            | `Str s ->
-             return @@ app2 (select Label.text') (`Const (at', `String s)) e
+             pure'3 app2 (select Label.text') (`Const (at', `String s)) e
            | `Exp (l, v) -> elaborate v >>- fun v -> app2 (select l) v e)
          (select Label.begin')
     >>- app (select Label.finish')
@@ -490,7 +497,7 @@ let rec elaborate = function
       |> tryin
            (function
              | `Error_file_doesnt_exist (_, path) when path = sig_path ->
-               return None
+               pure None
              | e -> fail e)
            (Option.some >>> pure)
     in
@@ -513,7 +520,7 @@ let rec elaborate = function
       |> ExpImports.get_or_put at' mod_path
       |> Elab.modularly
     in
-    Parameters.add mod_path >> return @@ `Var (at', id)
+    Parameters.add mod_path >> pure @@ `Var (at', id)
 
 and elaborate_pat p' e' p =
   FomCST.Exp.Pat.check p >>= fun () -> pat_to_exp p' e' p |> elaborate

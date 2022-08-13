@@ -66,6 +66,7 @@ module Exp = struct
       | `Pack of Loc.t * t * Typ.Var.t * Kind.t ]
 
     let check p =
+      eta'0 @@ fun () ->
       let rec collect (ts, is) = function
         | `Var (_, i) -> (ts, i :: is)
         | `Const (_, `Unit) -> (ts, is)

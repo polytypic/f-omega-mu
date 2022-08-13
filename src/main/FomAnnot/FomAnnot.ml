@@ -87,7 +87,7 @@ module Annot = struct
                 | `TypId (id, kind) ->
                   let+ kind = resolve_kind kind in
                   (at, make v#def v#uses @@ `TypId (id, kind))
-                | _ -> return (at, v))
+                | _ -> pure (at, v))
         >-> LocMap.of_list)
 
     let def id kind = add_def (at id) @@ `TypId (id, kind)

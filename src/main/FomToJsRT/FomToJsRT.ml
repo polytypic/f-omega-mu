@@ -97,7 +97,7 @@ let format max_width (value : unit Js.t) =
               | _ -> zero)
             | _ -> zero
           else if label = FomCST.Aggr.nil && is_undefined (get_value value) then
-            return []
+            pure []
           else zero
         | _ -> zero)
     in

@@ -161,7 +161,7 @@ module Typ = struct
           as_aggr xs >>- fun xs -> x :: xs
         | _ -> zero
       else if l = FomCST.Aggr.nil then
-        match t with `Const (_, `Unit) -> return [] | _ -> zero
+        match t with `Const (_, `Unit) -> pure [] | _ -> zero
       else zero
     | _ -> zero
 

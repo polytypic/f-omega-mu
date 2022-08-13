@@ -42,8 +42,8 @@ module Seen = struct
   let field r : m = r#seen
 
   let adding e on =
-    let k = (hash e, e) in
     let* old_seen = get field in
+    let k = (hash e, e) in
     let new_seen = add k old_seen in
     if old_seen == new_seen then on `Old else setting field new_seen (on `New)
 
@@ -123,36 +123,37 @@ end
 let dummy_var = `Var (Var.fresh Loc.dummy)
 
 let rec is_total e =
+  eta'0 @@ fun () ->
   match e with
-  | `Const _ | `Var _ | `Lam _ -> return true
+  | `Const _ | `Var _ | `Lam _ -> pure true
   | _ -> (
     Seen.adding e @@ function
-    | `Old -> return false
+    | `Old -> pure false
     | `New -> (
       match unapp e with
-      | (`Const _ | `Var _ | `Lam _), [] -> return true
+      | (`Const _ | `Var _ | `Lam _), [] -> pure true
       | `IfElse (c, t, e), xs ->
         is_total c &&& is_total (apps t xs) &&& is_total (apps e xs)
-      | `Product fs, _ -> fs |> List.for_all_er (fun (_, e) -> is_total e)
+      | `Product fs, _ -> fs |> List.for_all_er @@ fun (_, e) -> is_total e
       | `Mu (`Lam (i, e)), xs -> is_total (apps e xs) |> Env.adding i e
       | `Select (e, l), [] -> is_total e &&& is_total l
       | `Inject (_, e), _ -> is_total e
       | `Var f, xs -> (
-        let* f_opt = Env.find_opt f in
-        match f_opt with None -> return false | Some f -> is_total (apps f xs))
+        Env.find_opt f >>= function
+        | None -> pure false
+        | Some f -> is_total (apps f xs))
       | `Lam (i, e), x :: xs ->
         is_total x
         &&& (is_total e |> Env.adding i x)
         &&& (is_total (apps e xs) |> Env.adding i x)
-      | `Const c, xs ->
-        return (Const.is_total c) &&& (xs |> List.for_all_er is_total)
+      | `Const c, xs -> pure'1 Const.is_total c &&& List.for_all_er is_total xs
       | `Case (`Product fs), x :: xs ->
         is_total x
         &&& (fs
-            |> List.for_all_er (fun (_, f) ->
-                   is_total (apps f (dummy_var :: xs))))
+            |> List.for_all_er @@ fun (_, f) ->
+               is_total (apps f (dummy_var :: xs)))
       | `Case e, [] -> is_total e
-      | (`Mu _ | `App _ | `Select _ | `Case _), _ -> return false))
+      | (`Mu _ | `App _ | `Select _ | `Case _), _ -> pure false))
 
 (* *)
 

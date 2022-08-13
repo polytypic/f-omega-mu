@@ -27,7 +27,7 @@ type t = Loc.t * document
 let nested d = nest 2 (break_1_0 ^^ d) ^^ break_1_0
 
 let cyclic kind new_at filename old_at =
-  return
+  pure
     ( ( new_at,
         text "The file"
         ^^ nested (utf8format "\"%s\"" filename)
@@ -37,28 +37,28 @@ let cyclic kind new_at filename old_at =
 let of_error = function
   (* IO errors *)
   | `Error_io (at, exn) ->
-    return ((at, exn |> Printexc.to_string |> utf8string), [])
+    pure ((at, exn |> Printexc.to_string |> utf8string), [])
   (* Syntax errors *)
   | `Error_lexeme (at, lexeme) | `Error_grammar (at, lexeme) -> (
     match lexeme with
-    | "" -> return ((at, text "Syntax error "), [])
+    | "" -> pure ((at, text "Syntax error "), [])
     | lexeme ->
-      return ((at, text "Syntax error" ^^ nested (utf8string lexeme)), []))
+      pure ((at, text "Syntax error" ^^ nested (utf8string lexeme)), []))
   | `Error_duplicated_label (at, l) ->
-    return
+    pure
       ( (at, text "Duplicated label" ^^ nested (Label.pp l)),
         [(Label.at l, text "Initial"); (at, text "Duplicate")] )
   | `Error_duplicated_typ_bind (at, i) ->
-    return
+    pure
       ( (at, text "Duplicated type binding" ^^ nested (Typ.Var.pp i)),
         [(Typ.Var.at i, text "Initial"); (at, text "Duplicate")] )
   | `Error_duplicated_bind (at, i) ->
-    return
+    pure
       ( (at, text "Duplicated binding" ^^ nested (Exp.Var.pp i)),
         [(Exp.Var.at i, text "Initial"); (at, text "Duplicate")] )
   (* Source errors *)
   | `Error_file_doesnt_exist (at, filename) ->
-    return
+    pure
       ( ( at,
           text "File"
           ^^ nested (utf8format "\"%s\"" filename)
@@ -70,7 +70,7 @@ let of_error = function
     cyclic "import" new_at filename old_at
   (* Kind errors *)
   | `Error_kind_mismatch (at, expected_kind, actual_kind) ->
-    return
+    pure
       ( ( at,
           text "Expected type to have kind"
           ^^ nested (Kind.pp expected_kind)
@@ -81,32 +81,32 @@ let of_error = function
           (Kind.at expected_kind, text "Expected type");
         ] )
   | `Error_cyclic_kind at ->
-    return ((at, text "Cyclic kind"), [(at, text "Cyclic kind")])
+    pure ((at, text "Cyclic kind"), [(at, text "Cyclic kind")])
   | `Error_mu_nested (at, typ, arg) ->
-    return
+    pure
       ( ( at,
           text "Nested types like"
           ^^ nested (Typ.pp typ)
           ^^ text "are not allowed to keep type checking decidable " ),
         [(Typ.at arg, text "Nested argument passed to μ type constructor")] )
   | `Error_mu_non_contractive (at, typ, arg) ->
-    return
+    pure
       ( ( at,
           text "Non-contractive types like"
           ^^ nested (Typ.pp typ)
           ^^ text "are not allowed " ),
         [(Typ.at arg, text "Non-contractive apply of μ type constructor")] )
   | `Error_typ_var_unbound (at, id) ->
-    return
+    pure
       ( (at, text "Unbound type variable" ^^ nested (Typ.Var.pp id)),
         [(Typ.Var.at id, text "Unbound type variable")] )
   (* Type errors *)
   | `Error_var_unbound (at, id) ->
-    return
+    pure
       ( (at, text "Unbound variable" ^^ nested (Exp.Var.pp id)),
         [(Exp.Var.at id, text "Unbound variable")] )
   | `Error_typ_mismatch (at, expected_typ, actual_typ) ->
-    return
+    pure
       ( ( at,
           text "Expected expression to have type"
           ^^ nested (Typ.pp expected_typ)
@@ -116,7 +116,7 @@ let of_error = function
           (at, text "Type mismatch"); (Typ.at expected_typ, text "Expected type");
         ] )
   | `Error_typ_unrelated (at, expected_typ, actual_typ) ->
-    return
+    pure
       ( ( at,
           text "The types"
           ^^ nested (Typ.pp expected_typ)
@@ -150,7 +150,7 @@ let of_error = function
         ^^ nested (Typ.pp typ) ),
       [(at, text "Sum lacks label")] )
   | `Error_label_missing (at, label, l_typ, m_typ) ->
-    return
+    pure
       ( ( at,
           text "Label"
           ^^ nested (Label.pp label)
@@ -179,11 +179,11 @@ let of_error = function
       [(Typ.at l, text "Conflicting type"); (Typ.at r, text "Conflicting type")]
     )
   | `Error_pat_lacks_annot at ->
-    return
+    pure
       ( (at, text "Type of pattern cannot be determined by shape only "),
         [(at, text "Pattern lacks type annotation")] )
   | `Error_exp_lacks_annot at ->
-    return
+    pure
       ( (at, text "Type of expression cannot be determined by shape only "),
         [(at, text "Expression lacks type annotation")] )
 

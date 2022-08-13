@@ -59,16 +59,16 @@ type t =
 (* *)
 
 let map_er' row fn = function
-  | `App (f, x) -> fn f <*> fn x >>- fun f_x -> `App f_x
-  | `Case e -> fn e >>- fun e -> `Case e
-  | `Const _ as inn -> return inn
-  | `IfElse (c, t, e) -> tuple'3 (fn c) (fn t) (fn e) >>- fun x -> `IfElse x
-  | `Inject (l, e) -> fn e >>- fun e -> `Inject (l, e)
-  | `Lam (i, e) -> fn e >>- fun e -> `Lam (i, e)
-  | `Mu e -> fn e >>- fun e -> `Mu e
+  | `App x -> map_er'2 fn fn x >>- fun x -> `App x
+  | `Case x -> map_er'1 fn x >>- fun e -> `Case e
+  | `Const _ as e -> pure e
+  | `IfElse x -> map_er'3 fn fn fn x >>- fun x -> `IfElse x
+  | `Inject (l, e) -> map_er'1 fn e >>- fun e -> `Inject (l, e)
+  | `Lam (i, e) -> map_er'1 fn e >>- fun e -> `Lam (i, e)
+  | `Mu x -> map_er'1 fn x >>- fun x -> `Mu x
   | `Product fs -> row fn fs >>- fun fs -> `Product fs
-  | `Select (e, l) -> fn e <*> fn l >>- fun e_l -> `Select e_l
-  | `Var _ as inn -> return inn
+  | `Select x -> map_er'2 fn fn x >>- fun x -> `Select x
+  | `Var _ as e -> pure e
 
 let map_er fn = map_er' Row.map_er fn
 let map_eq_er fn = map_er' Row.map_eq_er fn
@@ -137,11 +137,11 @@ let eq l r =
   | `Var l, `Var r -> l == r
   | _ -> false
 
-let keep_phys_eq' e e' = if e == e' || eq e e' then e else e'
-let keep_phys_eq fn e = keep_phys_eq' e (fn e)
+let keep_eq' e e' = if e == e' || eq e e' then e else e'
+let keep_eq fn e = keep_eq' e (fn e)
 
 let rec subst_par env =
-  keep_phys_eq @@ function
+  keep_eq @@ function
   | `Var i as inn -> (
     match VarMap.find_opt i env with None -> inn | Some e -> e)
   | `Lam (i, e) as inn ->

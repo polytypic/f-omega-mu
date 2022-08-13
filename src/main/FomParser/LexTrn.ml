@@ -66,7 +66,7 @@ let set_is_typ is_typ _ =
 
 let as_typ op =
   let* was = is_typ in
-  set_is_typ true >> op >>= fun res -> set_is_typ was >> return res
+  set_is_typ true >> op >>= fun res -> set_is_typ was >> pure res
 
 (* *)
 

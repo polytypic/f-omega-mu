@@ -114,7 +114,7 @@ let js_use_def ?(max_width = 60) (def, o) =
     | `Label (i, t) -> pp_typ t >>- fun t -> FomAST.Label.pp i ^^ colon ^^ t
     | `ExpId (i, t) -> pp_typ t >>- fun t -> FomAST.Exp.Var.pp i ^^ colon ^^ t
     | `TypId (i, k) ->
-      return @@ gnest 2 (Typ.Var.pp i ^^ colon_break_1 ^^ FomPP.Kind.pp k))
+      pure'2 gnest 2 (Typ.Var.pp i ^^ colon_break_1 ^^ FomPP.Kind.pp k))
     >>- to_js_string ~max_width
   in
   object%js

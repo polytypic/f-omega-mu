@@ -22,14 +22,14 @@ let rec contract t =
       match unapp t with `Mu _, _ -> (TypSet.add t s, t) | _ -> (s, t))
   in
   match t with
-  | `Lam (_, i, _, _) -> TypSet.filter_er (is_free i >-> not) s <*> return u
-  | _ -> return (s, u)
+  | `Lam (_, i, _, _) -> TypSet.filter_er (is_free i >-> not) s <*> pure u
+  | _ -> pure (s, u)
 
 and contract_base t =
   let+ s, t' =
     match t with
     | `Mu (at', e) -> contract e >>- fun (s, e') -> (s, `Mu (at', e'))
-    | (`Const _ | `Var _) as t -> return (TypSet.empty, t)
+    | (`Const _ | `Var _) as t -> pure (TypSet.empty, t)
     | `Lam (at', x, k, e) ->
       contract e >>- fun (s, e') -> (s, `Lam (at', x, k, e'))
     | `App (at', f, x) ->

@@ -22,7 +22,7 @@ let constants_to_top inn =
   in
   let rec analyze ~skip =
     let consider vs r =
-      let+ may_hoist = if skip then return false else is_total r in
+      let+ may_hoist = if skip then pure false else is_total r in
       match r with
       | _ when not may_hoist -> (vs, r)
       | `Const (`Keep _ | `Bool _ | `Nat _ | `Unit) | `Var _ -> (vs, r)

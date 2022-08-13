@@ -1,4 +1,5 @@
 open Rea
+open StdlibPlus
 open FomSource
 
 exception Exn_lexeme of Loc.t * string
@@ -12,8 +13,7 @@ end
 let parse grammar lexer buffer =
   try
     lexer buffer
-    |> MenhirLib.Convert.Simplified.traditional2revised grammar
-    |> return
+    |> pure'2 MenhirLib.Convert.Simplified.traditional2revised grammar
   with
   | Grammar.Error ->
     fail @@ `Error_grammar (Buffer.loc buffer, Buffer.lexeme_utf_8 buffer)

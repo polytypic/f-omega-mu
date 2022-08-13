@@ -91,7 +91,7 @@ let rec to_assignments is i's vs =
   List.fold_left_er'3
     (fun e i i' v ->
       match v with
-      | `Var j' when Var.equal i j' -> return e
+      | `Var j' when Var.equal i j' -> pure e
       | _ ->
         let+ v = to_js_expr v in
         (if e = str "" then e else e ^ str ", ") ^ Var.to_js i' ^ str " = " ^ v)
@@ -122,9 +122,9 @@ and to_js_stmts_renumbered finish ids exp =
     match exp with
     | `Const `Unit -> (
       match finish with
-      | `Top -> return @@ str "void 0"
-      | `Seq | `Return | `Tail _ -> return @@ str ""
-      | `Body -> return @@ str "{}")
+      | `Top -> pure'1 str "void 0"
+      | `Seq | `Return | `Tail _ -> pure'1 str ""
+      | `Body -> pure'1 str "{}")
     | exp ->
       let+ e = to_js_expr_renumbered exp in
       to_return finish ^ e
@@ -293,15 +293,15 @@ and to_js_expr_renumbered exp =
   | `Const c -> (
     match Const.type_of Loc.dummy c |> Typ.arity_and_result with
     | 2, result when Const.is_bop c ->
-      return @@ parens @@ str "l => r => "
+      pure @@ parens @@ str "l => r => "
       ^ coerce_to_int_if (Typ.is_int result)
           (str "l " ^ Const.to_js c ^ str " r")
     | 1, result when Const.is_uop c ->
-      return @@ parens @@ str "x => "
+      pure @@ parens @@ str "x => "
       ^ coerce_to_int_if (Typ.is_int result) (Const.to_js c ^ str " x")
-    | _, _ -> return @@ Const.to_js c)
-  | `Var i -> return @@ Var.to_js i
-  | `Lam (i, `Mu (`Var i')) when Var.equal i i' -> return @@ str "rec"
+    | _, _ -> pure'1 Const.to_js c)
+  | `Var i -> pure'1 Var.to_js i
+  | `Lam (i, `Mu (`Var i')) when Var.equal i i' -> pure'1 str "rec"
   | `Lam (i, e) ->
     let+ e = to_js_stmts `Body (VarSet.singleton i) e in
     parens @@ Var.to_js i ^ str " => " ^ e
@@ -317,7 +317,7 @@ and to_js_expr_renumbered exp =
     ^ e ^ str "}"
   | `Mu (`Lam (f, e)) when not (is_immediately_evaluated f e) ->
     let+ e = to_js_expr e in
-    str "(() => {const " ^ Var.to_js f ^ str " = " ^ e ^ str "; return "
+    str "(() => {const " ^ Var.to_js f ^ str " = " ^ e ^ str "; pure "
     ^ Var.to_js f ^ str "})()"
   | `Mu f ->
     let+ f = to_js_expr f in
@@ -332,7 +332,7 @@ and to_js_expr_renumbered exp =
          | l, `Var i
            when Label.to_string l = Var.to_string i
                 && not (Js.is_illegal_id (Var.to_string i)) ->
-           return @@ Label.to_js_label l
+           pure'1 Label.to_js_label l
          | l, e ->
            let+ e = to_js_expr e in
            Label.to_js_label l ^ str ": " ^ e
@@ -346,8 +346,7 @@ and to_js_expr_renumbered exp =
   | `Select (e, l) ->
     let+ e = to_js_expr e and+ l = to_js_expr l in
     e ^ str "[" ^ l ^ str "[0]]"
-  | `Inject (l, `Const `Unit) ->
-    return @@ str "[" ^ Label.to_js_atom l ^ str "]"
+  | `Inject (l, `Const `Unit) -> pure @@ str "[" ^ Label.to_js_atom l ^ str "]"
   | `Inject (l, e) ->
     let+ e = to_js_expr e in
     str "[" ^ Label.to_js_atom l ^ str ", " ^ e ^ str "]"

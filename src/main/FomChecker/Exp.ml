@@ -32,17 +32,17 @@ module Typ = struct
 
   let check_arrow at typ =
     Core.unfold_of_norm typ >>= function
-    | `Arrow (_, dom, cod) -> return (dom, cod)
+    | `Arrow (_, dom, cod) -> pure (dom, cod)
     | _ -> fail @@ `Error_typ_unexpected (at, "_ → _", typ)
 
   let check_product at typ =
     Core.unfold_of_norm typ >>= function
-    | `Row (_, `Product, ls) -> return ls
+    | `Row (_, `Product, ls) -> pure ls
     | _ -> fail @@ `Error_typ_unexpected (at, "{_}", typ)
 
   let check_sum at typ =
     Core.unfold_of_norm typ >>= function
-    | `Row (_, `Sum, ls) -> return ls
+    | `Row (_, `Sum, ls) -> pure ls
     | _ -> fail @@ `Error_typ_unexpected (at, "'_", typ)
 
   let check_unit at typ =
@@ -54,15 +54,14 @@ module Typ = struct
     let* ls = check_sum at typ in
     match ls with
     | [] -> fail @@ `Error_typ_unexpected (at, "'_", typ)
-    | ls ->
-      ls |> List.iter_er (snd >>> check_unit at) >> return (List.map fst ls)
+    | ls -> ls |> List.iter_er (snd >>> check_unit at) >> pure'2 List.map fst ls
 
   let check_for_all at typ =
     Core.unfold_of_norm typ >>= function
     | `For (_, `All, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
-      | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
+      | `Arrow (_, d_kind, `Star _) -> pure (f_con, d_kind)
       | _ -> failwith "check_for_all")
     | _ -> fail @@ `Error_typ_unexpected (at, "∀(_)", typ)
 
@@ -71,7 +70,7 @@ module Typ = struct
     | `For (_, `Unk, f_con) -> (
       let* f_kind = kind_of f_con in
       match f_kind with
-      | `Arrow (_, d_kind, `Star _) -> return (f_con, d_kind)
+      | `Arrow (_, d_kind, `Star _) -> pure (f_con, d_kind)
       | _ -> failwith "check_exists")
     | _ -> fail @@ `Error_typ_unexpected (at, "∃(_)", typ)
 end
@@ -84,7 +83,9 @@ let cannot_be_for_all = function
     match Const.type_of at' c with `For (_, `All, _) -> false | _ -> true)
   | _ -> false
 
-let rec infer = function
+let rec infer e =
+  eta'0 @@ fun () ->
+  match e with
   | `App (at', f, x) -> (
     match f with
     | `Lam (at'', i, t, e) ->
@@ -110,7 +111,7 @@ let rec infer = function
     let* x_typ_opt = VarEnv.find_opt x in
     match x_typ_opt with
     | None -> fail @@ `Error_var_unbound (at', x)
-    | Some (def, x_typ) -> Annot.Exp.use x (Var.at def) >> return (e, x_typ))
+    | Some (def, x_typ) -> Annot.Exp.use x (Var.at def) >> pure (e, x_typ))
   | `Lam (at', d, d_typ, r) ->
     let* d_typ = Typ.check_and_norm d_typ in
     let+ r, r_typ = Annot.Exp.def d d_typ >> VarEnv.adding d d_typ (infer r) in
@@ -122,7 +123,7 @@ let rec infer = function
     let* cs_arrows = Row.map_er (Typ.check_arrow (at cs)) cs_fs in
     let+ c_typ =
       match cs_arrows |> List.map (snd >>> snd) with
-      | [] -> return @@ Typ.zero (at cs)
+      | [] -> pure'1 Typ.zero (at cs)
       | t :: ts -> ts |> List.fold_left_er (Typ.join_of_norm (at cs)) t
     in
     let d_typ = Typ.sum (at cs) (Row.map fst cs_arrows) in
@@ -137,7 +138,7 @@ let rec infer = function
     let* f_con, d_kind = Typ.check_for_all at' f_typ in
     let* x_typ, x_kind = Typ.infer x_typ in
     Kind.unify at' d_kind x_kind
-    >> (return @@ `Inst (at', f, x_typ) <*> Typ.Core.app_of_norm at' f_con x_typ)
+    >> (pure @@ `Inst (at', f, x_typ) <*> Typ.Core.app_of_norm at' f_con x_typ)
   | `Mu (at', f) -> (
     match f with
     | `Lam (at'', i, t, e) ->
@@ -147,11 +148,11 @@ let rec infer = function
     | f ->
       let* f, f_typ = infer f in
       let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in
-      Typ.check_sub_of_norm at' c_typ d_typ >> return (`Mu (at', f), c_typ))
+      Typ.check_sub_of_norm at' c_typ d_typ >> pure (`Mu (at', f), c_typ))
   | `IfElse (at', c, t, e) ->
     let* c = check (`Const (at c, `Bool)) c in
     let* t, t_typ = infer t and* e, e_typ = infer e in
-    return @@ `IfElse (at', c, t, e) <*> Typ.join_of_norm (at e) t_typ e_typ
+    pure @@ `IfElse (at', c, t, e) <*> Typ.join_of_norm (at e) t_typ e_typ
   | `Product (at', fs) ->
     Row.check fs >> Row.map_er infer fs >>- fun fs ->
     ( `Product (at', List.map (fun (l, (e, _)) -> (l, e)) fs),
@@ -170,14 +171,14 @@ let rec infer = function
         >> Annot.Label.use l (Label.at k)
         >> let* t_opt =
              match t_opt with
-             | None -> return @@ Some t
+             | None -> pure @@ Some t
              | Some t' -> Typ.join_of_norm at' t t' >>- fun t -> Some t
            in
            select t_opt ls ks
       | [], k :: _ -> fail @@ `Error_product_lacks (at', p_typ, k)
-      | _, [] -> return @@ Option.get t_opt
+      | _, [] -> pure'1 Option.get t_opt
     in
-    return @@ `Select (at', p, i) <*> select None ls ks
+    pure @@ `Select (at', p, i) <*> select None ls ks
   | `Inject (at', l, e) ->
     infer e >>- fun (e, e_typ) -> (`Inject (at', l, e), Typ.sum at' [(l, e_typ)])
   | `Pack (at', t, e, et) ->
@@ -198,7 +199,7 @@ let rec infer = function
     in
     Typ.Core.is_free tid e_typ >>= function
     | true -> fail @@ `Error_typ_var_escapes (at', tid, e_typ)
-    | false -> return (`UnpackIn (at', tid, k, id, v, e), e_typ))
+    | false -> pure (`UnpackIn (at', tid, k, id, v, e), e_typ))
   | `Merge (at', l, r) ->
     let select e l = `Select (Loc.dummy, e, atom (Label.set_at Loc.dummy l)) in
     let binding v t e =
@@ -210,8 +211,8 @@ let rec infer = function
       match (lt, rt) with
       | `Row (_, `Product, ls), `Row (_, `Product, rs) ->
         Row.union_er
-          (select le >>> return >>> const)
-          (select re >>> return >>> const)
+          (select le >>> pure >>> const)
+          (select re >>> pure >>> const)
           (fun l lt rt ->
             binding (select le l) lt @@ fun le ->
             binding (select re l) rt @@ fun re -> merge le re lt rt)
@@ -282,7 +283,7 @@ and check a e =
       Typ.check_sub_of_norm at'
         (Typ.product at' (List.map (fun (l, _, t) -> (l, t)) leas))
         a
-      >> return @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
+      >> pure @@ `Product (at', List.map (fun (l, e, _) -> (l, e)) leas)
     | `Inject (at', l, e) -> (
       Typ.check_sum at' a >>- List.find_opt (fst >>> Label.equal l) >>= function
       | None -> fail @@ `Error_sum_lacks (at', a, l)
@@ -298,7 +299,7 @@ and check a e =
       >>- fun e -> `UnpackIn (at', tid, k, id, v, e)
     | e ->
       let* e, e_typ = infer e in
-      Typ.check_sub_of_norm (at e) e_typ a >> return e)
+      Typ.check_sub_of_norm (at e) e_typ a >> pure e)
 
 let infer e =
   let* result = catch @@ infer e in

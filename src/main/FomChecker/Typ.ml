@@ -16,12 +16,12 @@ module VarEnv = struct
 
   let find i =
     get_as field @@ VarMap.find_opt i >>= function
-    | Some t -> return t
+    | Some t -> pure t
     | None -> fail @@ `Error_typ_var_unbound (Var.at i, i)
 
   let kind_of i =
     get_as field @@ VarMap.find_opt i >>= function
-    | Some (`Kind k) -> return k
+    | Some (`Kind k) -> pure k
     | _ -> fail @@ `Error_typ_var_unbound (Var.at i, i)
 
   let existing pr = get_as field @@ VarMap.exists pr
@@ -50,12 +50,12 @@ let rec kind_of = function
     kind_of f >>= Kind.resolve >>- function
     | `Star _ | `Unk _ -> failwith "kind_of cod"
     | `Arrow (_, _, c) -> c)
-  | `Const (at', c) -> return @@ Const.kind_of at' c
+  | `Const (at', c) -> pure'2 Const.kind_of at' c
   | `Var (_, i) -> VarEnv.kind_of i
   | `Lam (at', i, d, t) ->
     kind_of t |> VarEnv.adding i @@ `Kind d >>- fun c -> `Arrow (at', d, c)
   | `Arrow (at', _, _) | `For (at', _, _) | `Row (at', _, _) ->
-    return @@ `Star at'
+    pure @@ `Star at'
   | `Bop (_, _, l, _) -> kind_of l
 
 let kind_of t = kind_of t >>= Kind.resolve
@@ -94,9 +94,10 @@ module Core = struct
     app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
 
   let rec unfold_of_norm t =
+    eta'0 @@ fun () ->
     match to_apps t with
     | `Apps ((`Mu (at', f) as mu), xs) -> unfold at' f mu xs >>= unfold_of_norm
-    | _ -> return t
+    | _ -> pure t
 
   (* *)
 
@@ -129,7 +130,7 @@ module Goals = struct
     let* added =
       try_modify field @@ fun gs ->
       let gs' = GoalSet.add g gs in
-      return (gs', gs != gs')
+      pure (gs', gs != gs')
     in
     if added then op () else unit
 
@@ -165,7 +166,7 @@ let rec solve_of_norm = function
 (* *)
 
 let union _ _ _ op (ls, rs) =
-  Row.union_er (const return) (const return) (const op) ls rs
+  Row.union_er (const pure) (const pure) (const op) ls rs
 
 let intersection _ _ _ op =
   let rec loop os = function
@@ -174,7 +175,7 @@ let intersection _ _ _ op =
       if c < 0 then loop os (lls, rlls)
       else if 0 < c then loop os (llls, rls)
       else op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
-    | [], _ | _, [] -> return @@ List.rev os
+    | [], _ | _, [] -> pure'1 List.rev os
   in
   loop []
 
@@ -187,7 +188,7 @@ let matching at' l r op =
       else op lt rt >>= fun t -> loop ((ll, t) :: os) (lls, rls)
     | (ll, _) :: _, [] -> fail @@ `Error_label_missing (at', ll, l, r)
     | [], (rl, _) :: _ -> fail @@ `Error_label_missing (at', rl, r, l)
-    | [], [] -> return @@ List.rev os
+    | [], [] -> pure'1 List.rev os
   in
   loop []
 
@@ -211,7 +212,7 @@ let bop_counter = Profiling.Counter.register "bop"
 let rec mu_of_norm at = function
   | `Lam (at', i, k, t) as f -> (
     is_free i t >>= function
-    | false -> return t
+    | false -> pure t
     | true -> (
       match t with
       | `Mu (at1, `Lam (at2, j, k, t)) ->
@@ -232,8 +233,8 @@ let rec mu_of_norm at = function
             `Lam (at', i, k, t')
           | _ -> unfold_at_jms i t t >>- fun t' -> `Lam (at', i, k, t')
         in
-        if compare f f' = 0 then return @@ `Mu (at, f) else mu_of_norm at f'))
-  | f -> return @@ `Mu (at, f)
+        if compare f f' = 0 then pure @@ `Mu (at, f) else mu_of_norm at f'))
+  | f -> pure @@ `Mu (at, f)
 
 and unfold_at_jms x f =
   keep_eq_er @@ function
@@ -254,20 +255,20 @@ and drop_legs x =
   keep_eq_er @@ function
   | `Bop (at', o, l, r) ->
     let* r = drop_legs x r in
-    if compare x l = 0 then return r
-    else if compare x r = 0 then return l
+    if compare x l = 0 then pure r
+    else if compare x r = 0 then pure l
     else bop_of_norm o at' l r
-  | t -> return t
+  | t -> pure t
 
 and lam_of_norm at i k = function
   | `App (_, f, `Var (_, i')) as t' when Var.equal i i' -> (
     is_free i f >>- function false -> f | true -> `Lam (at, i, k, t'))
-  | t' -> return @@ `Lam (at, i, k, t')
+  | t' -> pure @@ `Lam (at, i, k, t')
 
 and app_of_norm at f' x' =
   match f' with
   | `Lam (_, i, _, t) -> subst_of_norm i x' t
-  | f' -> return @@ `App (at, f', x')
+  | f' -> pure @@ `App (at, f', x')
 
 and apps_of_norm at' = List.fold_left_er (app_of_norm at')
 
@@ -275,25 +276,26 @@ and unfold at f mu xs =
   app_of_norm at f mu >>= fun f_mu -> apps_of_norm at f_mu xs
 
 and classify t =
+  eta'0 @@ fun () ->
   match to_apps t with
   | `Apps ((`Mu (at', f) as mu), xs) ->
     let mu' = Var.from f |> Var.freshen in
     let* k = kind_of mu in
     unfold at' f (var mu') xs >>= classify |> VarEnv.adding mu' @@ `Kind k
-  | `Apps (`Var _, _) -> return None
+  | `Apps (`Var _, _) -> pure None
   | `Apps (`Bop (_, _, l, r), _) -> (
-    classify l >>= function None -> classify r | some -> return some)
-  | `Arrow _ -> return @@ Some `Arrow
-  | `Const (_, c) -> return @@ Some (`Const c)
-  | `For (_, q, _) -> return @@ Some (q : [`All | `Unk] :> [> `All | `Unk])
-  | `Lam _ -> return @@ Some `Lam
+    classify l >>= function None -> classify r | some -> pure some)
+  | `Arrow _ -> pure @@ Some `Arrow
+  | `Const (_, c) -> pure @@ Some (`Const c)
+  | `For (_, q, _) -> pure @@ Some (q : [`All | `Unk] :> [> `All | `Unk])
+  | `Lam _ -> pure @@ Some `Lam
   | `Row (_, m, _) ->
-    return @@ Some (m : [`Product | `Sum] :> [> `Product | `Sum])
+    pure @@ Some (m : [`Product | `Sum] :> [> `Product | `Sum])
   | _ -> failwith "classify"
 
 and memoing t op =
   get Solved.field >>- Solved.find_opt t >>= function
-  | Some t -> return t
+  | Some t -> pure t
   | None ->
     let at' = at t in
     let i = Var.from t |> Var.freshen in
@@ -308,7 +310,7 @@ and bop_of_norm o at' l r =
   Profiling.Counter.inc bop_counter;
   let head l r =
     match (l, r) with
-    | `Var (_, l'), `Var (_, r') when Var.equal l' r' -> return l
+    | `Var (_, l'), `Var (_, r') when Var.equal l' r' -> pure l
     | _ -> fail @@ `Error_typ_unrelated (at', (l :> t), (r :> t))
   in
   match (to_apps l, to_apps r) with
@@ -322,7 +324,7 @@ and bop_of_norm o at' l r =
   | `Arrow (_, ld, lc), `Arrow (_, rd, rc) ->
     bop_of_norm (inv o) at' ld rd <*> bop_of_norm o at' lc rc >>- fun (d, c) ->
     `Arrow (at', d, c)
-  | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> return l
+  | `Const (_, lc), `Const (_, rc) when Const.equal lc rc -> pure l
   | `For (_, q, lt), `For (_, q', rt) when q = q' ->
     bop_of_norm o at' lt rt >>- fun t -> `For (at', q, t)
   | `Lam (_, li, lk, lt), `Lam (_, ri, rk, rt) ->
@@ -340,17 +342,17 @@ and bop_of_norm o at' l r =
   | _ -> (
     classify l <*> classify r >>- uncurry (Option.both ( = )) >>= function
     | Some false -> fail @@ `Error_typ_unrelated (at', l, r)
-    | _ -> return @@ bop o (at', l, r))
+    | _ -> pure'2 bop o (at', l, r))
 
 and subst_of_norm i v t =
   let rec subst_of_norm env =
     keep_eq_er @@ function
     | `Var (_, i) as inn ->
-      VarMap.find_opt i env |> Option.value ~default:inn |> return
+      VarMap.find_opt i env |> Option.value ~default:inn |> pure
     | `Mu (at, t) -> subst_of_norm env t >>= mu_of_norm at
     | `Lam (at, i, k, t) as inn ->
       let env = VarMap.remove i env in
-      if VarMap.is_empty env then return inn
+      if VarMap.is_empty env then pure inn
       else
         let* i' =
           i
@@ -370,7 +372,7 @@ and subst_of_norm i v t =
     | t -> map_eq_er (subst_of_norm env) t
   in
   match v with
-  | `Var (_, i') when Var.equal i i' -> return t
+  | `Var (_, i') when Var.equal i i' -> pure t
   | v -> subst_of_norm (VarMap.singleton i v) t
 
 (* *)
@@ -430,23 +432,23 @@ let check_equal_of_norm at' l r = eq at' l r |> Goals.resetting
 
 let rec find_map_from_all_apps_of i' p = function
   | `Lam (_, i, _, t) ->
-    if Var.equal i i' then return None else find_map_from_all_apps_of i' p t
+    if Var.equal i i' then pure None else find_map_from_all_apps_of i' p t
   | (`App _ | `Var _) as t -> (
     match unapp t with
     | (`Var (_, i) as f), xs ->
       if Var.equal i i' then
         p t f xs >>= function
         | None -> xs |> List.find_map_er (find_map_from_all_apps_of i' p)
-        | some -> return some
+        | some -> pure some
       else xs |> List.find_map_er (find_map_from_all_apps_of i' p)
     | f, xs -> (
       find_map_from_all_apps_of i' p f >>= function
       | None -> xs |> List.find_map_er (find_map_from_all_apps_of i' p)
-      | some -> return some))
+      | some -> pure some))
   | t -> find_map_er (find_map_from_all_apps_of i' p) t
 
 let find_opt_nested_arg_mu at' f arity =
-  if arity <= 0 then return None
+  if arity <= 0 then pure None
   else
     let i = Var.fresh at' in
     let is = List.init arity @@ fun _ -> Var.fresh at' in
@@ -455,7 +457,7 @@ let find_opt_nested_arg_mu at' f arity =
     >>= find_map_from_all_apps_of i @@ fun _ _ xs ->
         xs
         |> List.find_map_er @@ function
-           | `Var _ -> return None
+           | `Var _ -> pure None
            | t -> (
              is
              |> List.find_map_er @@ fun i ->
@@ -468,18 +470,18 @@ let rec find_opt_non_contractive is t =
   | `Mu (_, `Lam (_, i, _, f)), xs -> (
     apps_of_norm Loc.dummy f xs >>- unapp >>= function
     | (`Var (_, i') as mu), _ when Var.equal i' i || VarSet.mem i' is ->
-      return @@ Some mu
+      pure @@ Some mu
     | t, _ -> find_opt_non_contractive (VarSet.add i is) t)
-  | _ -> return None
+  | _ -> pure None
 
 let find_opt_non_contractive_mu at' f arity =
   match f with
   | `Lam (_, i, _, f) -> (
     let xs = List.init arity @@ fun _ -> var @@ Var.fresh at' in
     apps_of_norm Loc.dummy f xs >>- unapp >>= function
-    | (`Var (_, i') as mu), _ when Var.equal i' i -> return @@ Some mu
+    | (`Var (_, i') as mu), _ when Var.equal i' i -> pure @@ Some mu
     | t, _ -> find_opt_non_contractive (VarSet.singleton i) t)
-  | _ -> return None
+  | _ -> pure None
 
 (* *)
 
@@ -506,23 +508,23 @@ let rec infer = function
           >>= Option.iter_er (fun typ' ->
                   let* typ = resolve typ and* typ' = resolve typ' in
                   fail @@ `Error_mu_non_contractive (at', typ, typ')))
-       >> (mu_of_norm at' f <*> return kind)
-  | `Const (at', c) as t -> return @@ (t, Const.kind_of at' c)
-  | `Var (_, i) as t -> return t <*> VarEnv.kind_of i
+       >> (mu_of_norm at' f <*> pure kind)
+  | `Const (at', c) as t -> pure @@ (t, Const.kind_of at' c)
+  | `Var (_, i) as t -> pure t <*> VarEnv.kind_of i
   | `Lam (at', d, d_kind, r) ->
     let* r, r_kind = infer r |> VarEnv.adding d @@ `Kind d_kind
     and* d_kind = Kind.resolve d_kind in
-    lam_of_norm at' d d_kind r <*> return @@ `Arrow (at', d_kind, r_kind)
+    lam_of_norm at' d d_kind r <*> pure @@ `Arrow (at', d_kind, r_kind)
   | `App (at', f, x) ->
     let* f, f_kind = infer f and* x, d_kind = infer x in
     let c_kind = Kind.fresh at' in
     Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
-    >> (app_of_norm at' f x <*> return c_kind)
+    >> (app_of_norm at' f x <*> pure c_kind)
   | `For (at', q, f) ->
     let* f, f_kind = infer f in
     let d_kind = Kind.fresh at' and c_kind = `Star at' in
     Kind.unify at' (`Arrow (at', d_kind, c_kind)) f_kind
-    >> return (`For (at', q, f), c_kind)
+    >> pure (`For (at', q, f), c_kind)
   | `Arrow (at', d, c) ->
     let star = `Star at' in
     check star d <*> check star c >>- fun (d, c) -> (`Arrow (at', d, c), star)
@@ -532,11 +534,11 @@ let rec infer = function
     (`Row (at', m, ls), star)
   | `Bop (at', o, l, r) ->
     infer l <*> infer r >>= fun ((l, lk), (r, rk)) ->
-    Kind.unify at' lk rk >> (bop_of_norm o at' l r <*> return lk)
+    Kind.unify at' lk rk >> (bop_of_norm o at' l r <*> pure lk)
 
 and check expected t =
   let* t, actual = infer t in
-  Kind.unify (at t) expected actual >> return t
+  Kind.unify (at t) expected actual >> pure t
 
 (* *)
 
@@ -545,7 +547,7 @@ let join_of_norm at' (l : Core.t) (r : Core.t) =
 
 (* *)
 
-let infer t = infer t >>= Pair.map_er solve_of_norm return
+let infer t = infer t >>= Pair.map_er solve_of_norm pure
 let check k = check k >=> solve_of_norm
 
 (* *)
@@ -557,7 +559,7 @@ let check_and_resolve k = check k >=> Core.resolve
 
 let as_predicate check l r =
   check Loc.dummy l r
-  |> tryin (const @@ return false) (const @@ return true)
+  |> tryin (const @@ pure false) (const @@ pure true)
   |> Kind.UnkEnv.cloning
 
 let is_sub_of_norm l r = as_predicate check_sub_of_norm l r

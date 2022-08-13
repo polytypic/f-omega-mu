@@ -176,7 +176,7 @@ module Make () : S = struct
     let smallest is_free i =
       let rec loop c =
         let u = set_counter c i in
-        is_free u >>= function false -> return u | true -> loop (c + 1)
+        is_free u >>= function false -> pure u | true -> loop (c + 1)
       in
       loop 0
   end
