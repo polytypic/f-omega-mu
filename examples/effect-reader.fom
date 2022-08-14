@@ -1,0 +1,27 @@
+# Effect reader
+
+type pure = λF.λ_.{pure: ∀α.α → F α}
+type bind = λF.λD.{bind: ∀α.∀β.(α → D → F β) → (D → F α) → F β}
+
+let pure = ΛF.ΛD.Λα.λx: α.λF: pure F D.F.pure«α» x
+let bind = ΛF.ΛD.Λα.Λβ.
+  λxyE: α → D → F β.λxE: D → F α.λF: bind F D.F.bind«α»«β» xyE xE
+
+type monad = pure ∧ bind
+
+type id = λα.α
+type Id = μ(monad id)
+let μId: Id = {
+  pure = λx.x
+  bind = λxyE.λxE.xyE (xE Id) Id
+}
+
+let μfib: ∀F.int → μ(monad F) → F int = ΛF.λn.
+  if n ≤ 1 then
+    pure«F»«μ(monad F)»«int» n
+  else
+    fib«F» (n - 2) ▷ bind«F»«μ(monad F)»«int»«int» λn2.
+    fib«F» (n - 1) ▷ bind«F»«μ(monad F)»«int»«int» λn1.
+    pure«F»«μ(monad F)»«int» (n2 + n1)
+
+fib«id» 10 Id
