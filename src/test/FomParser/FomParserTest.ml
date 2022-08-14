@@ -44,3 +44,9 @@ let () =
   @@ function
   | `Gen _ -> unit
   | _ -> verify false
+
+let () =
+  test "parse error" @@ fun () ->
+  ""
+  |> Parser.parse_utf_8 Grammar.mods Lexer.offside
+  |> tryin (fun _ -> pure ()) (fun _ -> verify false)
