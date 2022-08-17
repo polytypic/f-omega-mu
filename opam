@@ -19,5 +19,4 @@ depends: [
   "pprint"
   "rea"
   "sedlex"
-  "uutf"
 ]
