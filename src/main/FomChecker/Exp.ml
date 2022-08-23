@@ -99,6 +99,19 @@ let rec infer e =
         Annot.Exp.def d x_typ >> VarEnv.adding d x_typ (infer r)
       in
       (`App (at', `Lam (at', d, x_typ, r), x), r_typ)
+    | `Case (at'2, `Product (at'3, [(l, `LamImp (at'4, i, e))])) -> (
+      let* x, x_typ = infer x in
+      let* ls = Typ.check_sum at' x_typ in
+      match ls with
+      | [(l', t)] when Label.equal l' l ->
+        let+ e, e_typ = Annot.Exp.def i t >> VarEnv.adding i t (infer e) in
+        ( `App
+            (at', `Case (at'2, `Product (at'3, [(l, `Lam (at'4, i, t, e))])), x),
+          e_typ )
+      | _ ->
+        fail
+        @@ `Error_typ_unexpected
+             (at', Printf.sprintf "'%s _" (Label.to_string l), x_typ))
     | f ->
       let* f, f_typ = infer f in
       let* d_typ, c_typ = Typ.check_arrow (at f) f_typ in

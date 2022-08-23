@@ -62,6 +62,7 @@ module Exp = struct
       [ `Var of Loc.t * Var.t
       | `Const of Loc.t * [`Unit]
       | `Annot of Loc.t * t * Typ.t
+      | `Inject of Loc.t * Label.t * t
       | `Product of Loc.t * t Row.t
       | `Pack of Loc.t * t * Typ.Var.t * Kind.t ]
 
@@ -71,6 +72,7 @@ module Exp = struct
         | `Var (_, i) -> (ts, i :: is)
         | `Const (_, `Unit) -> (ts, is)
         | `Annot (_, p, _) -> collect (ts, is) p
+        | `Inject (_, _, p) -> collect (ts, is) p
         | `Product (_, ps) ->
           ps
           |> List.fold_left (fun (ts, is) (_, p) -> collect (ts, is) p) (ts, is)
@@ -95,6 +97,7 @@ module Exp = struct
       | `Var (_, i) -> Var.pp i
       | `Const (_, `Unit) -> unit'
       | `Annot (_, p, _) -> pp p
+      | `Inject (_, l, p) -> tick ^^ Label.pp l ^^ space ^^ pp p
       | `Product (_, ls) ->
         if Row.is_tuple ls then
           ls
@@ -115,6 +118,7 @@ module Exp = struct
       | `Var (at, _)
       | `Const (at, _)
       | `Annot (at, _, _)
+      | `Inject (at, _, _)
       | `Product (at, _)
       | `Pack (at, _, _, _) ->
         at

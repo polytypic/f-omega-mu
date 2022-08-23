@@ -257,6 +257,7 @@ let lam at i t_opt e =
 let rec type_of_pat_lam = function
   | `Annot (_, _, t) -> pure t
   | `Const (_, `Unit) as t -> pure t
+  | `Inject (at, l, p) -> type_of_pat_lam p >>- fun t -> Typ.sum at [(l, t)]
   | `Product (at, fs) -> Row.map_er type_of_pat_lam fs >>- Typ.product at
   | `Var _ | `Pack _ -> zero
 
@@ -266,6 +267,11 @@ let rec pat_to_exp p' e' = function
   | `Product (at, []) ->
     `App (at, `Lam (at, Exp.Var.fresh at, Typ.product at [], e'), p')
   | `Annot (at, p, t) -> pat_to_exp (`Annot (at, p', t)) e' p
+  | `Inject (at, l, p) ->
+    let i = Pat.id_for p in
+    let t_opt = type_of_pat_lam p |> run Option.monad_plus |> Option.of_rea in
+    let e' = pat_to_exp (`Var (at, i)) e' p in
+    `App (at, `Case (at, `Product (at, [(l, lam at i t_opt e')])), p')
   | `Product (at, fs) ->
     fs |> List.rev
     |> List.fold_left

@@ -254,8 +254,13 @@ pat_atom:
   | "{" fs=list_n(pat_lab, ",") ","? "}"            {`Product ($loc, fs)}
   | "«" b=typ_pat "," p=pat "»"                     {`Pack ($loc, p, fst b, snd b)}
 
+pat_head:
+  | p=pat_atom                                      {p}
+  | "'" l=lab                                       {Exp.atom l}
+  | "'" l=lab p=pat_atom                            {`Inject ($loc, l, p)}
+
 pat:
-  | p=pat_atom t=pre(":", typ)?                     {Annot.opt Typ.at t p}
+  | p=pat_head t=pre(":", typ)?                     {Annot.opt Typ.at t p}
 
 //
 

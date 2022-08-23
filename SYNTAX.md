@@ -50,6 +50,7 @@ pat
   | pat ':' typ                                   // Type annotation
   | '(' (pat, ',')* ')'                           // Tuple pattern (*3)
   | '{' (lab (':' typ)? ('=' pat)?, ',')* '}'     // Product pattern
+  | "'" lab pat?                                  // Sum pattern
   | '«' typ_pat ',' pat '»'                       // Existential pack pattern
 
 def
