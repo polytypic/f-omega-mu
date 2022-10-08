@@ -16,10 +16,9 @@ exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
   suspend @@ fun resume ->
-  match try Ok (op ()) with e -> Error e with
-  | Ok p ->
-    Lwt.on_any p (fun x -> resume @@ `Ok x) (fun e -> resume @@ `Error e)
-  | Error e -> resume @@ `Error e
+  match op () with
+  | p -> Lwt.on_any p (fun x -> resume @@ `Ok x) (fun e -> resume @@ `Error e)
+  | exception e -> resume @@ `Error e
 
 let fetch at filename =
   of_lwt (fun () ->
@@ -227,12 +226,9 @@ let js_codemirror_mode =
       Tokenizer.keywords |> Array.of_list |> Array.map Js.string |> Js.array
 
     method token input state =
-      try
-        let {Tokenizer.begins; ends; name; state} =
-          input |> Js.to_string |> Tokenizer.token_info_utf_8 state
-        in
-        js_token begins ends name state
-      with _ -> js_token 0 0 "error" state
+      match input |> Js.to_string |> Tokenizer.token_info_utf_8 state with
+      | {Tokenizer.begins; ends; name; state} -> js_token begins ends name state
+      | exception _ -> js_token 0 0 "error" state
 
     val initial = Tokenizer.State.initial
 

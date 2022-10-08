@@ -22,10 +22,9 @@ exception HttpError of (int * Cohttp.Code.meth * Uri.t)
 
 let of_lwt op =
   suspend @@ fun resume ->
-  match try Ok (op ()) with e -> Error e with
-  | Ok p ->
-    Lwt.on_any p (fun x -> resume @@ `Ok x) (fun e -> resume @@ `Error e)
-  | Error e -> resume @@ `Error e
+  match op () with
+  | p -> Lwt.on_any p (fun x -> resume @@ `Ok x) (fun e -> resume @@ `Error e)
+  | exception e -> resume @@ `Error e
 
 let error_io at exn = fail @@ `Error_io (at, exn)
 
