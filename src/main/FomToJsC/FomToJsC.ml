@@ -81,7 +81,7 @@ let whole_program_to_js ~top ast paths =
           (FomToJs.erase ast)
     >>= FomToJs.simplify >>= FomToJs.to_js ~top
   in
-  to_string @@ match top with `Top -> str "'use strict'; " ^ js | `Body -> js
+  to_string @@ match top with `Top -> str "'use strict';; " ^ js | `Body -> js
 
 let compile_to_js_all paths =
   paths |> erase_and_simplify_all
@@ -102,7 +102,7 @@ let modules_to_js ~top ast paths =
          (str "// main\n" ^ prg)
   in
   to_string
-  @@ match top with `Top -> str "'use strict';\n\n" ^ js | `Body -> js
+  @@ match top with `Top -> str "'use strict';;\n\n" ^ js | `Body -> js
 
 let to_js ~whole ~top =
   if whole then whole_program_to_js ~top else modules_to_js ~top
