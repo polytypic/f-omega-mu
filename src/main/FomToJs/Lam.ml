@@ -173,42 +173,48 @@ let rec called_at_tail n f' e =
     fs |> List.exists (fun (_, f) -> called_at_tail n f' (`App (f, v)))
   | _ -> false
 
-let rec always_selected i' = function
-  | `Const _ -> true
-  | `Var i -> not (Var.equal i i')
-  | `Lam (i, e) -> Var.equal i' i || always_selected i' e
-  | `App (f, x) -> always_selected i' f && always_selected i' x
-  | `IfElse (c, t, e) ->
-    always_selected i' c && always_selected i' t && always_selected i' e
-  | `Product fs -> fs |> List.for_all (snd >>> always_selected i')
-  | `Mu e | `Inject (_, e) | `Case e -> always_selected i' e
-  | `Select (`Var i, l) when Var.equal i i' -> always_selected i' l
-  | `Select (e, l) -> always_selected i' e && always_selected i' l
+let always_selected i' =
+  let rec always_selected = function
+    | `Const _ -> true
+    | `Var i -> not (Var.equal i i')
+    | `Lam (i, e) -> Var.equal i' i || always_selected e
+    | `App (f, x) -> always_selected f && always_selected x
+    | `IfElse (c, t, e) ->
+      always_selected c && always_selected t && always_selected e
+    | `Product fs -> fs |> List.for_all (snd >>> always_selected)
+    | `Mu e | `Inject (_, e) | `Case e -> always_selected e
+    | `Select (`Var i, l) when Var.equal i i' -> always_selected l
+    | `Select (e, l) -> always_selected e && always_selected l
+  in
+  always_selected
 
-let rec is_immediately_evaluated i' e =
-  match unapp e with
-  | `Var i, xs -> Var.equal i i' || [] <> xs
-  | `Const _, xs -> List.exists (is_immediately_evaluated i') xs
-  | `Lam _, [] -> false
-  | `Lam (i, e), x :: xs ->
-    is_immediately_evaluated i' x
-    || List.exists (is_immediately_evaluated i') xs
-    || ((not (Var.equal i i')) && is_immediately_evaluated i' (apps e xs))
-  | `IfElse (c, t, e), xs ->
-    is_immediately_evaluated i' c
-    || List.exists (is_immediately_evaluated i') xs
-    ||
-    let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
-    is_immediately_evaluated i' (apps t xs)
-    || is_immediately_evaluated i' (apps e xs)
-  | `Product fs, _ -> fs |> List.exists (snd >>> is_immediately_evaluated i')
-  | `Select (e, l), [] ->
-    is_immediately_evaluated i' e || is_immediately_evaluated i' l
-  | `Inject (_, e), _ -> is_immediately_evaluated i' e
-  | `Case cs, [] -> is_immediately_evaluated i' cs
-  | `Case (`Product cs), (_ :: _ as xs) ->
-    List.exists (is_immediately_evaluated i') xs
-    ||
-    let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
-    cs |> List.exists (fun (_, f) -> is_immediately_evaluated i' (apps f xs))
-  | _ -> true
+let is_immediately_evaluated i' =
+  let rec is_immediately_evaluated e =
+    match unapp e with
+    | `Var i, xs -> Var.equal i i' || [] <> xs
+    | `Const _, xs -> List.exists is_immediately_evaluated xs
+    | `Lam _, [] -> false
+    | `Lam (i, e), x :: xs ->
+      is_immediately_evaluated x
+      || List.exists is_immediately_evaluated xs
+      || ((not (Var.equal i i')) && is_immediately_evaluated (apps e xs))
+    | `IfElse (c, t, e), xs ->
+      is_immediately_evaluated c
+      || List.exists is_immediately_evaluated xs
+      ||
+      let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
+      is_immediately_evaluated (apps t xs)
+      || is_immediately_evaluated (apps e xs)
+    | `Product fs, _ -> fs |> List.exists (snd >>> is_immediately_evaluated)
+    | `Select (e, l), [] ->
+      is_immediately_evaluated e || is_immediately_evaluated l
+    | `Inject (_, e), _ -> is_immediately_evaluated e
+    | `Case cs, [] -> is_immediately_evaluated cs
+    | `Case (`Product cs), (_ :: _ as xs) ->
+      List.exists is_immediately_evaluated xs
+      ||
+      let xs = xs |> List.map (fun _ -> `Var (Var.fresh Loc.dummy)) in
+      cs |> List.exists (fun (_, f) -> is_immediately_evaluated (apps f xs))
+    | _ -> true
+  in
+  is_immediately_evaluated

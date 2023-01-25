@@ -114,25 +114,26 @@ module Const = struct
     | _ -> pure None
 end
 
-let rec always_applied_to_inject i' e =
-  let f, xs = unapp e in
-  List.for_all (always_applied_to_inject i') xs
-  &&
-  match f with
-  | `Const _ -> true
-  | `Var i -> (
-    (not (Var.equal i' i))
-    || match List.rev xs with `Inject _ :: _ -> true | _ -> false)
-  | `Lam (i, e) -> Var.equal i' i || always_applied_to_inject i' e
-  | `App _ -> failwith "always_applied_to_inject"
-  | `IfElse (c, t, e) ->
-    always_applied_to_inject i' c
-    && always_applied_to_inject i' t
-    && always_applied_to_inject i' e
-  | `Product fs -> fs |> List.for_all (snd >>> always_applied_to_inject i')
-  | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject i' e
-  | `Select (e, l) ->
-    always_applied_to_inject i' e && always_applied_to_inject i' l
+let always_applied_to_inject i' =
+  let rec always_applied_to_inject e =
+    let f, xs = unapp e in
+    List.for_all always_applied_to_inject xs
+    &&
+    match f with
+    | `Const _ -> true
+    | `Var i -> (
+      (not (Var.equal i' i))
+      || match List.rev xs with `Inject _ :: _ -> true | _ -> false)
+    | `Lam (i, e) -> Var.equal i' i || always_applied_to_inject e
+    | `App _ -> failwith "always_applied_to_inject"
+    | `IfElse (c, t, e) ->
+      always_applied_to_inject c && always_applied_to_inject t
+      && always_applied_to_inject e
+    | `Product fs -> fs |> List.for_all (snd >>> always_applied_to_inject)
+    | `Mu e | `Inject (_, e) | `Case e -> always_applied_to_inject e
+    | `Select (e, l) -> always_applied_to_inject e && always_applied_to_inject l
+  in
+  always_applied_to_inject
 
 let rec occurs_in_total_position ~once i' e =
   eta'0 @@ fun () ->

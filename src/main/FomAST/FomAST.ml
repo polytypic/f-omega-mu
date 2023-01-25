@@ -271,11 +271,14 @@ module Typ = struct
 
     (* *)
 
-    let rec is_free i = function
-      | `Var (_, i') -> pure'2 Var.equal i i'
-      | `Lam (_, i', _, body) ->
-        if Var.equal i i' then pure false else is_free i body
-      | t -> exists_er (is_free i) t
+    let is_free i =
+      let rec is_free = function
+        | `Var (_, i') -> pure'2 Var.equal i i'
+        | `Lam (_, i', _, body) ->
+          if Var.equal i i' then pure false else is_free body
+        | t -> exists_er is_free t
+      in
+      is_free
 
     let mu_of_norm at = function
       | `Lam (_, i, _, t) as t' -> (
@@ -420,11 +423,14 @@ module Typ = struct
 
   let subst_rec env t = if VarMap.is_empty env then t else subst_rec env t
 
-  let rec is_free i = function
-    | `Var (_, i') -> pure'2 Var.equal i i'
-    | `Lam (_, i', _, body) ->
-      if Var.equal i i' then pure false else is_free i body
-    | t -> exists_er (is_free i) t
+  let is_free i =
+    let rec is_free = function
+      | `Var (_, i') -> pure'2 Var.equal i i'
+      | `Lam (_, i', _, body) ->
+        if Var.equal i i' then pure false else is_free body
+      | t -> exists_er is_free t
+    in
+    is_free
 
   (* Freshening *)
 

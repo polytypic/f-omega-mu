@@ -430,22 +430,25 @@ let check_equal_of_norm at' l r = eq at' l r |> Goals.resetting
 
 (* *)
 
-let rec find_map_from_all_apps_of i' p = function
-  | `Lam (_, i, _, t) ->
-    if Var.equal i i' then pure None else find_map_from_all_apps_of i' p t
-  | (`App _ | `Var _) as t -> (
-    match unapp t with
-    | (`Var (_, i) as f), xs ->
-      if Var.equal i i' then
-        p t f xs >>= function
-        | None -> xs |> List.find_map_er (find_map_from_all_apps_of i' p)
-        | some -> pure some
-      else xs |> List.find_map_er (find_map_from_all_apps_of i' p)
-    | f, xs -> (
-      find_map_from_all_apps_of i' p f >>= function
-      | None -> xs |> List.find_map_er (find_map_from_all_apps_of i' p)
-      | some -> pure some))
-  | t -> find_map_er (find_map_from_all_apps_of i' p) t
+let find_map_from_all_apps_of i' p =
+  let rec find_map_from_all_apps_of = function
+    | `Lam (_, i, _, t) ->
+      if Var.equal i i' then pure None else find_map_from_all_apps_of t
+    | (`App _ | `Var _) as t -> (
+      match unapp t with
+      | (`Var (_, i) as f), xs ->
+        if Var.equal i i' then
+          p t f xs >>= function
+          | None -> xs |> List.find_map_er find_map_from_all_apps_of
+          | some -> pure some
+        else xs |> List.find_map_er find_map_from_all_apps_of
+      | f, xs -> (
+        find_map_from_all_apps_of f >>= function
+        | None -> xs |> List.find_map_er find_map_from_all_apps_of
+        | some -> pure some))
+    | t -> find_map_er find_map_from_all_apps_of t
+  in
+  find_map_from_all_apps_of
 
 let find_opt_nested_arg_mu at' f arity =
   if arity <= 0 then pure None

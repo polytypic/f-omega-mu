@@ -118,10 +118,13 @@ let lams is = List.fold_right (fun i e -> `Lam (i, e)) is
 
 (* *)
 
-let rec is_free i = function
-  | `Var i' -> Var.equal i i'
-  | `Lam (i', e) -> (not (Var.equal i i')) && is_free i e
-  | e -> exists (is_free i) e
+let is_free i =
+  let rec is_free = function
+    | `Var i' -> Var.equal i i'
+    | `Lam (i', e) -> (not (Var.equal i i')) && is_free e
+    | e -> exists is_free e
+  in
+  is_free
 
 let eq l r =
   match (l, r) with
