@@ -133,7 +133,7 @@ incs                                              // Syntax of .fomd includes
   to come from the specified file and line.
 
 - String literals are JSON strings with a couple of additions. See
-  [example in sandbox](https://polytypic.github.io/f-omega-mu/#*examples/template-strings.fom)
+  [example in sandbox](https://polytypic.github.io/f-omega-mu/main#*examples/template-strings.fom)
   for details.
 
 - The initial type environment has bindings for the builtin types
@@ -218,6 +218,7 @@ incs                                              // Syntax of .fomd includes
 |            `◁` | <code>&lt;&#124;</code>   |
 |            `◇` | `<>`                      |
 
-Additionally, in the [online editor](https://polytypic.github.io/f-omega-mu/), a
-backslash `\` followed by a symbol name, e.g. `\alpha`, is considered an escape
-to be replaced with a unicode character, e.g. `α`, on space.
+Additionally, in the
+[online editor](https://polytypic.github.io/f-omega-mu/main), a backslash `\`
+followed by a symbol name, e.g. `\alpha`, is considered an escape to be replaced
+with a unicode character, e.g. `α`, on space.

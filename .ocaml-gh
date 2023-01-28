@@ -1,0 +1,138 @@
+#!/bin/bash
+
+export PROJECT=f-omega-mu
+export GIT_DEPS=(https://github.com/polytypic/StdlibPlus.git)
+export GIT=git@github.com:polytypic/$PROJECT.git
+
+export WATCHEXEC_OPTS=(--ignore '*.fomi' --ignore '*.js' --ignore '*.out')
+
+export FOM_COMMAND=_build/default/src/main/FomCommand/FomCommand.exe
+
+foms=(examples/*.fom regression/*.fom)
+
+ocaml-gh-ci-after-build-and-test() {
+
+  folded "Building JS runtime" \
+    build-js src/main/FomToJsRT/FomToJsRT.bc.js docs/FomToJsRT.js
+
+  folded "Typing examples" \
+    timeout 10 type_examples
+
+  folded "Running error examples" \
+    timeout 10 run_error_examples
+
+  folded "Compiling and Evaluating examples" \
+    timeout 10 js_and_eval_examples
+}
+
+type_examples() {
+  for fom in "${foms[@]}"; do
+    read -r code
+    echo "$code" > "${fom%.fom}.fomi"
+  done < <($FOM_COMMAND -max-width 0 -stop type "${foms[@]}")
+}
+
+eval_examples() {
+  for fom in "${foms[@]}"; do
+    read -r code
+    echo "$code" > "${fom%.fom}.out"
+  done < <($FOM_COMMAND -max-width 0 -stop eval "${foms[@]}")
+}
+
+js_examples() {
+  for fom in "${foms[@]}"; do
+    read -r code
+    echo "$code" > "${fom%.fom}.js"
+  done < <($FOM_COMMAND -max-width 0 -stop js "${foms[@]}")
+
+  prettier -w examples/*.js regression/*.js > /dev/null
+}
+
+js_and_eval_examples() {
+  parallel js_examples eval_examples
+}
+
+error_foms=(examples/errors/*.fom)
+
+run_error_examples() {
+  for fom in "${error_foms[@]}"; do
+    out="${fom%.fom}.out"
+    if $FOM_COMMAND "$fom" 2>&1 | sed -e "s#$(pwd)##g" > "$out"; then
+      echo "$fom unexpectedly ran successfully"
+      exit 1
+    fi
+  done
+}
+
+#
+
+ocaml-gh-ci-after-build-docs() {
+  build-examples &
+
+  build-js src/main/FomSandbox/FomSandbox.bc.js docs/FomSandbox.js
+
+  wait
+}
+
+build-js() {
+  local TARGET="$1"
+  local OUTPUT="$2"
+
+  opam exec -- dune build --root=. --profile release "./$TARGET"
+
+  echo "'use strict';"            > "$OUTPUT"
+  cat "./_build/default/$TARGET" >> "$OUTPUT"
+}
+
+build-examples() {
+  local OUTPUT=docs/examples.js
+
+  rm -rf docs/examples
+  mkdir -p docs/examples
+
+  echo "export const examples = [" > $OUTPUT
+  for example in examples/*.fom; do
+    cp "$example" docs/examples/
+    echo "  '$example'," >> $OUTPUT
+  done
+  echo "]" >> $OUTPUT
+
+  cp -r examples/lib docs/examples/lib
+  cp -r examples/errors docs/examples/errors
+
+  rm -rf docs/regression
+  mkdir -p docs/regression
+  cp regression/*.fom docs/regression
+}
+
+#
+
+timeout() {
+  local TIMEOUT="$1"
+  shift
+  "$@" & local PID=$!
+  (sleep "$TIMEOUT"; kill $PID 2>/dev/null || true) & local WAITER=$!
+  local EXIT_CODE=0
+  wait $PID 2>/dev/null || EXIT_CODE=$?
+  if ! kill $WAITER 2>/dev/null; then
+    echo TIMEOUT: "$@" 2>&1
+    return "$TIMEOUT"
+  fi
+  return $EXIT_CODE
+}
+
+parallel() {
+  local PIDS=()
+  while [ $# != 0 ]; do
+    $1 & PIDS+=($!)
+    shift
+  done
+  for PID in "${PIDS[@]}"; do
+    local EXIT_CODE=0
+    wait "$PID" 2>/dev/null || EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+      kill "${PIDS[@]}" 2>/dev/null || true
+      return $EXIT_CODE
+    fi
+  done
+}

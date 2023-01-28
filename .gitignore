@@ -1,4 +1,5 @@
 _build
 _opam
 examples/*.fom.js
+ocaml-gh
 regression/*.fom.js

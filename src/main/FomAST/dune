@@ -1,3 +1,3 @@
 (library
  (name FomAST)
- (libraries FomSource StdlibPlus bignum))
+ (libraries FomSource stdlibplus bignum))

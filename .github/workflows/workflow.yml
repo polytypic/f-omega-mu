@@ -14,7 +14,8 @@ jobs:
         os:
           - ubuntu-latest
         ocaml-compiler:
-          - 4.14.0
+          - 5.x
+          - 4.x
 
     runs-on: ${{ matrix.os }}
 
@@ -29,6 +30,12 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
+      - name: Clone ocaml-gh
+        run: git clone --depth 1 https://github.com/polytypic/ocaml-gh.git
+
+      - name: Install Git Deps
+        run: ./ocaml-gh/bin/ocaml-gh install-git-deps
+
       - name: Install dependencies
         run: opam pin . --yes
 
@@ -36,4 +43,4 @@ jobs:
         run: npm i -g prettier@2.5.1
 
       - name: Build and test
-        run: ./script/ci
+        run: ./ocaml-gh/bin/ocaml-gh ci
