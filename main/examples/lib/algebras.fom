@@ -1,0 +1,36 @@
+include "algebras"
+
+let Identity =
+  let of = Λα.λx: α.x
+  let ap = Λα.Λβ.of«α → β»
+  let chain = ap
+  {of, ap, chain}
+
+let Constant = Λγ.
+  let map = Λα.Λβ.λ_: α → β.λx: γ.x
+  {map}
+
+let Applicative =
+  let map = Λ𝐹.λF: Applicative 𝐹.Λα.Λβ.λxy: α → β.λxF: 𝐹 α.
+    F.ap«α»«β» (F.of«α → β» xy) xF
+  {map}
+
+let Monad =
+  let map = Λ𝐹.λF: Monad 𝐹.Λα.Λβ.λxy: α → β.λxF: 𝐹 α.
+    xF ▷ F.chain«α»«β» λx.
+    F.of«β» (xy x)
+  {map}
+
+let Traversable =
+  let sequence = Λ𝐹.λF: Applicative 𝐹.Λ𝑇.λT: Traversable 𝑇.Λα.
+    T.traverse«𝐹» F «𝐹 α» «α» λxF.xF
+  {sequence}
+
+let Profunctor =
+  let map = Λ𝐹.λF: Profunctor 𝐹.Λγ.
+    Λα.Λβ.λab: α → β.F.promap«γ»«γ»«α»«β» (λx.x) ab
+  let contramap = Λ𝐹.λF: Profunctor 𝐹.Λγ.
+    Λα.Λβ.λab: α → β.F.promap«α»«β»«γ»«γ» ab (λx.x)
+  {map, contramap}
+
+{Identity, Constant, Applicative, Monad, Profunctor, Traversable}

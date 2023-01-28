@@ -1,0 +1,5 @@
+include "../lib/univ.fomd"
+
+type opt_should_not_be_accessible = opt
+
+()

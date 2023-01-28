@@ -1,0 +1,60 @@
+# Object-oriented integer set implementations
+
+# This is a translation of snippets from the essay
+#
+#   On Understanding Data Abstraction, Revisited
+#   by William R. Cook.
+
+type μISet = {
+    isEmpty: bool
+    contains: int → bool
+    insert: int → ISet
+    union: ISet → ISet
+  }
+
+let μInsert: (ISet, int) → ISet = λ(s, n).
+  if s.contains n then s else μthis.{
+    isEmpty = false
+    contains = λi.i =«int» n ∨ s.contains i
+    insert = λi.Insert (this, i)
+    union = λs.Union (this, s)
+  }
+
+and μUnion: (ISet, ISet) → ISet = λ(s1, s2).
+  μthis.{
+    isEmpty = s1.isEmpty ∧ s2.isEmpty
+    contains = λi.s1.contains i ∨ s2.contains i
+    insert = λi.Insert (this, i)
+    union = λs.Union (this, s)
+  }
+
+let μEmpty: ISet = {
+    isEmpty = true
+    contains = λ_.false
+    insert = λi.Insert (Empty, i)
+    union = λs.s
+  }
+
+let μEven: ISet = {
+    isEmpty = false
+    contains = λi.i % 2 =«int» 0
+    insert = λi.Insert (Even, i)
+    union = λs.Union (Even, s)
+  }
+
+let μFull: ISet = {
+   isEmpty = false
+   contains = λ_.true
+   insert = λ_.Full
+   union = λ_.Full
+ }
+
+let Interval: (int, int) → ISet = λ(n, m).
+  μthis.{
+    isEmpty = n > m
+    contains = λi.n ≤ i ∧ i ≤ m
+    insert = λi.Insert (this, i)
+    union = λs.Union (this, s)
+  }
+
+Empty.insert(4).union(Empty.insert 2)

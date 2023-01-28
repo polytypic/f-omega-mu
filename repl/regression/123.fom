@@ -1,0 +1,19 @@
+let warn = λs: string.target«string → impure ()» "_ => {}" s ▷ keep«()»
+
+warn "1"
+let fn = λ{b: bool}.
+  let b =
+    warn "3"
+    b
+  if b then
+    warn "4"
+  else
+    warn "5"
+  warn "6"
+fn {
+  b = warn "2"
+      true
+}
+warn "7"
+warn "8"
+fn

@@ -1,0 +1,68 @@
+# Types of lists of various lengths
+
+# This example explores the idea that with equirecursive structural types it is
+# possible to encode some properties of the length of a list, such as that a
+# list is non-empty, without using number parameterized types.
+
+# An ordinary recursive list type
+type μlist_of_0_to_n = λα.'Nil | 'Cons (α, list_of_0_to_n α)
+
+# A list of exactly one element
+type  list_of_1      = λα.'Cons (α, 'Nil)
+
+# A list of one or more elements
+type  list_of_1_to_n = λα.'Cons (α, list_of_0_to_n α)
+
+# An infinite list (due to strictness these are always cycles)
+type μlist_of_inf    = λα.'Cons (α, list_of_inf α)
+
+# We now have the following subtype relationships:
+#
+#   list_of_1_to_n α  ⊂  list_of_0_to_n α
+#      list_of_inf α  ⊂  list_of_1_to_n α
+#        list_of_1 α  ⊂  list_of_1_to_n α
+#
+# Or as a hierarhy:
+#
+#             list_of_0_to_n α
+#                     |
+#             list_of_1_to_n α
+#                    / \
+#         list_of_1 α   list_of_inf α
+#
+# Moreover, lists of any finite length or more can be similarly specified
+# yielding the expected subtype relationships.
+
+let an_empty_list     : list_of_0_to_n int = 'Nil
+let a_singleton_list  : list_of_1      int = 'Cons (2, 'Nil)
+let a_non_empty_list  : list_of_1_to_n int = 'Cons (101, 'Nil)
+let μan_infinite_list : list_of_inf    int = 'Cons (42, an_infinite_list)
+
+# Type safe function to get the first element of a non-empty list:
+let head: ∀α.list_of_1_to_n α → α = case { Cons = λ(x, _).x }
+
+let _ = head«int» an_infinite_list
+let _ = head«int» a_non_empty_list
+let _ = head«int» 'Cons(4, an_empty_list)
+
+# Extract the only element of a one element list:
+let only: ∀α.list_of_1 α → α = case { Cons = λ(x, _).x }
+
+let _ = only«int» a_singleton_list
+
+# The type of `cycle` guarantees that it returns an infinite list:
+let cycle: ∀α.list_of_1_to_n α → list_of_inf α = Λα.λxxs.
+  μcycle.
+    let μcomplete: list_of_0_to_n α → list_of_inf α = λxs.
+      # Equality is work-in-progress 🤫
+      if xxs =«list_of_0_to_n α» xs then
+        cycle
+      else
+        xs ▷ case {
+          Nil = λ().cycle
+          Cons = λ(x, xs).'Cons (x, complete xs)
+        }
+    xxs ▷ case { Cons = λ(x, xs).'Cons (x, complete xs) }
+
+cycle«int» 'Cons(4, a_singleton_list)
+▷ cycle«int»

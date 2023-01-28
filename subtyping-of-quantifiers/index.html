@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
+    />
+    <title>F&#969;μ type checker and compiler</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://cdn.jsdelivr.net/gh/hyrious/github-markdown-css/github-markdown.css"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/hint/show-hint.min.css"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css"
+    />
+    <link rel="stylesheet" type="text/css" href="index.css" />
+  </head>
+  <body class="markdown-body">
+    <h1>
+      F<span class="om"><span>&#969;</span><span>μ</span></span>
+      type checker and compiler &mdash; Sandbox &middot;
+      <a href="https://github.com/polytypic/f-omega-mu"
+        ><img
+          src="https://img.shields.io/github/stars/polytypic/f-omega-mu.svg?style=social"
+          alt="GitHub stars"
+      /></a>
+    </h1>
+    <div id="fomDiv"></div>
+    <div id="resultDiv"></div>
+    <div id="typDiv"></div>
+    <p>
+      Try
+      <a
+        target="_blank"
+        href="https://github.com/polytypic/f-omega-mu/blob/main/SYNTAX.md"
+        >F<span class="om"><span>&#969;</span><span>μ</span></span></a
+      >
+      above!
+      <select id="exampleSelect">
+        <option value="" disabled selected>EXAMPLES</option>
+      </select>
+    </p>
+    <div>
+      <input id="editInput" type="checkbox" checked />
+      <label for="editInput">Allow editing</label>
+      <span id="replaceSymbolsSpan">
+        <input id="replaceSymbolsInput" type="checkbox" checked />
+        <label for="replaceSymbolsInput">
+          Replace
+          <a
+            target="_blank"
+            href="https://github.com/polytypic/f-omega-mu/blob/main/SYNTAX.md#alternative-tokens"
+            >mnemonics</a
+          >
+          on space
+        </label>
+      </span>
+      <input id="wholeSelect" type="checkbox" checked />
+      <label for="wholeSelect">Whole program compilation</label>
+      <input id="jsSelect" type="checkbox" checked />
+      <label for="jsSelect">Show JavaScript</label>
+      <span id="terserSpan">
+        <input id="terserInput" type="checkbox" />
+        <label for="terserInput"
+          ><a target="_blank" href="https://github.com/terser/terser">Terser</a>
+          JS</label
+        >
+      </span>
+      <span id="prettifySpan">
+        <input id="prettifyInput" type="checkbox" checked />
+        <label for="prettifyInput"
+          ><a target="_blank" href="https://prettier.io/">Prettier</a> JS</label
+        >
+      </span>
+      <div id="jsDiv"></div>
+    </div>
+    <div id="depsDiv" style="display: none">
+      <input id="depsSelect" type="checkbox" checked />
+      <label for="depsSelect">Show dependencies</label>
+      <dl id="depsDl"></dl>
+    </div>
+    <script
+      type="text/javascript"
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/hint/show-hint.min.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"
+    ></script>
+    <script type="text/javascript" src="FomToJsRT.js"></script>
+    <script type="text/javascript" src="FomSandbox.js"></script>
+    <script type="text/javascript" src="prelude.js"></script>
+    <script type="module" src="setup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+# Stack ADT using an existential type
+
+include "lib/types"
+
+type Stack = λstack.{
+  empty: ∀α.stack α
+  push: ∀α.α → stack α → stack α
+  pop: ∀α.stack α → opt (α, stack α)
+}
+
+let «stack, Stack»: ∃(Stack) = «list, {
+  empty = 'Nil
+  push = λx.λxs.'Cons (x, xs)
+  pop = case {
+    Nil = λ().'None
+    Cons = λxxs.'Some xxs
+  }
+}»
+
+let a_stack =
+  Stack.empty«int»
+  ▷ Stack.push«int» 3
+  ▷ Stack.push«int» 1
+  ▷ Stack.push«int» 5
+
+let μto_list: ∀α.stack α → list α = Λα.λs.
+  Stack.pop«α» s ▷ case {
+    None = λ().'Nil
+    Some = λ(x, xs).'Cons (x, to_list«α» xs)
+  }
+
+to_list«int» a_stack

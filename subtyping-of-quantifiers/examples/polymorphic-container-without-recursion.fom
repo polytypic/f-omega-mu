@@ -1,0 +1,48 @@
+# Polymorphic container without recursion
+
+# Inspired by
+#
+#   Getting around polymorphism restrictions using Category Theory and pretense
+#   by Oleg Kiselyov
+#   http://okmij.org/ftp/Computation/extra-polymorphism.html#irregular
+#
+# this avoids the issue entirely by not using recursion.
+
+let Int = import "lib/int"
+
+# This is like in TAPL, section 32.4., except that `τ` takes a parameter.
+
+type Object = λM.λα.∃τ.(τ α, M τ)
+
+type ContainerM = λcontainer.{
+  get: ∀α.container α → α
+  map: ∀α.∀β.(α → β) → container α → container β
+}
+
+let ContainerC: ContainerM λx.x = {
+  get = λx.x
+  map = λab.ab
+}
+
+let container: ∀α.α → Object ContainerM α = λx.«λx.x, (x, ContainerC)»
+
+# Unlike in TAPL we use an explicit coercion (naïve witness) to encode bounded
+# quantification.
+
+type ContainerB = λM.∀τ.M τ → ContainerM τ
+
+let get: ∀M.ContainerB M → ∀α.Object M α → α =
+  λB.Λα.λ«τ, (x, M)».
+    let C = B«τ» M
+    C.get«α» x
+
+let map: ∀M.ContainerB M → ∀α.∀β.(α → β) → Object M α → Object M β =
+  λB.Λα.Λβ.λab.λ«τ, (x, M)».
+    let C = B«τ» M
+    «τ, (C.map«α»«β» ab x, M)»
+
+let ContainerB = Λτ.λM: ContainerM τ.M
+
+container«int» 101
+▷ map«ContainerM» ContainerB «int» «string» Int.to_string
+▷ get«ContainerM» ContainerB «string»

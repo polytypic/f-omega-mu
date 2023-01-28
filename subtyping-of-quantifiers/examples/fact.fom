@@ -1,0 +1,9 @@
+# The traditional `fact`orial function
+
+let μfact: int → int =
+  λn.
+    if n ≤ 1
+    then 1
+    else n * fact (n - 1)
+
+fact 5

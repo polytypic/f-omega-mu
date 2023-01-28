@@ -1,0 +1,7 @@
+include "types"
+
+{
+  equals: string → string → bool
+  to_literal: string → string
+  join: list string → string
+}

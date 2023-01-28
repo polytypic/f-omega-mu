@@ -1,0 +1,14 @@
+# Equirecursive applicative fixpoint combinator
+
+# This example shows that with equirecursive types one can express the fixpoint
+# combinator.  This also serves as a test towards ensuring that such recursive
+# definitions do not make the compiler loop.
+
+let Z = Λα.Λβ.λf: (α → β) → α → β.
+  let z = λx: μτ.τ → α → β.f λv.x x v
+  z z
+
+let fact = Z«int»«int» λfact.
+  λn.if n ≤ 0 then 1 else n * fact (n-1)
+
+fact 5

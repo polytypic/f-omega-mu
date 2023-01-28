@@ -1,0 +1,36 @@
+# Type-indexed trie
+
+include "lib/types"
+
+type μTrie = λκ.λν.∀ρ.Cases ρ → ρ κ ν
+
+and μCases = λρ.{
+  Unit: ∀ν.                        opt ν → ρ ()          ν
+  Alt:  ∀ν.∀κ1.∀κ2.Trie κ1 ν → Trie κ2 ν → ρ (alt κ1 κ2) ν
+  Pair: ∀ν.∀κ1.∀κ2.  Trie κ1 (Trie κ2 ν) → ρ (κ1, κ2)    ν
+}
+
+let {Unit, Alt, Pair}: Cases Trie = {
+  Unit = Λν.λv.λcs.cs.Unit«ν» v
+  Alt  = Λν.Λκ1.Λκ2.λt1.λt2.λcs.cs.Alt«ν»«κ1»«κ2» t1 t2
+  Pair = Λν.Λκ1.Λκ2.λt.λcs.cs.Pair«ν»«κ1»«κ2» t
+}
+
+let match = Λρ.λcs: Cases ρ.Λκ.Λν.λt: Trie κ ν.t«ρ» cs
+
+let μlookup: ∀κ.∀ν.Trie κ ν → κ → opt ν = match«λκ.λν.κ → opt ν» {
+  Unit = λv.λ().v
+  Alt = Λν.Λκ1.Λκ2.λt1.λt2.case {
+      In1 = λk1.lookup«κ1»«ν» t1 k1
+      In2 = λk2.lookup«κ2»«ν» t2 k2
+    }
+  Pair = Λν.Λκ1.Λκ2.λt.λ(k1, k2).
+    lookup«κ1»«Trie κ2 ν» t k1 ▷ case {
+      None = λ().'None
+      Some = λt.lookup«κ2»«ν» t k2
+    }
+}
+
+let aTrie = Alt«int»«()»«()» Unit«int»('Some 101) Unit«int»('Some 42)
+
+lookup«alt () ()»«int» aTrie 'In2

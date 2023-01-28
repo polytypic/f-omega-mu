@@ -1,0 +1,21 @@
+include "types" in {
+  of: ∀α.α → list_of_1 α
+  map: ∀α.∀β.(α → β) → list α → list β
+  chain: ∀α.∀β.(α → list β) → list α → list β
+  has: ∀α.(α → bool) → list α → bool
+  fold: ∀α.∀ρ.(ρ → α → ρ) → ρ → list α → ρ
+  rev_to: ∀α.list α → list α → list α
+  rev: ∀α.list α → list α
+  filter: ∀α.(α → bool) → list α → list α
+  concat: ∀α.list α → list α → list α
+  infinite_of: ∀α.α → list_of_inf α
+  head: ∀α.list α → opt α
+  take_n: ∀α.int → list α → list α
+  drop_n: ∀α.int → list α → list α
+  nth: ∀α.int → list α → opt α
+  iota: int → list int
+  is_empty: ∀α.list α → bool
+  empty: ∀α.list α
+  prepend: ∀α.α → list α → list α
+  iter: ∀α.(α → ()) → list α → ()
+}

@@ -1,0 +1,106 @@
+# Stream fusion
+
+# Based on the paper
+#
+#   Stream fusion: From Lists to Streams to Nothing at All
+#   Duncan Coutts, Roman Leschinskiy, Don Stewart
+#   http://citeseer.ist.psu.edu/viewdoc/summary?doi=10.1.1.104.7401
+
+include "lib/types"
+
+let List = import "lib/list"
+
+type Stream = λstream.{
+  of_list: ∀α.list α → stream α
+  to_list: ∀α.stream α → list α
+  map: ∀α.∀β.(α → β) → stream α → stream β
+  filter: ∀α.(α → bool) → stream α → stream α
+  append: ∀α.stream α → stream α → stream α
+  concatMap: ∀α.∀β.(α → stream β) → stream α → stream β
+}
+
+# Non recursive existential stream type
+let «stream, Stream»: ∃(Stream) =
+  type stream = λα.∃s.(s, s → 'Done | 'Yield (α, s) | 'Skip s)
+  «stream, {
+    of_list = Λα.λxs.«list α, (
+      xs,
+      case {
+        Nil = λ().'Done
+        Cons = λc.'Yield c
+      }
+    )»
+    to_list = Λα.λ«s, (xs, next)».
+      let μto_list: list α → s → list α = λys.λxs.
+        next xs ▷ case {
+          Done = λ().List.rev«α» ys
+          Yield = λ(hd, tl).to_list 'Cons(hd, ys) tl
+          Skip = to_list ys
+        }
+      to_list 'Nil xs
+    map = λfn.λ«s, (xs, next)».«s, (
+        xs,
+        λxs.
+          next xs ▷ case {
+            Done = λ().'Done
+            Yield = λ(hd, tl).'Yield (fn hd, tl)
+            Skip = λs.'Skip s
+          }
+      )»
+    filter = λp.λ«s, (xs, next)».«s, (
+        xs,
+        λxs.
+          next xs ▷ case {
+            Done = λ().'Done
+            Yield = λ(hd, tl).
+              if p hd then 'Yield (hd, tl) else 'Skip tl
+            Skip = λs.'Skip s
+          }
+      )»
+    append = λ«s1, (xs1, next1)».λ«s2, (xs2, next2)».
+      «'S1 s1 | 'S2 s2, (
+        'S1 xs1,
+        case {
+          S1 = λs1.next1 s1 ▷ case {
+            Done = λ().'Skip 'S2(xs2)
+            Yield = λ(hd, tl).'Yield (hd, 'S1 tl)
+            Skip = λs1.'Skip 'S1(s1)
+          }
+          S2 = λs2.next2 s2 ▷ case {
+            Done = λ().'Done
+            Yield = λ(hd, tl).'Yield (hd, 'S2 tl)
+            Skip = λs2.'Skip 'S2(s2)
+          }
+        }
+      )»
+    concatMap = Λ_.Λβ.λxys.λ«xs, (xs, next)».
+      «(xs, opt (stream β)), (
+        (xs, 'None),
+        λ(xs, ys_opt).
+          ys_opt ▷ case {
+            None = λ().next xs ▷ case {
+              Done = λ().'Done
+              Yield = λ(x, xs).'Skip (xs, 'Some (xys x))
+              Skip = λxs.'Skip (xs, 'None)
+            }
+            Some = λ«ys, (ys, next)».
+              next ys ▷ case {
+                Done = λ().'Skip (xs, 'None)
+                Yield = λ(y, ys).'Yield (y, (xs, 'Some «ys, (ys, next)»))
+                Skip = λys.'Skip (xs, 'Some «ys, (ys, next)»)
+              }
+          }
+      )»
+  }»
+
+# Thanks to the non-recursive implementation and a couple of optimizations, with
+# the exception of `concatMap`, the Fωμ toy compiler is able to fuse stream
+# operations, eliminate intermediate stream data structures, and translate the
+# stream expression to a collection of loops.
+
+let xs = List.iota 5
+Stream.append«int» ◇ Stream.of_list«int» xs ◇ Stream.of_list«int» xs
+▷ Stream.map«int»«int» λx.x + 1
+▷ Stream.filter«int» λx.x % 2 =«int» 1
+▷ Stream.map«int»«int» λx.x * 2
+▷ Stream.to_list«int»

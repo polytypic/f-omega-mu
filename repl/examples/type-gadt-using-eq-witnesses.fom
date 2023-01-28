@@ -1,0 +1,62 @@
+# GADT type encoding using type equality witnesses
+
+include "lib/types"
+
+let «eq, Eq» = import "lib/eq"
+
+type μType = λτ.
+  | 'Bool (Bool τ)
+  | 'Int (Int τ)
+  | 'String (String τ)
+  | 'Alt ∃α.∃β.Alt τ α β
+  | 'Pair ∃α.∃β.Pair τ α β
+  | 'Iso ∃α.∃β.Iso τ α β
+and μBool = λτ.eq bool τ
+and μInt = λτ.eq int τ
+and μString = λτ.eq string τ
+and μAlt = λτ.λα.λβ.(eq (alt α β) τ, Type α, Type β)
+and μPair = λτ.λα.λβ.(eq (α, β) τ, Type α, Type β)
+and μIso = λτ.λα.λβ.(eq α τ, iso α β, Type β)
+
+let bool: Type bool = 'Bool Eq.refl«bool»
+let int: Type int = 'Int Eq.refl«int»
+let string: Type string = 'String Eq.refl«string»
+let alt: ∀α.∀β.Type α → Type β → Type (alt α β) = Λα.Λβ.λta.λtb.
+  'Alt «α, «β, (Eq.refl«alt α β», ta, tb)»»
+let pair: ∀α.∀β.Type α → Type β → Type (α, β) = Λα.Λβ.λta.λtb.
+  'Pair «α, «β, (Eq.refl«(α, β)», ta, tb)»»
+let iso: ∀α.∀β.iso α β → Type β → Type α = Λα.Λβ.λaIb.λtb.
+  'Iso «α, «β, (Eq.refl«α», aIb, tb)»»
+
+let String = import "lib/string"
+and Int = import "lib/int"
+and Bool = import "lib/bool"
+
+let μto_string: ∀τ.Type τ → τ → string = Λτ.case {
+  Bool = λeq.λx.
+    Bool.to_string ◁ Eq.from«bool»«τ» eq x
+  Int = λeq.λx.
+    Int.to_string ◁ Eq.from«int»«τ» eq x
+  String = λeq.λx.
+    String.to_literal ◁ Eq.from«string»«τ» eq x
+  Alt = λ«α, «β, (eq, ta, tb)»».
+    let to_string_a = to_string«α» ta
+    let to_string_b = to_string«β» tb
+    λt.Eq.from«alt α β»«τ» eq t ▷ case {
+      In1 = λa."'In1(\(to_string_a a))"
+      In2 = λb."'In2(\(to_string_b b))"
+    }
+  Pair = λ«α, «β, (eq, ta, tb)»».
+    let to_string_a = to_string«α» ta
+    let to_string_b = to_string«β» tb
+    λt.
+      let (a, b) = Eq.from«(α, β)»«τ» eq t
+      "(\(to_string_a a), \(to_string_b b))"
+  Iso = λ«α, «β, (eq, (a2b, _), tb)»».
+    let to_string_b = to_string«β» tb
+    λt.to_string_b ◁ a2b ◁ Eq.from«α»«τ» eq t
+}
+
+to_string«(bool, alt string int)»
+  (pair«bool»«alt string int» bool (alt«string»«int» string int))
+  (false, 'In1 "foo")

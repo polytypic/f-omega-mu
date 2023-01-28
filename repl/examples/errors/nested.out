@@ -1,0 +1,15 @@
+Nested types like
+
+  μnested:* → *.λα.(α, nested (α, α))
+
+are not allowed to keep type checking decidable in file
+
+  "/examples/errors/nested.fom"
+
+on line 3, columns 7-13.
+
+Also in file
+
+  "/examples/errors/nested.fom"
+
+on line 3, columns 30-36: Nested argument passed to μ type constructor.

@@ -1,0 +1,10 @@
+local include "types"
+
+type Array = λarray.{
+  tabulate: ∀α.(int → α) → int → array α
+  length: ∀α.array α → int
+  sub: ∀α.array α → int → α
+  update: ∀α.array α → int → α → ()
+  push: ∀α.array α → α → ()
+  of_list: ∀α.list α → array α
+}

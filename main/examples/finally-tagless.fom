@@ -1,0 +1,111 @@
+# Finally Tagless
+
+# This example is inspired by the paper:
+#
+#   Finally Tagless, Partially Evaluated:
+#     Tagless Staged Interpreters for Simpler Typed Languages
+#   by Jacques Carette, Oleg Kiselyov, and Chung-chieh Shan
+#   https://okmij.org/ftp/tagless-final/index.html
+#
+# This example differs from the paper mainly in that the interpreter is built
+# compositionally.  Also, the whole evaluation semantics is thunked so there is
+# no need to treat conditionals as a special case.
+
+# Types for the two semantics (evaluation ℰ and size 𝒮)
+
+type ℰ = λα.() → α
+type 𝒮 = λ_.int
+
+type Σ = λ𝐹.{eval: 𝐹 ℰ, size: 𝐹 𝒮}
+
+# Integer expressions
+
+type IntExp = λσ.{
+  Int: int → σ int
+  Add: σ int → σ int → σ int
+  Mul: σ int → σ int → σ int
+  Leq: σ int → σ int → σ bool
+}
+
+let IntExp: Σ IntExp = {
+  eval = {
+    Int = λi.λ().i
+    Add = λx.λy.λ().x() + y()
+    Mul = λx.λy.λ().x() * y()
+    Leq = λx.λy.λ().x() ≤ y()
+  }
+  size = {
+    Int = λ_.1
+    Add = λx.λy.x + y + 1
+    Mul = λx.λy.x + y + 1
+    Leq = λx.λy.x + y + 1
+  }
+}
+
+# Boolean expressions
+
+type BoolExp = λσ.{
+  Bool: bool → σ bool
+  If: ∀α.σ bool → σ α → σ α → σ α
+}
+
+let BoolExp: Σ BoolExp = {
+  eval = {
+    Bool = λb.λ().b
+    If = λc.λt.λe.λ().if c() then t() else e()
+  }
+  size = {
+    Bool = λ_.1
+    If = λc.λt.λe.c + t + e + 1
+  }
+}
+
+# Lambda expressions
+
+type LamExp = λσ.{
+  Lam: ∀α.∀β.(σ α → σ β) → σ (α → β)
+  App: ∀α.∀β.σ (α → β) → σ α → σ β
+}
+
+let LamExp: Σ LamExp = {
+  eval = {
+    Lam = λf.λ().λx.f (λ().x) ()
+    App = λf.λx.λ().f() x()
+  }
+  size = {
+    Lam = λf.f 0 + 1
+    App = λf.λx.f + x + 1
+  }
+}
+
+# Fixpoint expression
+
+type FixExp = λσ.{Fix: ∀α.(σ α → σ α) → σ α}
+
+let FixExp: Σ FixExp = {
+  eval = {Fix = λf.λ().μx.f (λ().x) ()}
+  size = {Fix = λf.f 0 + 1}
+}
+
+# Composition of interpreter
+
+type Exp = IntExp ∧ BoolExp ∧ LamExp ∧ FixExp
+
+let Exp = IntExp „ BoolExp „ LamExp „ FixExp
+
+# An example
+
+let pow_exp = Λσ.λS: Exp σ.
+  S.Lam«int»«int → int» λx.S.Fix«int → int» λpow.
+    S.Lam«int»«int» λn.
+      S.If«int» S.Leq(n)(S.Int(0))
+        S.Int(1)
+        S.Mul(x)(S.App«int»«int» pow ◁ S.Add n S.Int(-1))
+
+let pow = pow_exp«ℰ» Exp.eval ()
+let pow_size = pow_exp«𝒮» Exp.size
+
+# The Fωμ toy compiler can constant fold the size calculation and completely
+# eliminate the thunking of the evaluation semantics.
+
+pow 2 pow_size

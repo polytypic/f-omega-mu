@@ -1,0 +1,37 @@
+# Aggregate syntax
+
+# Fωμ provides syntax for aggregate expressions and types:
+
+let an_aggregate: [int, int, int] = [1, 2, 3]
+
+# Lists
+
+type μlist = λα.'Nil | 'Cons (α, list α)
+
+# correspond to a particular form of aggregates and such aggregates can be
+# directly used as lists:
+
+let a_list: list int = [1, 2, 3]
+
+# The list type can also be expressed as a recursive join of aggregates:
+
+type μlist = λα.[] ∨ [α, …list α]
+
+# Aggregates are not limited to homogenous lists.  Aggregate values and types
+# are structural and may be heterogenous.
+
+let a_heterogenous_aggregate: [int, string, (string, int)] = [1, "a", ("b", 2)]
+
+# The spine of an aggregate is always finite and the types of all elements are
+# known.  This information is also manifest in the type of an aggregate.
+
+# Although not yet implemented in the toy Fωμ compiler, optimizing code around
+# finite aggregates should be relatively easy.  For example, it should not be
+# impossibly difficult to eliminate intermediate aggregate construction when
+# calling a function to create an array from an aggregate:
+
+let «array, Array» = import "lib/array"
+
+let an_array = Array.of_list«('A | 'B, int)»[('A, 1), ('B, 2)]
+
+()

@@ -1,0 +1,142 @@
+# Template strings
+
+include "lib/types"
+
+# The syntax of string literals in Fωμ is an extension of JSON strings.  A valid
+# JSON string is also a valid string literal in Fωμ.  By tapping into invalid
+# escape sequences of JSON strings, Fωμ extends the syntax of literals to allow
+# them to be formatted and constructed more conveniently.
+
+# First of all, multiline literals can use Standard ML style `\ws+\` ignored
+# escapes.  Alternatively, a string literal can include a newline followed by
+# ignored whitespace and a `\` to continue the literal.  Both of these allow to
+# break and align a literal over multiple lines.
+
+# For example, the binding
+
+let expression = "if (condition) {\n  action()\n}"
+
+# can also be expressed equivalently using SML style escapes as
+
+let expression =
+  "if (condition) {\n\
+  \  action()\n\
+  \}"
+
+# and using newline escapes as
+
+let expression =
+  "if (condition) {
+  \  action()
+  \}"
+
+# The SML style escapes allow to break a literal over multiple lines without
+# inserting newlines to the resulting string.
+
+# Fωμ also implements a syntax for string interpolation or template strings.
+
+# In the basic form one can use the `\(` escape as an alternative to string
+# concatenation:
+
+let message = λsubstitution: string.
+  "Hello, \(substitution)!"
+
+# Template strings actually elaborate to a fold over the fragments, i.e.
+# literal strings and tagged expressions `\specifier(expression)`, of the
+# template string.
+
+# The semantics of the fold can be provided as a named record.  The default
+# semantics is implemented equivalently to the record
+
+let def = {
+  begin = ""
+  finish = λaccum: string.accum
+  string = λvalue: string.λaccum: string.accum ^ value
+  text = λliteral: string.λaccum: string.accum ^ literal
+}
+
+# and the empty tag `\(` is interpreted as `\string(`.  So the message function
+# could be more explicitly and equivalently written as
+
+let message = λsubstitution: string.
+  def"Hello, \string(substitution)!"
+
+# which is elaborated to
+
+let message = λsubstitution: string.
+  def.begin
+  ▷ def.text "Hello, "
+  ▷ def.string (substitution)
+  ▷ def.text "!"
+  ▷ def.finish
+
+# and all features can, of course, be used in a single template
+
+let expression = λcondition: string.λaction: string.
+  def"if (\(condition)) {
+     \  \(action)()
+     \}"
+
+# Specifiers or tags beyond the standard `\string(` can also be provided as long
+# as they don't collide with the standard JSON escape sequences `\b`, `\f`,
+# `\n`, `\r`, and `\t` as they are interpreted eagerly to remain compatible with
+# JSON strings.  For example, one could create a semantics with specifiers for
+# integers and booleans as
+
+let Int = import "lib/int" and Bool = import "lib/bool"
+
+let fmt = def „ {
+  D = λvalue: int.λaccum: string.accum ^ Int.to_string value
+  B = λvalue: bool.λaccum: string.accum ^ Bool.to_string value
+}
+
+let meaning = fmt"The \B(true) meaning of life is \D(42)."
+
+# A specifier can be passed multiple arguments by using a record or tuple.
+
+let fmt = fmt „ {
+  I = λ{base: int, value: int}.λaccum: string.
+    accum ^ target«int → int → string» "b => v => v.toString(b)" base value
+}
+
+let meaning = fmt"The \B(true) meaning of life is \I{base = 2, value = 42}."
+
+# A semantics can, of course, build more than just strings as output.  For
+# example, to build prepared SQL statements, one could write a semantics that
+# inserts placeholders to the SQL statement and collects the arguments as a
+# separate list:
+
+let «_, sql» =
+  type sql = string
+  type arg = string
+  type args = list arg
+  type rev = args → args → args
+  type state = {sql, args, rev}
+  let rev0 = λys: args.λ_: args.ys
+  let rev1 = λrev: rev.λys: args.case {
+      Nil = λ().ys
+      Cons = λ(arg: arg, args: args).rev 'Cons(arg, ys) args
+    }
+  «{sql, args, rev}, {
+    begin = {sql = "", args = 'Nil, rev = rev0}
+    finish = λ{sql, args, rev}.
+      {sql, args = rev 'Nil args}
+    string = λarg.λ{sql, args, rev}.
+      {sql = sql ^ "?", args = 'Cons (arg, args), rev = rev1 rev}
+    text = λtext.λ{sql, args, rev}.
+      {sql = sql ^ text, args, rev = rev1 rev}
+  }»: ∃state.{
+    begin: state
+    finish: state → {sql, args}
+    string: string → state → state
+    text: string → state → state
+  }
+
+let feature = "template strings"
+let status = "experimental"
+
+# Thanks to the non-recursive implementation, `sql` templates can be completely
+# constant folded by the Fωμ toy compiler:
+
+sql"INSERT INTO language \
+   \VALUES (\(feature), \(status))"

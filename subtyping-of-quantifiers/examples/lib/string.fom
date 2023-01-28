@@ -1,0 +1,11 @@
+include "types"
+
+let List = import "list"
+
+let equals = (=«string»)
+
+let to_literal = target«string → string» "JSON.stringify"
+
+let join: list string → string = List.fold«string»«string» (^) ""
+
+{equals, to_literal, join}

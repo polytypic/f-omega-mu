@@ -1,0 +1,15 @@
+let Target = import "target"
+
+let equals = (=«int»)
+
+let compare = λl: int.λr: int.
+  if equals l r then
+    'Eq
+  else if l < r then
+    'Lt
+  else
+    'Gt
+
+let to_string = Target.to_string«int»
+
+{compare, equals, to_string}

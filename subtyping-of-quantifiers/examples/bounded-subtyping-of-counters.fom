@@ -1,0 +1,97 @@
+# Bounded subtyping of counters with identity coercions
+
+# Similarly to the example in the book Types and Programming Languages, section
+# 32.4, an object has state `τ` and methods operating on said state `M τ`:
+
+type Object = λM.∃τ.(τ, M τ)
+
+# The methods form the interface to the object.  For example, counter objects
+# can be incremented and the current value can be fetched as an integer:
+
+type CounterM = λτ.{
+  inc: τ → τ
+  get: τ → int
+}
+
+# A concrete counter class might, for example, simply store state as integers:
+
+let CounterClass: CounterM int = {
+  inc = λx.x + 1
+  get = λx.x
+}
+
+# A counter object is sealed to hide the state type:
+
+let aCounter: Object CounterM = «int, (0, CounterClass)»
+
+# We can similarly specify a subtype of counters that can also be reset and that
+# keeps track of how many times the counter has been reset:
+
+type ResetCounterM = λτ.{
+  inc: τ → τ
+  get: τ → int
+  reset: τ → τ
+  reset_count: τ → int
+}
+
+let ResetCounterClass: ResetCounterM {count: int, resets: int} = {
+  get = λ{count}.count
+  inc = λ{count, resets}.{count = count + 1, resets}
+  reset = λ{resets}.{count = 0, resets = resets + 1}
+  reset_count = λ{resets}.resets
+}
+
+let aResetCounter: Object ResetCounterM =
+  «{count: int, resets: int}, ({count = 0, resets = 0}, ResetCounterClass)»
+
+# To encode bounded quantification of counters we can pass explicit coercions,
+# `B`, to access the methods.  Here are helpers to invoke the methods `inc`,
+# `get`, `reset`, and `reset_count`:
+
+type CounterB = λM.∀τ.M τ → CounterM τ
+
+let inc: ∀M.CounterB M → Object M → Object M = λB.λ«τ, (x, M)».
+  let C = B«τ» M
+  «τ, (C.inc x, M)»
+
+let get: ∀M.CounterB M → Object M → int = λB.λ«τ, (x, M)».
+  let C = B«τ» M
+  C.get x
+
+type ResetCounterB = λM.∀τ.M τ → ResetCounterM τ
+
+let reset: ∀M.ResetCounterB M → Object M → Object M = λB.λ«τ, (x, M)».
+  let C = B«τ» M
+  «τ, (C.reset x, M)»
+
+let reset_count: ∀M.ResetCounterB M → Object M → int = λB.λ«τ, (x, M)».
+  let C = B«τ» M
+  C.reset_count x
+
+# Thanks to simple width subtyping, the coercions can be just identity
+# functions:
+
+let      CounterB = Λτ.λM:      CounterM τ.M
+let ResetCounterB = Λτ.λM: ResetCounterM τ.M
+
+# And to invoke methods we pass both the interface type and the (bound)
+# coercion:
+
+let four =
+  aCounter
+  ▷ inc«CounterM» CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ inc«CounterM» CounterB
+  ▷ get«CounterM» CounterB
+
+let two =
+  aResetCounter
+  ▷ inc«ResetCounterM» ResetCounterB
+  ▷ inc«ResetCounterM» ResetCounterB
+  ▷ reset«ResetCounterM» ResetCounterB
+  ▷ inc«ResetCounterM» ResetCounterB
+  ▷ reset«ResetCounterM» ResetCounterB
+  ▷ reset_count«ResetCounterM» ResetCounterB
+
+{four, two}

@@ -1,0 +1,33 @@
+include "types"
+
+let {of_core} = import "dispenser"
+
+let List = import "list"
+
+type queue = λν.{front: list ν, back: list ν}
+
+let empty = {front = [], back = []}
+
+let is_empty = Λν.λq: queue ν.
+  List.is_empty«ν» q.front
+
+let insert = Λν.λv: ν.λq: queue ν.
+  if List.is_empty«ν» q.front then
+    {front = [v], back = []}
+  else
+    {front = q.front, back = 'Cons (v, q.back)}
+
+let remove = Λν.λq: queue ν.
+  q.front ▷ case {
+    Nil = λ().'None
+    Cons = λ(v: ν, front: list ν).
+      'Some (
+        v,
+        if List.is_empty«ν» front then
+          {front = List.rev«ν» q.back, back = []}
+        else
+          {front, back = q.back}
+      )
+  }
+
+«queue, of_core «queue» {empty, insert, remove, is_empty}»

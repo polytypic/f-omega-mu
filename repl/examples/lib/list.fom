@@ -1,0 +1,89 @@
+include "types"
+
+let of = Λα.λx: α.'Cons (x, 'Nil)
+
+let μhas: ∀α.(α → bool) → list α → bool = Λα.λp.case {
+  Nil = λ().false
+  Cons = λ(x, xs).p x ∨ has«α» p xs
+}
+
+let μfold: ∀α.∀ρ.(ρ → α → ρ) → ρ → list α → ρ =
+  Λα.Λρ.λrxr.λr.case {
+    Nil = λ().r
+    Cons = λ(x, xs).fold«α»«ρ» rxr (rxr r x) xs
+  }
+
+let empty = []
+
+let prepend = Λα.λx: α.λxs: list α.'Cons (x, xs)
+
+let rev_to = Λα.fold«α»«list α» λxs.λx.prepend«α» x xs
+
+let rev = Λα.rev_to«α» 'Nil
+
+let map = Λα.Λβ.λxy: α → β.λxs: list α.
+  xs
+  ▷ fold«α»«list β» (λys.λx.'Cons (xy x, ys)) 'Nil
+  ▷ rev«β»
+
+let chain = Λα.Λβ.λxys:α → list β.λxs: list α.
+  xs
+  ▷ fold«α»«list β» (λys.λx.rev_to«β» ys ◇ xys x) 'Nil
+  ▷ rev«β»
+
+let filter = Λα.λp: α → bool.λxs: list α.
+  xs
+  ▷ fold«α»«list α»
+      λxs.λx.if p x then 'Cons (x, xs) else xs
+      'Nil
+  ▷ rev«α»
+
+let reject = Λα.λp: α → bool.filter«α» λx.¬p x
+
+let concat = Λα.λxs: list α.λys: list α.rev«α» xs ▷ rev_to«α» ys
+
+let infinite_of = Λα.λx: α.μxs: list_of_inf α.'Cons (x, xs)
+
+let head = Λα.case {
+  Nil = λ().'None
+  Cons = λ(x: α, _: list α).'Some x
+}
+
+let take_n = Λα.λn: int.λxs: list α.
+  let μtake_n: list α → int → list α → list α =
+    λys.λn.λxs.
+      if n ≤ 0 then
+        ys
+      else
+        xs ▷ case {
+          Nil = λ().ys
+          Cons = λ(x, xs).take_n 'Cons(x, ys) (n - 1) xs
+        }
+  take_n 'Nil n xs ▷ rev«α»
+
+let μdrop_n: ∀α.int → list α → list α = Λα.λn.λxs.
+  if n ≤ 0 then
+    xs
+  else
+    xs ▷ case {
+      Nil = λ().'Nil
+      Cons = λ(_, xs).drop_n«α» (n-1) xs
+    }
+
+let nth = Λα.λn: int.λxs: list α.drop_n«α» n xs ▷ head«α»
+
+let iota =
+  let μiota: list int → int → list int = λxs.λn.
+    if 0 < n then let n = n - 1 in iota 'Cons(n, xs) n else xs
+  iota 'Nil
+
+let is_empty: ∀α.list α → bool =
+  case {
+    Nil = λ_.true
+    Cons = λ_.false
+  }
+
+let iter = Λα.λxu: α → ().fold«α»«()» (λ().xu) ()
+
+{of, map, chain, has, fold, rev_to, rev, filter, reject, concat, infinite_of,
+ head, take_n, drop_n, nth, iota, is_empty, empty, prepend, iter}

@@ -1,0 +1,10 @@
+let {log} = import "../examples/lib/console"
+
+let f = λb: bool.
+  if (log "1"; b) ∨ (log "2"; b) then
+    (log "3"; 1) + (log "4"; 2)
+  else
+    -(log "5"; 3)
+
+λb: bool.
+  f (log "6"; b)

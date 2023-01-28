@@ -1,0 +1,5 @@
+include "types" in {
+  equals: bool → bool → bool
+  compare: bool → bool → ord
+  to_string: bool → string
+}

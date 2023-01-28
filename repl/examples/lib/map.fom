@@ -1,0 +1,58 @@
+include "algebras"
+include "types"
+
+let List = import "list"
+
+Λκ.λkey.
+  type kv = λν.{key: κ, val: ν}
+
+  type μtree = λν.'Lf | 'Br (br ν)
+  and μbr = kv ∧ lg
+  and μlg = λν.{lt: tree ν, gt: tree ν}
+
+  type map = λν.Compare κ ∧ {root: tree ν}
+
+  let empty = key „ {root = 'Lf}
+
+  let get = Λν.λ{compare: κ → κ → ord, root: tree ν}.λkey: κ.
+    let μget: tree ν → opt ν = case {
+      Lf = λ().'None
+      Br = λbr.
+        compare key br.key ▷ case {
+          Lt = λ().get br.lt
+          Eq = λ().'Some br.val
+          Gt = λ().get br.gt
+        }
+    }
+    get root
+
+  let put = Λν.λkey: κ.λval: ν.λ{compare: cmp κ, root: tree ν}.
+    let μput: tree ν → tree ν = case {
+        Lf = λ().'Br {key, val, lt = 'Lf, gt = 'Lf}
+        Br = λbr.
+          compare key br.key ▷ case {
+            Lt = λ().'Br ((br: kv ν) „ {lt = put br.lt, gt = br.gt})
+            Eq = λ().'Br ({key, val} „ (br: lg ν))
+            Gt = λ().'Br ((br: kv ν) „ {lt = br.lt, gt = put br.gt})
+          }
+      }
+    {compare, root = put root}
+
+  let fold_back = Λρ.Λν.λvrr: (κ, ν) → ρ → ρ.λs: ρ.λ{root: tree ν}.
+    let μgo: tree ν → ρ → ρ =
+      λnode.λs.
+        node ▷ case {
+          Lf = λ().s
+          Br = λbr.
+            s
+            ▷ go br.gt
+            ▷ vrr (br.key, br.val)
+            ▷ go br.lt
+        }
+    go root s
+
+  let count = Λν.fold_back«int»«ν» (λ_.λn.n + 1) 0
+
+  let entries = Λν.fold_back«list (κ, ν)»«ν» List.prepend«(κ, ν)» 'Nil
+
+  «map, {empty, get, put, fold_back, count, entries}»

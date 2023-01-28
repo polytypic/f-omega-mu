@@ -1,0 +1,14 @@
+# Iterative `fib`onacci function
+
+# This is just a basic linear time iterative fibonacci function.  Ideally this
+# should be compiled to a simple loop for the general case.
+
+let fib =
+  let μloop: int → int → int → int =
+    λi.λj.λn.
+      if n ≤ 0
+      then i
+      else loop j ◇ i + j ◇ n - 1
+  loop 0 1
+
+fib 10

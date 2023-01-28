@@ -1,0 +1,87 @@
+select {
+  text-align-last: center;
+}
+
+.markdown-body {
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 980px;
+  margin: 2%;
+  padding: 45px;
+  border: 1px #30363d solid;
+  border-radius: 3px;
+  color: #c9d1d9;
+  background: #0d1117;
+}
+
+.CodeMirror.cm-s-dracula {
+  font: 13.6px Consolas, 'Liberation Mono', SF Mono, Menlo, Courier, monospace;
+  line-height: 19.72px;
+  height: auto;
+  background: #20222e !important;
+  border: 2px #282a36 solid;
+  border-radius: 5px;
+  z-index: 1;
+  box-shadow: 3px 3px 10px #0d1117;
+}
+
+#depsDl dt {
+  margin-bottom: 0.5em;
+}
+
+#editInput:not(:checked) ~ #replaceSymbolsSpan,
+#depsSelect:not(:checked) ~ #depsDl,
+#jsSelect:not(:checked) ~ #terserSpan,
+#jsSelect:not(:checked) ~ #prettifySpan,
+#jsSelect:not(:checked) ~ #jsDiv {
+  display: none;
+}
+
+#jsDiv .CodeMirror.cm-s-dracula {
+  margin-top: 1em;
+}
+
+#fomDiv .CodeMirror.cm-s-dracula:hover,
+#resultDiv .CodeMirror.cm-s-dracula:hover,
+#typDiv .CodeMirror.cm-s-dracula:hover,
+#jsDiv .CodeMirror.cm-s-dracula:hover,
+#depsDl .CodeMirror.cm-s-dracula:hover {
+  border: 2px #40464d solid;
+}
+
+#resultDiv .CodeMirror.cm-s-dracula,
+#jsDiv .CodeMirror.cm-s-dracula,
+#depsDl .CodeMirror.cm-s-dracula {
+  background: #282a36 !important;
+  margin-bottom: 1em;
+}
+
+#typDiv .CodeMirror {
+  background: #30333e !important;
+  border: 2px #30333e solid;
+  position: fixed;
+  top: 1em;
+  right: 1em;
+  z-index: 0;
+  transition-property: z-index;
+  transition-delay: 5s;
+}
+
+#typDiv .CodeMirror:hover,
+#typDiv.show .CodeMirror {
+  z-index: 10;
+  transition: none;
+}
+
+#typDiv.no-keywords .CodeMirror .cm-keyword {
+  color: #50fa7b;
+}
+
+.om {
+  font-size: 50%;
+  display: inline-flex;
+  transform: translate(0, 8%);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column-reverse;
+}

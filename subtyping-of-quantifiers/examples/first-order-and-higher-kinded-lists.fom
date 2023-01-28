@@ -1,0 +1,21 @@
+# Both first-order and higher-kinded recursive types are allowed
+
+# This example shows that a polymorphic list type can be expressed both as the
+# fixed point of a first-order `list_1` type and as the fixed point of a
+# higher-kinded `list_h` type.  Furthermore, the types are considered
+# equivalent.
+
+# List as the fixed point of a higher-kinded `list_h` type
+type list_h = μlist_h.λα.'Nil | 'Cons (α, list_h α)
+
+# List as the fixed point of a first-order `list_1` type
+type list_1 = λα.μlist_1.'Nil | 'Cons (α, list_1)
+
+# Coercion from one type of constructor to another
+type coercion = λfrom.λto.∀α.from α → to α
+
+# Coercions between the representations are identity functions
+{
+  of_list_h: coercion list_h list_1 = λx.x
+  of_list_1: coercion list_1 list_h = λx.x
+}

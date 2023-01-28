@@ -1,0 +1,15 @@
+let Target = import "target"
+
+let equals = (=«bool»)
+
+let compare = λl: bool.λr: bool.
+  if equals l r then
+    'Eq
+  else if r then
+    'Lt
+  else
+    'Gt
+
+let to_string = Target.to_string«bool»
+
+{compare, equals, to_string}

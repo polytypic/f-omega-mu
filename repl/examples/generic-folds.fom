@@ -1,0 +1,105 @@
+# Generic `fold`s
+
+type Functor = λφ.{map: ∀α.∀β.(α → β) → φ α → φ β}
+
+let μfold: ∀φ.∀α.Functor φ → (φ α → α) → μ(φ) → α =
+  Λφ.Λα.λF.
+    λalgebra.
+      μfold.λv.algebra ◁ F.map«μ(φ)»«α» fold v
+
+# List type
+type ListF = λα.λτ.'Nil | 'Cons (α, τ)
+type List = λα.μ(ListF α)
+let ListF: ∀τ.Functor (ListF τ) = {
+  map = λf.case {
+      Nil = λ().'Nil
+      Cons = λ(x, xs).'Cons (x, f xs)
+    }
+}
+
+let List =
+  let one = Λα.λx: α.'Cons (x, 'Nil)
+  let μhas: ∀α.(α → bool) → List α → bool = Λα.λp.case {
+      Nil = λ().false
+      Cons = λ(x, xs).p x ∨ has«α» p xs
+    }
+  let fold = Λρ.Λα.λrxr: ρ → α → ρ.λr: ρ.
+    fold«ListF α»«ρ» ListF«α» ◁ case {
+        Nil = λ().r
+        Cons = λ(x: α, r: ρ).rxr r x
+      }
+  let filter = Λα.λp: α → bool.λxs: List α.
+    xs
+    ▷ fold«List α»«α»
+        λxs.λx.if p x then 'Cons (x, xs) else xs
+        'Nil
+  let concat = Λα.λxs: List α.λys: List α.
+    fold«List α»«α» (λxs.λx.'Cons (x, xs)) ys xs
+  {one, has, fold, filter, concat}
+
+# Set ADT
+type Set = λelem.λset.{
+  empty: set
+  singleton: elem → set
+  remove: elem → set → set
+  union: set → set → set
+  to_list: set → List elem
+}
+
+# Naïve Set implementation
+let Set = {
+  make = Λelem.λeq: elem → elem → bool.
+    type set = List elem
+    let empty = 'Nil
+    let singleton = List.one«elem»
+    let remove = λx: elem.List.filter«elem» λy.¬eq x y
+    let union = λl: set.λr: set.
+      List.concat«elem» l
+      ◁ List.filter«elem» (λi.¬List.has«elem» (eq i) l) r
+    let to_list = λs: set.s
+    «set, {empty, singleton, remove, union, to_list}»: ∃(Set elem)
+}
+
+# Term type
+type TermBase = λρ.λσ.λτ.
+  | 'Lit {val: int}
+  | 'Var {id: ρ}
+  | 'Abs {var: ρ, exp: σ}
+  | 'App {fn: τ, arg: σ}
+type TermF = λτ.TermBase string τ τ
+type Term = μ(TermF)
+type EvalCtx = TermBase string Term
+type VarTerm = λτ.TermBase τ Term Term
+
+let TermF: Functor TermF = {
+  map = λab.case {
+    Lit = λ{val}.'Lit {val}
+    Var = λ{id}.'Var {id}
+    Abs = λ{var, exp}.'Abs {var, exp = ab exp}
+    App = λ{fn, arg}.'App {fn = ab fn, arg = ab arg}
+  }
+}
+
+# Set of strings
+let «ids, Ids» = Set.make«string» (=«string»)
+
+# Compute free variables using `fold`
+let fv =
+  fold«TermF»«ids» TermF ◁ case {
+    Lit = λ{}.Ids.empty
+    Var = λ{id}.Ids.singleton id
+    Abs = λ{var, exp}.Ids.remove var exp
+    App = λ{fn, arg}.Ids.union fn arg
+  }
+
+# Using `fv`
+'App {
+  fn =
+    'Abs {
+      var = "x"
+      exp = 'App {fn = 'Var {id = "F"}, arg = 'Var {id = "x"}}
+    }
+  arg = 'Var {id = "y"}
+}
+▷ fv
+▷ Ids.to_list
